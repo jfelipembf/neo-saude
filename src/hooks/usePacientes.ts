@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import { addPaciente, listPacientes, updatePaciente } from '@/services/pacientesService'
-import type { EditarPaciente, NovoPaciente } from '@/services/pacientesService'
+import type { EditPatient, NewPatient } from '@/services/pacientesService'
 
 export function usePacientes() {
   return useQuery({ queryKey: queryKeys.pacientes.all, queryFn: listPacientes })
@@ -11,7 +11,7 @@ export function usePacientes() {
 export function useCriarPaciente() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (dados: NovoPaciente) => addPaciente(dados),
+    mutationFn: (dados: NewPatient) => addPaciente(dados),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.pacientes.all }),
   })
 }
@@ -20,7 +20,7 @@ export function useCriarPaciente() {
 export function useAtualizarPaciente() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, dados }: { id: string; dados: EditarPaciente }) => updatePaciente(id, dados),
+    mutationFn: ({ id, dados }: { id: string; dados: EditPatient }) => updatePaciente(id, dados),
     // A key de detalhe é prefixada por ['pacientes'] — uma invalidação cobre as duas.
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.pacientes.all }),
   })

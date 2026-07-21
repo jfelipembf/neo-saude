@@ -1,0 +1,83 @@
+@use '../../../../styles/mixins' as *;
+
+// Chip do modo edição: clicar remove (× ao lado do texto).
+.chipRemovivel {
+  @include focus-ring;
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-1;
+  padding: 6px 14px;
+  border-radius: $radius-pill;
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: $fs-sm;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+
+  svg { width: 12px; height: 12px; }
+
+  &:hover {
+    color: var(--danger-fg);
+    border-color: var(--danger-fg);
+  }
+}
+
+.novaChip {
+  display: flex;
+  gap: $sp-2;
+  max-width: 380px;
+}
+
+// Linha dinâmica da formação/experiência (3 campos + remover).
+.cvLinha {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 110px 40px;
+  gap: $sp-2;
+  align-items: center;
+
+  @include phone {
+    grid-template-columns: minmax(0, 1fr) 40px;
+  }
+}
+
+// Linha de curso/certificação (1 campo + remover).
+.cvLinhaSimples {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  gap: $sp-2;
+  align-items: center;
+}
+
+.cvAdicionar {
+  align-self: flex-start;
+}
+
+.cvLista {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.cvItem {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: $sp-2 0;
+  border-bottom: 1px solid var(--glass-border);
+
+  &:last-child { border-bottom: none; }
+}
+
+.cvItemTitulo {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cvItemMeta {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}

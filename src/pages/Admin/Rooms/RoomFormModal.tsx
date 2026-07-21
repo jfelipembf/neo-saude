@@ -6,12 +6,12 @@ import { Modal } from '@/components/Modal/Modal'
 import { PhotoInput } from '@/components/PhotoInput/PhotoInput'
 import { useToast } from '@/components/Toast/useToast'
 import { useCriarSala, useAtualizarSala } from '@/hooks/useSalas'
-import type { Sala } from '@/types/domain'
+import type { Room } from '@/types/domain'
 import styles from './RoomFormModal.module.scss'
 
 interface RoomFormModalProps {
   /** Sala em edição — undefined significa cadastro novo. */
-  sala?: Sala
+  sala?: Room
   onClose: () => void
 }
 

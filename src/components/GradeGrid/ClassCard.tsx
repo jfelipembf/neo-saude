@@ -1,11 +1,11 @@
 import type { CSSProperties } from 'react'
 import { useTheme } from '@/context/ThemeProvider'
 import { IconChevronDireita } from '@/components/icons'
-import type { GradeSessao } from '@/types/domain'
+import type { ScheduleSlot } from '@/types/domain'
 import styles from './ClassCard.module.scss'
 
 interface ClassCardProps {
-  sessao: GradeSessao
+  sessao: ScheduleSlot
   onClick?: () => void
   /** Mostra uma setinha no hover indicando que o card abre uma ação. */
   showArrow?: boolean

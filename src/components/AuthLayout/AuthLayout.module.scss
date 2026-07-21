@@ -1,0 +1,69 @@
+@use '../../styles/mixins' as *;
+
+// Autenticação dividida: imagem à esquerda + painel de conteúdo na direita.
+.page {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.hero {
+  flex: 1;
+  // Só a imagem, sem véu nem conteúdo por cima.
+  background: url('../../assets/images/login.bg.png') center / cover no-repeat;
+
+  @include mobile { display: none; }
+}
+
+.painel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(460px, 100%);
+  padding: $sp-8 $sp-6;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--glass-border);
+
+  @include mobile {
+    width: 100%;
+    border-left: none;
+    background: var(--bg-base);
+  }
+}
+
+.conteudo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  width: 100%;
+  max-width: 340px;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: $sp-2;
+  margin-bottom: $sp-2;
+}
+
+// Logo real no verde da marca (tokens cuidam do claro/escuro).
+.logo {
+  color: var(--primary);
+
+  svg {
+    height: 30px;
+    width: auto;
+  }
+}
+
+.title {
+  font-size: $fs-xl;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}

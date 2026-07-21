@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Modal } from '@/components/Modal/Modal'
 import { Button } from '@/components/Button/Button'
 import { IconAlerta, IconInfo } from '@/components/icons'
@@ -13,6 +14,8 @@ interface ConfirmDialogProps {
   variant?: 'default' | 'danger'
   confirmLabel?: string
   cancelLabel?: string
+  /** Conteúdo extra abaixo da mensagem (ex.: um Toggle de opção). */
+  children?: ReactNode
 }
 
 /** Diálogo de confirmação reutilizável (desenho do ConfirmDialog do projeto neo). */
@@ -22,6 +25,7 @@ export function ConfirmDialog({
   variant = 'default',
   confirmLabel = 'Confirmar',
   cancelLabel = 'Cancelar',
+  children,
 }: ConfirmDialogProps) {
   const isDanger = variant === 'danger'
 
@@ -50,6 +54,7 @@ export function ConfirmDialog({
         </div>
         <h3 className={styles.title}>{title}</h3>
         {message && <p className={styles.message}>{message}</p>}
+        {children && <div className={styles.extra}>{children}</div>}
       </div>
     </Modal>
   )

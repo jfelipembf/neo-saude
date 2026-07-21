@@ -7,6 +7,22 @@
   width: 100%;
 }
 
+// Variante GRANDE: células mais altas e respiro maior (agenda de perfil).
+.calendar--lg {
+  gap: $sp-3;
+
+  .grid { gap: 4px; }
+
+  .weekdays {
+    font-size: $fs-sm;
+  }
+
+  .day {
+    height: 48px;
+    font-size: $fs-base;
+  }
+}
+
 .header {
   display: flex;
   align-items: center;

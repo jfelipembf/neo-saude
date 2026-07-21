@@ -1,6 +1,6 @@
-import type { Tarefa } from '@/types/domain'
+import type { Task } from '@/types/domain'
 
-export const MOCK_TAREFAS: Tarefa[] = [
+export const MOCK_TAREFAS: Task[] = [
   { id: 't1', titulo: 'Confirmar consultas de amanhã',        prioridade: 'alta',  prazo: '21/07', status: 'a_fazer' },
   { id: 't2', titulo: 'Ligar para Maria Oliveira (retorno)',  prioridade: 'media', prazo: '22/07', status: 'a_fazer' },
   { id: 't3', titulo: 'Repor material de curativo',           prioridade: 'alta',  prazo: '23/07', status: 'a_fazer' },

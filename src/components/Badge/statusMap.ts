@@ -30,6 +30,16 @@ export const STATUS_MAP: Record<string, StatusEntry> = {
   vencido:     { variant: 'danger',  label: 'Vencido' },
   cancelado:   { variant: 'gray',    label: 'Cancelado' },
 
+  // ── Orçamentos ──
+  aguardando: { variant: 'warning', label: 'Aguardando' },
+  aprovado:   { variant: 'success', label: 'Aprovado' },
+
+  // ── Prescrições e documentos do paciente ──
+  receituario: { variant: 'info',    label: 'Receituário' },
+  prontuario:  { variant: 'accent',  label: 'Prontuário' },
+  atestado:    { variant: 'success', label: 'Atestado' },
+  documento:   { variant: 'gray',    label: 'Documento' },
+
   // ── Tarefas ──
   a_fazer:      { variant: 'info',    label: 'A fazer' },
   em_andamento: { variant: 'warning', label: 'Em andamento' },

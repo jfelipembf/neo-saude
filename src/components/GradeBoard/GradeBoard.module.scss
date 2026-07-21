@@ -22,3 +22,24 @@
   gap: 10px;
   flex-wrap: wrap;
 }
+
+// Busca + navegador de semana sempre lado a lado (nunca empilham).
+.buscaSemana {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  @include phone {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+}
+
+.busca {
+  width: 200px;
+
+  @include phone {
+    width: 100%;
+  }
+}

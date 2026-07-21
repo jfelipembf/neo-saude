@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { Input } from '@/components/Input/Input'
 import { Modal } from '@/components/Modal/Modal'
 import { Pagination } from '@/components/Pagination/Pagination'
-import { Select } from '@/components/Select/Select'
+import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { useToast } from '@/components/Toast/useToast'
@@ -14,16 +14,10 @@ import { IconDocumento, IconUpload, IconOlho, IconX, IconEditar, IconLixeira } f
 import {
   useDocumentosDoPaciente, useEnviarDocumento, useAtualizarDocumento, useExcluirDocumento,
 } from '@/hooks/useDocumentos'
-import type { DocumentoPaciente } from '@/types/domain'
+import type { PatientDocument } from '@/types/domain'
 import styles from './DocumentsUpload.module.scss'
 
 const EXTENSOES_IMAGEM = ['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP']
-
-const OPCOES_POR_PAGINA = [
-  { value: '5',  label: '5 por página' },
-  { value: '10', label: '10 por página' },
-  { value: '20', label: '20 por página' },
-]
 
 /** 1234567 → "1,2 MB" */
 function formatarTamanho(bytes: number) {
@@ -58,12 +52,12 @@ export function DocumentsUpload({ pacienteId }: DocumentsUploadProps) {
   const [arrastando, setArrastando] = useState(false)
 
   // Ações da lista: ver, editar e excluir.
-  const [vendo, setVendo] = useState<DocumentoPaciente | null>(null)
-  const [editando, setEditando] = useState<DocumentoPaciente | null>(null)
+  const [vendo, setVendo] = useState<PatientDocument | null>(null)
+  const [editando, setEditando] = useState<PatientDocument | null>(null)
   const [nomeEdicao, setNomeEdicao] = useState('')
   const [descricaoEdicao, setDescricaoEdicao] = useState('')
   const [erroEdicao, setErroEdicao] = useState('')
-  const [excluindo, setExcluindo] = useState<DocumentoPaciente | null>(null)
+  const [excluindo, setExcluindo] = useState<PatientDocument | null>(null)
   const [pagina, setPagina] = useState(1)
   const [porPagina, setPorPagina] = useState(5)
 
@@ -119,7 +113,7 @@ export function DocumentsUpload({ pacienteId }: DocumentsUploadProps) {
     )
   }
 
-  function abrirEdicao(doc: DocumentoPaciente) {
+  function abrirEdicao(doc: PatientDocument) {
     setEditando(doc)
     setNomeEdicao(doc.nome)
     setDescricaoEdicao(doc.descricao ?? '')
@@ -228,13 +222,10 @@ export function DocumentsUpload({ pacienteId }: DocumentsUploadProps) {
       ) : (
         <div className={styles.listaCard}>
           <div className={styles.listaToolbar}>
-            <Select
-              size="sm"
-              options={OPCOES_POR_PAGINA}
-              value={String(porPagina)}
-              onChange={e => { setPorPagina(Number(e.target.value)); setPagina(1) }}
-              aria-label="Documentos por página"
-              className={styles.porPagina}
+            <PerPageSelect
+              porPagina={porPagina}
+              onChange={n => { setPorPagina(n); setPagina(1) }}
+              ariaLabel="Documentos por página"
             />
           </div>
 

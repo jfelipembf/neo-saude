@@ -23,26 +23,20 @@
   flex-shrink: 0;
 }
 
-.brandMark {
+// Logotipo real (IconLogo) no verde da marca — tokens cuidam do claro/escuro.
+.brandLogo {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: $radius-md;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  color: #fff;
-  font-weight: 700;
-  font-size: $fs-lg;
-}
+  color: var(--primary);
 
-.brandName {
-  font-size: $fs-md;
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
+  svg {
+    height: 22px;
+    width: auto;
+  }
 
-  @include phone { display: none; }
+  @include phone {
+    svg { height: 18px; }
+  }
 }
 
 // Sem overflow aqui: o submenu (dropdown absoluto) seria cortado pelo scroll.

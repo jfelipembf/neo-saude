@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Input } from '@/components/Input/Input'
 import { IconBuscar, IconMais } from '@/components/icons'
+import { useDebounce } from '@/hooks/useDebounce'
+import { combinaBusca } from '@/utils/search'
 import styles from './SideList.module.scss'
 
 export interface SideListItem {
@@ -36,9 +38,9 @@ export function SideList({
 }: SideListProps) {
   const [busca, setBusca] = useState('')
 
-  const termo = busca.trim().toLowerCase()
-  const filtrados = termo
-    ? items.filter(i => i.label.toLowerCase().includes(termo))
+  const termo = useDebounce(busca)
+  const filtrados = termo.trim()
+    ? items.filter(i => combinaBusca(i.label, termo))
     : items
 
   return (

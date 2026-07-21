@@ -13,15 +13,19 @@ import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { Pagination } from '@/components/Pagination/Pagination'
 import { useToast } from '@/components/Toast/useToast'
 import { usePacientes, useCriarPaciente } from '@/hooks/usePacientes'
-import { IconPacientes, IconOlho, IconMais, IconBuscar } from '@/components/icons'
-import { buildRoute, OPCOES_POR_PAGINA, OPCOES_SEXO } from '@/constants'
-import type { Paciente, SexoPaciente } from '@/types/domain'
+import { IconPacientes, IconOlho, IconMais, IconBuscar, IconTelefone, IconMensagem } from '@/components/icons'
+import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
+import { buildRoute, OPCOES_SEXO } from '@/constants'
+import { useDebounce } from '@/hooks/useDebounce'
+import { initials, somenteDigitos } from '@/utils/text'
+import { combinaBusca } from '@/utils/search'
+import type { Patient, Gender } from '@/types/domain'
 import styles from './PatientsPage.module.scss'
 
 interface FormPaciente {
   nome: string
   sobrenome: string
-  sexo: SexoPaciente | ''
+  sexo: Gender | ''
   nascimentoIso: string   // aaaa-mm-dd (input date)
   email: string
   telefone: string
@@ -39,14 +43,6 @@ const FORM_VAZIO: FormPaciente = {
   cep: '', estado: '', cidade: '', bairro: '', numero: '',
 }
 
-/** Iniciais para o círculo de foto (primeiro + último nome). */
-function initials(nome: string) {
-  const partes = nome.split(' ').filter(Boolean)
-  const primeira = partes[0]?.[0] ?? ''
-  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : ''
-  return (primeira + ultima).toUpperCase()
-}
-
 export function PatientsPage() {
   const navigate = useNavigate()
   const toast = useToast()
@@ -62,9 +58,14 @@ export function PatientsPage() {
   const [porPagina, setPorPagina] = useState(10)
   const [busca, setBusca] = useState('')
 
-  const termo = busca.trim().toLowerCase()
+  // Filtra pelo termo "estabilizado": não refiltra a cada tecla.
+  const termo = useDebounce(busca)
+  const digitosBusca = somenteDigitos(termo)
   const filtrados = (pacientes ?? []).filter(p =>
-    !termo || p.nome.toLowerCase().includes(termo) || p.telefone.includes(termo),
+    // Nome ignora acento e partículas ("maria souza" acha "Maria de Souza");
+    // telefone compara só os dígitos, com ou sem máscara.
+    combinaBusca(p.nome, termo)
+    || (digitosBusca.length > 0 && somenteDigitos(p.telefone).includes(digitosBusca)),
   )
 
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / porPagina))
@@ -114,7 +115,7 @@ export function PatientsPage() {
     )
   }
 
-  const columns: TableColumn<Paciente>[] = [
+  const columns: TableColumn<Patient>[] = [
     {
       key: 'nome',
       label: 'Nome',
@@ -131,19 +132,46 @@ export function PatientsPage() {
     { key: 'status',       label: 'Status', render: p => <Badge status={p.status} /> },
     {
       key: 'acoes',
-      label: '',
+      label: 'Ação',
       render: p => (
-        <Button
-          variant="outline"
-          size="sm"
-          iconLeft={<IconOlho />}
-          onClick={e => {
-            e.stopPropagation()   // a linha inteira também navega — evita disparo duplo
-            navigate(buildRoute.pacientePerfil(p.id))
-          }}
-        >
-          Ver
-        </Button>
+        <span className={styles.acoesLinha}>
+          <Button
+            variant="ghost"
+            size="sm"
+            iconLeft={<IconTelefone />}
+            disabled={!p.telefone}
+            title="Ligar"
+            aria-label={`Ligar para ${p.nome}`}
+            onClick={e => {
+              e.stopPropagation()
+              window.location.href = `tel:+55${p.telefone.replace(/\D/g, '')}`
+            }}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            iconLeft={<IconMensagem />}
+            disabled={!(p.whatsapp ?? p.telefone)}
+            title="Chamar no WhatsApp"
+            aria-label={`Chamar ${p.nome} no WhatsApp`}
+            onClick={e => {
+              e.stopPropagation()
+              // WhatsApp cadastrado ou o próprio celular.
+              window.open(`https://wa.me/55${(p.whatsapp ?? p.telefone).replace(/\D/g, '')}`, '_blank')
+            }}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            iconLeft={<IconOlho />}
+            title="Ver perfil"
+            aria-label={`Ver perfil de ${p.nome}`}
+            onClick={e => {
+              e.stopPropagation()   // a linha inteira também navega — evita disparo duplo
+              navigate(buildRoute.pacientePerfil(p.id))
+            }}
+          />
+        </span>
       ),
     },
   ]
@@ -172,14 +200,7 @@ export function PatientsPage() {
           emptyMessage={termo ? 'Nenhum paciente encontrado para a busca.' : 'Nenhum paciente cadastrado.'}
           toolbar={
             <>
-              <Select
-                size="sm"
-                options={OPCOES_POR_PAGINA}
-                value={String(porPagina)}
-                onChange={e => { setPorPagina(Number(e.target.value)); setPagina(1) }}
-                aria-label="Registros por página"
-                className={styles.porPagina}
-              />
+              <PerPageSelect porPagina={porPagina} onChange={n => { setPorPagina(n); setPagina(1) }} />
               <Input
                 size="sm"
                 iconLeft={<IconBuscar />}

@@ -1,0 +1,26 @@
+@use '../../styles/mixins' as *;
+
+// "Exibir [N] p/ página" — texto e campo na mesma linha de base.
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-2;
+  flex-shrink: 0;
+}
+
+.texto {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+// Campo estreito: só o número cabe dentro.
+.campo {
+  width: 76px;
+  flex-shrink: 0;
+}
+
+@include phone {
+  .texto { font-size: $fs-xs; }
+  .campo { width: 68px; }
+}

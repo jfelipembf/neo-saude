@@ -6,23 +6,16 @@ import { useUsuarioLogado } from '@/hooks/useUsuario'
 import {
   IconTelefone, IconEmail, IconLocal, IconCompartilhar, IconCartao, IconCopiar,
 } from '@/components/icons'
-import type { UsuarioPerfil } from '@/types/domain'
+import { initials } from '@/utils/text'
+import type { UserProfile } from '@/types/domain'
 import styles from './ResumeProfile.module.scss'
 
-/** Iniciais para o avatar (primeiro + último nome, ignorando "Dr./Dra."). */
-function initials(nome: string) {
-  const partes = nome.replace(/^Dra?\.\s*/i, '').split(' ').filter(Boolean)
-  const primeira = partes[0]?.[0] ?? ''
-  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : ''
-  return (primeira + ultima).toUpperCase()
-}
-
-function enderecoCompleto(u: UsuarioPerfil) {
+function enderecoCompleto(u: UserProfile) {
   return `${u.endereco}, ${u.cidade}, CEP ${u.cep}`
 }
 
 // vCard 3.0 — formato aberto que Contatos (iOS/Android/desktop) importam direto.
-function gerarVCard(u: UsuarioPerfil) {
+function gerarVCard(u: UserProfile) {
   return [
     'BEGIN:VCARD',
     'VERSION:3.0',

@@ -1,0 +1,82 @@
+@use '../../../styles/mixins' as *;
+
+.aba {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-5;
+}
+
+// ── Cabeçalho do turno do caixa: operador + stats inline ─────────────────────
+.turnoBar {
+  @include card;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: $sp-4;
+  padding: $sp-4 $sp-5;
+}
+
+.turnoStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-6;
+}
+
+.turnoStat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 96px;
+}
+
+.turnoLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+}
+
+.turnoValor {
+  font-size: $fs-md;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+
+  &--entrada { color: var(--success-fg); }
+  &--saida   { color: var(--danger-fg); }
+  &--saldo   { color: var(--primary-fg); }
+}
+
+.caixaInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.caixaOperador {
+  font-size: $fs-md;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--text-primary);
+}
+
+.caixaAbertura {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+// ── Modal de fechamento ──────────────────────────────────────────────────────
+.modalCorpo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.modalDica {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  line-height: 1.5;
+
+  strong { color: var(--text-primary); }
+}

@@ -9,6 +9,8 @@ interface SessionContextValue {
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
+  /** Envia o e-mail de recuperação de senha (mock: sempre sucesso). */
+  resetPassword: (email: string) => Promise<{ error: string | null }>
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null)
@@ -57,8 +59,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
   }
 
+  async function resetPassword(email: string) {
+    if (isMockMode) return { error: null }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/login`,
+    })
+    return { error: error ? 'Não foi possível enviar o e-mail. Tente novamente.' : null }
+  }
+
   return (
-    <SessionContext.Provider value={{ session, loading, signIn, signOut }}>
+    <SessionContext.Provider value={{ session, loading, signIn, signOut, resetPassword }}>
       {children}
     </SessionContext.Provider>
   )

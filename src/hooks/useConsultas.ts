@@ -1,14 +1,14 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import { listConsultasDoDia, listHistoricoDoPaciente, getDashboardStats, getSerieConsultas, setStatusConsulta } from '@/services/consultasService'
-import type { PeriodoGrafico, StatusConsulta } from '@/types/domain'
+import type { ChartPeriod, AppointmentStatus } from '@/types/domain'
 
 export function useConsultasDoDia() {
   return useQuery({ queryKey: queryKeys.consultas.all, queryFn: listConsultasDoDia })
 }
 
 /** Série do gráfico por período/mês; mantém a série anterior no ar durante a troca. */
-export function useSerieConsultas(periodo: PeriodoGrafico, mesIso: string) {
+export function useSerieConsultas(periodo: ChartPeriod, mesIso: string) {
   return useQuery({
     queryKey: queryKeys.consultas.serie(periodo, mesIso),
     queryFn: () => getSerieConsultas(periodo, mesIso),
@@ -32,7 +32,7 @@ export function useDashboardStats() {
 export function useSetStatusConsulta() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: StatusConsulta }) => setStatusConsulta(id, status),
+    mutationFn: ({ id, status }: { id: string; status: AppointmentStatus }) => setStatusConsulta(id, status),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.consultas.all }),
   })
 }

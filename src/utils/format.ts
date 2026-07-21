@@ -13,3 +13,8 @@ export function parseReais(texto: string) {
   const limpo = texto.replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')
   return Number(limpo)
 }
+
+/** '3,19' | '3.19' → 3.19 (percentuais digitados nos formulários). */
+export function parsePercentual(texto: string) {
+  return Number(texto.replace(',', '.'))
+}

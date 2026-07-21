@@ -1,22 +1,44 @@
 import { Input } from '@/components/Input/Input'
-import type { Endereco } from '@/types/domain'
+import { useCep } from '@/hooks/useCep'
+import type { Address } from '@/types/domain'
 import styles from './ClinicTab.module.scss'
 
 interface AddressFieldsProps {
-  value: Endereco
-  onChange: (campo: keyof Endereco, valor: string) => void
+  value: Address
+  onChange: (campo: keyof Address, valor: string) => void
 }
 
-/** Bloco de endereço compartilhado pelos formulários da página Inicial. */
+/** Bloco de endereço compartilhado pelos formulários da página Inicial.
+ *  Ao completar o CEP, estado/cidade/bairro/rua se preenchem sozinhos. */
 export function AddressFields({ value, onChange }: AddressFieldsProps) {
+  const { buscarCep, buscando, erro } = useCep()
+
+  /** Guarda o CEP digitado e, quando completo, traz o endereço. */
+  async function aoMudarCep(cep: string) {
+    onChange('cep', cep)
+
+    const endereco = await buscarCep(cep)
+    if (!endereco) return   // incompleto, inexistente ou serviço fora do ar
+
+    // O `set` dos formulários usa update funcional — pode encadear em sequência.
+    onChange('estado', endereco.estado)
+    onChange('cidade', endereco.cidade)
+    onChange('bairro', endereco.bairro)
+    onChange('rua', endereco.rua)
+    // O número não vem do CEP: continua com o usuário.
+  }
+
   return (
     <>
       <div className={styles.grid2}>
         <Input
           label="CEP"
           placeholder="00000-000"
+          inputMode="numeric"
           value={value.cep}
-          onChange={e => onChange('cep', e.target.value)}
+          onChange={e => aoMudarCep(e.target.value)}
+          hint={buscando ? 'Buscando endereço...' : undefined}
+          error={erro}
         />
         <Input
           label="Estado"

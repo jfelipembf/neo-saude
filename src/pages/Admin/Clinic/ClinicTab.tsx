@@ -6,13 +6,13 @@ import { SEXO_LABEL } from '@/constants'
 import {
   IconPredio, IconEditar, IconTelefone, IconEmail, IconLocal, IconDocumento, IconUsuario,
 } from '@/components/icons'
-import type { Endereco } from '@/types/domain'
+import type { Address } from '@/types/domain'
 import { ClinicFormModal } from './ClinicForm'
 import { ResponsibleFormModal } from './ResponsibleForm'
 import styles from './ClinicTab.module.scss'
 
 /** 'Av. Beira Mar, 1234 — Centro' + 'Aracaju/SE · CEP 49000-000' (só o que existir). */
-function linhasEndereco(e: Endereco): string[] {
+function linhasEndereco(e: Address): string[] {
   const rua = [e.rua, e.numero].filter(Boolean).join(', ')
   const linha1 = [rua, e.bairro].filter(Boolean).join(' — ')
   const cidade = [e.cidade, e.estado].filter(Boolean).join('/')

@@ -1,6 +1,6 @@
-import type { DocumentoPaciente } from '@/types/domain'
+import type { PatientDocument } from '@/types/domain'
 
-export const MOCK_DOCUMENTOS: DocumentoPaciente[] = [
+export const MOCK_DOCUMENTOS: PatientDocument[] = [
   {
     id: 'd1', pacienteId: 'p1', nome: 'Resultado de exames laboratoriais',
     descricao: 'Hemograma completo e glicemia de jejum solicitados na consulta de junho.',

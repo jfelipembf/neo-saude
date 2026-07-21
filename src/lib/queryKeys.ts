@@ -49,6 +49,23 @@ export const queryKeys = {
   tratamentos: {
     byPaciente: (pacienteId: string) => ['tratamentos', 'paciente', pacienteId] as const,
   },
+  cargos: {
+    all: ['cargos'] as const,
+  },
+  orcamentos: {
+    all: ['orcamentos'] as const,
+    byPaciente: (pacienteId: string) => ['orcamentos', 'paciente', pacienteId] as const,
+  },
+  prescricoes: {
+    all: ['prescricoes'] as const,
+    byPaciente: (pacienteId: string) => ['prescricoes', 'paciente', pacienteId] as const,
+  },
+  comissoes: {
+    all: ['comissoes'] as const,
+  },
+  convenios: {
+    all: ['convenios'] as const,
+  },
   grade: {
     all: ['grade'] as const,
   },

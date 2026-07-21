@@ -1,0 +1,155 @@
+@use '../../../../styles/mixins' as *;
+
+// Card do gráfico + tabela de pacientes, no ritmo da página.
+.ganhosTab {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-6;
+}
+
+.ganhosDica {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+// Barras em flex: a quantidade de colunas varia com a granularidade
+// (7 dias · 6 semanas · 6 meses · 5 anos).
+.ganhosChart {
+  display: flex;
+  gap: $sp-3;
+  align-items: flex-end;
+}
+
+.ganhosColuna {
+  @include focus-ring;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $sp-1;
+  padding: $sp-2 $sp-1 $sp-1;
+  background: none;
+  border: none;
+  border-radius: $radius-sm;
+  font-family: inherit;
+  cursor: pointer;
+
+  &:hover .ganhosBarra { opacity: 0.85; }
+}
+
+.ganhosValor {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-height: 1.2em;   // reserva a linha mesmo em mês zerado (barras alinham)
+}
+
+.ganhosArea {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 160px;
+}
+
+// Cor validada dos gráficos (--primary-dark passa contraste nos dois temas);
+// o período selecionado fica cheio, os demais mais suaves. A altura vem do
+// dado, via a custom property --altura definida no elemento.
+.ganhosBarra {
+  width: 100%;
+  max-width: 34px;   // barra fina no desktop, encolhe junto no mobile
+  height: var(--altura, 0%);
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+  background: var(--primary-dark);
+  opacity: 0.45;
+  transition: height 0.2s ease, opacity 0.15s ease;
+}
+
+.ganhosColunaAtiva .ganhosBarra {
+  opacity: 1;
+}
+
+.ganhosRotulo {
+  font-size: $fs-xs;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.ganhosColunaAtiva .ganhosRotulo {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.ganhosItemValor {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+// Nome do paciente na tabela de ganhos.
+.ganhosPaciente {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+// Detalhe expandido: um procedimento por linha (data · nome · valor).
+.ganhosExp {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.ganhosExpLinha {
+  display: flex;
+  align-items: baseline;
+  gap: $sp-4;
+  padding: $sp-2 0;
+  border-bottom: 1px solid var(--glass-border);
+
+  &:last-child { border-bottom: none; }
+}
+
+.ganhosExpData {
+  flex-shrink: 0;
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ganhosExpNome {
+  flex: 1;
+  min-width: 0;
+  font-size: $fs-sm;
+  color: var(--text-primary);
+}
+
+// Rodapé: total no período à esquerda, paginação à direita.
+.ganhosRodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  width: 100%;
+
+  @include phone {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.ganhosResumo {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  white-space: nowrap;
+
+  strong {
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+}

@@ -6,10 +6,10 @@ import { Select } from '@/components/Select/Select'
 import { useToast } from '@/components/Toast/useToast'
 import { useReceberPagamento } from '@/hooks/usePagamentos'
 import { TIPO_PAGAMENTO_LABEL } from '@/constants'
-import type { Pagamento, TipoPagamento } from '@/types/domain'
+import type { Payment, PaymentMethod } from '@/types/domain'
 import styles from './PaymentModal.module.scss'
 
-const FORMAS = Object.keys(TIPO_PAGAMENTO_LABEL) as TipoPagamento[]
+const FORMAS = Object.keys(TIPO_PAGAMENTO_LABEL) as PaymentMethod[]
 
 const OPCOES_BANDEIRA = ['Visa', 'Mastercard', 'Elo', 'Amex', 'Hipercard'].map(b => ({ value: b, label: b }))
 
@@ -30,7 +30,7 @@ function hojeIso() {
 
 interface PaymentModalProps {
   /** Pagamento em aberto a receber; null mantém o modal fechado. */
-  pagamento: Pagamento | null
+  pagamento: Payment | null
   paciente?: { nome: string; cpf?: string }
   onClose: () => void
 }
@@ -44,7 +44,7 @@ export function PaymentModal({ pagamento, paciente, onClose }: PaymentModalProps
 }
 
 interface PaymentFormProps {
-  pagamento: Pagamento
+  pagamento: Payment
   paciente?: { nome: string; cpf?: string }
   onClose: () => void
 }
@@ -53,7 +53,7 @@ function PaymentForm({ pagamento, paciente, onClose }: PaymentFormProps) {
   const toast = useToast()
   const { mutate: receber, isPending: recebendo } = useReceberPagamento()
 
-  const [forma, setForma] = useState<TipoPagamento>('dinheiro')
+  const [forma, setForma] = useState<PaymentMethod>('dinheiro')
   const [valorTexto, setValorTexto] = useState(() =>
     pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
   )

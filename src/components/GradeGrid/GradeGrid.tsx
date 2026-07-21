@@ -2,7 +2,7 @@ import { Fragment } from 'react'
 import { ClassCard } from './ClassCard'
 import { DAY_OF_WEEK_SHORT } from '@/constants'
 import { toShortDate } from '@/utils/date'
-import type { GradeSessao } from '@/types/domain'
+import type { ScheduleSlot } from '@/types/domain'
 import styles from './GradeGrid.module.scss'
 
 // Ordem das colunas na visão semana: Seg…Sáb, Dom (índices do getDay, 0 = Dom).
@@ -12,14 +12,14 @@ export type GradeTurn = 'all' | 'morning' | 'afternoon' | 'night'
 export type GradeView = 'week' | 'day'
 
 interface GradeGridProps {
-  sessoes: GradeSessao[]
+  sessoes: ScheduleSlot[]
   view: GradeView
   turn: GradeTurn
   /** Dia mostrado na visão "Dia" (índice do getDay, 0 = Dom). */
   referenceWeekday: number
   /** Data de referência da semana visível — calcula a data de cada coluna. */
   referenceDate?: Date
-  onSelect?: (sessao: GradeSessao) => void
+  onSelect?: (sessao: ScheduleSlot) => void
   /** Mostra a setinha de hover nos cards clicáveis. */
   showArrow?: boolean
   /** Oculta a linha de sala nos cards. */

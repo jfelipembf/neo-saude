@@ -3,13 +3,14 @@ import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
 import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
-import { Select } from '@/components/Select/Select'
+import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Pagination } from '@/components/Pagination/Pagination'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { useSalas } from '@/hooks/useSalas'
+import { useDebounce } from '@/hooks/useDebounce'
+import { combinaBusca } from '@/utils/search'
 import { IconSala, IconMais, IconBuscar, IconEditar } from '@/components/icons'
-import { OPCOES_POR_PAGINA } from '@/constants'
-import type { Sala } from '@/types/domain'
+import type { Room } from '@/types/domain'
 import { RoomFormModal } from './RoomFormModal'
 import styles from './RoomsTab.module.scss'
 
@@ -18,21 +19,21 @@ export function RoomsTab() {
   const { data: salas, isLoading } = useSalas()
 
   // Modal de sala: null = fechado; { sala } = edição; {} = cadastro novo.
-  const [modalSala, setModalSala] = useState<{ sala?: Sala } | null>(null)
+  const [modalSala, setModalSala] = useState<{ sala?: Room } | null>(null)
 
   // Paginação + busca (mesmo desenho das listas de pacientes e materiais).
   const [pagina, setPagina] = useState(1)
   const [porPagina, setPorPagina] = useState(10)
   const [busca, setBusca] = useState('')
 
-  const termo = busca.trim().toLowerCase()
-  const filtradas = (salas ?? []).filter(s => !termo || s.nome.toLowerCase().includes(termo))
+  const termo = useDebounce(busca)
+  const filtradas = (salas ?? []).filter(s => combinaBusca(s.nome, termo))
 
   const totalPaginas = Math.max(1, Math.ceil(filtradas.length / porPagina))
   const paginaAtual = Math.min(pagina, totalPaginas)
   const visiveis = filtradas.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina)
 
-  const columns: TableColumn<Sala>[] = [
+  const columns: TableColumn<Room>[] = [
     {
       key: 'nome',
       label: 'Sala',
@@ -49,11 +50,16 @@ export function RoomsTab() {
     },
     {
       key: 'acoes',
-      label: '',
+      label: 'Ação',
       render: s => (
-        <Button variant="outline" size="sm" iconLeft={<IconEditar />} onClick={() => setModalSala({ sala: s })}>
-          Editar
-        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          iconLeft={<IconEditar />}
+          title="Editar sala"
+          aria-label={`Editar ${s.nome}`}
+          onClick={() => setModalSala({ sala: s })}
+        />
       ),
     },
   ]
@@ -69,14 +75,7 @@ export function RoomsTab() {
         emptyMessage={termo ? 'Nenhuma sala encontrada para a busca.' : 'Nenhuma sala cadastrada.'}
         toolbar={
           <>
-            <Select
-              size="sm"
-              options={OPCOES_POR_PAGINA}
-              value={String(porPagina)}
-              onChange={e => { setPorPagina(Number(e.target.value)); setPagina(1) }}
-              aria-label="Registros por página"
-              className={styles.porPagina}
-            />
+            <PerPageSelect porPagina={porPagina} onChange={n => { setPorPagina(n); setPagina(1) }} />
             <div className={styles.toolbarDireita}>
               <Input
                 size="sm"

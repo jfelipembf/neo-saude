@@ -29,3 +29,13 @@ export interface OdontogramShellProps {
 
 declare const OdontogramShell: ComponentType<OdontogramShellProps>
 export default OdontogramShell
+
+/** Snapshot completo do estado ({version, globals, teeth}) para persistir. */
+export declare function getOdontogramState(): Record<string, unknown>
+
+/**
+ * Restaura um snapshot no motor. Com o shell MONTADO, re-renderiza a boca
+ * inteira na hora; atenção: o unmount do shell LIMPA o estado do motor, então
+ * chame após o mount. `null`/omitido limpa todos os dentes.
+ */
+export declare function loadOdontogramState(payload?: Record<string, unknown> | null): void

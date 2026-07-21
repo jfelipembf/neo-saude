@@ -1,6 +1,8 @@
-import type { DadosConsultorio, ResponsavelTecnico } from '@/types/domain'
+import type { ClinicData, TechnicalManager } from '@/types/domain'
 
-export const MOCK_CONSULTORIO: DadosConsultorio = {
+export const MOCK_CONSULTORIO: ClinicData = {
+  // Logo de demonstração — no uso real vem do upload em Administrativo.
+  logo: '/pwa-192x192.png',
   nome: 'Clínica Neo Saúde',
   cnpj: '12.345.678/0001-90',
   email: 'contato@neosaude.com.br',
@@ -13,7 +15,7 @@ export const MOCK_CONSULTORIO: DadosConsultorio = {
   numero: '1234',
 }
 
-export const MOCK_RESPONSAVEL: ResponsavelTecnico = {
+export const MOCK_RESPONSAVEL: TechnicalManager = {
   nome: 'Camila',
   sobrenome: 'Duarte',
   sexo: 'feminino',

@@ -1,10 +1,5 @@
 @use '../../../styles/mixins' as *;
 
-// Toolbar do cartão: "N por página" à esquerda; busca + "Novo material" à direita.
-.porPagina {
-  max-width: 150px;
-}
-
 .toolbarDireita {
   display: flex;
   align-items: center;

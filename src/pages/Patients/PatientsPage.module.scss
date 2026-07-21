@@ -1,9 +1,5 @@
 @use '../../styles/mixins' as *;
 
-// Toolbar do cartão (modelo do perfil do paciente): "N por página" à esquerda…
-.porPagina {
-  max-width: 150px;
-}
 
 // …e busca à direita.
 .busca {
@@ -68,4 +64,12 @@
   @include phone {
     grid-template-columns: 1fr;
   }
+}
+
+// Ações da linha: ligar · WhatsApp · Ver, lado a lado sem quebrar.
+.acoesLinha {
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-1;
+  white-space: nowrap;
 }

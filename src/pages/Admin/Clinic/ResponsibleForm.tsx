@@ -8,18 +8,18 @@ import { PhotoInput } from '@/components/PhotoInput/PhotoInput'
 import { useToast } from '@/components/Toast/useToast'
 import { useSalvarResponsavel } from '@/hooks/useConsultorio'
 import { OPCOES_SEXO } from '@/constants'
-import type { Endereco, ResponsavelTecnico, SexoPaciente } from '@/types/domain'
+import type { Address, TechnicalManager, Gender } from '@/types/domain'
 import { AddressFields } from './AddressFields'
 import styles from './ClinicTab.module.scss'
 
 interface ResponsibleFormModalProps {
   /** Cadastro atual — o formulário nasce preenchido (monta só com o modal aberto). */
-  inicial: ResponsavelTecnico
+  inicial: TechnicalManager
   onClose: () => void
 }
 
 // Estado do formulário: a data vive como aaaa-mm-dd (input date); vira dd/mm/aaaa ao salvar.
-interface FormResponsavel extends Omit<ResponsavelTecnico, 'nascimento'> {
+interface FormResponsavel extends Omit<TechnicalManager, 'nascimento'> {
   nascimentoIso: string
 }
 
@@ -103,7 +103,7 @@ export function ResponsibleFormModal({ inicial, onClose }: ResponsibleFormModalP
             options={OPCOES_SEXO}
             placeholder="Selecione..."
             value={form.sexo ?? ''}
-            onChange={e => setForm(atual => ({ ...atual, sexo: (e.target.value || undefined) as SexoPaciente | undefined }))}
+            onChange={e => setForm(atual => ({ ...atual, sexo: (e.target.value || undefined) as Gender | undefined }))}
           />
           <Input
             label="Data de nascimento"
@@ -132,7 +132,7 @@ export function ResponsibleFormModal({ inicial, onClose }: ResponsibleFormModalP
 
         <AddressFields
           value={form}
-          onChange={(campo: keyof Endereco, valor) => set(campo)(valor)}
+          onChange={(campo: keyof Address, valor) => set(campo)(valor)}
         />
       </form>
     </Modal>

@@ -4,52 +4,52 @@ import {
   MOCK_CONTAS_RECEBER, MOCK_FLUXO_DIAS, MOCK_MOVIMENTOS_CAIXA, SALDO_BASE_FLUXO,
 } from '@/mocks/financeiro'
 import type {
-  Adquirente, CaixaSessao, ContaBancaria, ContaPagar, ContaReceber,
-  FluxoCaixaDia, MovimentoCaixa, PeriodoGrafico, PontoFinanceiro, TipoPagamento,
+  Acquirer, CashSession, BankAccount, Payable, Receivable,
+  CashFlowDay, CashMovement, ChartPeriod, FinancePoint, PaymentMethod,
 } from '@/types/domain'
 
 // MODO MOCK: retorna dados de demonstração. Quando o schema Supabase existir,
 // trocar o corpo por supabase.from('lancamentos')… mantendo a MESMA assinatura.
-export async function getSerieFinanceira(periodo: PeriodoGrafico, mesIso: string): Promise<PontoFinanceiro[]> {
+export async function getSerieFinanceira(periodo: ChartPeriod, mesIso: string): Promise<FinancePoint[]> {
   return gerarSerieFinanceira(periodo, mesIso)
 }
 
 // ── Página Financeiro ────────────────────────────────────────────────────────
-export async function listMovimentosCaixa(): Promise<MovimentoCaixa[]> {
+export async function listMovimentosCaixa(): Promise<CashMovement[]> {
   return MOCK_MOVIMENTOS_CAIXA
 }
 
-export async function getFluxoCaixa(): Promise<{ saldoBase: number; dias: FluxoCaixaDia[] }> {
+export async function getFluxoCaixa(): Promise<{ saldoBase: number; dias: CashFlowDay[] }> {
   return { saldoBase: SALDO_BASE_FLUXO, dias: MOCK_FLUXO_DIAS }
 }
 
-export async function listContasPagar(): Promise<ContaPagar[]> {
+export async function listContasPagar(): Promise<Payable[]> {
   return MOCK_CONTAS_PAGAR
 }
 
-export async function listContasReceber(): Promise<ContaReceber[]> {
+export async function listContasReceber(): Promise<Receivable[]> {
   return MOCK_CONTAS_RECEBER
 }
 
-export async function listContasBancarias(): Promise<ContaBancaria[]> {
+export async function listContasBancarias(): Promise<BankAccount[]> {
   return MOCK_CONTAS_BANCARIAS
 }
 
-export async function listAdquirentes(): Promise<Adquirente[]> {
+export async function listAdquirentes(): Promise<Acquirer[]> {
   return MOCK_ADQUIRENTES
 }
 
 /** Dados do modal de baixa (Confirmar Pagamento / Recebimento). */
-export interface BaixaInput {
+export interface SettlementInput {
   data: string             // dd/mm/aaaa
-  forma?: TipoPagamento
+  forma?: PaymentMethod
   contaBancariaId?: string
   valor: number
-  observacoes?: string
+  observacao?: string
 }
 
 /** Dá baixa numa conta a pagar com os dados do modal. */
-export async function baixarContaPagar(id: string, baixa: BaixaInput): Promise<void> {
+export async function baixarContaPagar(id: string, baixa: SettlementInput): Promise<void> {
   const conta = MOCK_CONTAS_PAGAR.find(c => c.id === id)
   if (!conta) return
   Object.assign(conta, {
@@ -58,7 +58,7 @@ export async function baixarContaPagar(id: string, baixa: BaixaInput): Promise<v
     formaPagamento: baixa.forma,
     contaBancariaId: baixa.contaBancariaId,
     valorPago: baixa.valor,
-    ...(baixa.observacoes ? { observacoes: baixa.observacoes } : {}),
+    ...(baixa.observacao ? { observacao: baixa.observacao } : {}),
   })
 }
 
@@ -66,7 +66,7 @@ export async function baixarContaPagar(id: string, baixa: BaixaInput): Promise<v
  * Dá baixa numa conta a receber. Aceita recebimento PARCIAL: o valor acumula
  * e a conta só quita quando a soma cobre o líquido (bruto − taxa).
  */
-export async function baixarContaReceber(id: string, baixa: BaixaInput): Promise<void> {
+export async function baixarContaReceber(id: string, baixa: SettlementInput): Promise<void> {
   const conta = MOCK_CONTAS_RECEBER.find(c => c.id === id)
   if (!conta) return
   const totalRecebido = (conta.valorRecebido ?? 0) + baixa.valor
@@ -78,7 +78,7 @@ export async function baixarContaReceber(id: string, baixa: BaixaInput): Promise
     forma: baixa.forma ?? conta.forma,
     contaBancariaId: baixa.contaBancariaId ?? conta.contaBancariaId,
     valorRecebido: totalRecebido,
-    ...(baixa.observacoes ? { observacoes: baixa.observacoes } : {}),
+    ...(baixa.observacao ? { observacao: baixa.observacao } : {}),
   })
 }
 
@@ -95,7 +95,7 @@ export async function cancelarContaReceber(id: string): Promise<void> {
 }
 
 // ── Sessão do caixa (abrir/fechar) ───────────────────────────────────────────
-export async function getCaixaSessao(): Promise<CaixaSessao> {
+export async function getCaixaSessao(): Promise<CashSession> {
   // Cópia: a query não deve compartilhar a referência mutável do mock.
   return { ...MOCK_CAIXA_SESSAO }
 }
@@ -116,20 +116,20 @@ export async function fecharCaixa(): Promise<void> {
 let proximaContaId = 100
 let proximaAdquirenteId = 100
 
-export async function addContaBancaria(dados: Omit<ContaBancaria, 'id'>): Promise<void> {
+export async function addContaBancaria(dados: Omit<BankAccount, 'id'>): Promise<void> {
   MOCK_CONTAS_BANCARIAS.push({ id: `cb${proximaContaId++}`, ...dados })
 }
 
-export async function updateContaBancaria(id: string, dados: Omit<ContaBancaria, 'id'>): Promise<void> {
+export async function updateContaBancaria(id: string, dados: Omit<BankAccount, 'id'>): Promise<void> {
   const conta = MOCK_CONTAS_BANCARIAS.find(c => c.id === id)
   if (conta) Object.assign(conta, dados)
 }
 
-export async function addAdquirente(dados: Omit<Adquirente, 'id'>): Promise<void> {
+export async function addAdquirente(dados: Omit<Acquirer, 'id'>): Promise<void> {
   MOCK_ADQUIRENTES.push({ id: `aq${proximaAdquirenteId++}`, ...dados })
 }
 
-export async function updateAdquirente(id: string, dados: Omit<Adquirente, 'id'>): Promise<void> {
+export async function updateAdquirente(id: string, dados: Omit<Acquirer, 'id'>): Promise<void> {
   const adquirente = MOCK_ADQUIRENTES.find(a => a.id === id)
   if (adquirente) Object.assign(adquirente, dados)
 }

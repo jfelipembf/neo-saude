@@ -1,0 +1,96 @@
+@use '../../styles/mixins' as *;
+
+.corpo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+// ── Busca de paciente com sugestões ──────────────────────────────────────────
+.pacienteCampo {
+  position: relative;
+}
+
+.sugestoes {
+  list-style: none;
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  right: 0;
+  top: calc(100% - 18px);   // cola logo abaixo do input (acima do hint)
+  background: var(--bg-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.sugestao {
+  @include focus-ring;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: $sp-2 $sp-3;
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--glass-bg-hover);
+  }
+}
+
+.sugestaoNome {
+  font-size: $fs-sm;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.sugestaoMeta {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+// ── Grades de campos ─────────────────────────────────────────────────────────
+.grid3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 130px 130px;
+  gap: $sp-3;
+  align-items: start;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.confirmacao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  padding: $sp-2 0;
+
+  @include phone {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.confirmacaoRotulo {
+  font-size: $fs-sm;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+// Botão "Ligar" encostado à esquerda do rodapé do modal.
+.ligar {
+  margin-right: auto;
+}
+
+.erro {
+  font-size: $fs-sm;
+  color: var(--danger-fg);
+}

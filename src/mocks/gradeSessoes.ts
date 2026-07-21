@@ -1,4 +1,4 @@
-import type { GradeSessao } from '@/types/domain'
+import type { ScheduleSlot } from '@/types/domain'
 
 // Cores por atividade (pasteurizadas pela máscara --grade-card-scrim no card).
 const FISIO = '#10B981'
@@ -7,7 +7,7 @@ const CLINICA = '#3B82F6'
 const NUTRI = '#F59E0B'
 const PSICO = '#EC4899'
 
-export const MOCK_GRADE_SESSOES: GradeSessao[] = [
+export const MOCK_GRADE_SESSOES: ScheduleSlot[] = [
   // Segunda
   { id: 'g1',  paciente: 'Maria Oliveira',   atividade: 'Fisioterapia',          diaSemana: 1, horaInicio: '07:00', horaFim: '08:00', profissional: 'Bruno Teixeira', sala: 'Sala 2',  cor: FISIO,   status: 'ativa' },
   { id: 'g2',  paciente: 'Ana Costa',        atividade: 'Consulta clínica',      diaSemana: 1, horaInicio: '09:00', horaFim: '10:00', profissional: 'Camila Duarte',  sala: 'Cons. 1', cor: CLINICA, status: 'ativa' },

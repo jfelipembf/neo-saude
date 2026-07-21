@@ -6,10 +6,13 @@ import { Pagination } from '@/components/Pagination/Pagination'
 import { PaymentModal } from '@/components/PaymentModal/PaymentModal'
 import { Select } from '@/components/Select/Select'
 import { Spinner } from '@/components/Spinner/Spinner'
-import { IconChevronDireita, IconImprimir } from '@/components/icons'
+import { IconChevronDireita, IconImprimir, IconFinanceiro } from '@/components/icons'
 import { usePagamentosDoPaciente } from '@/hooks/usePagamentos'
-import { TIPO_PAGAMENTO_LABEL, OPCOES_POR_PAGINA } from '@/constants'
-import type { FormaPagamento, Pagamento, StatusPagamento } from '@/types/domain'
+import { usePrintDocument } from '@/hooks/usePrintDocument'
+import { esc } from '@/utils/printDocument'
+import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
+import { TIPO_PAGAMENTO_LABEL } from '@/constants'
+import type { PaymentEntry, Payment, PaymentStatus } from '@/types/domain'
 import styles from './PaymentsTable.module.scss'
 
 const OPCOES_FILTRO = [
@@ -24,13 +27,13 @@ function formatarReais(v: number) {
 }
 
 /** Resumo das formas para a linha fechada: "Pix + Crédito". */
-function resumoFormas(formas: FormaPagamento[]) {
+function resumoFormas(formas: PaymentEntry[]) {
   if (formas.length === 0) return '—'
   return formas.map(f => TIPO_PAGAMENTO_LABEL[f.tipo]).join(' + ')
 }
 
 /** Pares label/valor exibidos no detalhe de uma forma (só os que existem). */
-function detalhesForma(f: FormaPagamento) {
+function detalhesForma(f: PaymentEntry) {
   const pares: { label: string; valor: string }[] = [{ label: 'Valor', valor: formatarReais(f.valor) }]
   if (f.data) pares.push({ label: 'Recebido em', valor: f.data })
   if (f.parcelas) {
@@ -45,37 +48,20 @@ function detalhesForma(f: FormaPagamento) {
   return pares
 }
 
-/** Abre uma janela de impressão com o recibo simples do pagamento. */
-function imprimirRecibo(pg: Pagamento, pacienteNome?: string) {
-  const janela = window.open('', '_blank', 'width=420,height=640')
-  if (!janela) return
-
+/** Miolo do recibo — o cabeçalho da clínica e o rodapé vêm da base de impressão. */
+function corpoRecibo(pg: Payment, pacienteNome?: string) {
   const formas = pg.formas
-    .map(f => `<tr><td>${TIPO_PAGAMENTO_LABEL[f.tipo]}${f.parcelas && f.parcelas > 1 ? ` (${f.parcelas}×)` : ''}${f.bandeira ? ` · ${f.bandeira}` : ''}${f.autorizacao ? ` · aut. ${f.autorizacao}` : ''}</td><td class="valor">${formatarReais(f.valor)}</td></tr>`)
+    .map(f => `<tr><td>${esc(TIPO_PAGAMENTO_LABEL[f.tipo])}${f.parcelas && f.parcelas > 1 ? ` (${f.parcelas}×)` : ''}${f.bandeira ? ` · ${esc(f.bandeira)}` : ''}${f.autorizacao ? ` · aut. ${esc(f.autorizacao)}` : ''}</td><td class="valor">${formatarReais(f.valor)}</td></tr>`)
     .join('')
 
-  janela.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Recibo — Neo Saúde</title>
-    <style>
-      body { font-family: system-ui, sans-serif; color: #12211C; margin: 24px; font-size: 14px; }
-      h1 { font-size: 18px; margin: 0 0 2px; } .sub { color: #667; margin: 0 0 16px; font-size: 12px; }
-      table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-      td { padding: 6px 0; border-bottom: 1px solid #e2e8e5; } .valor { text-align: right; white-space: nowrap; }
-      .total td { font-weight: 700; border-bottom: none; }
-      .rodape { margin-top: 24px; font-size: 11px; color: #889; }
-    </style></head><body>
-    <h1>Neo Saúde</h1>
-    <p class="sub">Recibo de pagamento</p>
-    ${pacienteNome ? `<p><strong>Paciente:</strong> ${pacienteNome}</p>` : ''}
-    <p><strong>Referente a:</strong> ${pg.descricao}<br><strong>Data:</strong> ${pg.data}</p>
+  return `
+    ${pacienteNome ? `<p><strong>Patient:</strong> ${esc(pacienteNome)}</p>` : ''}
+    <p><strong>Referente a:</strong> ${esc(pg.descricao)}<br><strong>Data:</strong> ${esc(pg.data)}</p>
     <table>
       ${formas}
       <tr class="total"><td>Total</td><td class="valor">${formatarReais(pg.valor)}</td></tr>
     </table>
-    <p class="rodape">Documento gerado eletronicamente, sem valor fiscal.</p>
-  </body></html>`)
-  janela.document.close()
-  janela.focus()
-  janela.print()
+    <p class="clausula">Recibo sem valor fiscal.</p>`
 }
 
 interface PaymentsTableProps {
@@ -89,10 +75,11 @@ interface PaymentsTableProps {
 /** Tabela de pagamentos: filtro por status, paginação, detalhe expansível, receber e recibo. */
 export function PaymentsTable({ pacienteId, pacienteNome, pacienteCpf }: PaymentsTableProps) {
   const { data: pagamentos, isLoading } = usePagamentosDoPaciente(pacienteId)
+  const imprimir = usePrintDocument()
 
   const [abertos, setAbertos] = useState<Set<string>>(new Set())
-  const [aReceber, setAReceber] = useState<Pagamento | null>(null)
-  const [filtro, setFiltro] = useState<'todos' | StatusPagamento>('todos')
+  const [aReceber, setAReceber] = useState<Payment | null>(null)
+  const [filtro, setFiltro] = useState<'todos' | PaymentStatus>('todos')
   const [pagina, setPagina] = useState(1)
   const [porPagina, setPorPagina] = useState(5)
 
@@ -130,19 +117,12 @@ export function PaymentsTable({ pacienteId, pacienteNome, pacienteCpf }: Payment
     <div className={styles.root}>
       <div className={styles.wrapper}>
         <div className={styles.toolbar}>
-          <Select
-            size="sm"
-            options={OPCOES_POR_PAGINA}
-            value={String(porPagina)}
-            onChange={e => { setPorPagina(Number(e.target.value)); setPagina(1) }}
-            aria-label="Registros por página"
-            className={styles.porPagina}
-          />
+          <PerPageSelect porPagina={porPagina} onChange={n => { setPorPagina(n); setPagina(1) }} />
           <Select
             size="sm"
             options={OPCOES_FILTRO}
             value={filtro}
-            onChange={e => { setFiltro(e.target.value as 'todos' | StatusPagamento); setPagina(1) }}
+            onChange={e => { setFiltro(e.target.value as 'todos' | PaymentStatus); setPagina(1) }}
             aria-label="Filtrar pagamentos por status"
             className={styles.filtro}
           />
@@ -154,10 +134,10 @@ export function PaymentsTable({ pacienteId, pacienteNome, pacienteCpf }: Payment
               <th className={styles.thSeta} aria-label="Expandir" />
               <th>Data</th>
               <th>Descrição</th>
-              <th>Pagamento</th>
+              <th>Payment</th>
               <th className={styles.thValor}>Valor</th>
               <th>Status</th>
-              <th className={styles.thAcoes} aria-label="Ações" />
+              <th className={styles.thAcoes}>Ação</th>
             </tr>
           </thead>
           <tbody>
@@ -191,20 +171,30 @@ export function PaymentsTable({ pacienteId, pacienteNome, pacienteCpf }: Payment
                     <td className={styles.tdAcoes}>
                       {emAberto ? (
                         <Button
+                          variant="ghost"
                           size="sm"
+                          iconLeft={<IconFinanceiro />}
+                          title="Receber pagamento"
+                          aria-label={`Receber pagamento de ${pg.data}`}
                           onClick={e => { e.stopPropagation(); setAReceber(pg) }}
-                        >
-                          Receber
-                        </Button>
+                        />
                       ) : (
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           iconLeft={<IconImprimir />}
-                          onClick={e => { e.stopPropagation(); imprimirRecibo(pg, pacienteNome) }}
-                        >
-                          Recibo
-                        </Button>
+                          title="Imprimir recibo"
+                          aria-label={`Imprimir recibo de ${pg.data}`}
+                          onClick={e => {
+                            e.stopPropagation()
+                            imprimir({
+                              titulo: 'Recibo de pagamento',
+                              subtitulo: pg.descricao,
+                              corpo: corpoRecibo(pg, pacienteNome),
+                              largura: 520,
+                            })
+                          }}
+                        />
                       )}
                     </td>
                   </tr>

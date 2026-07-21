@@ -2,7 +2,7 @@ import { MOCK_MATERIAIS } from '@/mocks/materiais'
 import type { Material } from '@/types/domain'
 
 /** Dados do formulário de novo material (id nasce aqui). */
-export interface NovoMaterial {
+export interface NewMaterial {
   nome: string
   foto?: string
   emEstoque: number
@@ -22,12 +22,12 @@ export async function listMateriais(): Promise<Material[]> {
 let proximoId = 100
 
 /** Cadastra um material novo. */
-export async function addMaterial(dados: NovoMaterial): Promise<void> {
+export async function addMaterial(dados: NewMaterial): Promise<void> {
   MOCK_MATERIAIS.push({ id: `m${proximoId++}`, ...dados })
 }
 
 /** Atualiza um material (mock: muta o registro em memória). */
-export async function updateMaterial(id: string, dados: NovoMaterial): Promise<void> {
+export async function updateMaterial(id: string, dados: NewMaterial): Promise<void> {
   const material = MOCK_MATERIAIS.find(m => m.id === id)
   if (material) Object.assign(material, dados)
 }

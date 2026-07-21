@@ -1,0 +1,335 @@
+@use '../../styles/mixins' as *;
+
+.painel {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-6;
+}
+
+.carregando {
+  display: flex;
+  justify-content: center;
+  padding: $sp-8 0;
+}
+
+.cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+
+  @include phone {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.cabecalhoTitulo {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cabecalhoHint {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.acoesTopo,
+.acoesRodape {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  flex-shrink: 0;
+}
+
+.acoesRodape {
+  justify-content: flex-end;
+  padding-top: $sp-3;
+  border-top: 1px solid var(--glass-border);
+}
+
+// ── Cartões do editor ────────────────────────────────────────────────────────
+.card {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  padding: $sp-5;
+}
+
+.cardTitulo {
+  font-size: $fs-base;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.gridCabecalho {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: $sp-4;
+  align-items: start;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gridCampos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-4;
+  align-items: start;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.prefixo {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+// ── Seleção de dentes e faces (chips) ────────────────────────────────────────
+.selecao {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.selecaoRotulo {
+  font-size: $fs-xs;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.dentesLinha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-1;
+}
+
+.dente,
+.face {
+  @include focus-ring;
+  min-width: 34px;
+  padding: 5px 6px;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-sm;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: $fs-xs;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+
+  &:hover {
+    border-color: var(--primary);
+    color: var(--primary-fg);
+  }
+}
+
+.face {
+  min-width: 44px;
+}
+
+.denteAtivo {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+
+  &:hover {
+    color: #fff;
+    border-color: var(--primary);
+  }
+}
+
+.arcadas {
+  display: flex;
+  gap: $sp-2;
+  margin-top: $sp-1;
+}
+
+.rodapeItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  padding-top: $sp-3;
+  border-top: 1px solid var(--glass-border);
+
+  @include phone {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.erro {
+  font-size: $fs-sm;
+  color: var(--danger-fg);
+}
+
+.vazio {
+  padding: $sp-4 0;
+  font-size: $fs-sm;
+  color: var(--text-muted);
+  text-align: center;
+  border: 1px dashed var(--glass-border);
+  border-radius: $radius-md;
+}
+
+// ── Itens (editor e linha expandida da tabela) ───────────────────────────────
+.detalheItens {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.detalheItem {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  padding: $sp-2 0;
+  border-bottom: 1px solid var(--glass-border);
+
+  &:last-child { border-bottom: none; }
+}
+
+.detalheInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.detalheTratamento {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.detalheMeta {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.detalheTotais {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2 $sp-5;
+  padding-top: $sp-2;
+  border-top: 1px solid var(--glass-border);
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.detalheTotal {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.detalheObs {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.detalhe {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+// ── Fechamento (subtotal · desconto · total · parcelas) ──────────────────────
+.fechamento {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  padding-top: $sp-3;
+  border-top: 1px solid var(--glass-border);
+  max-width: 420px;
+  align-self: flex-end;
+  width: 100%;
+}
+
+.fechamentoLinha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-4;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.fechamentoTotal {
+  padding-top: $sp-2;
+  border-top: 1px solid var(--glass-border);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.descontoCampo,
+.parcelasCampo {
+  max-width: 180px;
+}
+
+.valor {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.valorTotal {
+  font-size: $fs-md;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+// ── Tabela (modo lista) ──────────────────────────────────────────────────────
+.data {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nomeCell {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.acoesLinha {
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-1;
+  white-space: nowrap;
+}
+
+// ── Aviso do contrato ────────────────────────────────────────────────────────
+.contratoBox {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: $sp-3 $sp-4;
+  border: 1px solid var(--glass-border);
+  border-left: 3px solid var(--primary);
+  border-radius: $radius-md;
+}
+
+.contratoTitulo {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.contratoTexto {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

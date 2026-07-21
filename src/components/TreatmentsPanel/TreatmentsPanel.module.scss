@@ -56,28 +56,168 @@
     border-radius: $radius-md;
   }
 
+  // Altura FIXA do odontograma dentro do nosso cartão.
   :global(.layout) {
     padding: 0;
+    height: 560px;
 
-    // A grade interna (ficha 1fr + editor 360px) empilha no mobile.
+    // A grade interna (ficha 1fr + editor 360px) empilha no mobile e volta a
+    // crescer naturalmente (a rolagem é da página).
     @include mobile {
       grid-template-columns: 1fr;
+      height: auto;
     }
+  }
+
+  // Rolagem INDEPENDENTE por coluna: à esquerda a coluna da ficha (chart +
+  // informações do dente) e à direita o menu lateral — cada um com a sua barra.
+  // A ficha em si NÃO ganha altura: quem rola é a coluna (senão o card de
+  // informações do dente, que vive abaixo dela, sobrepõe o resto).
+  :global(.chart-column),
+  :global(.panel) {
+    @include hide-scrollbar;   // rola normalmente, mas sem barra visível
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+
+    @include mobile {
+      height: auto;
+      overflow-y: visible;
+    }
+  }
+
+  // Menus suspensos nativos da biblioteca vestidos como o NOSSO Select
+  // (mesmo mixin control-surface: campo, borda, hover e foco idênticos),
+  // com o chevron discreto na cor de texto muted.
+  :global(select) {
+    @include control-surface;
+    appearance: none;
+    height: $ctrl-h-sm;
+    min-width: 0;
+    padding: 0 28px 0 $ctrl-px-sm;
+    font-size: $ctrl-fs-sm;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+      linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+    background-position: calc(100% - 16px) 55%, calc(100% - 11px) 55%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+  }
+
+  // Menus flutuantes internos com o visual dos dropdowns do app.
+  :global(.dropdown-menu) {
+    background: var(--bg-elevated);
+    border: 1px solid var(--glass-border);
+    border-radius: $radius-md;
+    box-shadow: var(--shadow-md);
+  }
+
+  // As caixas internas da biblioteca somem (ficha e menu lateral): tudo
+  // assenta direto no nosso cartão, nos dois temas.
+  :global(.chart),
+  :global(.panel) {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+  }
+
+  // As SEÇÕES (.card) do menu lateral ficam direto no fundo; uma hairline
+  // separa uma seção da outra.
+  :global(.card) {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 12px 0;
+    border-top: 1px solid var(--glass-border);
+
+    &:first-child {
+      border-top: none;
+      padding-top: 0;
+    }
+  }
+
+  // O card "informações do dente" (abaixo da ficha) saiu do layout — esses
+  // dados agora vivem no relatório impresso (botão Imprimir do cabeçalho).
+  // De quebra, a ficha ganha a coluna inteira e mostra todos os dentes.
+  :global(.tooth-info) {
+    display: none;
+  }
+
+  // ── Cantos no padrão do app — a biblioteca usa 10–20px; aqui é 5/8/12 ──────
+  // Controles (botões, chips de opção, abas, itens de menu, textarea): $radius-sm.
+  :global(.btn),
+  :global(.btn-theme),
+  :global(.check-grid label),
+  :global(.inline-checks label),
+  :global(.radio-list label),
+  :global(.row:has(input[type=checkbox])),
+  :global(.odon-arch-toggle .odon-arch-btn),
+  :global(.odon-ctx-item),
+  :global(.odon-depth-option),
+  :global(.odon-settings-close),
+  :global(.odon-settings-tab),
+  :global(.odon-tour-btn),
+  :global(.odon-zoom-btn),
+  :global(.dropdown-item),
+  :global(.odon-note-textarea) {
+    border-radius: $radius-sm;
+  }
+
+  // As linhas empilhadas de desgaste zeram o raio de propósito (emenda contínua).
+  :global(.wear-stack .row:has(input[type=checkbox])) {
+    border-radius: 0;
+  }
+
+  // Menus e popovers flutuantes: $radius-md (como os dropdowns do app).
+  :global(.odon-ctx-menu),
+  :global(.odon-depth-popup),
+  :global(.odon-note-popover),
+  :global(.warning) {
+    border-radius: $radius-md;
+  }
+
+  // Superfícies grandes (modal de configurações, export, tour, zoom): $radius-lg.
+  :global(.odon-settings-modal),
+  :global(.odon-export-card),
+  :global(.odon-tour-card),
+  :global(.odon-zoom-popover) {
+    border-radius: $radius-lg;
+  }
+
+  // Tiles dos dentes e células de superfície acompanham o raio médio.
+  :global(.tooth-tile),
+  :global(.surface-cross .surface-cell) {
+    border-radius: $radius-md;
+  }
+
+  :global(.tooth-tile)::after {
+    border-radius: calc(#{$radius-md} + 1px);   // contorno 1px maior que o tile
   }
 }
 
-// ── Histórico ────────────────────────────────────────────────────────────────
-.historico {
-  display: flex;
-  flex-direction: column;
-  gap: $sp-3;
-}
+// Modo LEITURA do shell (procedimento expandido na timeline): só a ficha,
+// sem o menu lateral de edição — o snapshot já vem marcado do save.
+.shellLeitura {
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  padding: $sp-3;
 
-.historicoHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: $sp-3;
+  :global(.layout) {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  :global(.panel) {
+    display: none !important;
+  }
+
+  :global(.chart-column) {
+    height: auto;
+    overflow-y: visible;
+  }
 }
 
 // Chip do número do dente na tabela de histórico.
@@ -93,9 +233,337 @@
   white-space: nowrap;
 }
 
-// Formulário do modal "Dente N — novo tratamento".
-.form {
+// ── Editor de tratamento (topo com campos + relatório ao vivo) ───────────────
+.editorCard {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  padding: $sp-5;
+}
+
+.editorAcoes {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  flex-shrink: 0;
+}
+
+.editorCampos {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px 150px;
+  gap: $sp-4;
+  align-items: start;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.prefixo {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.relatorioVazio {
+  padding: $sp-4 0;
+  font-size: $fs-sm;
+  color: var(--text-muted);
+  text-align: center;
+  border: 1px dashed var(--glass-border);
+  border-radius: $radius-md;
+}
+
+.relatorioLista {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.relatorioLinha {
+  display: flex;
+  align-items: baseline;
+  gap: $sp-3;
+  padding: $sp-2 0;
+  border-bottom: 1px solid var(--glass-border);
+
+  &:last-child { border-bottom: none; }
+}
+
+.relatorioTexto {
+  font-size: $fs-sm;
+  color: var(--text-primary);
+  line-height: 1.5;
+  min-width: 0;
+}
+
+// ── Materiais utilizados no procedimento (lista dinâmica, opcional) ──────────
+.materiais {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  padding-top: $sp-3;
+  border-top: 1px solid var(--glass-border);
+}
+
+.materiaisCabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+}
+
+.materiaisTitulo {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.materiaisVazio {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}
+
+.materialLinha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px 40px;
+  gap: $sp-2;
+  align-items: center;
+
+  @include phone {
+    grid-template-columns: minmax(0, 1fr) 110px 36px;
+  }
+}
+
+// ── Timeline de tratamentos: procedimentos como sub-rotas conectadas ─────────
+.tratamentos {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.trat {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  padding: $sp-5;
+}
+
+.tratCabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+
+  @include phone {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.tratInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tratTitulo {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tratMeta {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.tratAcoes {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  flex-shrink: 0;
+}
+
+// Soma dos valores dos procedimentos, no cabeçalho do tratamento.
+.tratTotal {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+
+  @include phone {
+    align-items: flex-start;
+  }
+}
+
+.tratTotalRotulo {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.tratTotalValor {
+  font-size: $fs-base;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tratVazio {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+  padding: $sp-3 0 0;
+  border-top: 1px solid var(--glass-border);
+}
+
+// Trilho vertical que conecta os procedimentos ao tratamento.
+.procedimentos {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  margin-left: 6px;
+  padding-top: $sp-2;
+  border-top: 1px solid var(--glass-border);
+}
+
+.procItem {
+  position: relative;
+  padding: 0 0 $sp-4 $sp-6;
+  border-left: 2px solid var(--glass-border);
+
+  &:last-child {
+    border-left-color: transparent;   // o trilho termina no último ponto
+    padding-bottom: 0;
+  }
+}
+
+.procPonto {
+  position: absolute;
+  left: -6px;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 3px var(--bg-base);   // anel que "fura" o trilho
+}
+
+.procCorpo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+}
+
+// Cabeçalho clicável do procedimento — expande para mostrar o odontograma
+// daquele dia (marcado) e os detalhes.
+.procExpandir {
+  display: flex;
+  align-items: baseline;
+  gap: $sp-2;
+  flex-wrap: wrap;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover .procTitulo {
+    color: var(--primary);
+  }
+
+  @include focus-ring;
+}
+
+.procSeta {
+  display: inline-flex;
+  align-self: center;
+  color: var(--text-muted);
+  transition: transform 0.18s ease;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.procSetaAberta {
+  transform: rotate(90deg);
+}
+
+// Valor individual do procedimento, alinhado à direita do cabeçalho.
+.procValor {
+  margin-left: auto;
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+
+  @include phone {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}
+
+.procDetalhes {
   display: flex;
   flex-direction: column;
   gap: $sp-3;
+  margin-top: $sp-2;
 }
+
+.procSemFicha {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.procTitulo {
+  font-size: $fs-base;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.procMeta {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.procAcoes {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  li {
+    font-size: $fs-sm;
+    color: var(--text-secondary);
+    line-height: 1.45;
+  }
+}
+
+.procMateriais {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.procObs {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+// Modal "Novo tratamento" (leve).
+.modalTratamento {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+

@@ -59,6 +59,45 @@
 
 .clickable { cursor: pointer; }
 
+// ── Linhas expansíveis (renderExpanded) — desenho da tabela de pagamentos ────
+.thSeta { width: 40px; }
+
+.tdSeta { padding-right: 0 !important; }
+
+.setaBtn {
+  @include focus-ring;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: transform 0.15s ease, color 0.15s ease;
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover { color: var(--text-primary); }
+
+  &--aberta {
+    transform: rotate(90deg);
+    color: var(--primary-fg);
+  }
+}
+
+.detalheRow td {
+  padding: 0 $sp-4;
+  background: rgba(var(--primary-rgb), 0.04);   // faixa sutil ligada à linha acima
+  white-space: normal;                          // o detalhe pode quebrar linha
+}
+
+.detalhe {
+  padding: $sp-4 $sp-2 $sp-4 40px;   // alinha com o conteúdo, após a coluna da seta
+}
+
 .empty {
   text-align: center;
   color: var(--text-muted);

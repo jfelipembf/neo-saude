@@ -1,8 +1,8 @@
 import { MOCK_DOCUMENTOS } from '@/mocks/documentos'
-import type { DocumentoPaciente } from '@/types/domain'
+import type { PatientDocument } from '@/types/domain'
 
 /** Dados do formulário de upload (id e data de envio nascem aqui). */
-export interface NovoDocumento {
+export interface NewDocument {
   pacienteId: string
   nome: string
   descricao?: string
@@ -14,7 +14,7 @@ export interface NovoDocumento {
 
 // MODO MOCK: retorna dados de demonstração. Quando o schema Supabase existir,
 // trocar o corpo por supabase.storage + tabela 'documentos', mesma assinatura.
-export async function listDocumentosDoPaciente(pacienteId: string): Promise<DocumentoPaciente[]> {
+export async function listDocumentosDoPaciente(pacienteId: string): Promise<PatientDocument[]> {
   return MOCK_DOCUMENTOS.filter(d => d.pacienteId === pacienteId)
 }
 
@@ -22,7 +22,7 @@ export async function listDocumentosDoPaciente(pacienteId: string): Promise<Docu
 let proximoId = 100
 
 /** Registra um documento enviado (mock: em memória; arquivo vive como object URL). */
-export async function addDocumento(dados: NovoDocumento): Promise<void> {
+export async function addDocumento(dados: NewDocument): Promise<void> {
   const hoje = new Date()
   const enviadoEm = hoje.toLocaleDateString('pt-BR')
   MOCK_DOCUMENTOS.unshift({ id: `d${proximoId++}`, enviadoEm, ...dados })

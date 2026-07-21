@@ -5,14 +5,20 @@ import { IconAdministrativo } from '@/components/icons'
 import { ClinicTab } from './Clinic/ClinicTab'
 import { RoomsTab } from './Rooms/RoomsTab'
 import { MaterialsTab } from './Materials/MaterialsTab'
+import { CommissionsTab } from './Commissions/CommissionsTab'
+import { RolesTab } from './Roles/RolesTab'
+import { InsurancesTab } from './Insurances/InsurancesTab'
 import styles from './AdminPage.module.scss'
 
-type TabKey = 'consultorio' | 'salas' | 'materiais'
+type TabKey = 'consultorio' | 'salas' | 'materiais' | 'convenios' | 'comissoes' | 'cargos'
 
 const TABS = [
   { key: 'consultorio', label: 'Dados do consultório' },
   { key: 'salas',       label: 'Salas' },
   { key: 'materiais',   label: 'Materiais' },
+  { key: 'convenios',   label: 'Convênios' },
+  { key: 'comissoes',   label: 'Comissões' },
+  { key: 'cargos',      label: 'Cargos' },
 ]
 
 /** Página Administrativo: uma rota só, com o conteúdo organizado em abas. */
@@ -29,6 +35,9 @@ export function AdminPage() {
       {tab === 'consultorio' && <ClinicTab />}
       {tab === 'salas'       && <RoomsTab />}
       {tab === 'materiais'   && <MaterialsTab />}
+      {tab === 'convenios'   && <InsurancesTab />}
+      {tab === 'comissoes'   && <CommissionsTab />}
+      {tab === 'cargos'      && <RolesTab />}
     </>
   )
 }

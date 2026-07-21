@@ -1,15 +1,15 @@
 import { MOCK_LEMBRETES } from '@/mocks/lembretes'
-import type { Lembrete } from '@/types/domain'
+import type { Reminder } from '@/types/domain'
 
 // MODO MOCK: retorna dados de demonstração. Quando o schema Supabase existir,
 // trocar o corpo por supabase.from('lembretes')… mantendo a MESMA assinatura —
 // páginas e hooks não mudam.
-export async function listLembretes(): Promise<Lembrete[]> {
+export async function listLembretes(): Promise<Reminder[]> {
   return [...MOCK_LEMBRETES]
 }
 
 /** Dados do formulário de novo lembrete (modal do card). */
-export interface NovoLembrete {
+export interface NewReminder {
   texto: string
   data?: string          // dd/mm
 }
@@ -18,7 +18,7 @@ export interface NovoLembrete {
 let proximoId = 100
 
 /** Cria um lembrete (entra pendente, no topo da lista). */
-export async function addLembrete(dados: NovoLembrete): Promise<void> {
+export async function addLembrete(dados: NewReminder): Promise<void> {
   MOCK_LEMBRETES.unshift({ id: `l${proximoId++}`, concluido: false, ...dados })
 }
 

@@ -1,16 +1,16 @@
 import { MOCK_CONSULTAS } from '@/mocks/consultas'
 import { MOCK_HISTORICO_CONSULTAS } from '@/mocks/historicoConsultas'
 import { gerarSerieConsultas } from '@/mocks/serieConsultas'
-import type { Consulta, ConsultaHistorico, DashboardStats, PeriodoGrafico, PontoSerie, StatusConsulta } from '@/types/domain'
+import type { Appointment, AppointmentHistory, DashboardStats, ChartPeriod, SeriesPoint, AppointmentStatus } from '@/types/domain'
 
 // MODO MOCK: retorna dados de demonstração. Quando o schema Supabase existir,
 // trocar o corpo por supabase.from('consultas')… mantendo a MESMA assinatura.
-export async function listConsultasDoDia(): Promise<Consulta[]> {
+export async function listConsultasDoDia(): Promise<Appointment[]> {
   return MOCK_CONSULTAS
 }
 
 /** Marca presença/falta do paciente (mock: muta o array em memória). */
-export async function setStatusConsulta(id: string, status: StatusConsulta): Promise<void> {
+export async function setStatusConsulta(id: string, status: AppointmentStatus): Promise<void> {
   const consulta = MOCK_CONSULTAS.find(c => c.id === id)
   if (consulta) consulta.status = status
 }
@@ -19,12 +19,12 @@ export async function setStatusConsulta(id: string, status: StatusConsulta): Pro
  * Série do gráfico de consultas por período (semana → dias, mês → semanas,
  * ano → meses), relativa ao mês de referência ('aaaa-mm').
  */
-export async function getSerieConsultas(periodo: PeriodoGrafico, mesIso: string): Promise<PontoSerie[]> {
+export async function getSerieConsultas(periodo: ChartPeriod, mesIso: string): Promise<SeriesPoint[]> {
   return gerarSerieConsultas(periodo, mesIso)
 }
 
 /** Histórico de consultas do paciente (timeline do perfil), da mais recente à mais antiga. */
-export async function listHistoricoDoPaciente(pacienteId: string): Promise<ConsultaHistorico[]> {
+export async function listHistoricoDoPaciente(pacienteId: string): Promise<AppointmentHistory[]> {
   return MOCK_HISTORICO_CONSULTAS.filter(c => c.pacienteId === pacienteId)
 }
 

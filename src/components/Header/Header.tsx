@@ -3,7 +3,7 @@ import { APP_ROUTES } from '@/constants'
 import { useSession } from '@/context/SessionProvider'
 import { useTheme } from '@/context/ThemeProvider'
 import {
-  IconDashboard, IconAgenda, IconPacientes, IconProfissionais, IconFinanceiro,
+  IconLogo, IconDashboard, IconAgenda, IconPacientes, IconProfissionais, IconFinanceiro,
   IconAdministrativo, IconSair, IconTema,
 } from '@/components/icons'
 import styles from './Header.module.scss'
@@ -25,8 +25,7 @@ export function Header() {
   return (
     <header className={styles.header}>
       <div className={styles.brand}>
-        <span className={styles.brandMark}>N</span>
-        <span className={styles.brandName}>Neo Saúde</span>
+        <span className={styles.brandLogo}><IconLogo /></span>
       </div>
 
       <nav className={styles.nav}>

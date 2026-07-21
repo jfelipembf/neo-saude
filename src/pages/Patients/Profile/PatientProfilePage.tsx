@@ -15,40 +15,35 @@ import { PaymentsTable } from '@/components/PaymentsTable/PaymentsTable'
 const TreatmentsPanel = lazy(() =>
   import('@/components/TreatmentsPanel/TreatmentsPanel').then(m => ({ default: m.TreatmentsPanel })),
 )
-import { AppointmentsTimeline } from '@/components/AppointmentsTimeline/AppointmentsTimeline'
 import { DocumentsUpload } from '@/components/DocumentsUpload/DocumentsUpload'
+import { BudgetsPanel } from '@/components/BudgetsPanel/BudgetsPanel'
+import { PrescriptionsPanel } from '@/components/PrescriptionsPanel/PrescriptionsPanel'
 import { useToast } from '@/components/Toast/useToast'
 import { OPCOES_SEXO, SEXO_LABEL } from '@/constants'
+import { useOpcoesConvenio } from '@/hooks/useConvenios'
 import { queryKeys } from '@/lib/queryKeys'
 import { getPaciente } from '@/services/pacientesService'
 import { useAtualizarPaciente } from '@/hooks/usePacientes'
 import { IconUsuario, IconEditar, IconTelefone, IconMensagem, IconEmail } from '@/components/icons'
-import type { Paciente, SexoPaciente } from '@/types/domain'
+import { initials, somenteDigitos } from '@/utils/text'
+import type { Patient, Gender } from '@/types/domain'
 import styles from './PatientProfilePage.module.scss'
 
-const OPCOES_CONVENIO = [
-  { value: 'Particular', label: 'Particular' },
-  { value: 'Unimed',     label: 'Unimed' },
-  { value: 'Bradesco',   label: 'Bradesco' },
-  { value: 'SulAmérica', label: 'SulAmérica' },
-  { value: 'Amil',       label: 'Amil' },
-  { value: 'Outro',      label: 'Outro' },
-]
-
-type TabKey = 'dados' | 'tratamento' | 'pagamentos' | 'consultas' | 'documentos'
+type TabKey = 'dados' | 'tratamento' | 'orcamentos' | 'prescricoes' | 'pagamentos' | 'documentos'
 
 const TABS = [
-  { key: 'dados',      label: 'Dados pessoais' },
-  { key: 'tratamento', label: 'Tratamento' },
-  { key: 'pagamentos', label: 'Pagamentos' },
-  { key: 'consultas',  label: 'Minhas consultas' },
-  { key: 'documentos', label: 'Documentos' },
+  { key: 'dados',       label: 'Dados pessoais' },
+  { key: 'tratamento',  label: 'Tratamento' },
+  { key: 'orcamentos',  label: 'Orçamentos' },
+  { key: 'prescricoes', label: 'Prescrições' },
+  { key: 'pagamentos',  label: 'Pagamentos' },
+  { key: 'documentos',  label: 'Documentos' },
 ]
 
 interface FormPaciente {
   nome: string
   sobrenome: string
-  sexo: SexoPaciente | ''
+  sexo: Gender | ''
   nascimentoIso: string   // aaaa-mm-dd (input date)
   email: string
   telefone: string
@@ -62,7 +57,7 @@ interface FormPaciente {
 }
 
 /** Monta o formulário a partir do cadastro atual (nome completo → nome + sobrenome). */
-function formDoPaciente(p: Paciente): FormPaciente {
+function formDoPaciente(p: Patient): FormPaciente {
   const [nome, ...sobrenome] = p.nome.split(' ')
   return {
     nome,
@@ -81,14 +76,6 @@ function formDoPaciente(p: Paciente): FormPaciente {
   }
 }
 
-/** Iniciais para o círculo de foto (primeiro + último nome). */
-function initials(nome: string) {
-  const partes = nome.split(' ').filter(Boolean)
-  const primeira = partes[0]?.[0] ?? ''
-  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : ''
-  return (primeira + ultima).toUpperCase()
-}
-
 export function PatientProfilePage() {
   const { id } = useParams<{ id: string }>()
   const toast = useToast()
@@ -99,6 +86,7 @@ export function PatientProfilePage() {
     enabled: Boolean(id),
   })
   const { mutate: salvar, isPending: salvando } = useAtualizarPaciente()
+  const opcoesConvenio = useOpcoesConvenio()
 
   const [tab, setTab] = useState<TabKey>('dados')
   const [editando, setEditando] = useState(false)
@@ -258,6 +246,28 @@ export function PatientProfilePage() {
             </p>
           </div>
 
+          {/* Ações rápidas: ligar e chamar no WhatsApp. */}
+          <div className={styles.acoesContato}>
+            <Button
+              variant="outline"
+              iconLeft={<IconTelefone />}
+              disabled={!paciente.telefone}
+              onClick={() => { window.location.href = `tel:+55${somenteDigitos(paciente.telefone)}` }}
+            >
+              Ligar
+            </Button>
+            <Button
+              iconLeft={<IconMensagem />}
+              disabled={!(paciente.whatsapp ?? paciente.telefone)}
+              onClick={() =>
+                // WhatsApp cadastrado ou o próprio celular.
+                window.open(`https://wa.me/55${somenteDigitos(paciente.whatsapp ?? paciente.telefone)}`, '_blank')
+              }
+            >
+              WhatsApp
+            </Button>
+          </div>
+
           <div className={styles.bloco}>
             <h3 className={styles.blocoTitulo}>Contato</h3>
             <ul className={styles.contatos}>
@@ -316,7 +326,7 @@ export function PatientProfilePage() {
                 </div>
                 <Select
                   label="Convênio"
-                  options={OPCOES_CONVENIO}
+                  options={opcoesConvenio}
                   value={form.convenio}
                   onChange={e => set('convenio')(e.target.value)}
                 />
@@ -379,13 +389,18 @@ export function PatientProfilePage() {
 
           {tab === 'tratamento' && (
             <Suspense fallback={<PageLoader />}>
-              <TreatmentsPanel pacienteId={paciente.id} />
+              <TreatmentsPanel pacienteId={paciente.id} pacienteNome={paciente.nome} />
             </Suspense>
+          )}
+          {tab === 'orcamentos' && (
+            <BudgetsPanel pacienteId={paciente.id} pacienteNome={paciente.nome} />
+          )}
+          {tab === 'prescricoes' && (
+            <PrescriptionsPanel pacienteId={paciente.id} pacienteNome={paciente.nome} />
           )}
           {tab === 'pagamentos' && (
             <PaymentsTable pacienteId={paciente.id} pacienteNome={paciente.nome} pacienteCpf={paciente.cpf} />
           )}
-          {tab === 'consultas' && <AppointmentsTimeline pacienteId={paciente.id} />}
           {tab === 'documentos' && <DocumentsUpload pacienteId={paciente.id} />}
         </div>
       </div>

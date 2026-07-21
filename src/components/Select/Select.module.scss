@@ -3,6 +3,7 @@
 .field { @include field-root; }
 .label { @include field-label; }
 .error { @include field-error-text; }
+.hint  { @include field-hint-text; }
 
 .wrapper {
   position: relative;

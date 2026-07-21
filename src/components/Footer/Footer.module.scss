@@ -1,0 +1,27 @@
+@use '../../styles/mixins' as *;
+
+// Barra fina SEMPRE visível no pé da tela (fora da área rolável do layout).
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: $sp-2;
+  flex-shrink: 0;
+  padding: $sp-2 $sp-8;
+
+  @include mobile {
+    padding: $sp-2 $sp-4;
+  }
+}
+
+.texto {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.logo {
+  height: 16px;
+  width: auto;
+  opacity: 0.85;
+}

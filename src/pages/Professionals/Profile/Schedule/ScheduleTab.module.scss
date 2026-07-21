@@ -1,0 +1,89 @@
+@use '../../../../styles/mixins' as *;
+
+// Calendário à esquerda, atendimentos do dia à direita.
+.agendaGrid {
+  display: grid;
+  grid-template-columns: 380px minmax(0, 1fr);
+  gap: $sp-6;
+  align-items: start;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+.agendaDia {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.agendaVazia {
+  padding: $sp-4 0;
+  font-size: $fs-sm;
+  color: var(--text-muted);
+  text-align: center;
+  border: 1px dashed var(--glass-border);
+  border-radius: $radius-md;
+}
+
+.agendaDiaTitulo {
+  font-size: $fs-sm;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  padding-bottom: $sp-1;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.agendaLista {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.agendaItem {
+  display: flex;
+  align-items: center;
+  gap: $sp-4;
+  padding: $sp-2 0;
+  border-bottom: 1px solid var(--glass-border);
+
+  &:last-child { border-bottom: none; }
+}
+
+// Ligar / WhatsApp do paciente do horário, encostados à direita.
+.agendaAcoes {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-1;
+  flex-shrink: 0;
+}
+
+.agendaHora {
+  flex-shrink: 0;
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--primary-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.agendaInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.agendaPaciente {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.agendaMeta {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}

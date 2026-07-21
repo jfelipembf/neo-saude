@@ -3,12 +3,12 @@ import type { DragEvent } from 'react'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { IconChevronEsquerda, IconChevronDireita, IconRelogio } from '@/components/icons'
 import { useConsultasDoDia, useSetStatusConsulta } from '@/hooks/useConsultas'
-import type { Consulta, StatusConsulta } from '@/types/domain'
+import type { Appointment, AppointmentStatus } from '@/types/domain'
 import styles from './KanbanBoard.module.scss'
 
 // Fluxo do atendimento, da chegada à alta. Cancelada/faltou ficam fora do
 // quadro — são marcadas pela lista da agenda, não pelo fluxo.
-const COLUNAS: { status: StatusConsulta; titulo: string }[] = [
+const COLUNAS: { status: AppointmentStatus; titulo: string }[] = [
   { status: 'agendada',       titulo: 'Agendada' },
   { status: 'confirmada',     titulo: 'Confirmada' },
   { status: 'em_atendimento', titulo: 'Em atendimento' },
@@ -19,7 +19,7 @@ const COLUNAS: { status: StatusConsulta; titulo: string }[] = [
 export function KanbanBoard() {
   const { data: consultas, isLoading } = useConsultasDoDia()
   const { mutate: setStatus } = useSetStatusConsulta()
-  const [colunaAlvo, setColunaAlvo] = useState<StatusConsulta | null>(null)
+  const [colunaAlvo, setColunaAlvo] = useState<AppointmentStatus | null>(null)
 
   if (isLoading) {
     return <div className={styles.loading}><Spinner size="lg" /></div>
@@ -27,11 +27,11 @@ export function KanbanBoard() {
 
   const lista = consultas ?? []
 
-  function mover(id: string, status: StatusConsulta) {
+  function mover(id: string, status: AppointmentStatus) {
     setStatus({ id, status })
   }
 
-  function aoSoltar(e: DragEvent, status: StatusConsulta) {
+  function aoSoltar(e: DragEvent, status: AppointmentStatus) {
     e.preventDefault()
     setColunaAlvo(null)
     const id = e.dataTransfer.getData('text/plain')
@@ -88,10 +88,10 @@ export function KanbanBoard() {
 }
 
 interface ConsultaCardProps {
-  consulta: Consulta
-  anterior?: StatusConsulta
-  proxima?: StatusConsulta
-  onMover: (id: string, status: StatusConsulta) => void
+  consulta: Appointment
+  anterior?: AppointmentStatus
+  proxima?: AppointmentStatus
+  onMover: (id: string, status: AppointmentStatus) => void
 }
 
 function ConsultaCard({ consulta, anterior, proxima, onMover }: ConsultaCardProps) {

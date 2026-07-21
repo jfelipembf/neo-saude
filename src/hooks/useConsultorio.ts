@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import { getConsultorio, updateConsultorio, getResponsavel, updateResponsavel } from '@/services/consultorioService'
-import type { DadosConsultorio, ResponsavelTecnico } from '@/types/domain'
+import type { ClinicData, TechnicalManager } from '@/types/domain'
 
 export function useConsultorio() {
   return useQuery({ queryKey: queryKeys.consultorio.dados, queryFn: getConsultorio })
@@ -11,7 +11,7 @@ export function useConsultorio() {
 export function useSalvarConsultorio() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (dados: DadosConsultorio) => updateConsultorio(dados),
+    mutationFn: (dados: ClinicData) => updateConsultorio(dados),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.consultorio.dados }),
   })
 }
@@ -24,7 +24,7 @@ export function useResponsavel() {
 export function useSalvarResponsavel() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (dados: ResponsavelTecnico) => updateResponsavel(dados),
+    mutationFn: (dados: TechnicalManager) => updateResponsavel(dados),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.consultorio.responsavel }),
   })
 }

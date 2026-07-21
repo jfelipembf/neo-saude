@@ -2,27 +2,21 @@ import { useState } from 'react'
 import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
 import { Pagination } from '@/components/Pagination/Pagination'
-import { Select } from '@/components/Select/Select'
+import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
 import { IconBuscar, IconEstrela, IconOlho } from '@/components/icons'
 import { useProfissionais } from '@/hooks/useProfissionais'
-import { OPCOES_POR_PAGINA } from '@/constants'
-import type { Profissional } from '@/types/domain'
+import { useDebounce } from '@/hooks/useDebounce'
+import { initials } from '@/utils/text'
+import { combinaBusca } from '@/utils/search'
+import type { Professional } from '@/types/domain'
 import styles from './ProfessionalsTable.module.scss'
-
-/** Iniciais para o círculo de foto (primeiro + último nome, ignorando "Dr./Dra."). */
-function initials(nome: string) {
-  const partes = nome.replace(/^Dra?\.\s*/i, '').split(' ').filter(Boolean)
-  const primeira = partes[0]?.[0] ?? ''
-  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : ''
-  return (primeira + ultima).toUpperCase()
-}
 
 interface ProfessionalsTableProps {
   /** Ação do botão "Ver" (ex.: abrir o perfil do profissional). */
-  onView?: (profissional: Profissional) => void
+  onView?: (profissional: Professional) => void
 }
 
 /** Lista de profissionais: busca, paginação e linhas altas com foto maior,
@@ -34,13 +28,17 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
   const [pagina, setPagina] = useState(1)
   const [porPagina, setPorPagina] = useState(5)
 
+  // Termo "estabilizado" (debounce) — hook, então fica ANTES de qualquer
+  // return condicional (ordem dos hooks precisa ser igual em todo render).
+  const termo = useDebounce(busca)
+
   if (isLoading) {
     return <div className={styles.loading}><Spinner /></div>
   }
 
-  const termo = busca.trim().toLowerCase()
+  // Busca sem acento e sem partículas ("maria souza" acha "Maria de Souza").
   const filtrados = (profissionais ?? []).filter(p =>
-    !termo || p.nome.toLowerCase().includes(termo) || p.especialidade.toLowerCase().includes(termo),
+    combinaBusca(p.nome, termo) || combinaBusca(p.especialidade, termo),
   )
 
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / porPagina))
@@ -48,7 +46,7 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
   const paginaAtual = Math.min(pagina, totalPaginas)
   const visiveis = filtrados.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina)
 
-  const columns: TableColumn<Profissional>[] = [
+  const columns: TableColumn<Professional>[] = [
     {
       key: 'profissional',
       label: 'Profissional',
@@ -86,16 +84,16 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
     },
     {
       key: 'acoes',
-      label: '',
+      label: 'Ação',
       render: p => (
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           iconLeft={<IconOlho />}
+          title="Ver perfil"
+          aria-label={`Ver perfil de ${p.nome}`}
           onClick={e => { e.stopPropagation(); onView?.(p) }}
-        >
-          Ver
-        </Button>
+        />
       ),
     },
   ]
@@ -109,14 +107,7 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
       emptyMessage={termo ? 'Nenhum profissional encontrado para a busca.' : 'Nenhum profissional cadastrado.'}
       toolbar={
         <>
-          <Select
-            size="sm"
-            options={OPCOES_POR_PAGINA}
-            value={String(porPagina)}
-            onChange={e => { setPorPagina(Number(e.target.value)); setPagina(1) }}
-            aria-label="Registros por página"
-            className={styles.porPagina}
-          />
+          <PerPageSelect porPagina={porPagina} onChange={n => { setPorPagina(n); setPagina(1) }} />
           <Input
             size="sm"
             iconLeft={<IconBuscar />}

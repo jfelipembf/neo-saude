@@ -4,6 +4,17 @@
 // nunca por estilo inline. Ícone novo? Adicione aqui, não no componente.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Logotipo NEO (fonte: src/assets/images/logo/logo.svg) — exceção de traço:
+// é preenchido (fill), não stroke; a cor continua vindo de currentColor.
+export const IconLogo = () => (
+  <svg viewBox="0 0 379.4 98.5" fill="currentColor" role="img" aria-label="Neo Saúde">
+    <path d="M103.81,76.42L35.5,5.04c-2.84-3.35-6.7-5.04-11.49-5.04h-10.8C4.56,0,0,4.37,0,12.63v85.87h22.35V22.22l68.31,71.1c2.65,3.44,6.51,5.18,11.49,5.18h10.8c8.64,0,13.2-4.42,13.2-12.78V0h-22.35v76.42h.01Z" />
+    <polygon points="161.49 56.39 218.94 56.39 218.94 39.41 137.49 39.41 137.49 98.5 250.3 98.5 250.3 79.56 161.49 79.56 161.49 56.39" />
+    <rect x="137.49" width="112.81" height="19.24" />
+    <path d="M352.25,0h-64.5c-18.02,0-27.15,8.35-27.15,24.81v48.88c0,16.46,9.14,24.81,27.15,24.81h64.5c18.02,0,27.15-8.35,27.15-24.81V24.81c0-16.46-9.13-24.81-27.15-24.81ZM354.65,28.27v41.96c0,6.14-2.92,8.88-9.45,8.88h-50.4c-6.54,0-9.45-2.74-9.45-8.88V28.27c0-6.24,2.91-9.03,9.45-9.03h50.4c6.54,0,9.45,2.78,9.45,9.03Z" />
+  </svg>
+)
+
 export const IconDashboard = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
     <rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" />

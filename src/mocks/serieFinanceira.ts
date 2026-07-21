@@ -1,5 +1,5 @@
 import { gerarSerieConsultas, parseMesIso, ruido } from '@/mocks/serieConsultas'
-import type { PeriodoGrafico, PontoFinanceiro } from '@/types/domain'
+import type { ChartPeriod, FinancePoint } from '@/types/domain'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Série financeira de demonstração, DERIVADA da série de consultas do mesmo
@@ -12,7 +12,7 @@ function dezena(v: number) {
   return Math.round(v / 10) * 10
 }
 
-export function gerarSerieFinanceira(periodo: PeriodoGrafico, mesIso: string): PontoFinanceiro[] {
+export function gerarSerieFinanceira(periodo: ChartPeriod, mesIso: string): FinancePoint[] {
   const { ano, mes } = parseMesIso(mesIso)
 
   return gerarSerieConsultas(periodo, mesIso).map((p, i) => {

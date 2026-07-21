@@ -1,0 +1,140 @@
+@use '../../../styles/mixins' as *;
+
+.resumo {
+  @include card;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-5;
+  padding: $sp-5;
+}
+
+.editBtn {
+  position: absolute;
+  top: $sp-3;
+  right: $sp-3;
+}
+
+.identidade {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $sp-1;
+  padding-top: $sp-3;
+  text-align: center;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  margin-bottom: $sp-2;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: #fff;
+  font-size: $fs-2xl;
+  font-weight: 600;
+  box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.15);   // anel sutil da marca
+}
+
+.nome {
+  font-size: $fs-xl;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.subtitulo {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+// Nota média de atendimento (estrela + valor), abaixo do subtítulo.
+.nota {
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-1;
+  margin-top: $sp-1;
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+
+  svg {
+    width: 15px;
+    height: 15px;
+    color: var(--warning-fg);   // estrela âmbar, mesmo tom da lista de profissionais
+    fill: currentColor;         // estrela cheia
+  }
+}
+
+// ── Blocos do card (Contato / Dados profissionais / Sobre) ───────────────────
+.bloco {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding-top: $sp-4;
+  border-top: 1px solid var(--glass-border);
+}
+
+.blocoTitulo {
+  font-size: $fs-xs;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.contatos {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.contato {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  min-width: 0;
+}
+
+.contatoIcone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  color: var(--primary-fg);
+
+  svg { width: 15px; height: 15px; }
+}
+
+.contatoTexto {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.contatoLabel {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.contatoValor {
+  font-size: $fs-sm;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+// Grade 2×2 de pares rótulo/valor (Especialidade, Registro, Nota, Situação).
+.pares {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3 $sp-4;
+}

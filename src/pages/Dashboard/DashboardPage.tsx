@@ -17,7 +17,7 @@ import {
   IconAgenda, IconPacientes, IconTendenciaAlta, IconTendenciaBaixa, IconKanban,
 } from '@/components/icons'
 import { APP_ROUTES } from '@/constants'
-import type { Consulta } from '@/types/domain'
+import type { Appointment } from '@/types/domain'
 import styles from './DashboardPage.module.scss'
 
 export function DashboardPage() {
@@ -34,7 +34,7 @@ export function DashboardPage() {
   const noKanban = visao === 'kanban'
 
   // Clicar no círculo já ativo desfaz a marcação (volta para "agendada").
-  function marcarPresenca(c: Consulta, compareceu: boolean) {
+  function marcarPresenca(c: Appointment, compareceu: boolean) {
     const alvo = compareceu ? 'concluida' : 'faltou'
     setStatus({ id: c.id, status: c.status === alvo ? 'agendada' : alvo })
   }

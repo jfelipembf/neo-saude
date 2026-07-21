@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { IconChevronEsquerda, IconChevronDireita } from '@/components/icons'
 import { useSerieFinanceira } from '@/hooks/useFinanceiro'
-import type { PeriodoGrafico } from '@/types/domain'
+import type { ChartPeriod } from '@/types/domain'
 import styles from './FinanceChart.module.scss'
 
-const PERIODOS: { id: PeriodoGrafico; label: string }[] = [
+const PERIODOS: { id: ChartPeriod; label: string }[] = [
   { id: 'semana', label: 'Semana' },
   { id: 'mes',    label: 'Mês' },
   { id: 'ano',    label: 'Ano' },
@@ -32,7 +32,7 @@ function toMesIso(d: Date) {
 
 /** Gráfico de linhas de ganhos × gastos, com filtro semana/mês/ano e seletor de mês. */
 export function FinanceChart() {
-  const [periodo, setPeriodo] = useState<PeriodoGrafico>('semana')
+  const [periodo, setPeriodo] = useState<ChartPeriod>('semana')
   const [mesRef, setMesRef] = useState(() => {
     const hoje = new Date()
     return new Date(hoje.getFullYear(), hoje.getMonth(), 1)

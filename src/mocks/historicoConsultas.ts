@@ -1,7 +1,7 @@
-import type { ConsultaHistorico } from '@/types/domain'
+import type { AppointmentHistory } from '@/types/domain'
 
 // Ordenado da mais recente para a mais antiga (ordem de exibição da timeline).
-export const MOCK_HISTORICO_CONSULTAS: ConsultaHistorico[] = [
+export const MOCK_HISTORICO_CONSULTAS: AppointmentHistory[] = [
   {
     id: 'h1', pacienteId: 'p1', data: '15/07/2026', hora: '08:00',
     atendimento: 'Consulta clínica', profissional: 'Dra. Camila Duarte', duracao: '40 min',
@@ -10,13 +10,13 @@ export const MOCK_HISTORICO_CONSULTAS: ConsultaHistorico[] = [
       { nome: 'Luvas de procedimento', quantidade: '2 un' },
       { nome: 'Abaixador de língua',   quantidade: '1 un' },
     ],
-    observacoes: 'Paciente relatou dores de cabeça recorrentes. Retorno marcado após resultado dos exames.',
+    observacao: 'Paciente relatou dores de cabeça recorrentes. Retorno marcado após resultado dos exames.',
   },
   {
     id: 'h2', pacienteId: 'p1', data: '02/06/2026', hora: '09:30',
     atendimento: 'Retorno', profissional: 'Dra. Camila Duarte', duracao: '25 min',
     procedimentos: ['Análise de exames laboratoriais', 'Ajuste de medicação'],
-    observacoes: 'Exames dentro da normalidade; mantida a dose atual com reavaliação em 60 dias.',
+    observacao: 'Exames dentro da normalidade; mantida a dose atual com reavaliação em 60 dias.',
   },
   {
     id: 'h3', pacienteId: 'p1', data: '12/05/2026', hora: '14:00',
@@ -51,6 +51,6 @@ export const MOCK_HISTORICO_CONSULTAS: ConsultaHistorico[] = [
     id: 'h6', pacienteId: 'p3', data: '02/07/2026', hora: '15:30',
     atendimento: 'Avaliação fisioterapia', profissional: 'Dr. Bruno Teixeira', duracao: '60 min',
     procedimentos: ['Anamnese completa', 'Testes de mobilidade', 'Plano de tratamento inicial'],
-    observacoes: 'Encaminhada para 10 sessões, duas vezes por semana.',
+    observacao: 'Encaminhada para 10 sessões, duas vezes por semana.',
   },
 ]

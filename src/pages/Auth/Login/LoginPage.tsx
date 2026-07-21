@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { isMockMode } from '@/lib/supabase'
 import { useSession } from '@/context/SessionProvider'
-import { APP_ROUTES } from '@/constants'
+import { APP_ROUTES, AUTH_ROUTES } from '@/constants'
+import { AuthLayout } from '@/components/AuthLayout/AuthLayout'
 import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
 import styles from './LoginPage.module.scss'
@@ -40,14 +41,8 @@ export function LoginPage() {
   }
 
   return (
-    <div className={styles.page}>
-      <form className={styles.card} onSubmit={handleSubmit}>
-        <div className={styles.brand}>
-          <span className={styles.brandMark}>N</span>
-          <h1 className={styles.title}>Neo Saúde</h1>
-          <p className={styles.subtitle}>Gestão para consultórios e clínicas</p>
-        </div>
-
+    <AuthLayout title="Bem-vindo de volta" subtitle="Acesse sua conta para continuar">
+      <form className={styles.form} onSubmit={handleSubmit}>
         {isMockMode && (
           <p className={styles.demoNotice}>
             Modo demonstração: qualquer e-mail e senha entram.
@@ -74,10 +69,16 @@ export function LoginPage() {
           error={error ?? undefined}
         />
 
+        <div className={styles.acoesLinha}>
+          <Link to={AUTH_ROUTES.FORGOT_PASSWORD} className={styles.esqueci}>
+            Esqueci minha senha
+          </Link>
+        </div>
+
         <Button type="submit" size="lg" loading={loading}>
           Entrar
         </Button>
       </form>
-    </div>
+    </AuthLayout>
   )
 }

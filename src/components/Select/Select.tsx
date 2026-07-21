@@ -13,12 +13,13 @@ type SelectSize = 'sm' | 'md' | 'lg'
 interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'size'> {
   label?:       string
   error?:       string
+  hint?:        string
   options:      SelectOption[]
   placeholder?: string
   size?:        SelectSize
 }
 
-export function Select({ label, error, options, placeholder, size = 'md', id, className, ...props }: SelectProps) {
+export function Select({ label, error, hint, options, placeholder, size = 'md', id, className, ...props }: SelectProps) {
   const selectId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
 
   return (
@@ -39,7 +40,8 @@ export function Select({ label, error, options, placeholder, size = 'md', id, cl
         </span>
       </div>
 
-      {error && <span className={styles.error}>{error}</span>}
+      {error       && <span className={styles.error}>{error}</span>}
+      {!error && hint && <span className={styles.hint}>{hint}</span>}
     </div>
   )
 }

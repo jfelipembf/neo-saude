@@ -1,6 +1,6 @@
-import type { UsuarioPerfil } from '@/types/domain'
+import type { UserProfile } from '@/types/domain'
 
-export const MOCK_USUARIO: UsuarioPerfil = {
+export const MOCK_USUARIO: UserProfile = {
   id: 'NS-00016',
   nome: 'Dra. Camila Duarte',
   especialidade: 'Clínica Geral',

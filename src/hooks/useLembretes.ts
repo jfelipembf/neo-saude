@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import { addLembrete, listLembretes, removeLembrete, toggleLembrete } from '@/services/lembretesService'
-import type { NovoLembrete } from '@/services/lembretesService'
+import type { NewReminder } from '@/services/lembretesService'
 
 export function useLembretes() {
   return useQuery({ queryKey: queryKeys.lembretes.all, queryFn: listLembretes })
@@ -11,7 +11,7 @@ export function useLembretes() {
 export function useCriarLembrete() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (dados: NovoLembrete) => addLembrete(dados),
+    mutationFn: (dados: NewReminder) => addLembrete(dados),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.lembretes.all }),
   })
 }

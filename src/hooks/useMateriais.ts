@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import { addMaterial, listMateriais, updateMaterial } from '@/services/materiaisService'
-import type { NovoMaterial } from '@/services/materiaisService'
+import type { NewMaterial } from '@/services/materiaisService'
 
 export function useMateriais() {
   return useQuery({ queryKey: queryKeys.materiais.all, queryFn: listMateriais })
@@ -11,7 +11,7 @@ export function useMateriais() {
 export function useCriarMaterial() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (dados: NovoMaterial) => addMaterial(dados),
+    mutationFn: (dados: NewMaterial) => addMaterial(dados),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.materiais.all }),
   })
 }
@@ -20,7 +20,7 @@ export function useCriarMaterial() {
 export function useAtualizarMaterial() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, dados }: { id: string; dados: NovoMaterial }) => updateMaterial(id, dados),
+    mutationFn: ({ id, dados }: { id: string; dados: NewMaterial }) => updateMaterial(id, dados),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.materiais.all }),
   })
 }

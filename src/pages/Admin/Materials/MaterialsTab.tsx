@@ -6,14 +6,15 @@ import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
 import { Modal } from '@/components/Modal/Modal'
-import { Select } from '@/components/Select/Select'
+import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { PhotoInput } from '@/components/PhotoInput/PhotoInput'
 import { Pagination } from '@/components/Pagination/Pagination'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { useToast } from '@/components/Toast/useToast'
 import { useMateriais, useCriarMaterial, useAtualizarMaterial } from '@/hooks/useMateriais'
+import { useDebounce } from '@/hooks/useDebounce'
+import { combinaBusca } from '@/utils/search'
 import { IconCaixa, IconMais, IconBuscar, IconEditar } from '@/components/icons'
-import { OPCOES_POR_PAGINA } from '@/constants'
 import type { Material } from '@/types/domain'
 import styles from './MaterialsTab.module.scss'
 
@@ -71,9 +72,9 @@ export function MaterialsTab() {
   const [porPagina, setPorPagina] = useState(10)
   const [busca, setBusca] = useState('')
 
-  const termo = busca.trim().toLowerCase()
+  const termo = useDebounce(busca)
   const filtrados = (materiais ?? []).filter(m =>
-    !termo || m.nome.toLowerCase().includes(termo) || m.observacao?.toLowerCase().includes(termo),
+    combinaBusca(m.nome, termo) || combinaBusca(m.observacao ?? '', termo),
   )
 
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / porPagina))
@@ -153,11 +154,16 @@ export function MaterialsTab() {
     { key: 'status',     label: 'Status',      render: m => <Badge status={statusDoMaterial(m)} /> },
     {
       key: 'acoes',
-      label: '',
+      label: 'Ação',
       render: m => (
-        <Button variant="outline" size="sm" iconLeft={<IconEditar />} onClick={() => abrirEdicao(m)}>
-          Editar
-        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          iconLeft={<IconEditar />}
+          title="Editar material"
+          aria-label={`Editar ${m.nome}`}
+          onClick={() => abrirEdicao(m)}
+        />
       ),
     },
   ]
@@ -174,14 +180,7 @@ export function MaterialsTab() {
           emptyMessage={termo ? 'Nenhum material encontrado para a busca.' : 'Nenhum material cadastrado.'}
           toolbar={
             <>
-              <Select
-                size="sm"
-                options={OPCOES_POR_PAGINA}
-                value={String(porPagina)}
-                onChange={e => { setPorPagina(Number(e.target.value)); setPagina(1) }}
-                aria-label="Registros por página"
-                className={styles.porPagina}
-              />
+              <PerPageSelect porPagina={porPagina} onChange={n => { setPorPagina(n); setPagina(1) }} />
               <div className={styles.toolbarDireita}>
                 <Input
                   size="sm"

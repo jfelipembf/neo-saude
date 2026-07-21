@@ -42,3 +42,9 @@
   color: var(--text-secondary);
   line-height: 1.6;
 }
+
+.extra {
+  display: flex;
+  justify-content: center;
+  padding-top: $sp-2;
+}

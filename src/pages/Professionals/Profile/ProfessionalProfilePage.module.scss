@@ -1,0 +1,24 @@
+@use '../../../styles/mixins' as *;
+
+// Mesmo padrão de página de detalhe do perfil do paciente: zona de cabeçalho
+// (título + abas), card-resumo à esquerda e painel da aba ativa à direita.
+.topo {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: $sp-6;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: $sp-6;
+  align-items: start;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+.painel {
+  min-width: 0;
+}

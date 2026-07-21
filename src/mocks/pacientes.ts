@@ -1,6 +1,6 @@
-import type { Paciente } from '@/types/domain'
+import type { Patient } from '@/types/domain'
 
-export const MOCK_PACIENTES: Paciente[] = [
+export const MOCK_PACIENTES: Patient[] = [
   { id: 'p1', nome: 'Maria Oliveira',   cpf: '935.975.310-67', telefone: '(79) 99911-2233', convenio: 'Unimed',      ultimaVisita: '15/07/2026', status: 'ativo' },
   { id: 'p2', nome: 'João Santos',      cpf: '481.220.654-30', telefone: '(79) 99844-5566', convenio: 'Particular',  ultimaVisita: '10/07/2026', status: 'ativo' },
   { id: 'p3', nome: 'Ana Costa',        cpf: '702.114.983-55', telefone: '(79) 99777-8899', convenio: 'Bradesco',    ultimaVisita: '02/07/2026', status: 'ativo' },

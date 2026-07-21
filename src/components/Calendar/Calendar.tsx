@@ -11,10 +11,12 @@ interface CalendarProps {
   /** Dia selecionado (aaaa-mm-dd). Hoje é sempre destacado, independente disto. */
   selected?: string
   onSelect?: (isoDate: string) => void
+  /** 'lg' aumenta a altura das células (ex.: agenda do perfil do profissional). */
+  size?: 'md' | 'lg'
 }
 
 /** Calendário mensal (pt-BR): navegação entre meses, hoje destacado, dias marcáveis. */
-export function Calendar({ markedDates = [], selected, onSelect }: CalendarProps) {
+export function Calendar({ markedDates = [], selected, onSelect, size = 'md' }: CalendarProps) {
   const today = new Date()
   const todayIso = toIsoDate(today)
 
@@ -35,7 +37,7 @@ export function Calendar({ markedDates = [], selected, onSelect }: CalendarProps
   }
 
   return (
-    <div className={styles.calendar}>
+    <div className={`${styles.calendar} ${size === 'lg' ? styles['calendar--lg'] : ''}`}>
       <header className={styles.header}>
         <button type="button" className={styles.navBtn} onClick={() => changeMonth(-1)} aria-label="Mês anterior">
           <IconChevronEsquerda />

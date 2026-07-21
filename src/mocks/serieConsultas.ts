@@ -1,4 +1,4 @@
-import type { PeriodoGrafico, PontoSerie } from '@/types/domain'
+import type { ChartPeriod, SeriesPoint } from '@/types/domain'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Série de demonstração do gráfico de consultas. Gerada de forma DETERMINÍSTICA
@@ -25,7 +25,7 @@ export function parseMesIso(mesIso: string) {
 }
 
 /** Semana (Seg→Dom) que contém o dia de referência: hoje no mês atual, dia 1 nos demais. */
-function gerarSemana(mesIso: string): PontoSerie[] {
+function gerarSemana(mesIso: string): SeriesPoint[] {
   const { ano, mes } = parseMesIso(mesIso)
   const hoje = new Date()
   const ref = ano === hoje.getFullYear() && mes === hoje.getMonth()
@@ -47,7 +47,7 @@ function gerarSemana(mesIso: string): PontoSerie[] {
   })
 }
 
-function gerarMes(mesIso: string): PontoSerie[] {
+function gerarMes(mesIso: string): SeriesPoint[] {
   const { ano, mes } = parseMesIso(mesIso)
   const diasNoMes = new Date(ano, mes + 1, 0).getDate()
   const semanas = Math.ceil(diasNoMes / 7)
@@ -58,7 +58,7 @@ function gerarMes(mesIso: string): PontoSerie[] {
   }))
 }
 
-function gerarAno(mesIso: string): PontoSerie[] {
+function gerarAno(mesIso: string): SeriesPoint[] {
   const { ano } = parseMesIso(mesIso)
   return MESES.map((rotulo, i) => ({
     rotulo,
@@ -66,7 +66,7 @@ function gerarAno(mesIso: string): PontoSerie[] {
   }))
 }
 
-export function gerarSerieConsultas(periodo: PeriodoGrafico, mesIso: string): PontoSerie[] {
+export function gerarSerieConsultas(periodo: ChartPeriod, mesIso: string): SeriesPoint[] {
   if (periodo === 'semana') return gerarSemana(mesIso)
   if (periodo === 'mes') return gerarMes(mesIso)
   return gerarAno(mesIso)

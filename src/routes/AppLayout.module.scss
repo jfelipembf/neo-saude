@@ -4,7 +4,10 @@
   display: flex;
   flex-direction: column;     // layout HORIZONTAL: header no topo, conteúdo abaixo
   width: 100%;
-  min-height: 100vh;
+  // Altura FIXA da janela: a rolagem vive no .content, então header e footer
+  // ficam sempre visíveis (dvh acompanha as barras do navegador no mobile/PWA).
+  height: 100vh;
+  height: 100dvh;
 }
 
 .content {

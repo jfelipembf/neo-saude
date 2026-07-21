@@ -9,7 +9,7 @@ import { Spinner } from '@/components/Spinner/Spinner'
 import { useToast } from '@/components/Toast/useToast'
 import { IconCheck, IconMais, IconRelogio } from '@/components/icons'
 import { useTarefas, useSetStatusTarefa, useCriarTarefa } from '@/hooks/useTarefas'
-import type { PrioridadeTarefa, Tarefa } from '@/types/domain'
+import type { TaskPriority, Task } from '@/types/domain'
 import styles from './TasksCard.module.scss'
 
 const OPCOES_PRIORIDADE = [
@@ -27,7 +27,7 @@ export function TasksCard() {
 
   const [modalAberto, setModalAberto] = useState(false)
   const [titulo, setTitulo] = useState('')
-  const [prioridade, setPrioridade] = useState<PrioridadeTarefa>('media')
+  const [prioridade, setPrioridade] = useState<TaskPriority>('media')
   const [prazoIso, setPrazoIso] = useState('')
   const [erroTitulo, setErroTitulo] = useState('')
 
@@ -39,7 +39,7 @@ export function TasksCard() {
   const feitas = lista.filter(t => t.status === 'concluida').length
 
   // Check alterna concluída ↔ a fazer (mesma lógica dos círculos de presença).
-  function alternar(t: Tarefa) {
+  function alternar(t: Task) {
     setStatus({ id: t.id, status: t.status === 'concluida' ? 'a_fazer' : 'concluida' })
   }
 
@@ -150,7 +150,7 @@ export function TasksCard() {
             label="Prioridade"
             options={OPCOES_PRIORIDADE}
             value={prioridade}
-            onChange={e => setPrioridade(e.target.value as PrioridadeTarefa)}
+            onChange={e => setPrioridade(e.target.value as TaskPriority)}
           />
           <Input
             label="Prazo"

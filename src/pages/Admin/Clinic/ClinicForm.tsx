@@ -6,13 +6,13 @@ import { Modal } from '@/components/Modal/Modal'
 import { PhotoInput } from '@/components/PhotoInput/PhotoInput'
 import { useToast } from '@/components/Toast/useToast'
 import { useSalvarConsultorio } from '@/hooks/useConsultorio'
-import type { DadosConsultorio, Endereco } from '@/types/domain'
+import type { ClinicData, Address } from '@/types/domain'
 import { AddressFields } from './AddressFields'
 import styles from './ClinicTab.module.scss'
 
 interface ClinicFormModalProps {
   /** Cadastro atual — o formulário nasce preenchido (monta só com o modal aberto). */
-  inicial: DadosConsultorio
+  inicial: ClinicData
   onClose: () => void
 }
 
@@ -21,10 +21,10 @@ export function ClinicFormModal({ inicial, onClose }: ClinicFormModalProps) {
   const toast = useToast()
   const { mutate: salvar, isPending: salvando } = useSalvarConsultorio()
 
-  const [form, setForm] = useState<DadosConsultorio>(inicial)
+  const [form, setForm] = useState<ClinicData>(inicial)
   const [erroNome, setErroNome] = useState('')
 
-  const set = (campo: keyof DadosConsultorio) => (valor: string) => {
+  const set = (campo: keyof ClinicData) => (valor: string) => {
     setForm(atual => ({ ...atual, [campo]: valor }))
     if (campo === 'nome') setErroNome('')
   }
@@ -97,7 +97,7 @@ export function ClinicFormModal({ inicial, onClose }: ClinicFormModalProps) {
 
         <AddressFields
           value={form}
-          onChange={(campo: keyof Endereco, valor) => set(campo)(valor)}
+          onChange={(campo: keyof Address, valor) => set(campo)(valor)}
         />
       </form>
     </Modal>

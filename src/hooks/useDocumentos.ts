@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import { addDocumento, listDocumentosDoPaciente, removeDocumento, updateDocumento } from '@/services/documentosService'
-import type { NovoDocumento } from '@/services/documentosService'
+import type { NewDocument } from '@/services/documentosService'
 
 export function useDocumentosDoPaciente(pacienteId: string) {
   return useQuery({
@@ -14,7 +14,7 @@ export function useDocumentosDoPaciente(pacienteId: string) {
 export function useEnviarDocumento() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (dados: NovoDocumento) => addDocumento(dados),
+    mutationFn: (dados: NewDocument) => addDocumento(dados),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.documentos.all }),
   })
 }

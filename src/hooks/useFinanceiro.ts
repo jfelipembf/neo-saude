@@ -6,11 +6,11 @@ import {
   getSerieFinanceira, listAdquirentes, listContasBancarias, listContasPagar,
   listContasReceber, listMovimentosCaixa, updateAdquirente, updateContaBancaria,
 } from '@/services/financeiroService'
-import type { BaixaInput } from '@/services/financeiroService'
-import type { Adquirente, ContaBancaria, PeriodoGrafico } from '@/types/domain'
+import type { SettlementInput } from '@/services/financeiroService'
+import type { Acquirer, BankAccount, ChartPeriod } from '@/types/domain'
 
 /** Série financeira do gráfico; mantém a série anterior no ar durante a troca. */
-export function useSerieFinanceira(periodo: PeriodoGrafico, mesIso: string) {
+export function useSerieFinanceira(periodo: ChartPeriod, mesIso: string) {
   return useQuery({
     queryKey: queryKeys.financeiro.serie(periodo, mesIso),
     queryFn: () => getSerieFinanceira(periodo, mesIso),
@@ -47,7 +47,7 @@ export function useAdquirentes() {
 export function useBaixarContaPagar() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, baixa }: { id: string; baixa: BaixaInput }) => baixarContaPagar(id, baixa),
+    mutationFn: ({ id, baixa }: { id: string; baixa: SettlementInput }) => baixarContaPagar(id, baixa),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.financeiro.pagar }),
   })
 }
@@ -56,7 +56,7 @@ export function useBaixarContaPagar() {
 export function useBaixarContaReceber() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, baixa }: { id: string; baixa: BaixaInput }) => baixarContaReceber(id, baixa),
+    mutationFn: ({ id, baixa }: { id: string; baixa: SettlementInput }) => baixarContaReceber(id, baixa),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.financeiro.receber }),
   })
 }
@@ -106,7 +106,7 @@ export function useFecharCaixa() {
 export function useSalvarContaBancaria() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, dados }: { id: string | null; dados: Omit<ContaBancaria, 'id'> }) =>
+    mutationFn: ({ id, dados }: { id: string | null; dados: Omit<BankAccount, 'id'> }) =>
       id ? updateContaBancaria(id, dados) : addContaBancaria(dados),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.financeiro.bancos }),
   })
@@ -115,7 +115,7 @@ export function useSalvarContaBancaria() {
 export function useSalvarAdquirente() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, dados }: { id: string | null; dados: Omit<Adquirente, 'id'> }) =>
+    mutationFn: ({ id, dados }: { id: string | null; dados: Omit<Acquirer, 'id'> }) =>
       id ? updateAdquirente(id, dados) : addAdquirente(dados),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.financeiro.adquirentes }),
   })

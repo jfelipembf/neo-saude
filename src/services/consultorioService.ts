@@ -1,23 +1,23 @@
 import { MOCK_CONSULTORIO, MOCK_RESPONSAVEL } from '@/mocks/consultorio'
-import type { DadosConsultorio, ResponsavelTecnico } from '@/types/domain'
+import type { ClinicData, TechnicalManager } from '@/types/domain'
 
 // MODO MOCK: retorna dados de demonstração. Quando o schema Supabase existir,
 // trocar o corpo por supabase.from('consultorio')… mantendo a MESMA assinatura —
 // páginas e hooks não mudam.
 // Cópias ({ ...mock }) para o cache do TanStack Query não apontar para o objeto mutável.
 
-export async function getConsultorio(): Promise<DadosConsultorio> {
+export async function getConsultorio(): Promise<ClinicData> {
   return { ...MOCK_CONSULTORIO }
 }
 
-export async function updateConsultorio(dados: DadosConsultorio): Promise<void> {
+export async function updateConsultorio(dados: ClinicData): Promise<void> {
   Object.assign(MOCK_CONSULTORIO, dados)
 }
 
-export async function getResponsavel(): Promise<ResponsavelTecnico> {
+export async function getResponsavel(): Promise<TechnicalManager> {
   return { ...MOCK_RESPONSAVEL }
 }
 
-export async function updateResponsavel(dados: ResponsavelTecnico): Promise<void> {
+export async function updateResponsavel(dados: TechnicalManager): Promise<void> {
   Object.assign(MOCK_RESPONSAVEL, dados)
 }

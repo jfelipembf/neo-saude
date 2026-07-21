@@ -3,13 +3,14 @@ import type { DragEvent } from 'react'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { IconChevronEsquerda, IconChevronDireita, IconRelogio, IconTelefone } from '@/components/icons'
 import { useLeads, useSetStatusLead } from '@/hooks/useLeads'
-import type { Lead, StatusLead } from '@/types/domain'
+import { initials } from '@/utils/text'
+import type { Lead, LeadStatus } from '@/types/domain'
 import styles from './LeadsKanban.module.scss'
 
 // Funil de contatos no desenho do Pipeline do projeto neo:
 // kicker + título por coluna e textos próprios de coluna vazia.
 const COLUNAS: {
-  status: StatusLead
+  status: LeadStatus
   kicker: string
   titulo: string
   vazioTitulo: string
@@ -37,19 +38,11 @@ const COLUNAS: {
   },
 ]
 
-/** Iniciais para o avatar do card (primeiro + último nome). */
-function initials(nome: string) {
-  const partes = nome.split(' ').filter(Boolean)
-  const primeira = partes[0]?.[0] ?? ''
-  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : ''
-  return (primeira + ultima).toUpperCase()
-}
-
 /** Kanban do funil de leads: arraste entre colunas ou mova pelas setas. */
 export function LeadsKanban() {
   const { data: leads, isLoading } = useLeads()
   const { mutate: setStatus } = useSetStatusLead()
-  const [colunaAlvo, setColunaAlvo] = useState<StatusLead | null>(null)
+  const [colunaAlvo, setColunaAlvo] = useState<LeadStatus | null>(null)
 
   if (isLoading) {
     return <div className={styles.loading}><Spinner size="lg" /></div>
@@ -57,11 +50,11 @@ export function LeadsKanban() {
 
   const lista = leads ?? []
 
-  function mover(id: string, status: StatusLead) {
+  function mover(id: string, status: LeadStatus) {
     setStatus({ id, status })
   }
 
-  function aoSoltar(e: DragEvent, status: StatusLead) {
+  function aoSoltar(e: DragEvent, status: LeadStatus) {
     e.preventDefault()
     setColunaAlvo(null)
     const id = e.dataTransfer.getData('text/plain')
@@ -125,9 +118,9 @@ export function LeadsKanban() {
 
 interface LeadCardProps {
   lead: Lead
-  anterior?: StatusLead
-  proxima?: StatusLead
-  onMover: (id: string, status: StatusLead) => void
+  anterior?: LeadStatus
+  proxima?: LeadStatus
+  onMover: (id: string, status: LeadStatus) => void
 }
 
 function LeadCard({ lead, anterior, proxima, onMover }: LeadCardProps) {
