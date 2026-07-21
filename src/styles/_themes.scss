@@ -1,0 +1,102 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// TEMAS — versão CLARA (padrão) e ESCURA via CSS vars.
+// Componentes consomem SEMPRE var(--…); nunca hex direto.
+// O ThemeProvider alterna aplicando [data-theme='dark'] no <html>.
+// ─────────────────────────────────────────────────────────────────────────────
+@use 'tokens' as *;
+
+:root {
+  // ── Marca (igual nos dois temas) ──
+  --primary:           #{$primary};
+  --primary-light:     #{$primary-light};
+  --primary-dark:      #{$primary-dark};
+  --primary-rgb:       #{$primary-rgb};
+  --primary-light-rgb: #{$primary-light-rgb};
+  --secondary:         #{$secondary};
+  --secondary-light:   #{$secondary-light};
+  --secondary-dark:    #{$secondary-dark};
+  --secondary-rgb:     #{$secondary-rgb};
+  --accent:            #{$accent};
+  --accent-rgb:        #{$accent-rgb};
+  --accent-bg:         rgba(var(--primary-rgb), 0.12);
+
+  // ── Tema CLARO (padrão) ──
+  --bg-base:             #F3F7F5;              // fundo geral (branco esverdeado)
+  --bg-surface:          #FFFFFF;              // sidebar, superfícies sólidas
+  --bg-elevated:         #FFFFFF;              // dropdowns nativos
+
+  --glass-bg:            rgba(255, 255, 255, 0.80);   // cartões
+  --glass-bg-hover:      rgba(16, 42, 34, 0.06);      // hover de itens/ghost
+  --glass-border:        rgba(16, 42, 34, 0.12);
+  --glass-border-strong: rgba(16, 185, 129, 0.45);
+
+  --field-bg:            #FFFFFF;              // fundo de Input/Select/Textarea
+  --field-border:        rgba(16, 42, 34, 0.18);
+
+  --text-primary:        #12211C;
+  --text-secondary:      rgba(18, 33, 28, 0.65);
+  --text-muted:          rgba(18, 33, 28, 0.42);
+
+  // Cor da marca legível SOBRE superfície (links, item ativo, ícones).
+  --primary-fg:          #047857;
+  --secondary-fg:        #6D28D9;
+
+  // Status como TEXTO sobre fundo translúcido (tons escuros p/ contraste).
+  --success-fg:          #047857;
+  --warning-fg:          #B45309;
+  --danger-fg:           #B91C1C;
+  --info-fg:             #6D28D9;
+  --accent-fg:           #7E22CE;
+  --danger-text:         #B91C1C;
+
+  --shadow-sm:           0 2px 8px rgba(16, 42, 34, 0.08);
+  --shadow-md:           0 4px 24px rgba(16, 42, 34, 0.12);
+  --shadow-glow:         0 0 24px rgba(var(--primary-rgb), 0.15);
+
+  --overlay-bg:          rgba(18, 33, 28, 0.35);
+  --modal-bg:            rgba(255, 255, 255, 0.97);
+
+  // Máscara sobre a cor dos cards da grade (pasteliza no claro).
+  // Mantenha em sincronia com SCRIM em components/GradeGrid/ClassCard.tsx.
+  --grade-card-scrim:    rgba(255, 255, 255, 0.38);
+}
+
+// ── Tema ESCURO ──────────────────────────────────────────────────────────────
+[data-theme='dark'] {
+  --bg-base:             #0D1512;              // verde-preto profundo
+  --bg-surface:          #121D18;
+  --bg-elevated:         #1A2823;
+
+  --glass-bg:            rgba(255, 255, 255, 0.06);
+  --glass-bg-hover:      rgba(255, 255, 255, 0.11);
+  --glass-border:        rgba(255, 255, 255, 0.14);
+  --glass-border-strong: rgba(52, 211, 153, 0.40);
+
+  --field-bg:            rgba(255, 255, 255, 0.07);
+  --field-border:        rgba(255, 255, 255, 0.14);
+
+  --text-primary:        #EDF7F2;
+  --text-secondary:      rgba(237, 247, 242, 0.65);
+  --text-muted:          rgba(237, 247, 242, 0.38);
+
+  --primary-fg:          #34D399;
+  --secondary-fg:        #A78BFA;
+
+  // Status como texto (tons 400 — claros p/ fundo escuro).
+  --success-fg:          #4ADE80;
+  --warning-fg:          #FBBF24;
+  --danger-fg:           #F87171;
+  --info-fg:             #C4B5FD;
+  --accent-fg:           #D8B4FE;
+  --danger-text:         #FCA5A5;
+
+  --shadow-sm:           0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-md:           0 4px 24px rgba(0, 0, 0, 0.45);
+  --shadow-glow:         0 0 24px rgba(var(--primary-rgb), 0.25);
+
+  --overlay-bg:          rgba(0, 0, 0, 0.55);
+  --modal-bg:            rgba(18, 29, 24, 0.94);
+
+  // Máscara sobre a cor dos cards da grade (escurece no escuro).
+  --grade-card-scrim:    rgba(13, 21, 18, 0.35);
+}

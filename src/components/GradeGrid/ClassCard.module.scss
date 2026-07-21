@@ -1,0 +1,174 @@
+@use '../../styles/mixins' as *;
+
+// ── Card: preenchido na COR da atividade sob uma máscara leve que segue o tema
+// (--grade-card-scrim: pasteliza no claro, escurece no escuro); texto adapta à
+// luminância da cor JÁ mascarada (card--onLight) — cálculo em ClassCard.tsx. ──
+.card {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: $sp-3;
+  padding: 9px 11px 10px;
+  border-radius: $radius-sm;
+  background:
+    linear-gradient(var(--grade-card-scrim), var(--grade-card-scrim)),
+    var(--card-color, var(--primary));
+  transition: filter 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+
+  // texto CLARO sobre cores escuras (padrão)
+  --on-card:       #ffffff;
+  --on-card-soft:  rgba(255, 255, 255, 0.82);
+  --on-card-muted: rgba(255, 255, 255, 0.62);
+  --on-card-line:  rgba(255, 255, 255, 0.28);
+  --on-card-chip:  rgba(255, 255, 255, 0.22);
+  --on-card-fill:  rgba(255, 255, 255, 0.95);
+
+  // …e ESCURO sobre cores claras (amarelo, lima…)
+  &--onLight {
+    --on-card:       rgba(0, 0, 0, 0.87);
+    --on-card-soft:  rgba(0, 0, 0, 0.68);
+    --on-card-muted: rgba(0, 0, 0, 0.52);
+    --on-card-line:  rgba(0, 0, 0, 0.24);
+    --on-card-chip:  rgba(0, 0, 0, 0.14);
+    --on-card-fill:  rgba(0, 0, 0, 0.78);
+  }
+
+  &--clicavel {
+    cursor: pointer;
+    &:hover { filter: brightness(1.07); }
+    &:active { transform: scale(0.99); }
+    &:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+  }
+
+  // Cancelada: cinza fixo (slate) sob a mesma máscara + apagada.
+  &--cancelada {
+    background:
+      linear-gradient(var(--grade-card-scrim), var(--grade-card-scrim)),
+      $neutral;
+    opacity: 0.6;
+
+    .title { text-decoration: line-through; text-decoration-color: var(--on-card-muted); }
+  }
+}
+
+// Setinha (hover) indicando que o card abre uma ação.
+.arrow {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: var(--on-card);
+  background: var(--on-card-chip);
+  opacity: 0;
+  transform: translateX(-2px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  pointer-events: none;
+
+  svg { width: 12px; height: 12px; }
+}
+.card:hover .arrow { opacity: 1; transform: translateX(0); }
+
+// ── Horário em evidência: início grande, fim miúdo, sala no pé; filete separador ──
+.rail {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding-right: 10px;
+  border-right: 1px solid var(--on-card-line);
+}
+
+.railArea {
+  margin-top: auto;
+  padding-top: 6px;
+  max-width: 56px;
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--on-card-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeStart {
+  font-size: $fs-lg;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-card);
+}
+
+.timeEnd {
+  margin-top: 1px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-card-muted);
+}
+
+// ── Corpo ──
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.topline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  font-size: $fs-sm;
+  font-weight: 650;
+  color: var(--on-card);
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Badge de estado (Canc.) — chip adaptativo sobre a cor.
+.badge {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: $radius-sm;
+  color: var(--on-card);
+  background: var(--on-card-chip);
+}
+
+// byline: profissional — UMA linha (1º nome; nome completo no tooltip).
+.byline {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--on-card-soft);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.prof {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+

@@ -1,0 +1,199 @@
+@use '../../styles/mixins' as *;
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+}
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+// Topo do cartão: registros por página à esquerda, filtro de status à direita.
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  padding: $sp-3 $sp-4;
+  border-bottom: 1px solid var(--glass-border);
+
+  @include phone {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.filtro {
+  max-width: 200px;
+}
+
+// Mesmo desenho da Table do projeto (cartão + hairlines), com linhas expansíveis.
+.wrapper {
+  @include card;
+  overflow-x: auto;
+}
+
+// Rodapé do cartão: só a paginação, à direita.
+.rodape {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: $sp-3 $sp-4;
+  border-top: 1px solid var(--glass-border);
+
+  @include phone {
+    justify-content: center;
+  }
+}
+
+.porPagina {
+  max-width: 150px;
+}
+
+.vazio {
+  text-align: center;
+  color: var(--text-muted);
+  padding: $sp-6 !important;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: $fs-sm;
+
+  th {
+    padding: $sp-3 $sp-4;
+    text-align: left;
+    font-size: $fs-xs;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--glass-border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: $sp-3 $sp-4;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--glass-border);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+}
+
+.thSeta { width: 40px; }
+.thValor { text-align: right; }
+.thAcoes { width: 1%; }
+
+.tdAcoes {
+  text-align: right;
+}
+
+.linha {
+  cursor: pointer;
+  transition: background 0.12s ease;
+
+  &:hover { background: var(--glass-bg-hover); }
+}
+
+.tdSeta {
+  padding-right: 0;
+}
+
+.setaBtn {
+  @include focus-ring;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: transform 0.15s ease, color 0.15s ease;
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover { color: var(--text-primary); }
+
+  &--aberta {
+    transform: rotate(90deg);
+    color: var(--primary-fg);
+  }
+}
+
+.tdFormas {
+  color: var(--text-secondary);
+}
+
+.tdValor {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+// ── Linha de detalhe (aberta pela setinha) ───────────────────────────────────
+.detalheRow td {
+  padding: 0 $sp-4;
+  background: rgba(var(--primary-rgb), 0.04);   // faixa sutil ligada à linha acima
+}
+
+.detalhe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-4 $sp-8;
+  padding: $sp-4 $sp-2 $sp-4 40px;   // alinha com o conteúdo, após a coluna da seta
+}
+
+.forma {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  min-width: 0;
+}
+
+.formaTipo {
+  font-size: $fs-xs;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--primary-fg);
+}
+
+.formaDados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2 $sp-5;
+}
+
+.par {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+
+  dt {
+    font-size: $fs-xs;
+    color: var(--text-muted);
+  }
+
+  dd {
+    font-size: $fs-sm;
+    font-weight: 500;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.semFormas {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}

@@ -1,0 +1,190 @@
+@use '../../styles/mixins' as *;
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+}
+
+// ── Linha do tempo: trilho à esquerda com um ponto por consulta ──────────────
+.timeline {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  margin-left: 6px;
+}
+
+.item {
+  position: relative;
+  padding: 0 0 $sp-4 $sp-6;
+  border-left: 2px solid var(--glass-border);
+
+  &:last-child {
+    border-left-color: transparent;   // o trilho termina no último ponto
+    padding-bottom: 0;
+  }
+}
+
+.ponto {
+  position: absolute;
+  left: -6px;
+  top: 14px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 3px var(--bg-base);   // anel que "fura" o trilho
+}
+
+// ── Card de cada consulta ────────────────────────────────────────────────────
+.card {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding: $sp-4;
+  transition: border-color 0.15s ease;
+
+  &:hover { border-color: var(--glass-border-strong); }
+}
+
+.cabecalho {
+  @include focus-ring;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $sp-3;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.cabecalhoInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.data {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.titulo {
+  font-size: $fs-base;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.profissional {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.seta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+
+  svg { width: 16px; height: 16px; }
+
+  &--aberta { transform: rotate(180deg); }
+}
+
+// ── O que foi feito (sempre visível) ─────────────────────────────────────────
+.procedimentos {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+}
+
+.procedimento {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  font-size: $fs-sm;
+  color: var(--text-primary);
+
+  svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    color: var(--success-fg);
+  }
+}
+
+// ── Detalhe expandido: materiais, observações e duração ──────────────────────
+.detalhe {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding-top: $sp-3;
+  border-top: 1px solid var(--glass-border);
+}
+
+.bloco {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+
+  h4 {
+    font-size: $fs-xs;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+}
+
+.materiais {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.material {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $sp-3;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--glass-border);
+  font-size: $fs-sm;
+  color: var(--text-primary);
+
+  &:last-child { border-bottom: none; }
+}
+
+.quantidade {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.observacoes {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.duracao {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: $fs-xs;
+  color: var(--text-muted);
+
+  svg { width: 13px; height: 13px; }
+}

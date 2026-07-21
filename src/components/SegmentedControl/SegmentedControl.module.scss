@@ -1,0 +1,44 @@
+@use '../../styles/mixins' as *;
+
+.group {
+  display: flex;
+  align-items: center;
+  height: $ctrl-h-md;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 14px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: $fs-sm;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+
+  @include mobile { padding: 0 10px; font-size: $fs-xs; }
+
+  svg { width: 15px; height: 15px; }
+
+  &:last-child { border-right: none; }
+  &:hover { background: var(--glass-bg-hover); color: var(--text-primary); }
+
+  &--active {
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+
+    &:hover { background: var(--primary-dark); color: #fff; }
+  }
+}

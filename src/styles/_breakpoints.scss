@@ -1,0 +1,26 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Breakpoints canônicos do Neo Saúde. NÃO crie @media ad-hoc — use estes mixins.
+// Dois pontos de corte:
+//   • mobile  → telas pequenas (phones + tablets em retrato)  ≤ 768px
+//   • phone   → phones estreitos                               ≤ 480px
+// `mobile` (≤768) é o mixin de trabalho — a maioria dos ajustes usa ele.
+// Uso:  @use '../../styles/breakpoints' as *;   →   @include mobile { … }
+// ─────────────────────────────────────────────────────────────────────────────
+
+$bp-phone:   480px;
+$bp-tablet:  768px;
+$bp-desktop: 1024px;
+
+@mixin phone   { @media (max-width: $bp-phone)        { @content; } }
+@mixin mobile  { @media (max-width: $bp-tablet)       { @content; } }
+@mixin desktop { @media (min-width: ($bp-tablet + 1)) { @content; } }
+
+// Layout lado-a-lado empilha em coluna no mobile.
+@mixin stack-below-tablet {
+  @include mobile { flex-direction: column; }
+}
+
+// Grid de formulário com N colunas no desktop → 1 coluna no mobile.
+@mixin form-grid-collapse {
+  @include mobile { grid-template-columns: 1fr; }
+}

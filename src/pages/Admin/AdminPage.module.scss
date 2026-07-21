@@ -1,0 +1,9 @@
+@use '../../styles/mixins' as *;
+
+// Cabeçalho + strip de abas ficam juntos; o conteúdo da aba vem abaixo.
+.topo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  margin-bottom: $sp-5;
+}

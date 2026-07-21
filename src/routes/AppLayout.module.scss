@@ -1,0 +1,20 @@
+@use '../styles/mixins' as *;
+
+.layout {
+  display: flex;
+  flex-direction: column;     // layout HORIZONTAL: header no topo, conteúdo abaixo
+  width: 100%;
+  min-height: 100vh;
+}
+
+.content {
+  flex: 1;
+  width: 100%;                // largura total — cada página gerencia seu próprio grid
+  min-width: 0;               // permite conteúdo largo (tabelas) encolher sem estourar
+  padding: $sp-6 $sp-8;
+  overflow-y: auto;
+
+  @include mobile {
+    padding: $sp-4;
+  }
+}

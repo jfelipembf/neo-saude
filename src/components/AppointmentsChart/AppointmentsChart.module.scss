@@ -1,0 +1,233 @@
+@use '../../styles/mixins' as *;
+
+// Cor da barra: --primary-dark (#059669) passa contraste ≥3:1 e banda de
+// lightness nas DUAS superfícies (validado) — não trocar por --primary.
+$eixo-w: 32px;   // espaço à esquerda do plot para os ticks do eixo Y
+
+.card {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-5;
+  padding: $sp-5;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: var(--glass-border-strong);
+  }
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $sp-3;
+}
+
+.title {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  margin-top: 2px;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+// ── Filtro segmentado: Semana | Mês | Ano ────────────────────────────────────
+.filtro {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-sm;
+}
+
+.filtroBtn {
+  @include focus-ring;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: $fs-xs;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover { color: var(--text-primary); }
+
+  &--active {
+    background: var(--accent-bg);
+    color: var(--primary-fg);
+    font-weight: 600;
+  }
+}
+
+// ── Seletor de mês/ano: ‹ julho de 2026 › ────────────────────────────────────
+.nav {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  margin-top: -$sp-2;   // aproxima do header sem quebrar o gap do card
+}
+
+.navBtn {
+  @include focus-ring;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover {
+    background: var(--glass-bg-hover);
+    border-color: var(--glass-border-strong);
+    color: var(--text-primary);
+  }
+}
+
+.navLabel {
+  min-width: 130px;
+  text-align: center;
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+
+  // "julho de 2026" → "Julho de 2026"
+  &::first-letter { text-transform: uppercase; }
+}
+
+// ── Área do gráfico ──────────────────────────────────────────────────────────
+.chart {
+  transition: opacity 0.15s ease;
+
+  // Troca de período com dados antigos no ar: segura o quadro esmaecido.
+  &--stale { opacity: 0.5; }
+}
+
+.plot {
+  position: relative;
+  height: 180px;
+  margin-left: $eixo-w;
+  border-bottom: 1px solid var(--glass-border);   // eixo/base
+}
+
+.gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--glass-border);
+  opacity: 0.6;
+}
+
+.tick {
+  position: absolute;
+  right: calc(100% + #{$sp-2});
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.tick--zero {
+  bottom: 0;
+  transform: translateY(50%);
+}
+
+.bars {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: $sp-2;
+}
+
+.slot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+.bar {
+  @include focus-ring;
+  position: relative;
+  width: 100%;
+  max-width: 18px;                 // barras finas: nunca preencher o slot
+  border: none;
+  border-radius: 4px 4px 0 0;      // topo arredondado, base reta no eixo
+  background: var(--primary-dark);
+  cursor: pointer;
+  transition: height 0.3s ease, background 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--primary);    // "lift" sutil dentro da própria rampa
+  }
+
+  // Tooltip: valor + rótulo, visível também no foco por teclado.
+  &::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 8px;
+    border-radius: $radius-sm;
+    border: 1px solid var(--glass-border);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-size: $fs-xs;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: var(--shadow-sm);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    z-index: 2;
+  }
+
+  &:hover::after,
+  &:focus-visible::after { opacity: 1; }
+}
+
+.xAxis {
+  display: flex;
+  gap: $sp-2;
+  margin-left: $eixo-w;
+  margin-top: $sp-2;
+}
+
+.xLabel {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

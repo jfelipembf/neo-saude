@@ -1,0 +1,101 @@
+@use '../../styles/mixins' as *;
+
+.painel {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-6;
+}
+
+.carregando {
+  display: flex;
+  justify-content: center;
+  padding: $sp-8 0;
+}
+
+// ── Cartão do odontograma ────────────────────────────────────────────────────
+.chartCard {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  padding: $sp-5;
+}
+
+.chartHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $sp-3;
+
+  @include phone {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+.chartTitle {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chartHint {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+// ── Casca do OdontogramShell dentro do nosso cartão ──────────────────────────
+// Esconde a topbar interna (idioma/numeração/exportar) e neutraliza o fundo/
+// padding do root — quem emoldura é o nosso chartCard.
+.shell {
+  :global(.topbar) { display: none !important; }
+
+  :global(.odontogram-root) {
+    background: transparent;
+    font-family: inherit;
+    border-radius: $radius-md;
+  }
+
+  :global(.layout) {
+    padding: 0;
+
+    // A grade interna (ficha 1fr + editor 360px) empilha no mobile.
+    @include mobile {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+// ── Histórico ────────────────────────────────────────────────────────────────
+.historico {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.historicoHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+}
+
+// Chip do número do dente na tabela de histórico.
+.dentePill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  font-size: $fs-xs;
+  font-weight: 600;
+  color: var(--primary-fg);
+  background: var(--accent-bg);
+  border-radius: $radius-pill;
+  white-space: nowrap;
+}
+
+// Formulário do modal "Dente N — novo tratamento".
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}

@@ -1,0 +1,134 @@
+@use '../../../styles/mixins' as *;
+
+// Cartão único em largura total: consultório e responsável lado a lado,
+// separados por um divisor vertical (empilha no mobile).
+.card {
+  @include card;
+  display: flex;
+  gap: $sp-6;
+  padding: $sp-5;
+
+  @include mobile {
+    flex-direction: column;
+  }
+}
+
+// ── Seções de visualização (cada lado do cartão) ─────────────────────────────
+.secao {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  flex: 1;
+  min-width: 0;
+}
+
+.secaoHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+}
+
+.secaoTitle {
+  font-size: $fs-base;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+// Divisor VERTICAL entre as seções (vira horizontal quando o cartão empilha).
+.divisor {
+  border: none;
+  width: 1px;
+  align-self: stretch;
+  margin: 0;
+  background: var(--glass-border);
+  flex-shrink: 0;
+
+  @include mobile {
+    width: 100%;
+    height: 1px;
+  }
+}
+
+// ── Foto retangular (mesmo formato para logo da empresa e responsável) ───────
+.logo {
+  width: 100%;
+  max-width: 220px;         // retângulo estreito
+  height: 96px;
+  object-fit: contain;      // logo nunca corta
+  border-radius: $radius-md;
+  background: var(--field-bg);
+}
+
+.foto {
+  width: 100%;
+  max-width: 220px;
+  height: 96px;
+  object-fit: cover;        // retrato preenche o retângulo
+  border-radius: $radius-md;
+}
+
+.semFoto {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 220px;
+  height: 96px;
+  border-radius: $radius-md;
+  background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.18), rgba(var(--secondary-rgb), 0.18));
+  color: var(--text-secondary);
+
+  svg { width: 28px; height: 28px; }
+}
+
+.nome {
+  font-size: $fs-md;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sub {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+}
+
+.linhas {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.linha {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  min-width: 0;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    color: var(--primary-fg);
+  }
+}
+
+// ── Formulários dos modais ───────────────────────────────────────────────────
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}

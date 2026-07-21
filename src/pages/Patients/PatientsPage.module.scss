@@ -1,0 +1,71 @@
+@use '../../styles/mixins' as *;
+
+// Toolbar do cartão (modelo do perfil do paciente): "N por página" à esquerda…
+.porPagina {
+  max-width: 150px;
+}
+
+// …e busca à direita.
+.busca {
+  max-width: 280px;
+
+  @include phone {
+    max-width: none;
+  }
+}
+
+// Nome + círculo de "foto" (iniciais, como nos cards de profissionais).
+.pacienteCell {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: #fff;
+  font-size: $fs-xs;
+  font-weight: 600;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-5;
+}
+
+// Seções do cadastro (Dados pessoais / Contato / Endereço).
+.formSection {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+
+  h3 {
+    font-size: $fs-sm;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    padding-bottom: $sp-1;
+    border-bottom: 1px solid var(--glass-border);
+  }
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}

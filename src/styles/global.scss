@@ -1,0 +1,60 @@
+// Estilos globais: injeta os TEMAS (CSS vars) + reset + base.
+// Valores de design vivem em _tokens.scss / _themes.scss — não defina cor aqui.
+@use 'themes';
+@use 'tokens' as *;
+
+// ─── Reset ────────────────────────────────────────────────────────────────────
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+// ─── Base ─────────────────────────────────────────────────────────────────────
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: $font-family;
+  font-size: $fs-base;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: color 0.3s ease, background 0.3s ease;
+}
+
+#root {
+  display: flex;
+}
+
+a {
+  color: var(--primary-fg);
+  text-decoration: none;
+  &:hover { color: var(--secondary-fg); }
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+img, svg {
+  display: block;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--glass-border);
+  border-radius: 3px;
+  &:hover { background: var(--glass-bg-hover); }
+}

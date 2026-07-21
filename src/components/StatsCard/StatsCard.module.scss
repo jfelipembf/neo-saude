@@ -1,0 +1,97 @@
+@use '../../styles/mixins' as *;
+
+// Coluna com space-between: rótulo+ícone no topo, valor ao centro e hint na
+// base — em cards esticados (grid 2×2 do Dashboard) o conteúdo preenche a altura.
+.card {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: $sp-3;
+  padding: $sp-5;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: var(--glass-border-strong);
+  }
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+}
+
+.label {
+  font-size: $fs-xs;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.value {
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.hint {
+  font-size: $fs-xs;
+
+  &--up      { color: var(--success-fg); }
+  &--down    { color: var(--danger-fg); }
+  &--neutral { color: var(--text-muted); }
+}
+
+// ── Meta + barra de progresso (base do card) ─────────────────────────────────
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+}
+
+.metaPct {
+  font-weight: 600;
+  color: var(--primary-fg);
+}
+
+.bar {
+  height: 6px;
+  border-radius: $radius-pill;
+  background: var(--glass-bg-hover);
+  overflow: hidden;
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  border-radius: $radius-pill;
+  background: rgba(var(--primary-rgb), 0.45);
+  transition: width 0.3s ease;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--accent-bg);
+  color: var(--primary-fg);
+
+  svg { width: 20px; height: 20px; }
+}

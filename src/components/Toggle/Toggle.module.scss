@@ -1,0 +1,50 @@
+@use '../../styles/mixins' as *;
+
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-2;
+}
+
+.label {
+  font-size: $fs-xs;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.track {
+  @include focus-ring;
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: $radius-pill;
+  border: 1px solid var(--glass-border-strong);
+  background: var(--glass-bg-hover);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &--on {
+    background: var(--primary);
+    border-color: var(--primary);
+
+    .thumb { transform: translateX(16px); }
+  }
+}
+
+.thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease;
+}

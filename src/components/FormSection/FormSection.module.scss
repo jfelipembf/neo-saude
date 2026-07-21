@@ -1,0 +1,41 @@
+@use '../../styles/mixins' as *;
+
+.section {
+  @include card;
+  padding: $sp-5;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  margin-bottom: $sp-4;
+  padding-bottom: $sp-3;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.title {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.description {
+  margin-top: 2px;
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  flex-shrink: 0;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}

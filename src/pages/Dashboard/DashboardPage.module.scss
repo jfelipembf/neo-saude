@@ -1,0 +1,188 @@
+@use '../../styles/mixins' as *;
+
+// Agenda em coluna fixa e estreita à esquerda; o restante é a área de widgets.
+.grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: $sp-6;
+  align-items: start;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Coluna estreita da esquerda (agenda; comporta novos widgets empilhados).
+.colEsquerda {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-6;
+  min-width: 0;
+}
+
+// Perfil + indicadores lado a lado. Por serem itens da MESMA linha deste grid,
+// o statsGrid estica até a altura do ResumeProfile — as colunas terminam juntas.
+.widgets {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: $sp-6;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Indicadores em 2×2: as duas linhas (1fr) dividem a altura total da coluna.
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: $sp-4;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.agendaCard {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  padding: $sp-5;
+}
+
+.agendaHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $sp-3;
+}
+
+.agendaTitle {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.agendaDate {
+  margin-top: 2px;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+
+  // "terça-feira, 21 de julho" → "Terça-feira, 21 de julho"
+  &::first-letter { text-transform: uppercase; }
+}
+
+.listTitle {
+  padding-top: $sp-2;
+  font-size: $fs-base;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-top: 1px solid var(--glass-border);
+}
+
+.list {
+  @include hide-scrollbar;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  padding: $sp-3 0;
+  border-bottom: 1px solid var(--glass-border);
+
+  &:last-child { border-bottom: none; }
+}
+
+.itemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.itemPaciente {
+  font-size: $fs-base;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.itemLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+
+  svg { width: 14px; height: 14px; flex-shrink: 0; }
+}
+
+.itemBadge {
+  align-self: flex-start;
+}
+
+// ── Círculos de presença (verde = compareceu, vermelho = faltou) ─────────────
+.presence {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  flex-shrink: 0;
+}
+
+.circleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1.5px solid;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+
+  svg { width: 14px; height: 14px; }
+
+  &:active { transform: scale(0.92); }
+
+  &--ok {
+    border-color: $success;
+    color: var(--success-fg);
+
+    &:hover { background: rgba($success, 0.12); }
+
+    &.circleBtn--active {
+      background: $success;
+      border-color: $success;
+      color: #fff;
+    }
+  }
+
+  &--no {
+    border-color: $danger;
+    color: var(--danger-fg);
+
+    &:hover { background: rgba($danger, 0.12); }
+
+    &.circleBtn--active {
+      background: $danger;
+      border-color: $danger;
+      color: #fff;
+    }
+  }
+}
+
+.emptyItem {
+  padding: $sp-6 0;
+  text-align: center;
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}

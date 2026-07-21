@@ -1,0 +1,63 @@
+@use '../../styles/mixins' as *;
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.bar {
+  @include hide-scrollbar;
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-bottom: $sp-5;
+  border-bottom: 1px solid var(--glass-border);
+  overflow-x: auto;
+
+  @include mobile { margin-bottom: $sp-4; }
+}
+
+// Barra usada isoladamente (sem conteúdo abaixo) — ex.: embutida num cabeçalho.
+.bar--flush { margin-bottom: 0; }
+
+.tab {
+  @include focus-ring;
+  position: relative;
+  padding: 10px 18px;
+  font-family: inherit;
+  font-size: $fs-sm;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+
+  @include mobile { padding: 8px 12px; font-size: $fs-xs; }
+
+  &:hover {
+    color: var(--text-secondary);
+    background: var(--glass-bg-hover);
+  }
+
+  &--active {
+    color: var(--text-primary);
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--primary);
+      border-radius: 2px 2px 0 0;
+    }
+  }
+}
+
+.content {
+  flex: 1;
+}

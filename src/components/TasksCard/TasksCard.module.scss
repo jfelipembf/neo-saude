@@ -1,0 +1,135 @@
+@use '../../styles/mixins' as *;
+
+.card {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding: $sp-5;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $sp-3;
+}
+
+.title {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.headerAcoes {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+}
+
+.contador {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $sp-6 0;
+}
+
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: $sp-3;
+  padding: $sp-3 0;
+  border-bottom: 1px solid var(--glass-border);
+
+  &:last-child { border-bottom: none; padding-bottom: 0; }
+}
+
+// Mesmo desenho dos círculos de presença da agenda (verde = concluída).
+.checkBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1.5px solid $success;
+  color: var(--success-fg);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+
+  svg { width: 11px; height: 11px; }
+
+  &:active { transform: scale(0.92); }
+  &:hover { background: rgba($success, 0.12); }
+
+  &--active {
+    background: $success;
+    color: #fff;
+  }
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.titulo {
+  font-size: $fs-sm;
+  font-weight: 500;
+  color: var(--text-primary);
+
+  &--feita {
+    color: var(--text-muted);
+    text-decoration: line-through;
+  }
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+}
+
+.badge {
+  font-size: 10px;
+}
+
+.prazo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: $fs-xs;
+  color: var(--text-muted);
+
+  svg { width: 12px; height: 12px; }
+}
+
+.emptyItem {
+  padding: $sp-5 0;
+  text-align: center;
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}

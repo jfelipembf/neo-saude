@@ -1,0 +1,30 @@
+# Dependências
+node_modules
+
+# Build
+dist
+dist-ssr
+
+# Ambiente — NUNCA commitar chaves (use .env.example como modelo)
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Clone de referência do módulo de odontograma (o código usado vive em src/lib/odontogramShell)
+vendor/

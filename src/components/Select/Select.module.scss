@@ -1,0 +1,39 @@
+@use '../../styles/mixins' as *;
+
+.field { @include field-root; }
+.label { @include field-label; }
+.error { @include field-error-text; }
+
+.wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  &--error .select { @include control-error; }
+}
+
+.select {
+  @include control-surface;
+  appearance: none;
+  cursor: pointer;
+
+  // Dropdown nativo abre sobre o fundo do tema (evita opções brancas no dark).
+  option {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+}
+
+.select--sm { height: $ctrl-h-sm; padding: 0 32px 0 $ctrl-px-sm; font-size: $ctrl-fs-sm; }
+.select--md { height: $ctrl-h-md; padding: 0 36px 0 $ctrl-px-md; font-size: $ctrl-fs-md; }
+.select--lg { height: $ctrl-h-lg; padding: 0 40px 0 $ctrl-px-lg; font-size: $ctrl-fs-lg; }
+
+.chevron {
+  position: absolute;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  pointer-events: none;
+  svg { width: 16px; height: 16px; }
+}

@@ -1,0 +1,126 @@
+@use '../../styles/mixins' as *;
+
+.wrap {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 240px;
+  flex-shrink: 0;
+  position: sticky;
+  top: $sp-4;
+  max-height: calc(100vh - 200px);
+
+  &--sm { width: 200px; }
+  &--lg { width: 300px; }
+
+  // No mobile deixa de ser coluna lateral: vira bloco cheio no topo.
+  @include mobile {
+    width: 100%;
+    position: static;
+    max-height: 42vh;
+  }
+}
+
+// ── Cabeçalho ────────────────────────────────────────────────────────────────
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+  padding: $sp-3 14px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+
+.title {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.addBtn {
+  @include focus-ring;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 6px;
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover { background: var(--primary-dark); }
+}
+
+// ── Busca ────────────────────────────────────────────────────────────────────
+.searchWrap {
+  padding: 10px 10px 8px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+
+// ── Lista ────────────────────────────────────────────────────────────────────
+.list {
+  @include hide-scrollbar;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  width: 100%;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:last-child { border-bottom: none; }
+  &:hover:not(.item--active) { background: var(--glass-bg-hover); }
+
+  &--active {
+    background: rgba(var(--primary-rgb), 0.1);
+    border-left: 2px solid var(--primary);
+    padding-left: 12px;
+
+    .itemLabel { color: var(--primary-fg); font-weight: 600; }
+  }
+}
+
+.itemText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.itemLabel {
+  font-size: $fs-sm;
+  font-weight: 500;
+  color: var(--text-primary);
+  transition: color 0.15s ease;
+}
+
+.itemSub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.empty {
+  padding: $sp-5 14px;
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  text-align: center;
+}

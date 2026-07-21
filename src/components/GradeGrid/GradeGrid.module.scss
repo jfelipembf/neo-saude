@@ -1,0 +1,87 @@
+@use '../../styles/mixins' as *;
+
+.scroll {
+  @include card;
+  overflow-x: auto;
+
+  &::-webkit-scrollbar { height: 8px; }
+  &::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 4px; }
+}
+
+// Semana: hora + 7 dias. Dia: hora + 1 coluna (variante abaixo — sem estilo inline).
+.grid {
+  display: grid;
+  min-width: 100%;
+  grid-template-columns: 64px repeat(7, minmax(140px, 1fr));
+
+  &--dia {
+    grid-template-columns: 64px minmax(140px, 1fr);
+  }
+}
+
+.corner {
+  border-bottom: 1px solid var(--glass-border);
+  border-right: 1px solid var(--glass-border);
+  background: var(--glass-bg-hover);
+}
+
+.dayHead {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px;
+  text-align: center;
+  background: var(--glass-bg-hover);
+  border-bottom: 1px solid var(--glass-border);
+
+  &:not(:last-child) { border-right: 1px solid var(--glass-border); }
+}
+
+.dayLabel {
+  font-size: $fs-xs;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.dayDate {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+// Coluna do dia atual: cabeçalho destacado na cor primária.
+.dayToday {
+  background: rgba(var(--primary-rgb), 0.14);
+  box-shadow: inset 0 3px 0 var(--primary);
+
+  .dayLabel { color: var(--primary-fg); }
+}
+
+.timeCell {
+  padding: 10px 8px;
+  font-size: $fs-xs;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  text-align: center;
+  border-right: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+  white-space: nowrap;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: $sp-2;
+  min-height: 56px;
+  border-bottom: 1px solid var(--glass-border);
+
+  &:not(:last-child) { border-right: 1px solid var(--glass-border); }
+}
+
+// Coluna do dia atual: células com leve tom da cor primária.
+.cellToday { background: rgba(var(--primary-rgb), 0.05); }

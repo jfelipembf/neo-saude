@@ -1,0 +1,66 @@
+@use '../../styles/mixins' as *;
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-4;
+  margin-bottom: $sp-5;
+
+  @include mobile {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  min-width: 0;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: $radius-md;
+  background: var(--accent-bg);
+  color: var(--primary-fg);
+
+  svg { width: 16px; height: 16px; }
+}
+
+.texts {
+  display: flex;
+  align-items: baseline;
+  gap: $sp-2;
+  min-width: 0;
+
+  @include phone {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
+.title {
+  font-size: $fs-md;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.subtitle {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  flex-shrink: 0;
+}

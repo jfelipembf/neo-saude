@@ -1,0 +1,65 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// TOKENS — fonte única de TODOS os valores de design do Neo Saúde.
+// Nenhum componente define hex, altura ou raio "mágico": tudo nasce aqui.
+// Temas claro/escuro ficam em _themes.scss (CSS vars); aqui são os estáticos.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Marca: VERDE (saúde/cuidado) + ROXO (bem-estar/clínicas) ─────────────────
+$primary:           #10B981;   // verde esmeralda
+$primary-light:     #34D399;
+$primary-dark:      #059669;
+$primary-rgb:       16, 185, 129;
+$primary-light-rgb: 52, 211, 153;
+
+$secondary:         #8B5CF6;   // roxo violeta
+$secondary-light:   #A78BFA;
+$secondary-dark:    #7C3AED;
+$secondary-rgb:     139, 92, 246;
+
+$accent:            #A855F7;   // roxo vivo (realces pontuais)
+$accent-rgb:        168, 85, 247;
+
+// ── Status ───────────────────────────────────────────────────────────────────
+$success:           #10B981;
+$warning:           #F59E0B;
+$danger:            #EF4444;
+$neutral:           #94A3B8;
+
+// ── Controles (alturas/fontes/paddings — Button, Input, Select, Textarea) ────
+$ctrl-h-sm:   32px;
+$ctrl-h-md:   40px;
+$ctrl-h-lg:   48px;
+
+$ctrl-fs-sm:  12px;
+$ctrl-fs-md:  13px;
+$ctrl-fs-lg:  14px;
+
+$ctrl-px-sm:  10px;
+$ctrl-px-md:  12px;
+$ctrl-px-lg:  16px;
+
+// ── Raios ────────────────────────────────────────────────────────────────────
+$radius-sm:   5px;    // controles (botão, input)
+$radius-md:   8px;    // toasts, dropdowns
+$radius-lg:   12px;   // cartões, modais
+$radius-pill: 999px;  // badges
+
+// ── Tipografia ───────────────────────────────────────────────────────────────
+$font-family: 'Inter', system-ui, -apple-system, sans-serif;
+
+$fs-xs:   12px;
+$fs-sm:   13px;
+$fs-base: 14px;
+$fs-md:   15px;
+$fs-lg:   16px;
+$fs-xl:   20px;
+$fs-2xl:  22px;
+
+// ── Espaçamento (escala de 4px) ──────────────────────────────────────────────
+$sp-1: 4px;
+$sp-2: 8px;
+$sp-3: 12px;
+$sp-4: 16px;
+$sp-5: 20px;
+$sp-6: 24px;
+$sp-8: 32px;

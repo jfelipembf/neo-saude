@@ -1,0 +1,151 @@
+@use '../../styles/mixins' as *;
+
+.card {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-5;
+  padding: $sp-6;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $sp-8 0;
+}
+
+// ── Topo: avatar + identidade + código ───────────────────────────────────────
+.top {
+  display: flex;
+  align-items: flex-start;
+  gap: $sp-5;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  flex-shrink: 0;
+  border-radius: $radius-lg;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: #fff;
+  font-weight: 600;
+  font-size: $fs-2xl;
+}
+
+.identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.nome {
+  font-size: $fs-2xl;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.membro {
+  margin-top: 2px;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2;
+  margin-top: $sp-3;
+}
+
+.codigo {
+  flex-shrink: 0;
+  font-size: $fs-base;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+// ── Grade de contatos: item de info à esquerda, mapa/e-mail à direita ────────
+.info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $sp-5 $sp-6;
+  padding-top: $sp-5;
+  border-top: 1px solid var(--glass-border);
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+.infoItem {
+  display: flex;
+  align-items: flex-start;
+  gap: $sp-3;
+  min-width: 0;
+}
+
+.infoIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  color: var(--primary-fg);
+
+  svg { width: 18px; height: 18px; }
+}
+
+.infoText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.infoLabel {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}
+
+.infoValue {
+  font-size: $fs-base;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+
+  strong { font-weight: 700; }
+}
+
+// ── Mapa decorativo (hachurado sutil) com ação "Ver no mapa" ─────────────────
+.mapa {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  border-radius: $radius-md;
+  border: 1px solid var(--glass-border);
+  background:
+    repeating-linear-gradient(45deg,  var(--glass-bg-hover) 0 2px, transparent 2px 18px),
+    repeating-linear-gradient(-45deg, var(--glass-bg-hover) 0 2px, transparent 2px 18px);
+
+  @include mobile {
+    min-height: 96px;
+  }
+}
+
+// ── Ações de compartilhamento ────────────────────────────────────────────────
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-3;
+  padding-top: $sp-4;
+  border-top: 1px solid var(--glass-border);
+}

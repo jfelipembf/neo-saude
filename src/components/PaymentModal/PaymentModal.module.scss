@@ -1,0 +1,172 @@
+@use '../../styles/mixins' as *;
+
+.corpo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-5;
+}
+
+// ── Identificação do paciente ────────────────────────────────────────────────
+.paciente {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: $sp-3;
+  border-bottom: 1px solid var(--glass-border);
+
+  strong {
+    font-size: $fs-md;
+    color: var(--text-primary);
+  }
+
+  span {
+    font-size: $fs-sm;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.secao {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+
+  h3 {
+    font-size: $fs-sm;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+  }
+}
+
+// ── Tratamentos cobrados ─────────────────────────────────────────────────────
+.tratamentos {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.tratamento {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  padding: $sp-2 0;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.tratamentoInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.tratamentoNome {
+  font-size: $fs-sm;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.tratamentoProf {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.tratamentoValor {
+  flex-shrink: 0;
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $sp-3;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+
+  strong {
+    font-size: $fs-xl;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+// ── Aviso de novidade (maquininhas) ──────────────────────────────────────────
+.novidade {
+  padding: $sp-3 $sp-4;
+  border-radius: $radius-md;
+  background: var(--accent-bg);
+  border: 1px solid rgba(var(--primary-rgb), 0.25);
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  line-height: 1.45;
+
+  strong { color: var(--primary-fg); }
+}
+
+// ── Formas de pagamento (chips) ──────────────────────────────────────────────
+.formas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2;
+}
+
+.formaBtn {
+  @include focus-ring;
+  padding: 7px 14px;
+  border-radius: $radius-pill;
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: $fs-sm;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    border-color: var(--glass-border-strong);
+    color: var(--text-primary);
+  }
+
+  &--ativa {
+    background: var(--accent-bg);
+    border-color: var(--glass-border-strong);
+    color: var(--primary-fg);
+    font-weight: 600;
+  }
+}
+
+// ── Dados do cartão (bandeira, parcelas, autorização, NSU) ───────────────────
+.cartao {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding: $sp-4;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  background: var(--glass-bg);
+}
+
+// ── Valor pago + data ────────────────────────────────────────────────────────
+.campos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.prefixo {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-muted);
+}

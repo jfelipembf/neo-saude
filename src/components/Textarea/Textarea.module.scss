@@ -1,0 +1,16 @@
+@use '../../styles/mixins' as *;
+
+.field { @include field-root; }
+.label { @include field-label; }
+.error { @include field-error-text; }
+.hint  { @include field-hint-text; }
+
+.textarea {
+  @include control-surface;
+  padding: 10px $ctrl-px-md;
+  font-size: $ctrl-fs-md;
+  line-height: 1.5;
+  resize: vertical;
+
+  &--error { @include control-error; }
+}

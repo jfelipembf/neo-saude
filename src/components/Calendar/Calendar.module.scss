@@ -1,0 +1,103 @@
+@use '../../styles/mixins' as *;
+
+.calendar {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+}
+
+.month {
+  font-size: $fs-base;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.navBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  transition: background 0.15s ease, color 0.15s ease;
+
+  svg { width: 16px; height: 16px; }
+
+  &:hover {
+    background: var(--glass-bg-hover);
+    color: var(--text-primary);
+  }
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  font-size: $fs-xs;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-align: center;
+
+  span { padding: $sp-1 0; }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.day {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  font-size: $fs-sm;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+
+  &:hover { background: var(--glass-bg-hover); }
+
+  &--outside { color: var(--text-muted); }
+
+  &--selected {
+    background: var(--accent-bg);
+    color: var(--primary-fg);
+    font-weight: 600;
+  }
+
+  &--today {
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+
+    &:hover { background: var(--primary-dark); }
+  }
+}
+
+.dot {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}

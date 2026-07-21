@@ -1,0 +1,101 @@
+@use '../../styles/mixins' as *;
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+}
+
+.porPagina {
+  max-width: 150px;
+}
+
+.busca {
+  max-width: 300px;
+  margin-left: auto;   // por página à esquerda, busca à direita
+}
+
+// ── Célula do profissional: foto maior → linha mais alta que as tabelas comuns ──
+.profCell {
+  display: flex;
+  align-items: center;
+  gap: $sp-4;
+  padding: $sp-2 0;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: #fff;
+  font-size: $fs-lg;
+  font-weight: 600;
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);   // anel sutil da marca
+}
+
+.profInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nome {
+  font-size: $fs-base;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.registro {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+// ── Especialidade + breve explicação (quebra linha dentro da célula) ─────────
+.espCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 360px;
+  white-space: normal;   // a Table usa nowrap; a descrição precisa quebrar
+}
+
+.especialidade {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--primary-fg);
+}
+
+.descricao {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+// ── Nota de atendimento ──────────────────────────────────────────────────────
+.nota {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: $fs-base;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+
+  svg {
+    width: 16px;
+    height: 16px;
+    color: var(--warning-fg);
+    fill: currentColor;   // estrela cheia
+  }
+}
+
+.semNota {
+  color: var(--text-muted);
+}

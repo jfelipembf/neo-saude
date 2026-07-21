@@ -1,0 +1,41 @@
+@use '../../styles/mixins' as *;
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: $sp-1;
+  padding: 2px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  flex-shrink: 0;
+}
+
+.btn {
+  @include focus-ring;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  svg { width: 16px; height: 16px; }
+
+  &:hover { background: var(--glass-bg-hover); color: var(--text-primary); }
+}
+
+.label {
+  min-width: 116px;
+  text-align: center;
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,72 @@
+@use '../../../styles/mixins' as *;
+
+// Toolbar do cartão: "N por página" à esquerda; busca + "Novo material" à direita.
+.porPagina {
+  max-width: 150px;
+}
+
+.toolbarDireita {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+
+  @include phone {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.busca {
+  max-width: 280px;
+
+  @include phone {
+    max-width: none;
+  }
+}
+
+// Nome + miniatura da foto do material.
+.materialCell {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.thumb {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: $radius-md;
+  object-fit: cover;
+}
+
+.semThumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: $radius-md;
+  background: var(--accent-bg);
+  color: var(--primary-fg);
+
+  svg { width: 16px; height: 16px; }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}

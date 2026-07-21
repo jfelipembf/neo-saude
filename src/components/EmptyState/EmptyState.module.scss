@@ -1,0 +1,36 @@
+@use '../../styles/mixins' as *;
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px $sp-6;
+  border: 1px dashed var(--glass-border);
+  border-radius: $radius-lg;
+  background: var(--glass-bg);
+}
+
+.icon {
+  margin-bottom: $sp-3;
+  color: var(--text-muted);
+  svg { width: 40px; height: 40px; }
+}
+
+.title {
+  font-size: $fs-md;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.description {
+  margin-top: 6px;
+  max-width: 380px;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.action {
+  margin-top: $sp-4;
+}

@@ -1,0 +1,244 @@
+@use '../../../styles/mixins' as *;
+
+// ── Zona de cabeçalho: voltar + título + abas formam um bloco só ─────────────
+// (padrão de página de detalhe: as abas pertencem ao cabeçalho, e o conteúdo
+// respira abaixo da hairline — não o contrário.)
+.topo {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: $sp-6;
+}
+
+// Card-resumo estreito à esquerda; à direita o prontuário ou o form de edição.
+.grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: $sp-6;
+  align-items: start;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ── Card-resumo ──────────────────────────────────────────────────────────────
+.resumo {
+  @include card;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-5;
+  padding: $sp-5;
+}
+
+.editBtn {
+  position: absolute;
+  top: $sp-3;
+  right: $sp-3;
+}
+
+.identidade {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $sp-1;
+  padding-top: $sp-3;
+  text-align: center;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  margin-bottom: $sp-2;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: #fff;
+  font-size: $fs-2xl;
+  font-weight: 600;
+  box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.15);   // anel sutil da marca
+}
+
+.nome {
+  font-size: $fs-xl;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.subtitulo {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+// ── Blocos do card (Contato / Dados pessoais) ────────────────────────────────
+.bloco {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding-top: $sp-4;
+  border-top: 1px solid var(--glass-border);
+}
+
+.blocoTitulo {
+  font-size: $fs-xs;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.contatos {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.contato {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  min-width: 0;
+}
+
+.contatoIcone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  color: var(--primary-fg);
+
+  svg { width: 15px; height: 15px; }
+}
+
+.contatoTexto {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.contatoLabel {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.contatoValor {
+  font-size: $fs-sm;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+// Grade 2×2 de pares rótulo/valor (Sexo, Nascimento, Última visita, CEP).
+.pares {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3 $sp-4;
+}
+
+.par {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  dt {
+    font-size: $fs-xs;
+    color: var(--text-muted);
+  }
+
+  dd {
+    font-size: $fs-sm;
+    font-weight: 500;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+  }
+}
+
+// ── Painel da direita (abas + conteúdo) ──────────────────────────────────────
+.painel {
+  min-width: 0;
+}
+
+.detalheHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+}
+
+// Pares rótulo/valor do modo leitura (3 colunas no desktop).
+.paresLargos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $sp-3 $sp-4;
+
+  @include mobile {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ── Formulário de edição (ao lado do resumo) ─────────────────────────────────
+.formCard {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  padding: $sp-5;
+}
+
+.formTitulo {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-5;
+}
+
+.formSection {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+
+  h3 {
+    font-size: $fs-sm;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    padding-bottom: $sp-1;
+    border-bottom: 1px solid var(--glass-border);
+  }
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formAcoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-3;
+  padding-top: $sp-3;
+  border-top: 1px solid var(--glass-border);
+}

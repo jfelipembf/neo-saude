@@ -1,0 +1,257 @@
+@use '../../styles/mixins' as *;
+
+// Desenho do kanban do Pipeline (projeto neo), com os tokens do Neo Saúde:
+// colunas abertas com kicker + linha primária, cards de vidro com borda
+// esquerda de 3px, avatar de iniciais e rodapé separado por hairline.
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+}
+
+.board {
+  display: flex;
+  align-items: stretch;
+  gap: $sp-4;
+  min-height: 520px;
+  overflow-x: auto;
+  padding-bottom: $sp-2;
+}
+
+.coluna {
+  flex: 0 0 300px;
+  min-width: 280px;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  min-height: 520px;
+  border-radius: $radius-md;
+  transition: background 0.15s ease;
+
+  // Realce enquanto um contato é arrastado por cima.
+  &--alvo {
+    background: var(--accent-bg);
+  }
+
+  @include phone {
+    flex-basis: 88vw;
+    min-width: 0;
+  }
+}
+
+.colunaHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: $sp-3;
+  padding: 0 2px $sp-3;
+  border-bottom: 2px solid var(--primary);
+}
+
+.colunaKicker {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.colunaTitulo {
+  margin-top: 2px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.contador {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 26px;
+  padding: 0 $sp-2;
+  border-radius: $radius-pill;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  font-size: $fs-xs;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.colunaBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: $sp-3;
+}
+
+.card {
+  @include card;
+  border-left: 3px solid var(--primary);
+  border-radius: $radius-md;
+  padding: 13px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  cursor: grab;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+
+  &:active { cursor: grabbing; }
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  font-size: $fs-xs;
+  font-weight: 800;
+}
+
+.cardTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  strong {
+    font-size: $fs-base;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: $fs-xs;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    svg { width: 12px; height: 12px; flex-shrink: 0; }
+  }
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip {
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border-strong);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.cardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--glass-border);
+  color: var(--text-muted);
+  font-size: $fs-xs;
+}
+
+.cardFootInfo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  svg { width: 14px; height: 14px; flex-shrink: 0; }
+}
+
+.setas {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.setaBtn {
+  @include focus-ring;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  svg { width: 12px; height: 12px; }
+
+  &:hover:not(:disabled) {
+    background: var(--glass-bg-hover);
+    color: var(--text-primary);
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+}
+
+.vazio {
+  @include card;
+  min-height: 180px;
+  border-radius: $radius-md;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: $sp-6;
+  text-align: center;
+
+  strong {
+    font-size: $fs-base;
+    color: var(--text-primary);
+  }
+
+  span {
+    font-size: $fs-sm;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+}

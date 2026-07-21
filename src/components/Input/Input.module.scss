@@ -1,0 +1,39 @@
+@use '../../styles/mixins' as *;
+
+.field   { @include field-root; }
+.label   { @include field-label; }
+.error   { @include field-error-text; }
+.hint    { @include field-hint-text; }
+
+.wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  &--error .input { @include control-error; }
+}
+
+.input {
+  @include control-surface;
+}
+
+// ─── Sizes ────────────────────────────────────────────────────────────────────
+.input--sm { height: $ctrl-h-sm; padding: 0 $ctrl-px-sm; font-size: $ctrl-fs-sm; }
+.input--md { height: $ctrl-h-md; padding: 0 $ctrl-px-md; font-size: $ctrl-fs-md; }
+.input--lg { height: $ctrl-h-lg; padding: 0 $ctrl-px-lg; font-size: $ctrl-fs-lg; }
+
+.input--icon-left  { padding-left: 36px; }
+.input--icon-right { padding-right: 36px; }
+
+// ─── Icons ────────────────────────────────────────────────────────────────────
+.iconLeft, .iconRight {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  pointer-events: none;
+  svg { width: 16px; height: 16px; }
+}
+
+.iconLeft  { left: 12px; }
+.iconRight { right: 12px; }

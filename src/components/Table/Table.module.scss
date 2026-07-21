@@ -1,0 +1,79 @@
+@use '../../styles/mixins' as *;
+
+.wrapper {
+  @include card;
+}
+
+// Barra dentro do cartão, acima da tabela: controles à esquerda ("N por
+// página") e à direita (busca) — mesmo desenho do PaymentsTable.
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  padding: $sp-3 $sp-4;
+  border-bottom: 1px solid var(--glass-border);
+
+  @include phone {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+// Tabela larga rola aqui dentro, sem estourar o cartão.
+.scroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: $fs-sm;
+
+  th {
+    padding: $sp-3 $sp-4;
+    text-align: left;
+    font-size: $fs-xs;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--glass-border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: $sp-3 $sp-4;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--glass-border);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  tbody tr {
+    transition: background 0.12s ease;
+    &:hover { background: var(--glass-bg-hover); }
+  }
+}
+
+.clickable { cursor: pointer; }
+
+.empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: $sp-6 !important;
+}
+
+// Rodapé dentro do cartão (ex.: Pagination), abaixo da tabela.
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: $sp-3 $sp-4;
+  border-top: 1px solid var(--glass-border);
+
+  @include phone {
+    justify-content: center;
+  }
+}

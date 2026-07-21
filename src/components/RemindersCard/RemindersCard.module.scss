@@ -1,0 +1,162 @@
+@use '../../styles/mixins' as *;
+
+.card {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding: $sp-5;
+  min-height: 0;            // permite a lista rolar em vez de esticar o cartão
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+}
+
+.title {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.contagem {
+  font-size: $fs-xs;
+  font-weight: 500;
+  color: var(--warning-fg);
+  background: rgba($warning, 0.12);
+  border: 1px solid rgba($warning, 0.35);
+  border-radius: $radius-pill;
+  padding: 2px 10px;
+  white-space: nowrap;
+}
+
+.headerDireita {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+}
+
+// Formulário do modal "Novo lembrete".
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.carregando {
+  display: flex;
+  justify-content: center;
+  padding: $sp-6 0;
+}
+
+.lista {
+  @include hide-scrollbar;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  padding: $sp-2 0;
+  border-bottom: 1px solid var(--glass-border);
+
+  &:last-child { border-bottom: none; }
+
+  &--feito {
+    .itemTexto {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+  }
+}
+
+// Círculo de concluir (mesma linguagem dos círculos de presença da agenda).
+.checkBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: transparent;
+  border: 1.5px solid $success;
+  color: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+
+  svg { width: 12px; height: 12px; }
+
+  &:hover { background: rgba($success, 0.12); color: var(--success-fg); }
+  &:active { transform: scale(0.92); }
+
+  &--ativo {
+    background: $success;
+    border-color: $success;
+    color: #fff;
+
+    &:hover { background: $success; color: #fff; }
+  }
+}
+
+.itemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.itemTexto {
+  font-size: $fs-sm;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.itemData {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: $fs-xs;
+  color: var(--text-muted);
+
+  svg { width: 12px; height: 12px; }
+}
+
+.removerBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  transition: background 0.15s ease, color 0.15s ease;
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover {
+    background: rgba($danger, 0.12);
+    color: var(--danger-fg);
+  }
+}
+
+.vazio {
+  padding: $sp-5 0;
+  text-align: center;
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}

@@ -1,0 +1,24 @@
+@use '../../styles/mixins' as *;
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  flex: 1;
+  min-height: 0;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: $sp-3;
+}
+
+.controlsRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}

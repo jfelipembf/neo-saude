@@ -1,0 +1,60 @@
+@use '../../styles/mixins' as *;
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  font-size: $fs-xs;
+  font-weight: 500;
+  line-height: 1;
+  border-radius: $radius-pill;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+// ─── Variants (fundo/borda translúcidos + texto no tom do tema) ──────────────
+.badge--success {
+  background: rgba($success, 0.12);
+  border-color: rgba($success, 0.35);
+  color: var(--success-fg);
+}
+
+.badge--warning {
+  background: rgba($warning, 0.12);
+  border-color: rgba($warning, 0.35);
+  color: var(--warning-fg);
+}
+
+.badge--danger {
+  background: rgba($danger, 0.12);
+  border-color: rgba($danger, 0.35);
+  color: var(--danger-fg);
+}
+
+.badge--info {
+  background: rgba(var(--secondary-rgb), 0.12);
+  border-color: rgba(var(--secondary-rgb), 0.35);
+  color: var(--info-fg);
+}
+
+.badge--accent {
+  background: rgba(var(--accent-rgb), 0.12);
+  border-color: rgba(var(--accent-rgb), 0.35);
+  color: var(--accent-fg);
+}
+
+.badge--gray {
+  background: rgba($neutral, 0.14);
+  border-color: rgba($neutral, 0.35);
+  color: var(--text-secondary);
+}
