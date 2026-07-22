@@ -5,7 +5,7 @@ import { Modal } from '@/components/Modal/Modal'
 import { Select } from '@/components/Select/Select'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { useToast } from '@/components/Toast/useToast'
-import { useAddPayable, useAddReceivable } from '@/hooks/useFinance'
+import { useAddPayable } from '@/hooks/useFinance'
 import { parseBRL } from '@/utils/format'
 import { toIsoDate } from '@/utils/date'
 import styles from './finance.module.scss'
@@ -16,31 +16,25 @@ const PAYABLE_CATEGORIES = [
   'Impostos e taxas', 'Água, luz e internet', 'Manutenção', 'Marketing', 'Outros',
 ]
 
-/** Origens de receita (conta a receber avulsa). */
-const RECEIVABLE_SOURCES = [
-  'Consultas', 'Procedimentos', 'Convênio', 'Vendas', 'Outros',
-]
-
 interface AccountFormModalProps {
-  kind: 'payable' | 'receivable'
   onClose: () => void
 }
 
 /**
- * Modal "Nova conta a pagar/receber": descrição, favorecido (fornecedor/origem),
- * categoria, vencimento, valor e observação — o mínimo dos sistemas do ramo
- * (Omie/Conta Azul). A conta nasce em aberto (pending); a baixa é no SettleModal.
+ * Modal "Nova conta a pagar": descrição, fornecedor, categoria, vencimento,
+ * valor e observação — o mínimo dos sistemas do ramo (Omie/Conta Azul). A conta
+ * nasce em aberto (pending); a baixa é no SettleModal.
+ *
+ * SÓ conta a PAGAR: título a receber nunca é digitado à mão — nasce no aceite
+ * do orçamento (parcelas do contrato) ou no faturamento do procedimento.
  */
-export function AccountFormModal({ kind, onClose }: AccountFormModalProps) {
+export function AccountFormModal({ onClose }: AccountFormModalProps) {
   const toast = useToast()
-  const isPayable = kind === 'payable'
-  const { mutate: addPayable, isPending: savingPayable } = useAddPayable()
-  const { mutate: addReceivable, isPending: savingReceivable } = useAddReceivable()
-  const saving = savingPayable || savingReceivable
+  const { mutate: addPayable, isPending: saving } = useAddPayable()
 
   const [description, setDescription] = useState('')
-  const [party, setParty] = useState('')   // fornecedor (pagar) ou origem (receber)
-  const [category, setCategory] = useState(isPayable ? PAYABLE_CATEGORIES[0] : RECEIVABLE_SOURCES[0])
+  const [supplier, setSupplier] = useState('')
+  const [category, setCategory] = useState(PAYABLE_CATEGORIES[0])
   const [dueDateIso, setDueDateIso] = useState(() => toIsoDate(new Date()))
   const [amountText, setAmountText] = useState('')
   const [notes, setNotes] = useState('')
@@ -56,37 +50,28 @@ export function AccountFormModal({ kind, onClose }: AccountFormModalProps) {
       setError('Informe o valor.')
       return
     }
-    if (isPayable && !party.trim()) {
+    if (!supplier.trim()) {
       setError('Informe o fornecedor.')
       return
     }
 
     const dueDate = dueDateIso.split('-').reverse().join('/')
-    const opts = {
-      onSuccess: () => {
-        toast.success(isPayable ? 'Conta a pagar cadastrada!' : 'Conta a receber cadastrada!')
-        onClose()
+    addPayable(
+      { description: description.trim(), category, supplier: supplier.trim(), dueDate, amount, notes: notes.trim() || undefined },
+      {
+        onSuccess: () => {
+          toast.success('Conta a pagar cadastrada!')
+          onClose()
+        },
       },
-    }
-
-    if (isPayable) {
-      addPayable(
-        { description: description.trim(), category, supplier: party.trim(), dueDate, amount, notes: notes.trim() || undefined },
-        opts,
-      )
-    } else {
-      addReceivable(
-        { description: description.trim(), source: category, dueDate, grossAmount: amount, notes: notes.trim() || undefined },
-        opts,
-      )
-    }
+    )
   }
 
   return (
     <Modal
       open
       onClose={onClose}
-      title={isPayable ? 'Nova conta a pagar' : 'Nova conta a receber'}
+      title="Nova conta a pagar"
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
@@ -97,7 +82,7 @@ export function AccountFormModal({ kind, onClose }: AccountFormModalProps) {
       <div className={styles.formCorpo}>
         <Input
           label="Descrição"
-          placeholder={isPayable ? 'Ex: Compra de resina composta' : 'Ex: Convênio Unimed — competência 07/2026'}
+          placeholder="Ex: Compra de resina composta"
           value={description}
           onChange={e => { setDescription(e.target.value); setError('') }}
           autoFocus
@@ -105,14 +90,14 @@ export function AccountFormModal({ kind, onClose }: AccountFormModalProps) {
 
         <div className={styles.formLinha2}>
           <Input
-            label={isPayable ? 'Fornecedor' : 'Pagador (opcional)'}
-            placeholder={isPayable ? 'Ex: Dental Cremer' : 'Ex: Unimed'}
-            value={party}
-            onChange={e => { setParty(e.target.value); setError('') }}
+            label="Fornecedor"
+            placeholder="Ex: Dental Cremer"
+            value={supplier}
+            onChange={e => { setSupplier(e.target.value); setError('') }}
           />
           <Select
-            label={isPayable ? 'Categoria' : 'Origem'}
-            options={(isPayable ? PAYABLE_CATEGORIES : RECEIVABLE_SOURCES).map(c => ({ value: c, label: c }))}
+            label="Categoria"
+            options={PAYABLE_CATEGORIES.map(c => ({ value: c, label: c }))}
             value={category}
             onChange={e => setCategory(e.target.value)}
           />

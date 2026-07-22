@@ -4,6 +4,13 @@ import styles from './Tabs.module.scss'
 export interface Tab {
   key: string
   label: string
+  /**
+   * Contador ao lado do rótulo. Existe para abas que são PENDÊNCIA e não
+   * relatório — "A faturar" é dinheiro que ninguém cobrou, e uma aba que só
+   * mostra o número quando você entra nela não avisa ninguém. Zero não
+   * renderiza: badge com 0 é ruído permanente.
+   */
+  badge?: number
 }
 
 interface TabsProps {
@@ -32,6 +39,9 @@ export function Tabs({ tabs, active, onChange, children }: TabsProps) {
             onClick={() => onChange(tab.key)}
           >
             {tab.label}
+            {tab.badge != null && tab.badge > 0 && (
+              <span className={styles.badge} aria-label={`${tab.badge} em aberto`}>{tab.badge}</span>
+            )}
           </button>
         ))}
       </div>

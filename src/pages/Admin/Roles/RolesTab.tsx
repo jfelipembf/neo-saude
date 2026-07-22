@@ -103,7 +103,7 @@ export function RolesTab() {
         selectedId={selected}
         onSelect={id => selectRole(String(id))}
         onAdd={handleNew}
-        searchPlaceholder="Buscar cargo..."
+        hideSearch
         emptyText="Nenhum cargo cadastrado"
       />
 

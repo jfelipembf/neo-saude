@@ -1,17 +1,30 @@
 @use '../../../styles/mixins' as *;
 
+// `overflow: hidden` no cartão para que a coluna fixa e a rolagem horizontal do
+// filho não vazem por cima do raio da borda.
 .card {
   @include card;
-  display: flex;
-  flex-direction: column;
-  gap: $sp-4;
-  padding: $sp-5;
+  overflow: hidden;
 }
 
 .header {
   display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $sp-4;
+  padding: $sp-5;
+  border-bottom: 1px solid var(--glass-border);
+
+  @include mobile {
+    flex-direction: column;
+  }
+}
+
+.headerText {
+  display: flex;
   flex-direction: column;
   gap: $sp-1;
+  min-width: 0;
 }
 
 .title {
@@ -25,115 +38,209 @@
   color: var(--text-secondary);
 }
 
-.list {
+.headerActions {
   display: flex;
-  flex-direction: column;
-  gap: $sp-2;
-}
+  align-items: center;
+  gap: $sp-3;
+  flex-shrink: 0;
 
-// Quatro colunas: identificação (elástica), valor atual, campo do alvo e ações.
-// As três últimas têm largura fixa para que os campos fiquem alinhados entre as
-// linhas — meta de consulta e meta de faturamento devem começar na mesma coluna.
-.row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px 180px auto;
-  align-items: start;
-  gap: $sp-4;
-  padding: $sp-3 0;
-  border-top: 1px solid var(--glass-border);
-
-  &:first-child {
-    border-top: none;
-  }
-
-  // Tablet: o campo e as ações descem para uma segunda faixa, mas identificação
-  // e valor atual continuam lado a lado (cabem, e ler os dois juntos é o ponto).
   @include mobile {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: $sp-3;
+    width: 100%;
   }
 
   @include phone {
-    grid-template-columns: 1fr;
+    // Alvos grandes o bastante para o dedo: os dois dividem a largura.
+    > * { flex: 1; }
   }
 }
 
-.info {
+.yearSelect {
+  width: 110px;
+
+  @include phone {
+    width: auto;
+  }
+}
+
+.loading {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  justify-content: center;
+  padding: $sp-8;
 }
 
-.metric {
-  font-size: $fs-base;
-  font-weight: 600;
-  color: var(--text-primary);
+// ── Matriz métrica × mês ─────────────────────────────────────────────────────
+// A largura é inerente (12 colunas de campo): quem rola é ESTE contêiner, nunca
+// a página. Sem isto o corpo inteiro do app ganharia rolagem horizontal no
+// celular, e o cabeçalho do app sairia da tela junto.
+.scroll {
+  overflow-x: auto;
 }
 
-.help {
-  font-size: $fs-xs;
-  color: var(--text-muted);
+// `separate` (com espaçamento zero, então o desenho é o mesmo de `collapse`) é
+// exigência da coluna fixa: em `border-collapse: collapse` a borda deixa de ser
+// da CÉLULA e passa a ser da tabela, e a borda de uma célula `position: sticky`
+// então não viaja junto com ela — a linha vertical que separa a coluna fixa dos
+// meses some assim que a rolagem começa, justamente quando ela é necessária
+// para explicar por que aquela coluna ficou parada.
+.matrix {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+
+  th {
+    font-size: $fs-xs;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    padding: $sp-3 $sp-2;
+    text-align: center;
+    border-bottom: 1px solid var(--glass-border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: $sp-2;
+    border-bottom: 1px solid var(--glass-border);
+    vertical-align: middle;
+  }
+
+  tbody tr:last-child > * { border-bottom: none; }
+
+  // O campo do componente Input ocupa a célula inteira e o número fica no
+  // centro — 12 colunas de números alinhados à esquerda leem como uma escada.
+  td > * { width: 100%; }
+  input { text-align: center; }
 }
 
-.current {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+// ── Coluna da métrica: FIXA à esquerda enquanto os meses rolam ───────────────
+// Fundo OPACO (`--bg-surface`, não `--glass-bg`): a coluna fica por cima das
+// células que passam debaixo dela, e um fundo translúcido deixaria os números
+// dos meses aparecerem através do rótulo.
+//
+// PREFIXADA POR `.matrix` DE PROPÓSITO: esta é a MESMA célula que `.matrix th`
+// acima, e `.matrix th` (classe + elemento) tem especificidade maior que uma
+// classe sozinha — sem o prefixo, o `text-align: center` e o padding do
+// cabeçalho venceriam e o rótulo da métrica sairia centralizado.
+.matrix .metricCol {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  min-width: 230px;
+  padding: $sp-3 $sp-4;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--glass-border-strong);
 
   @include mobile {
-    align-items: flex-end;
-    text-align: right;
+    min-width: 170px;
+    padding: $sp-3;
   }
 
   @include phone {
-    align-items: flex-start;
-    text-align: left;
+    min-width: 130px;
+    padding: $sp-2;
   }
 }
 
-.currentLabel {
-  font-size: $fs-xs;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+// O cabeçalho da coluna fixa cruza com o cabeçalho dos meses: precisa vencer os
+// dois eixos de sobreposição (e a regra acima, que fixa z-index 1).
+.matrix thead .metricCol {
+  z-index: 2;
 }
 
-.currentValue {
-  font-size: $fs-md;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.currentPct {
-  font-size: $fs-xs;
-  color: var(--primary-fg);
-}
-
-.field {
-  // O campo ocupa a faixa inteira quando a linha vira duas colunas (tablet) e
-  // quando vira uma só (phone).
-  @include mobile {
-    grid-column: 1 / -1;
-  }
-}
-
-.actions {
+// `white-space: normal` vence o `nowrap` do cabeçalho por herança (a regra
+// mora no <th>, esta mora no <span>): num celular o rótulo quebra em duas
+// linhas em vez de esticar a coluna fixa por metade da tela.
+.metricName {
   display: flex;
   align-items: center;
   gap: $sp-2;
-  // Alinha os botões com o campo, que tem o rótulo "Meta" acima.
-  padding-top: 22px;
-
-  @include mobile {
-    grid-column: 1 / -1;
-    padding-top: 0;
-  }
+  font-size: $fs-base;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: normal;
 
   @include phone {
-    // Botões grandes o bastante para o dedo: "Salvar" estica e o ícone fica fixo.
-    > :first-child {
-      flex: 1;
-    }
+    font-size: $fs-sm;
+  }
+}
+
+// Marca a natureza da linha (R$ ou contagem) UMA vez, no rótulo, em vez de
+// repetir o símbolo nas 12 células.
+.unit {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: $radius-pill;
+  background: rgba($primary, 0.14);
+  color: var(--primary-fg);
+}
+
+.metricHelp {
+  display: block;
+  margin-top: 2px;
+  font-size: $fs-xs;
+  font-weight: 400;
+  color: var(--text-muted);
+  white-space: normal;
+
+  // Sem espaço horizontal sobrando, a explicação é a primeira coisa a sair: o
+  // rótulo da métrica já diz o essencial.
+  @include mobile {
+    display: none;
+  }
+}
+
+.monthCol {
+  width: 104px;
+  min-width: 104px;
+
+  @include phone {
+    width: 88px;
+    min-width: 88px;
+  }
+}
+
+.monthHead {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $sp-1;
+}
+
+.replicate {
+  @include focus-ring;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+
+  svg { width: 13px; height: 13px; }
+
+  &:hover {
+    background: rgba($primary, 0.16);
+    color: var(--primary-fg);
+  }
+}
+
+// Célula recusada na validação. Só a borda muda — o texto continua editável e
+// no lugar, para o usuário corrigir sem procurar o que mudou.
+.cell--invalid {
+  input {
+    border-color: rgba($danger, 0.7);
+    box-shadow: 0 0 0 3px rgba($danger, 0.14);
   }
 }

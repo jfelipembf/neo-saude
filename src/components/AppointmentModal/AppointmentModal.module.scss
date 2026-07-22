@@ -7,52 +7,13 @@
 }
 
 // ── Busca de paciente com sugestões ──────────────────────────────────────────
-.pacienteCampo {
-  position: relative;
-}
-
-.sugestoes {
-  list-style: none;
-  position: absolute;
-  z-index: 10;
-  left: 0;
-  right: 0;
-  top: calc(100% - 18px);   // cola logo abaixo do input (acima do hint)
-  background: var(--bg-elevated);
-  border: 1px solid var(--glass-border);
-  border-radius: $radius-md;
-  box-shadow: var(--shadow-md);
-  overflow: hidden;
-}
-
-.sugestao {
-  @include focus-ring;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  width: 100%;
-  padding: $sp-2 $sp-3;
-  background: none;
-  border: none;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--glass-bg-hover);
-  }
-}
-
-.sugestaoNome {
-  font-size: $fs-sm;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.sugestaoMeta {
-  font-size: $fs-xs;
-  color: var(--text-muted);
-}
+// O padrão vive em styles/_mixins.scss porque o cadastro de conta a receber
+// (Financeiro) usa a MESMA lista — dois lugares, uma fonte.
+.pacienteCampo { @include suggestion-wrapper; }
+.sugestoes     { @include suggestion-list; }
+.sugestao      { @include suggestion-item; }
+.sugestaoNome  { @include suggestion-name; }
+.sugestaoMeta  { @include suggestion-meta; }
 
 // ── Grades de campos ─────────────────────────────────────────────────────────
 .grid3 {

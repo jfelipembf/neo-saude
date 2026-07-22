@@ -3,12 +3,17 @@ import { Input } from '@/components/Input/Input'
 import { IconSearch, IconPlus } from '@/components/icons'
 import { useDebounce } from '@/hooks/useDebounce'
 import { matchesSearch } from '@/utils/search'
+import { initials } from '@/utils/text'
 import styles from './SideList.module.scss'
 
 export interface SideListItem {
   id: string | number
   label: string
   sublabel?: string
+  /** Foto do item (avatar): mostra a imagem ou cai nas iniciais do label. */
+  avatarUrl?: string
+  /** Liga o avatar (iniciais mesmo sem foto). Automático quando há avatarUrl. */
+  avatar?: boolean
 }
 
 type SideListSize = 'sm' | 'md' | 'lg'
@@ -83,6 +88,13 @@ export function SideList({
               onClick={() => onSelect(item.id)}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(item.id) } }}
             >
+              {(item.avatar || item.avatarUrl) && (
+                <span className={styles.avatar}>
+                  {item.avatarUrl
+                    ? <img src={item.avatarUrl} alt="" className={styles.avatarImg} />
+                    : initials(item.label)}
+                </span>
+              )}
               <span className={styles.itemText}>
                 <span className={styles.itemLabel}>{item.label}</span>
                 {item.sublabel && <span className={styles.itemSub}>{item.sublabel}</span>}

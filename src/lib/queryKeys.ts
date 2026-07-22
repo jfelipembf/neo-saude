@@ -30,24 +30,39 @@ export const queryKeys = {
     stats:  ['appointments', 'stats'] as const,
     series:  (period: string, isoMonth: string) => ['appointments', 'series', period, isoMonth] as const,
     history: (patientId: string) => ['appointments', 'history', patientId] as const,
+    /** Consultas do intervalo visível da Agenda (semana da grade, janela da aba do profissional). */
+    range:  (fromIso: string, toIso: string) => ['appointments', 'range', fromIso, toIso] as const,
   },
   professionals: {
     all:    ['professionals'] as const,
     detail: (id: string) => ['professionals', id] as const,
+    /** Produção do profissional (aba Ganhos) — prefixada, cai junto na invalidação. */
+    earnings: (id: string) => ['professionals', id, 'earnings'] as const,
   },
   user: {
     me: ['user', 'me'] as const,
   },
   finance: {
+    // PREFIXO DE TODO O MÓDULO. Um movimento de dinheiro nunca mexe em uma
+    // lista só: dar baixa num título altera o saldo do banco, o fluxo de caixa
+    // projetado, o gráfico e o extrato do paciente. Invalidar peça por peça é
+    // como as telas ficam desatualizadas até alguém apertar F5 — as mutations
+    // do financeiro invalidam este prefixo inteiro.
+    all: ['finance'] as const,
     series: (period: string, isoMonth: string) => ['finance', 'series', period, isoMonth] as const,
-    cash:       ['finance', 'cash'] as const,
-    cashSession: ['finance', 'cash', 'session'] as const,
     cashFlow:       ['finance', 'cashFlow'] as const,
     payables:    ['finance', 'payables'] as const,
     receivables: ['finance', 'receivables'] as const,
     banks:      ['finance', 'banks'] as const,
     acquirers: ['finance', 'acquirers'] as const,
     collections: ['finance', 'collections'] as const,
+    // Prefixada por 'finance' de propósito: faturar um procedimento parado cria
+    // um recebível, então quem invalida a lista de contas a receber (prefixo
+    // ['finance']) já refaz o contador da aba "A faturar" junto.
+    unbilled: ['finance', 'unbilled'] as const,
+    // Extrato do paciente (aba Pagamentos do perfil). Sob 'finance' pelo mesmo
+    // motivo: qualquer baixa no módulo tem de refletir aqui sem F5.
+    byPatient: (patientId: string) => ['finance', 'receivables', 'patient', patientId] as const,
   },
   tasks: {
     all: ['tasks'] as const,
@@ -55,15 +70,37 @@ export const queryKeys = {
   leads: {
     all: ['leads'] as const,
   },
-  payments: {
-    all: ['payments'] as const,
-    byPatient: (patientId: string) => ['payments', 'patient', patientId] as const,
-  },
+  // 'payments' saiu daqui junto com o service: public.payment está CONGELADA
+  // (zero linhas, nenhum escritor, sem GRANT de escrita) e o razão vigente é
+  // receivable — que vive sob a key 'finance'.
   treatments: {
+    // Prefixo: faturar um procedimento pela aba "A faturar" muda a situação
+    // financeira da sessão no prontuário de um paciente que a tela do
+    // Financeiro não sabe qual é.
+    all: ['treatments'] as const,
     byPatient: (patientId: string) => ['treatments', 'patient', patientId] as const,
+    /**
+     * Prévia do reflexo financeiro do procedimento em edição. Os parâmetros
+     * fazem parte da key porque a resposta MUDA com cada um deles: trocar o
+     * valor ou marcar cortesia tem de refazer a pergunta, não servir a frase
+     * anterior do cache — a frase é o que o dentista combina com o paciente.
+     */
+    billingPreview: (
+      patientId: string,
+      amount: number | undefined,
+      performedOn: string,
+      billing: { dueDate?: string; notBillableReason?: string; method?: string; acquirerId?: string; installments?: number },
+    ) => [
+      'treatments', 'billingPreview', patientId, amount ?? null, performedOn,
+      billing.dueDate ?? null, billing.notBillableReason?.trim() || null,
+      billing.method ?? null, billing.acquirerId ?? null, billing.installments ?? 1,
+    ] as const,
   },
   roles: {
     all: ['roles'] as const,
+  },
+  staff: {
+    all: ['staff'] as const,
   },
   quotes: {
     all: ['quotes'] as const,
@@ -78,9 +115,6 @@ export const queryKeys = {
   },
   insurances: {
     all: ['insurances'] as const,
-  },
-  schedule: {
-    all: ['schedule'] as const,
   },
   documents: {
     all: ['documents'] as const,
@@ -97,6 +131,11 @@ export const queryKeys = {
     all: ['materials'] as const,
   },
   goals: {
+    // Prefixo para invalidar TODOS os anos de uma vez (troca de clínica, logout).
     all: ['goals'] as const,
+    // O ANO faz parte da key porque a matriz de 2026 e a de 2027 são conjuntos
+    // de dados distintos: sem ele, trocar o seletor de ano serviria a matriz do
+    // ano anterior do cache e o usuário editaria — e salvaria — o ano errado.
+    byYear: (year: number) => ['goals', year] as const,
   },
 }

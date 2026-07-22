@@ -83,3 +83,53 @@
     outline-offset: 2px;
   }
 }
+
+// ── Busca com sugestões (paciente) ───────────────────────────────────────────
+// Usado pelo agendamento e pelo cadastro de conta a receber. O invólucro do
+// campo é `position: relative` e a lista flutua colada ao input.
+@mixin suggestion-wrapper {
+  position: relative;
+}
+
+@mixin suggestion-list {
+  list-style: none;
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  right: 0;
+  top: calc(100% - 18px);   // cola logo abaixo do input (acima do hint)
+  background: var(--bg-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+@mixin suggestion-item {
+  @include focus-ring;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: $sp-2 $sp-3;
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--glass-bg-hover);
+  }
+}
+
+@mixin suggestion-name {
+  font-size: $fs-sm;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+@mixin suggestion-meta {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}

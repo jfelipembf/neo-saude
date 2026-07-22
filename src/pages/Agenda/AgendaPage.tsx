@@ -4,11 +4,11 @@ import { Button } from '@/components/Button/Button'
 import { ScheduleBoard } from '@/components/ScheduleBoard/ScheduleBoard'
 import { AppointmentModal } from '@/components/AppointmentModal/AppointmentModal'
 import { IconSchedule, IconPlus } from '@/components/icons'
-import type { ScheduleSlot } from '@/types/domain'
+import type { AgendaAppointment } from '@/types/domain'
 
 export function AgendaPage() {
   // Modal de agendamento: null = fechado; { slot } = edição; {} = novo.
-  const [modal, setModal] = useState<{ slot?: ScheduleSlot } | null>(null)
+  const [modal, setModal] = useState<{ slot?: AgendaAppointment } | null>(null)
 
   return (
     <>

@@ -1,8 +1,8 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId, type ClientPayload } from '@/lib/tenant'
 import type { ClientInsert, Insert } from '@/lib/db'
-import { brToIsoDate, isoToBrDate, toIsoDate, addMonths } from '@/utils/date'
-import type { Quote, QuoteItem } from '@/types/domain'
+import { brToIsoDate, isoToBrDate } from '@/utils/date'
+import type { PaymentPlanEntry, Quote, QuoteItem } from '@/types/domain'
 
 const PARTICULAR = 'Particular'
 
@@ -97,7 +97,10 @@ export async function listPatientQuotes(patientId: string): Promise<Quote[]> {
 /** Dados do editor "Criar orçamento". */
 export type NewQuote = ClientPayload<Quote>
 
-export async function addQuote(payload: NewQuote): Promise<void> {
+/** Cria o orçamento e devolve o ID — é por ele que o editor chama a aprovação
+ *  logo em seguida (aprovar é SEMPRE `approveQuote`, nunca um insert com
+ *  status='approved', que nasceria sem parcela nenhuma). */
+export async function addQuote(payload: NewQuote): Promise<string> {
   const clinicId = getCurrentClinicId()
   const { byName } = await insuranceMaps(clinicId)
 
@@ -132,65 +135,32 @@ export async function addQuote(payload: NewQuote): Promise<void> {
     if (itemsError) throw itemsError
   }
   // quote.items_total / quote.total são recalculados pelo trigger tg_quote_recalc_total.
+  return data.id
 }
 
 /**
- * Aprova um orçamento e GERA as parcelas em Contas a Receber (padrão dos ERPs).
- * O trigger tg_quote_stamp_approval carimba approved_at/by ao mudar o status;
- * as parcelas (uma por installment) são geradas aqui. Idempotente: se já existem
- * recebíveis do orçamento, não duplica. Retorna quantas parcelas criou.
+ * Aprova um orçamento e GERA as parcelas em Contas a Receber, via RPC
+ * transacional `approve_quote`. A geração mora no servidor porque a linha de
+ * CARTÃO tem de nascer como repasse da adquirente (D+N, com taxa por número de
+ * parcelas, debtor='acquirer') — a mesma regra do procedimento direto, que usa
+ * `private.card_installment_plan`, uma função `private` que o cliente não
+ * alcança. Formas do paciente (pix/dinheiro/boleto/cheque/ted) seguem mensais.
+ *
+ * Idempotente (não duplica se já há recebíveis) e atômico: as parcelas e a
+ * virada de status vivem na mesma transação, então nunca sobra contrato
+ * aprovado e sem cobrança. Retorna quantas parcelas criou.
  */
-export async function approveQuote(id: string): Promise<number> {
-  const clinicId = getCurrentClinicId()
-
-  const { data: quote, error } = await supabase
-    .from('quote')
-    .select('id, name, patient_id, total, items_total, discount, installments')
-    .eq('id', id)
-    .single()
+export async function approveQuote(id: string, plan?: PaymentPlanEntry[]): Promise<number> {
+  const planJson = plan?.length
+    ? plan.map(e => ({
+        method: e.method,
+        amount: e.amount,
+        installments: e.installments,
+        first_due_date: e.firstDueDate,
+        acquirer_id: e.acquirerId ?? null,
+      }))
+    : null
+  const { data, error } = await supabase.rpc('approve_quote', { p_quote: id, p_plan: planJson })
   if (error) throw error
-
-  // Já tem parcelas? não duplica.
-  const { count, error: countError } = await supabase
-    .from('receivable')
-    .select('id', { count: 'exact', head: true })
-    .eq('quote_id', id)
-  if (countError) throw countError
-  if ((count ?? 0) > 0) {
-    await supabase.from('quote').update({ status: 'approved' }).eq('id', id)
-    return 0
-  }
-
-  const { error: approveError } = await supabase.from('quote').update({ status: 'approved' }).eq('id', id)
-  if (approveError) throw approveError
-
-  const total = Number(quote.total ?? (Number(quote.items_total) - Number(quote.discount)))
-  if (total <= 0) return 0
-  const installments = Math.max(1, quote.installments ?? 1)
-
-  const cents = Math.round(total * 100)
-  const base = Math.floor(cents / installments)
-  const remainder = cents - base * installments   // sobra na 1ª parcela
-  const today = new Date()
-
-  const rows: ClientInsert<'receivable'>[] = []
-  for (let k = 0; k < installments; k++) {
-    const amount = (base + (k === 0 ? remainder : 0)) / 100
-    rows.push({
-      clinic_id: clinicId,
-      description: `${quote.name} — parcela ${k + 1}/${installments}`,
-      source: 'Orçamentos',
-      due_date: toIsoDate(addMonths(today, k)),
-      gross_amount: amount,
-      fee: 0,
-      status: 'pending',
-      patient_id: quote.patient_id,
-      quote_id: id,
-      installment_number: k + 1,
-      installment_count: installments,
-    })
-  }
-  const { error: insError } = await supabase.from('receivable').insert(rows as Insert<'receivable'>[])
-  if (insError) throw insError
-  return installments
+  return (data as number) ?? 0
 }

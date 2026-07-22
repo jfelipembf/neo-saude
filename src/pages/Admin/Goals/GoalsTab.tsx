@@ -1,199 +1,273 @@
 import { useState } from 'react'
 import { Button } from '@/components/Button/Button'
-import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
-import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { Input } from '@/components/Input/Input'
-import { PageLoader } from '@/components/PageLoader/PageLoader'
+import { Select } from '@/components/Select/Select'
+import { Spinner } from '@/components/Spinner/Spinner'
 import { useToast } from '@/components/Toast/useToast'
-import { IconStar, IconTrash } from '@/components/icons'
-import { useGoals, useRemoveGoal, useSaveGoal } from '@/hooks/useGoals'
-import { useDashboardStats } from '@/hooks/useAppointments'
-import {
-  GOAL_METRICS, GOAL_METRIC_LABEL, GOAL_METRIC_HELP, GOAL_METRIC_IS_MONEY,
-} from '@/constants'
-import { formatBRL, parseBRL } from '@/utils/format'
-import { goalProgress } from '@/utils/metrics'
-import type { GoalMetric } from '@/types/domain'
+import { IconCheck, IconCopy } from '@/components/icons'
+import { useGoals, useSaveGoals } from '@/hooks/useGoals'
+import { MONTHS_LONG, MONTHS_SHORT, GOAL_METRICS, GOAL_METRIC_LABEL, GOAL_METRIC_HELP, GOAL_METRIC_IS_MONEY } from '@/constants'
+import { MONTHS_IN_YEAR } from '@/services/goalsService'
+import type { GoalYearInput } from '@/services/goalsService'
+import { formatAmount, parseBRL } from '@/utils/format'
+import type { Goal, GoalMetric, MonthlyTargets } from '@/types/domain'
 import styles from './GoalsTab.module.scss'
 
-/** Texto que o campo mostra para um alvo já gravado. */
-function targetToText(metric: GoalMetric, value: number) {
-  return GOAL_METRIC_IS_MONEY[metric] ? formatBRL(value) : String(Math.round(value))
+/** O que está nos campos: 12 textos por métrica ('' = mês sem meta). */
+type Draft = Record<GoalMetric, string[]>
+
+/** Anos oferecidos: o passado recente (para corrigir) e o planejamento à frente. */
+const YEAR_OFFSETS = [-1, 0, 1, 2]
+
+/** Texto que a célula mostra para um alvo gravado. '' quando o mês não tem meta. */
+function targetToText(metric: GoalMetric, value: number | null): string {
+  if (value == null) return ''
+  // Dinheiro com 2 casas ('1.234,50'); contagem inteira — "300,5 consultas" não existe.
+  return GOAL_METRIC_IS_MONEY[metric] ? formatAmount(value) : String(Math.round(value))
 }
 
+/** As 4 linhas da matriz a partir do que veio do banco (métrica ausente = ano em branco). */
+function buildDraft(goals: Goal[]): Draft {
+  const saved = new Map(goals.map(g => [g.metric, g.monthly]))
+  const draft = {} as Draft
+  for (const metric of GOAL_METRICS) {
+    const monthly = saved.get(metric)
+    draft[metric] = Array.from({ length: MONTHS_IN_YEAR },
+      (_, month) => targetToText(metric, monthly?.[month] ?? null))
+  }
+  return draft
+}
+
+/** Chave de uma célula, para marcar quais campos estão inválidos. */
+function cellKey(metric: GoalMetric, month: number) {
+  return `${metric}:${month}`
+}
+
+/** Matriz vazia — referência estável, para o estado inicial não remontar a cada render. */
+const EMPTY_DRAFT = buildDraft([])
+
 /**
- * Aba "Metas": o alvo da clínica para cada uma das quatro métricas do
- * dashboard. A meta é um VALOR FIXO por métrica ("faturar R$ 50.000 por mês"),
- * sem competência mensal — é a mesma linha comparada contra o mês corrente
- * indefinidamente.
+ * Aba "Metas": a matriz de metas MENSAIS de um ano — 4 métricas (linhas) × 12
+ * meses (colunas), com um seletor de ano e UM botão Salvar.
  *
- * SALVAR É POR LINHA, e não um botão geral no rodapé. Cada métrica é uma linha
- * independente no banco (`unique (clinic_id, metric)`) e a gravação é o upsert
- * de UMA linha. Um "salvar tudo" precisaria disparar até quatro mutações
- * independentes e, se a terceira falhasse, não existiria mensagem honesta para
- * dar: "salvo" seria falso e "erro" apagaria as duas que funcionaram. Por linha,
- * cada resultado é o de uma operação só. Some-se a isso que APAGAR uma meta já é
- * inerentemente por linha — misturar remoção por linha com salvamento geral
- * deixaria a tela com duas gramáticas diferentes.
+ * SALVAR É DA MATRIZ INTEIRA, e não por linha, porque a gravação inteira é uma
+ * chamada só (`set_clinic_goals_year`) dentro de uma transação: ou o ano fica
+ * gravado ou nada fica. Salvar por linha seriam quatro round-trips e, se o
+ * terceiro falhasse, não haveria mensagem honesta a dar — "salvo" seria falso e
+ * "erro" apagaria o que já tinha funcionado.
+ *
+ * NÃO HÁ BOTÃO DE EXCLUIR: apagar meta é limpar as células e salvar. A RPC
+ * remove a linha da métrica cujos 12 meses vierem em branco, então a ausência
+ * se escreve com o mesmo gesto do resto da tela — sem um segundo verbo, e sem
+ * um diálogo de confirmação para algo que o próprio Salvar já expressa.
  */
 export function GoalsTab() {
   const toast = useToast()
-  const { data: goals, isLoading } = useGoals()
-  // Os valores ATUAIS do mês vêm da mesma RPC que alimenta o dashboard: a tela
-  // que define a meta mostra o número que a meta persegue, lado a lado.
-  const { data: stats } = useDashboardStats()
-  const { mutate: save, isPending: saving } = useSaveGoal()
-  const { mutate: remove, isPending: removing } = useRemoveGoal()
+  const currentYear = new Date().getFullYear()
 
-  // Só o que o usuário DIGITOU. O que não foi tocado cai no valor gravado — sem
-  // useEffect de sincronia, que é onde nasce campo mostrando dado velho depois
-  // de um refetch.
-  const [draft, setDraft] = useState<Partial<Record<GoalMetric, string>>>({})
-  const [errors, setErrors] = useState<Partial<Record<GoalMetric, string>>>({})
-  const [confirming, setConfirming] = useState<GoalMetric | null>(null)
+  const [year, setYear] = useState(currentYear)
+  const { data: goals, isLoading } = useGoals(year)
+  const { mutate: save, isPending: saving } = useSaveGoals()
 
-  if (isLoading) return <PageLoader />
+  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
+  const [invalid, setInvalid] = useState<Set<string>>(() => new Set())
 
-  const saved = new Map((goals ?? []).map(g => [g.metric, g]))
-  const busy = saving || removing
-
-  function textFor(metric: GoalMetric) {
-    const typed = draft[metric]
-    if (typed !== undefined) return typed
-    const goal = saved.get(metric)
-    return goal ? targetToText(metric, goal.targetValue) : ''
+  // (Re)monta a matriz quando troca o ano OU chegam os dados do servidor —
+  // ajustando o estado DURANTE o render ao detectar a mudança, em vez de num
+  // useEffect (que renderizaria uma vez com a matriz do ano anterior).
+  //
+  // Um refetch que não mudou nada NÃO apaga o que está sendo digitado: o
+  // structural sharing do TanStack Query devolve a MESMA referência quando o
+  // dado é igual, então a comparação abaixo nem dispara.
+  const [syncedFrom, setSyncedFrom] = useState<Goal[] | undefined>(undefined)
+  if (goals !== syncedFrom) {
+    setSyncedFrom(goals)
+    setDraft(buildDraft(goals ?? []))
+    setInvalid(new Set())
   }
 
-  function handleChange(metric: GoalMetric, text: string) {
-    setDraft(current => ({ ...current, [metric]: text }))
-    setErrors(current => ({ ...current, [metric]: '' }))
-  }
+  const yearOptions = YEAR_OFFSETS.map(offset => ({
+    value: String(currentYear + offset),
+    label: String(currentYear + offset),
+  }))
 
-  function handleSave(metric: GoalMetric) {
-    const text = textFor(metric).trim()
-    if (!text) {
-      setErrors(c => ({ ...c, [metric]: 'Informe o valor da meta.' }))
-      return
-    }
-    // parseBRL tolera "R$ 50.000,00", "50.000,00" e "50000" — o mesmo parser das
-    // outras telas de dinheiro, para não haver duas regras de vírgula no app.
-    const parsed = GOAL_METRIC_IS_MONEY[metric] ? parseBRL(text) : Number(text.replace(',', '.'))
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      // Espelha o CHECK do banco (`target_value > 0`): meta zerada não é meta, é
-      // ausência de meta — e ausência de meta se representa APAGANDO a linha.
-      setErrors(c => ({ ...c, [metric]: 'Use um valor maior que zero. Para tirar a meta, use o botão de excluir.' }))
-      return
-    }
-    // Métrica de contagem é inteira: "300,5 consultas" não existe.
-    const targetValue = GOAL_METRIC_IS_MONEY[metric] ? parsed : Math.round(parsed)
-
-    save({ metric, targetValue }, {
-      onSuccess: () => {
-        // Solta o rascunho: o campo volta a espelhar o que foi gravado (e o
-        // usuário vê o arredondamento, se houve).
-        setDraft(c => ({ ...c, [metric]: undefined }))
-        toast.success(`Meta de ${GOAL_METRIC_LABEL[metric].toLowerCase()} salva!`)
-      },
-      onError: () => toast.error('Não foi possível salvar a meta.'),
+  function handleChange(metric: GoalMetric, month: number, text: string) {
+    setDraft(current => ({
+      ...current,
+      [metric]: current[metric].map((value, i) => (i === month ? text : value)),
+    }))
+    // O campo deixa de estar marcado assim que é reeditado: manter a marca
+    // vermelha enquanto o usuário corrige é ruído sobre o que ele já está vendo.
+    setInvalid(current => {
+      if (!current.has(cellKey(metric, month))) return current
+      const next = new Set(current)
+      next.delete(cellKey(metric, month))
+      return next
     })
   }
 
-  function handleRemove(metric: GoalMetric) {
-    remove(metric, {
-      onSuccess: () => {
-        setDraft(c => ({ ...c, [metric]: undefined }))
-        setErrors(c => ({ ...c, [metric]: '' }))
-        toast.success('Meta removida.')
-      },
-      onError: () => toast.error('Não foi possível remover a meta.'),
+  /**
+   * Copia a COLUNA inteira do mês `source` para os outros 11 meses — ou seja,
+   * as quatro métricas de uma vez, e não só a linha em que se clicou.
+   *
+   * É a leitura que o lugar do botão impõe: ele mora no CABEÇALHO do mês, que é
+   * o título da coluna, então o gesto é sobre a coluna. Por isso o rótulo diz
+   * "todas as metas de <mês>" — sem isso, quem clicasse esperando mexer só numa
+   * linha veria as outras três mudarem sem aviso.
+   *
+   * Métrica com o mês de origem EM BRANCO limpa o ano todo dela, e isso é
+   * coerente e não um efeito colateral: branco é "mês sem meta", e copiar
+   * "sem meta" para os outros 11 é o que a frase diz. Como o Salvar é explícito
+   * e a matriz continua editável, nada disso chega ao banco sem uma segunda
+   * ação do usuário.
+   */
+  function replicateMonth(source: number) {
+    setDraft(current => {
+      const next = {} as Draft
+      for (const metric of GOAL_METRICS) {
+        next[metric] = current[metric].map(() => current[metric][source])
+      }
+      return next
+    })
+    setInvalid(new Set())
+    toast.info(`Metas de ${MONTHS_LONG[source]} copiadas para os outros 11 meses.`)
+  }
+
+  function handleSave() {
+    const rows: GoalYearInput[] = []
+    const bad = new Set<string>()
+
+    for (const metric of GOAL_METRICS) {
+      const isMoney = GOAL_METRIC_IS_MONEY[metric]
+      const monthly: MonthlyTargets = draft[metric].map((text, month) => {
+        const trimmed = text.trim()
+        if (!trimmed) return null // campo vazio = mês SEM meta, não zero
+
+        // parseBRL tolera 'R$ 50.000,00', '50.000,00' e '50000' — o mesmo parser
+        // das outras telas de dinheiro, para não haver duas regras de vírgula.
+        const parsed = isMoney ? parseBRL(trimmed) : Number(trimmed.replace(',', '.'))
+        if (!Number.isFinite(parsed) || parsed < 0) {
+          // Espelha `clinic_goal_monthly_non_negative_ck`. ZERO PASSA de
+          // propósito: "não gastar nada em janeiro" é uma meta que a clínica
+          // pode ter escolhido, e é diferente de não ter meta (null).
+          bad.add(cellKey(metric, month))
+          return null
+        }
+        return isMoney ? parsed : Math.round(parsed)
+      })
+      // As 4 métricas vão SEMPRE, mesmo intocadas: é assim que limpar os campos
+      // de uma métrica e salvar apaga a linha dela no banco.
+      rows.push({ metric, monthly })
+    }
+
+    setInvalid(bad)
+    if (bad.size > 0) {
+      toast.error(`Revise ${bad.size === 1 ? 'o campo destacado' : `os ${bad.size} campos destacados`}: use números iguais ou maiores que zero.`)
+      return
+    }
+
+    save({ year, rows }, {
+      onSuccess: () => toast.success(`Metas de ${year} salvas!`),
+      onError: () => toast.error('Não foi possível salvar as metas.'),
     })
   }
 
   return (
     <section className={styles.card}>
       <header className={styles.header}>
-        <h2 className={styles.title}>Metas da clínica</h2>
-        <p className={styles.subtitle}>
-          O alvo de cada número do dashboard. A meta vale para todo mês — não é
-          preciso recadastrar a cada competência.
-        </p>
+        <div className={styles.headerText}>
+          <h2 className={styles.title}>Metas da clínica</h2>
+          <p className={styles.subtitle}>
+            O alvo de cada número do dashboard, mês a mês. Mês em branco é mês
+            sem meta — o cartão mostra “Meta: não definida”.
+          </p>
+        </div>
+
+        <div className={styles.headerActions}>
+          <Select
+            className={styles.yearSelect}
+            options={yearOptions}
+            value={String(year)}
+            onChange={e => setYear(Number(e.target.value))}
+            aria-label="Ano das metas"
+          />
+          <Button
+            iconLeft={<IconCheck />}
+            loading={saving}
+            disabled={isLoading}
+            onClick={handleSave}
+          >
+            Salvar metas
+          </Button>
+        </div>
       </header>
 
-      {saved.size === 0 && (
-        <EmptyState
-          icon={<IconStar />}
-          title="Nenhuma meta definida"
-          description="Preencha o alvo de qualquer métrica abaixo e salve. Enquanto não houver meta, o cartão do dashboard mostra o número do mês e o aviso “Meta: não definida”."
-        />
+      {isLoading ? (
+        <div className={styles.loading}>
+          <Spinner size="lg" />
+        </div>
+      ) : (
+        <div className={styles.scroll}>
+          <table className={styles.matrix}>
+            <thead>
+              <tr>
+                <th className={styles.metricCol} scope="col">Métrica</th>
+                {MONTHS_SHORT.map((month, i) => (
+                  <th key={month} className={styles.monthCol} scope="col">
+                    <span className={styles.monthHead}>
+                      {month}
+                      <button
+                        type="button"
+                        className={styles.replicate}
+                        title={`Copiar todas as metas de ${MONTHS_LONG[i]} para os outros 11 meses`}
+                        aria-label={`Copiar todas as metas de ${MONTHS_LONG[i]} para os outros 11 meses`}
+                        onClick={() => replicateMonth(i)}
+                      >
+                        <IconCopy />
+                      </button>
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+
+            <tbody>
+              {GOAL_METRICS.map(metric => {
+                const isMoney = GOAL_METRIC_IS_MONEY[metric]
+                return (
+                  <tr key={metric}>
+                    <th className={styles.metricCol} scope="row">
+                      <span className={styles.metricName}>
+                        {GOAL_METRIC_LABEL[metric]}
+                        <span className={styles.unit}>{isMoney ? 'R$' : 'qtd'}</span>
+                      </span>
+                      <span className={styles.metricHelp}>{GOAL_METRIC_HELP[metric]}</span>
+                    </th>
+
+                    {draft[metric].map((text, month) => {
+                      const isInvalid = invalid.has(cellKey(metric, month))
+                      return (
+                        <td key={month} className={styles.monthCol}>
+                          <Input
+                            size="sm"
+                            className={isInvalid ? styles['cell--invalid'] : undefined}
+                            inputMode="decimal"
+                            placeholder={isMoney ? '0,00' : '0'}
+                            value={text}
+                            aria-invalid={isInvalid}
+                            aria-label={`Meta de ${GOAL_METRIC_LABEL[metric]} em ${MONTHS_LONG[month]} de ${year}`}
+                            onChange={e => handleChange(metric, month, e.target.value)}
+                          />
+                        </td>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
-
-      <ul className={styles.list}>
-        {GOAL_METRICS.map(metric => {
-          const goal = saved.get(metric)
-          const current = stats?.metrics[metric].current
-          const isMoney = GOAL_METRIC_IS_MONEY[metric]
-          const progress = current != null ? goalProgress(current, goal?.targetValue ?? null) : null
-
-          return (
-            <li key={metric} className={styles.row}>
-              <div className={styles.info}>
-                <span className={styles.metric}>{GOAL_METRIC_LABEL[metric]}</span>
-                <span className={styles.help}>{GOAL_METRIC_HELP[metric]}</span>
-              </div>
-
-              <div className={styles.current}>
-                <span className={styles.currentLabel}>Atual</span>
-                <span className={styles.currentValue}>
-                  {current == null ? '—' : isMoney ? formatBRL(current) : current}
-                </span>
-                {progress != null && <span className={styles.currentPct}>{progress}% da meta</span>}
-              </div>
-
-              <Input
-                size="sm"
-                className={styles.field}
-                label="Meta"
-                inputMode="decimal"
-                placeholder={isMoney ? 'R$ 0,00' : '0'}
-                value={textFor(metric)}
-                error={errors[metric]}
-                onChange={e => handleChange(metric, e.target.value)}
-                aria-label={`Meta de ${GOAL_METRIC_LABEL[metric]}`}
-              />
-
-              <div className={styles.actions}>
-                <Button size="sm" onClick={() => handleSave(metric)} disabled={busy}>
-                  Salvar
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  iconLeft={<IconTrash />}
-                  title="Excluir meta"
-                  aria-label={`Excluir meta de ${GOAL_METRIC_LABEL[metric]}`}
-                  // Sem meta gravada não há o que excluir.
-                  disabled={!goal || busy}
-                  onClick={() => setConfirming(metric)}
-                />
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-
-      <ConfirmDialog
-        open={confirming !== null}
-        onClose={() => setConfirming(null)}
-        onConfirm={() => confirming && handleRemove(confirming)}
-        variant="danger"
-        title="Excluir meta"
-        message={
-          confirming
-            ? `A meta de ${GOAL_METRIC_LABEL[confirming].toLowerCase()} deixa de existir e o cartão do dashboard volta a mostrar “Meta: não definida”.`
-            : undefined
-        }
-        confirmLabel="Excluir"
-      />
     </section>
   )
 }

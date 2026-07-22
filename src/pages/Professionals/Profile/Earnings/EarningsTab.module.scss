@@ -91,6 +91,23 @@
   white-space: nowrap;
 }
 
+// Base da comissão (produzido/recebido) — secundária ao lado do ganho, que é
+// o número que o profissional procura.
+.ganhosBase {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+// Aviso de produção sem recebimento atribuível (procedimento coberto por
+// contrato). Tom de alerta porque significa comissão a MENOS na base recebida.
+.ganhosAviso {
+  font-size: $fs-xs;
+  line-height: 1.5;
+  color: var(--warning-fg);
+}
+
 // Nome do paciente na tabela de ganhos.
 .ganhosPaciente {
   font-size: $fs-sm;

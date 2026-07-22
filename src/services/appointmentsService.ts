@@ -1,7 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
 import { toIsoDate, isoToBrDate } from '@/utils/date'
-import { formatBRL } from '@/utils/format'
 import type { Appointment, AppointmentHistory, DashboardStats, ChartPeriod, SeriesPoint, AppointmentStatus, GoalMetric, MetricComparison } from '@/types/domain'
 
 const hhmm = (t: string) => t.slice(0, 5)
@@ -92,10 +91,6 @@ export async function getAppointmentSeries(period: ChartPeriod, monthIso: string
 type MetricRow = { current: number; previous: number | null; target: number | null }
 
 type DashboardStatsRow = {
-  appointments_today: number
-  active_patients: number
-  pending_confirmations: number
-  monthly_revenue: number
   metrics: Record<GoalMetric, MetricRow>
 }
 
@@ -116,20 +111,15 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   if (error) throw error
   const s = data as unknown as DashboardStatsRow
   return {
-    appointmentsToday: Number(s.appointments_today),
-    activePatients: Number(s.active_patients),
-    pendingConfirmations: Number(s.pending_confirmations),
-    // A RPC devolve o faturamento CRU; a máscara de moeda é do front (o domínio
-    // pede string). Usa o util do projeto para não haver duas formatações de R$.
-    monthlyRevenue: formatBRL(Number(s.monthly_revenue)),
-    // `metrics` é o material novo da RPC: { current, previous, target } por
-    // métrica. Os quatro campos acima são DEPRECIADOS no banco e continuam aqui
-    // só enquanto houver tela lendo o formato antigo.
+    // `metrics` é TUDO que a RPC devolve hoje. Os contadores de topo que vinham
+    // ao lado (appointments_today, active_patients, pending_confirmations,
+    // monthly_revenue) foram podados do banco quando os cartões operacionais
+    // saíram do Dashboard — não há mais o que converter aqui.
     metrics: {
-      appointments:    toMetric(s.metrics.appointments),
-      active_patients: toMetric(s.metrics.active_patients),
-      revenue:         toMetric(s.metrics.revenue),
-      expenses:        toMetric(s.metrics.expenses),
+      appointments_scheduled: toMetric(s.metrics.appointments_scheduled),
+      appointments_completed: toMetric(s.metrics.appointments_completed),
+      revenue:                toMetric(s.metrics.revenue),
+      expenses:               toMetric(s.metrics.expenses),
     },
   }
 }

@@ -19,7 +19,8 @@ describe('percentChange', () => {
   })
 
   it('devolve null quando não há mês anterior (estoque sem histórico)', () => {
-    // active_patients: a RPC manda previous null de propósito.
+    // Contrato do helper, não de uma métrica: as quatro de hoje têm mês
+    // anterior, mas `previous: null` continua tendo de virar "sem variação".
     expect(percentChange(2, null)).toBeNull()
   })
 
@@ -55,7 +56,12 @@ describe('constantes das métricas', () => {
   // Ponta solta registrada na migration: se o enum do banco e as chaves de
   // `metrics` divergirem, a meta gravada deixa de casar com o cartão SEM erro
   // nenhum. Este teste é o alarme do lado do front.
-  const FROM_DATABASE_ENUM = ['appointments', 'active_patients', 'revenue', 'expenses']
+  const FROM_DATABASE_ENUM = [
+    'appointments_scheduled',
+    'appointments_completed',
+    'revenue',
+    'expenses',
+  ]
 
   it('cobre exatamente os rótulos do enum public.goal_metric', () => {
     expect([...GOAL_METRICS].sort()).toEqual([...FROM_DATABASE_ENUM].sort())
@@ -78,7 +84,7 @@ describe('constantes das métricas', () => {
   it('trata dinheiro só em faturamento e gastos', () => {
     expect(GOAL_METRIC_IS_MONEY.revenue).toBe(true)
     expect(GOAL_METRIC_IS_MONEY.expenses).toBe(true)
-    expect(GOAL_METRIC_IS_MONEY.appointments).toBe(false)
-    expect(GOAL_METRIC_IS_MONEY.active_patients).toBe(false)
+    expect(GOAL_METRIC_IS_MONEY.appointments_scheduled).toBe(false)
+    expect(GOAL_METRIC_IS_MONEY.appointments_completed).toBe(false)
   })
 })

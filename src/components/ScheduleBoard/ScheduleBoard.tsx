@@ -7,34 +7,52 @@ import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { ScheduleGrid } from '@/components/ScheduleGrid/ScheduleGrid'
 import type { ScheduleTurn, ScheduleView } from '@/components/ScheduleGrid/ScheduleGrid'
 import { SCHEDULE_TURN_OPTIONS, SCHEDULE_VIEW_OPTIONS } from '@/components/ScheduleGrid/scheduleOptions'
-import { useScheduleSlots } from '@/hooks/useSchedule'
+import { useAgendaAppointments } from '@/hooks/useSchedule'
+import { useSetAppointmentStatus } from '@/hooks/useAppointments'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePatientName } from '@/hooks/useDisplayNames'
+import { useToast } from '@/components/Toast/useToast'
 import { matchesSearch } from '@/utils/search'
+import { toIsoDate } from '@/utils/date'
 import { IconSearch } from '@/components/icons'
-import type { ScheduleSlot } from '@/types/domain'
+import type { AgendaAppointment } from '@/types/domain'
 import styles from './ScheduleBoard.module.scss'
+
+/** Domingo da semana de `d` (a grade vai de Dom a Sáb; colunas começam na Seg). */
+function weekStart(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay())
+}
 
 interface ScheduleBoardProps {
   /** Ação ao clicar num horário (opcional — sem ela os cards ficam só de leitura). */
-  onSelect?: (slot: ScheduleSlot) => void
+  onSelect?: (appointment: AgendaAppointment) => void
 }
 
 /** Grade de horários autocontida (controles + grid), reaproveitável em qualquer página. */
 export function ScheduleBoard({ onSelect }: ScheduleBoardProps) {
-  const { data: slots = [], isLoading } = useScheduleSlots()
-  const patientName = usePatientName()
   const [turn, setTurn] = useState<ScheduleTurn>('all')
   const [view, setView] = useState<ScheduleView>('week')
   const [refDate, setRefDate] = useState(() => new Date())
   const [search, setSearch] = useState('')
 
+  // Busca SÓ a semana visível — navegar de semana refaz a consulta (cacheada
+  // por intervalo em queryKeys.appointments.range).
+  const start = weekStart(refDate)
+  const fromIso = toIsoDate(start)
+  const toIso = toIsoDate(new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6))
+  const { data: appointments = [], isLoading } = useAgendaAppointments(fromIso, toIso)
+
+  const toast = useToast()
+  const { mutate: setStatus } = useSetAppointmentStatus()
+
+  const patientName = usePatientName()
+
   // Busca por paciente: some com os demais cards e ficam só os agendamentos
   // dele na semana visível (nome normalizado — acento não atrapalha).
   const term = useDebounce(search)
   const visible = term.trim()
-    ? slots.filter(s => matchesSearch(patientName(s.patientId), term))
-    : slots
+    ? appointments.filter(s => matchesSearch(patientName(s.patientId), term))
+    : appointments
 
   if (isLoading) return <PageLoader />
 
@@ -62,12 +80,25 @@ export function ScheduleBoard({ onSelect }: ScheduleBoardProps) {
       </div>
 
       <ScheduleGrid
-        slots={visible}
+        appointments={visible}
         view={view}
         turn={turn}
-        referenceWeekday={refDate.getDay()}
         referenceDate={refDate}
         onSelect={onSelect}
+        onSetStatus={(a, status) => setStatus(
+          { id: a.id, status },
+          {
+            onSuccess: () => toast.success({
+              completed: 'Presença registrada!',
+              no_show: 'Falta registrada.',
+              canceled: 'Consulta cancelada.',
+              scheduled: 'Marcação desfeita — consulta agendada.',
+              confirmed: 'Consulta confirmada.',
+              in_service: 'Consulta em atendimento.',
+            }[status]),
+            onError: () => toast.error('Não foi possível registrar. Tente novamente.'),
+          },
+        )}
         showArrow={!!onSelect}
       />
     </div>

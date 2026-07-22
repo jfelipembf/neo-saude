@@ -2,8 +2,9 @@ import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
 import { Spinner } from '@/components/Spinner/Spinner'
-import { usePayments } from '@/hooks/usePayments'
+import { useReceivables } from '@/hooks/useFinance'
 import { usePatients } from '@/hooks/usePatients'
+import { useSession } from '@/context/SessionProvider'
 import { APP_ROUTES, buildRoute } from '@/constants'
 import { formatBRL } from '@/utils/format'
 import { IconClock, IconEye } from '@/components/icons'
@@ -16,28 +17,42 @@ function dateSortKey(date: string) {
 }
 
 /**
- * Card do Dashboard com o que há para cobrar: pagamentos vencidos e pendentes,
- * do mais atrasado para o mais recente. O detalhe fica no perfil do paciente.
+ * Card do Dashboard com o que há para COBRAR: títulos vencidos e pendentes, do
+ * mais atrasado para o mais recente. O detalhe fica no perfil do paciente.
+ *
+ * Lê `receivable`, e não `public.payment` — aquela tabela está congelada com
+ * zero linhas, então este card mostrava "Nenhuma cobrança em aberto" para
+ * qualquer clínica, inclusive com parcelas vencidas no banco.
  */
 export function BillingCard() {
   const navigate = useNavigate()
-  const { data: payments, isLoading } = usePayments()
+  const { canView } = useSession()
+  const { data: receivables, isLoading } = useReceivables()
   const { data: patients } = usePatients()
 
   const nameById = new Map((patients ?? []).map(p => [p.id, p.name]))
 
   // Em aberto = o que ainda entra no caixa (cancelado e pago ficam de fora).
-  const openPayments = (payments ?? []).filter(p => p.status === 'overdue' || p.status === 'pending')
-  const list = [...openPayments].sort((a, b) => {
+  // debtor 'payer' porque este card É a fila de cobrança: parcela de cartão é
+  // dívida da adquirente, já garantida, e ninguém liga para o paciente por ela.
+  // Sem patientId não há a quem cobrar (aluguel de sala, repasse de convênio).
+  const openCharges = (receivables ?? []).filter(
+    r => (r.status === 'overdue' || r.status === 'pending') && r.debtor === 'payer' && r.patientId,
+  )
+  const list = [...openCharges].sort((a, b) => {
     // Vencidos primeiro; dentro de cada grupo, o mais antigo cobra primeiro.
     const overdueA = Number(a.status === 'overdue')
     const overdueB = Number(b.status === 'overdue')
     if (overdueA !== overdueB) return overdueB - overdueA
-    return dateSortKey(a.date) - dateSortKey(b.date)
+    return dateSortKey(a.dueDate) - dateSortKey(b.dueDate)
   })
 
-  const total = list.reduce((sum, p) => sum + p.amount, 0)
-  const overdueCount = list.filter(p => p.status === 'overdue').length
+  const total = list.reduce((sum, r) => sum + Math.max(r.grossAmount - r.fee - (r.receivedAmount ?? 0), 0), 0)
+  const overdueCount = list.filter(r => r.status === 'overdue').length
+
+  // Sem a feature de Financeiro a RLS devolveria lista vazia, e o card diria
+  // "nenhuma cobrança em aberto" — mentira por omissão. Melhor não existir.
+  if (!canView('finance')) return null
 
   return (
     <section className={styles.card}>
@@ -61,25 +76,27 @@ export function BillingCard() {
             {list.length === 0 && (
               <li className={styles.vazio}>Nenhuma cobrança em aberto.</li>
             )}
-            {list.map(p => (
-              <li key={p.id} className={styles.item}>
+            {list.map(r => (
+              <li key={r.id} className={styles.item}>
                 <div className={styles.itemInfo}>
-                  <span className={styles.itemPaciente}>{nameById.get(p.patientId) ?? 'Paciente'}</span>
-                  <span className={styles.itemDescricao}>{p.description}</span>
-                  <span className={styles.itemData}><IconClock /> {p.date}</span>
+                  <span className={styles.itemPaciente}>{nameById.get(r.patientId!) ?? 'Paciente'}</span>
+                  <span className={styles.itemDescricao}>{r.description}</span>
+                  <span className={styles.itemData}><IconClock /> {r.dueDate}</span>
                 </div>
 
                 <span className={styles.itemDireita}>
-                  <span className={styles.valor}>{formatBRL(p.amount)}</span>
-                  <Badge status={p.status} />
+                  <span className={styles.valor}>
+                    {formatBRL(Math.max(r.grossAmount - r.fee - (r.receivedAmount ?? 0), 0))}
+                  </span>
+                  <Badge status={r.status} />
                 </span>
 
                 <button
                   type="button"
                   className={styles.verBtn}
-                  onClick={() => navigate(buildRoute.patientProfile(p.patientId))}
+                  onClick={() => navigate(buildRoute.patientProfile(r.patientId!))}
                   title="Abrir perfil do paciente"
-                  aria-label={`Abrir perfil de ${nameById.get(p.patientId) ?? 'paciente'}`}
+                  aria-label={`Abrir perfil de ${nameById.get(r.patientId!) ?? 'paciente'}`}
                 >
                   <IconEye />
                 </button>

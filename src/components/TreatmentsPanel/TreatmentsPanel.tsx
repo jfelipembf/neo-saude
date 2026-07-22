@@ -11,7 +11,10 @@ import { Spinner } from '@/components/Spinner/Spinner'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { Toggle } from '@/components/Toggle/Toggle'
 import { useToast } from '@/components/Toast/useToast'
-import { usePatientTreatments, useCreateTreatment, useAddTreatmentSession } from '@/hooks/useTreatments'
+import {
+  usePatientTreatments, useCreateTreatment, useAddTreatmentSession, useSessionBillingPreview,
+} from '@/hooks/useTreatments'
+import { SessionBillingLine } from './SessionBillingLine'
 import { useTheme } from '@/context/ThemeProvider'
 import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { esc } from '@/utils/printDocument'
@@ -20,7 +23,7 @@ import { useProfessionalName } from '@/hooks/useDisplayNames'
 import { formatBRL, parseBRL } from '@/utils/format'
 import { IconPlus, IconPrint, IconTasks, IconChevronRight, IconX } from '@/components/icons'
 import type { OdontogramThemeConfig } from '@/lib/odontogramShell/odontogram-shell'
-import type { UsedMaterial, TreatmentSession, Treatment } from '@/types/domain'
+import type { SessionBillingChoice, UsedMaterial, TreatmentSession, Treatment } from '@/types/domain'
 import styles from './TreatmentsPanel.module.scss'
 
 interface TreatmentsPanelProps {
@@ -154,6 +157,13 @@ export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps
   const [confirming, setConfirming] = useState(false)
   const [finished, setFinished] = useState(false)
 
+  // Reflexo financeiro do procedimento. Vazio = caminho padrão (um clique só):
+  // o banco decide pela escada. `billingOpen` é só a gaveta do "Trocar".
+  const [billing, setBilling] = useState<SessionBillingChoice>({})
+  const [billingOpen, setBillingOpen] = useState(false)
+  /** Chave de idempotência do procedimento em edição (ver openProcedure). */
+  const [clientToken, setClientToken] = useState('')
+
   // Procedimento expandido na timeline (um por vez: o motor do odontograma é
   // global de módulo — dois shells montados disputariam o mesmo DOM).
   const [expandedProcedure, setExpandedProcedure] = useState<string | null>(null)
@@ -233,6 +243,32 @@ export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps
 
   const list = treatments ?? []
 
+  // Valor digitado, já em número. Vazio ou inválido ⇒ sem valor: o banco trata
+  // como procedimento que não vira dinheiro (retorno, acompanhamento).
+  const amountValue = amountText.trim() && !Number.isNaN(parseBRL(amountText)) ? parseBRL(amountText) : undefined
+  const performedOnBr = dateIso.split('-').reverse().join('/')
+
+  // A prévia só é perguntada quando o diálogo de salvamento abre — antes disso
+  // o profissional ainda está desenhando no odontograma, e cada tecla no campo
+  // de valor viraria uma ida ao servidor.
+  const {
+    data: billingPreview,
+    isFetching: loadingPreview,
+    error: previewError,
+  } = useSessionBillingPreview(patientId, amountValue, performedOnBr, billing, confirming)
+
+  // Duas escolhas pela metade que salvariam o CONTRÁRIO do que o usuário quis:
+  //  1. cortesia sem motivo escrito — a escada do banco só entende motivo
+  //     preenchido, então geraria a cobrança que ele acabou de recusar;
+  //  2. cartão sem adquirente — o título nasceria com `debtor = 'payer'`, isto
+  //     é, como dívida do PACIENTE por uma venda que a maquininha já garantiu,
+  //     e chegaria a ser cobrado na aba Inadimplência.
+  const courtesyWithoutReason =
+    billing.notBillableReason !== undefined && !billing.notBillableReason.trim()
+  const cardWithoutAcquirer =
+    (billing.method === 'credit' || billing.method === 'debit') && !billing.acquirerId
+  const billingIncomplete = courtesyWithoutReason || cardWithoutAcquirer
+
   // ── Novo tratamento (modal leve) ───────────────────────────────────────────
   function openTreatmentModal() {
     setTreatmentName('')
@@ -257,6 +293,11 @@ export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps
           toast.success('Tratamento criado! Adicione o primeiro procedimento.')
           setTreatmentModal(false)
         },
+        // Falha silenciosa aqui deixava o modal aberto sem explicação nenhuma:
+        // o usuário clicava de novo achando que o botão não pegou.
+        onError: e => toast.error(
+          `Não foi possível criar o tratamento: ${e instanceof Error ? e.message : 'erro inesperado'}.`,
+        ),
       },
     )
   }
@@ -280,6 +321,13 @@ export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps
     setReport([])
     setDescriptionError('')
     setFinished(false)
+    setBilling({})
+    setBillingOpen(false)
+    // Chave de idempotência DESTE procedimento. Nasce ao abrir o editor e vive
+    // até ele fechar: se a primeira tentativa salvar no banco mas a resposta se
+    // perder na rede, o clique seguinte manda o MESMO token e o banco devolve o
+    // procedimento já gravado, em vez de criar outro com outra cobrança.
+    setClientToken(crypto.randomUUID())
     setMode('procedure')
   }
 
@@ -323,7 +371,6 @@ export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps
 
   function saveProcedure() {
     if (!activeTreatment) return
-    const dateBr = dateIso.split('-').reverse().join('/')
     const usedMaterials = filledMaterials()
     addSession(
       {
@@ -331,17 +378,52 @@ export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps
         patientId,
         slot: {
           description: description.trim(),
-          date: dateBr,
+          date: performedOnBr,
           actions: report.map(l => `Dente ${l.tooth}: ${l.text}`),
           teeth: report.map(l => l.tooth),
           materials: usedMaterials.length ? usedMaterials : undefined,
           notes: notes.trim() || undefined,
-          amount: amountText.trim() ? parseBRL(amountText) : undefined,
+          amount: amountValue,
           odontogram: getOdontogramState(),
           statusAfter: finished ? 'finished' : 'open',
+          billing,
+          // A MESMA chave em toda retentativa deste procedimento: é ela que
+          // impede o segundo clique (depois de um erro de rede) de virar um
+          // segundo procedimento com uma segunda cobrança.
+          clientToken,
         },
       },
-      { onSuccess: () => { toast.success('Procedimento registrado!'); closeEditor() } },
+      {
+        // O toast diz o que ACONTECEU com o dinheiro, e o desfecho vem do
+        // BANCO (`status`), não da prévia: entre abrir o diálogo e salvar, um
+        // orçamento aprovado em outra tela muda a decisão, e repetir a prévia
+        // aqui anunciaria uma cobrança que não nasceu — ou calaria uma que
+        // nasceu.
+        onSuccess: status => {
+          toast.success(
+            status === 'billed' ? 'Procedimento registrado e cobrança gerada!'
+            : status === 'covered' ? 'Procedimento registrado — abatido do contrato aprovado, sem cobrança nova.'
+            : status === 'not_billable' ? 'Procedimento registrado como cortesia — não gera cobrança.'
+            : status === 'unbilled' && amountValue ? 'Procedimento registrado — ficou em “A faturar” no Financeiro.'
+            : 'Procedimento registrado!',
+          )
+          closeEditor()
+        },
+        // Sem isto o diálogo fechava (ConfirmDialog fecha logo após confirmar),
+        // nenhum aviso aparecia e o editor continuava aberto: o profissional
+        // não tinha como saber se o procedimento foi salvo — e clicar de novo
+        // era a aposta natural.
+        onError: e => {
+          // NÃO prometer "nada foi gravado": o erro mais perigoso é justamente
+          // aquele em que o banco gravou e a resposta se perdeu no caminho.
+          // Quem garante que tentar de novo não cobra duas vezes é o
+          // clientToken, não esta frase — e é isso que a frase diz.
+          toast.error(
+            `Não foi possível confirmar o salvamento: ${e instanceof Error ? e.message : 'erro inesperado'}. `
+            + 'Pode tentar de novo — a nova tentativa reaproveita o mesmo procedimento e não gera cobrança dobrada.',
+          )
+        },
+      },
     )
   }
 
@@ -519,8 +601,6 @@ export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps
   }
 
   // ── Modo PROCEDIMENTO: descrição + data → odontograma → relatório ao vivo ──
-  const dateBr = dateIso.split('-').reverse().join('/')
-
   return (
     <div className={styles.painel}>
       {/* Topo: descrição do procedimento + data. */}
@@ -594,9 +674,8 @@ export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps
               title: 'Relatório de procedimento',
               subtitle: activeTreatment?.procedure ?? undefined,
               body: procedureBody(
-                activeTreatment?.procedure ?? '—', description, dateBr,
-                report, filledMaterials(), notes.trim(), patientName,
-                amountText.trim() && !Number.isNaN(parseBRL(amountText)) ? parseBRL(amountText) : undefined,
+                activeTreatment?.procedure ?? '—', description, performedOnBr,
+                report, filledMaterials(), notes.trim(), patientName, amountValue,
               ),
               styles: PROCEDURE_STYLES,
               width: 640,
@@ -667,10 +746,12 @@ export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps
         />
       </section>
 
-      {/* Confirmação de salvamento: finalizado agora ou continua depois. */}
+      {/* Confirmação de salvamento: o que acontece com o tratamento E com o
+          dinheiro. A linha financeira entra AQUI, no diálogo que o profissional
+          já vê — não é uma etapa nova: o caminho padrão continua um clique. */}
       <ConfirmDialog
         open={confirming}
-        onClose={() => setConfirming(false)}
+        onClose={() => { setConfirming(false); setBillingOpen(false) }}
         onConfirm={saveProcedure}
         title="Salvar procedimento?"
         message={
@@ -679,7 +760,19 @@ export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps
             : 'O tratamento fica em aberto — dá para adicionar novos procedimentos depois.'
         }
         confirmLabel="Salvar"
+        confirmDisabled={billingIncomplete}
       >
+        <SessionBillingLine
+          preview={billingPreview}
+          loading={loadingPreview}
+          error={previewError ? previewError.message : undefined}
+          amount={amountValue}
+          performedOn={performedOnBr}
+          billing={billing}
+          onChange={setBilling}
+          editing={billingOpen}
+          onToggleEditing={() => setBillingOpen(open => !open)}
+        />
         <Toggle label="Tratamento finalizado" checked={finished} onChange={setFinished} />
       </ConfirmDialog>
     </div>

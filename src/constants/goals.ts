@@ -14,25 +14,41 @@ import type { GoalMetric } from '@/types/domain'
  * Fonte única da ordem: a tela não reordena, e `Object.keys` de um Record não
  * dá garantia de ordem que valha a pena depender.
  */
-export const GOAL_METRICS: GoalMetric[] = ['appointments', 'active_patients', 'revenue', 'expenses']
+export const GOAL_METRICS: GoalMetric[] = [
+  'appointments_scheduled',
+  'appointments_completed',
+  'revenue',
+  'expenses',
+]
 
 /** Rótulo curto da métrica (cabeçalho da linha na aba Metas). */
 export const GOAL_METRIC_LABEL: Record<GoalMetric, string> = {
-  appointments:    'Consultas do mês',
-  active_patients: 'Pacientes ativos',
-  revenue:         'Faturamento do mês',
+  appointments_scheduled: 'Consultas agendadas',
+  appointments_completed: 'Consultas realizadas',
+  revenue:                'Faturamento do mês',
   // "Gastos" e não "Despesas": é o termo que o app já usa para o MESMO número
   // na legenda do FinanceChart. Duas palavras para a mesma coisa fazem o
   // usuário procurar a diferença que não existe.
-  expenses:        'Gastos do mês',
+  expenses:               'Gastos do mês',
 }
 
-/** O que a métrica conta, para o texto de apoio da linha. */
+/**
+ * O que a métrica conta, para o texto de apoio da linha.
+ *
+ * As duas primeiras precisam dizer explicitamente o que entra e o que não
+ * entra: "agendadas" e "realizadas" parecem óbvias até o mês em que elas
+ * diferem, e é aí que alguém pergunta se a falta contou. A regra descrita aqui
+ * é a MESMA implementada em dashboard_stats() (migration 20260722220000).
+ */
 export const GOAL_METRIC_HELP: Record<GoalMetric, string> = {
-  appointments:    'Consultas não canceladas no mês corrente.',
-  active_patients: 'Pacientes com cadastro ativo hoje.',
-  revenue:         'Recebido no mês, pela data da baixa.',
-  expenses:        'Pago no mês, pela data do pagamento.',
+  appointments_scheduled:
+    'Consultas com data no mês, exceto as canceladas. Falta sem aviso conta; '
+    + 'consulta desmarcada não.',
+  appointments_completed:
+    'Consultas do mês com atendimento concluído. A diferença para as agendadas '
+    + 'é o que ainda vai acontecer no mês mais as faltas.',
+  revenue:  'Recebido no mês, pela data da baixa.',
+  expenses: 'Pago no mês, pela data do pagamento.',
 }
 
 /**
@@ -41,10 +57,10 @@ export const GOAL_METRIC_HELP: Record<GoalMetric, string> = {
  * `expenses`, subir é ruim (ver `GOAL_METRIC_HIGHER_IS_BETTER`).
  */
 export const GOAL_METRIC_IS_MONEY: Record<GoalMetric, boolean> = {
-  appointments:    false,
-  active_patients: false,
-  revenue:         true,
-  expenses:        true,
+  appointments_scheduled: false,
+  appointments_completed: false,
+  revenue:                true,
+  expenses:               true,
 }
 
 /**
@@ -53,8 +69,8 @@ export const GOAL_METRIC_IS_MONEY: Record<GoalMetric, boolean> = {
  * seria mentir com cor.
  */
 export const GOAL_METRIC_HIGHER_IS_BETTER: Record<GoalMetric, boolean> = {
-  appointments:    true,
-  active_patients: true,
-  revenue:         true,
-  expenses:        false,
+  appointments_scheduled: true,
+  appointments_completed: true,
+  revenue:                true,
+  expenses:               false,
 }

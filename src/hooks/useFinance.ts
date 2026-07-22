@@ -1,18 +1,37 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { QueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import {
-  openCash, addAcquirer, addBankAccount, settlePayable, settleReceivable,
-  cancelPayable, cancelReceivable, closeCash, getCashSession, getCashFlow,
+  addAcquirer, addBankAccount, settlePayable, settleReceivable,
+  cancelPayable, cancelReceivable, getCashFlow,
   getFinanceSeries, listAcquirers, listBankAccounts, listPayables,
-  listReceivables, listCashMovements, updateAcquirer, updateBankAccount,
+  listReceivables, listPatientReceivables, updateAcquirer, updateBankAccount,
   reversePayable, reverseReceivable, settleReceivablesBatch,
-  listCollectionAttempts, addCollectionAttempt, addPayable, addReceivable,
+  listCollectionAttempts, addCollectionAttempt, addPayable,
+  listUnbilledSessions, billTreatmentSession,
 } from '@/services/financeService'
 import type {
-  BatchSettlementInput, EditAcquirer, EditBankAccount, NewCollectionAttempt,
-  NewPayable, NewReceivable, SettlementInput,
+  BatchSettlementInput, BillSessionInput, EditAcquirer, EditBankAccount, NewCollectionAttempt,
+  NewPayable, SettlementInput,
 } from '@/services/financeService'
 import type { ChartPeriod } from '@/types/domain'
+
+/**
+ * Refaz TODO o módulo financeiro depois de um movimento de dinheiro.
+ *
+ * Cada mutation daqui invalidava só a própria lista, e o resultado era a tela
+ * mentindo até o F5: dar baixa num título mudava a lista de recebíveis, mas
+ * deixava o saldo do banco, o fluxo de caixa projetado, o gráfico do
+ * dashboard, o extrato do paciente e a aba "A faturar" com o número velho.
+ * Invalidar o prefixo inteiro custa um refetch a mais e elimina a classe de bug.
+ *
+ * `appointments.stats` entra junto porque a RPC dashboard_stats devolve
+ * faturamento — é a mesma linha do dinheiro, em outra tela.
+ */
+export function invalidateFinance(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: queryKeys.finance.all })
+  queryClient.invalidateQueries({ queryKey: queryKeys.appointments.stats })
+}
 
 /** Série financeira do gráfico; mantém a série anterior no ar durante a troca. */
 export function useFinanceSeries(period: ChartPeriod, monthIso: string) {
@@ -24,10 +43,6 @@ export function useFinanceSeries(period: ChartPeriod, monthIso: string) {
 }
 
 // ── Página Financeiro ────────────────────────────────────────────────────────
-export function useCashMovements() {
-  return useQuery({ queryKey: queryKeys.finance.cash, queryFn: listCashMovements })
-}
-
 export function useCashFlow() {
   return useQuery({ queryKey: queryKeys.finance.cashFlow, queryFn: getCashFlow })
 }
@@ -38,6 +53,35 @@ export function usePayables() {
 
 export function useReceivables() {
   return useQuery({ queryKey: queryKeys.finance.receivables, queryFn: listReceivables })
+}
+
+/** Extrato de UM paciente (aba Pagamentos do perfil). */
+export function usePatientReceivables(patientId: string) {
+  return useQuery({
+    queryKey: queryKeys.finance.byPatient(patientId),
+    queryFn: () => listPatientReceivables(patientId),
+    enabled: Boolean(patientId),
+  })
+}
+
+// ── A faturar: a rede de segurança ───────────────────────────────────────────
+export function useUnbilledSessions() {
+  return useQuery({ queryKey: queryKeys.finance.unbilled, queryFn: listUnbilledSessions })
+}
+
+/** Fatura (ou marca como cortesia) um procedimento parado em "A faturar". */
+export function useBillTreatmentSession() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ sessionId, input }: { sessionId: string; input: BillSessionInput }) =>
+      billTreatmentSession(sessionId, input),
+    onSuccess: () => {
+      invalidateFinance(queryClient)
+      // O procedimento mudou de estado no PRONTUÁRIO também: a timeline do
+      // paciente mostra a situação financeira de cada sessão.
+      queryClient.invalidateQueries({ queryKey: queryKeys.treatments.all })
+    },
+  })
 }
 
 export function useBankAccounts() {
@@ -53,7 +97,7 @@ export function useSettlePayable() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, settlement: settlement }: { id: string; settlement: SettlementInput }) => settlePayable(id, settlement),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.payables }),
+    onSuccess: () => invalidateFinance(queryClient),
   })
 }
 
@@ -62,7 +106,7 @@ export function useSettleReceivable() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, settlement: settlement }: { id: string; settlement: SettlementInput }) => settleReceivable(id, settlement),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.receivables }),
+    onSuccess: () => invalidateFinance(queryClient),
   })
 }
 
@@ -71,25 +115,19 @@ export function useAddPayable() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (payload: NewPayable) => addPayable(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.payables }),
+    onSuccess: () => invalidateFinance(queryClient),
   })
 }
 
-/** Cadastra uma conta a receber avulsa (modal "Nova conta a receber") e refaz a lista. */
-export function useAddReceivable() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (payload: NewReceivable) => addReceivable(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.receivables }),
-  })
-}
+// NÃO existe useAddReceivable: título a receber nunca nasce digitado — vem do
+// aceite do orçamento (parcelas do contrato) ou do faturamento do procedimento.
 
 /** Cancela uma conta a pagar e refaz a lista. */
 export function useCancelPayable() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => cancelPayable(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.payables }),
+    onSuccess: () => invalidateFinance(queryClient),
   })
 }
 
@@ -98,30 +136,7 @@ export function useCancelReceivable() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => cancelReceivable(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.receivables }),
-  })
-}
-
-// ── Sessão do caixa (abrir/fechar) ───────────────────────────────────────────
-export function useCashSession() {
-  return useQuery({ queryKey: queryKeys.finance.cashSession, queryFn: getCashSession })
-}
-
-/** Abre o caixa com o fundo de troco informado. */
-export function useOpenCash() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (openingAmount: number) => openCash(openingAmount),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.cash }),
-  })
-}
-
-/** Fecha o caixa do dia. */
-export function useCloseCash() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: () => closeCash(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.cash }),
+    onSuccess: () => invalidateFinance(queryClient),
   })
 }
 
@@ -131,7 +146,7 @@ export function useSaveBankAccount() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string | null; payload: EditBankAccount }) =>
       id ? updateBankAccount(id, payload) : addBankAccount(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.banks }),
+    onSuccess: () => invalidateFinance(queryClient),
   })
 }
 
@@ -140,7 +155,7 @@ export function useSaveAcquirer() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string | null; payload: EditAcquirer }) =>
       id ? updateAcquirer(id, payload) : addAcquirer(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.acquirers }),
+    onSuccess: () => invalidateFinance(queryClient),
   })
 }
 
@@ -149,7 +164,7 @@ export function useReversePayable() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => reversePayable(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.payables }),
+    onSuccess: () => invalidateFinance(queryClient),
   })
 }
 
@@ -157,7 +172,7 @@ export function useReverseReceivable() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => reverseReceivable(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.receivables }),
+    onSuccess: () => invalidateFinance(queryClient),
   })
 }
 
@@ -167,7 +182,7 @@ export function useSettleReceivablesBatch() {
   return useMutation({
     mutationFn: ({ ids, settlement }: { ids: string[]; settlement: BatchSettlementInput }) =>
       settleReceivablesBatch(ids, settlement),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.receivables }),
+    onSuccess: () => invalidateFinance(queryClient),
   })
 }
 
@@ -183,6 +198,6 @@ export function useAddCollectionAttempt() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (payload: NewCollectionAttempt) => addCollectionAttempt(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.collections }),
+    onSuccess: () => invalidateFinance(queryClient),
   })
 }

@@ -3,18 +3,21 @@ import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
+import { SegmentedControl } from '@/components/SegmentedControl/SegmentedControl'
+import type { SegmentOption } from '@/components/SegmentedControl/SegmentedControl'
+import { UnbilledTab } from '../Unbilled/UnbilledTab'
 import { Pagination } from '@/components/Pagination/Pagination'
 import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
 import { useToast } from '@/components/Toast/useToast'
-import { IconCheck, IconUndo, IconX, IconPlus } from '@/components/icons'
-import { AccountFormModal } from '../shared/AccountFormModal'
+import { IconCheck, IconUndo, IconX } from '@/components/icons'
 import {
   useReceivables, useSettleReceivable, useCancelReceivable, useReverseReceivable,
-  useSettleReceivablesBatch, useBankAccounts,
+  useSettleReceivablesBatch, useBankAccounts, useUnbilledSessions,
 } from '@/hooks/useFinance'
 import { usePagination } from '@/hooks/usePagination'
+import { usePatientName } from '@/hooks/useDisplayNames'
 import { PAYMENT_METHOD_LABEL } from '@/constants'
 import { formatBRL } from '@/utils/format'
 import type { Receivable } from '@/types/domain'
@@ -28,9 +31,17 @@ function remainingOf(c: Receivable) {
 }
 
 /** Aba "Contas a Receber": listagem, settlement (inclusive parcial), baixa em
- *  lote, estorno e cancelamento. */
+ *  lote, estorno e cancelamento. Inclui a visão "A faturar" (produção executada
+ *  sem cobrança) — tudo que é dinheiro a entrar mora numa aba só. */
 export function ReceivableTab() {
   const toast = useToast()
+  // Visão da aba: títulos emitidos ou produção a faturar (rede de segurança).
+  const [view, setView] = useState<'titulos' | 'unbilled'>('titulos')
+  const { data: unbilled } = useUnbilledSessions()
+  const viewOptions: SegmentOption<'titulos' | 'unbilled'>[] = [
+    { value: 'titulos', label: 'Títulos' },
+    { value: 'unbilled', label: `A faturar${unbilled?.length ? ` (${unbilled.length})` : ''}` },
+  ]
   const { data: receivables, isLoading } = useReceivables()
   const { mutate: settle, isPending: settling } = useSettleReceivable()
   const { mutate: cancel } = useCancelReceivable()
@@ -39,6 +50,9 @@ export function ReceivableTab() {
   // Contas BANCÁRIAS (onde o dinheiro entra) — não confundir com as a receber.
   const { data: bankAccounts } = useBankAccounts()
   const accountOptions = (bankAccounts ?? []).map(c => ({ value: c.id, label: c.name }))
+  // Devedor do título: o domínio guarda só o id, o nome é resolvido na hora de
+  // mostrar (ver hooks/useDisplayNames).
+  const patientName = usePatientName()
 
   const list = receivables ?? []
   const pagination = usePagination(list)
@@ -48,7 +62,6 @@ export function ReceivableTab() {
   const [toReverse, setToReverse] = useState<Receivable | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [batchOpen, setBatchOpen] = useState(false)
-  const [creating, setCreating] = useState(false)
 
   if (isLoading) return <PageLoader />
 
@@ -93,6 +106,14 @@ export function ReceivableTab() {
       ),
     },
     { key: 'description', label: 'Descrição', render: c => <span className={shared.celulaForte}>{c.description}</span> },
+    {
+      key: 'patient', label: 'Paciente',
+      // Sem paciente é caso legítimo (aluguel de sala, repasse de convênio) —
+      // por isso traço, e não vazio.
+      render: c => c.patientId
+        ? patientName(c.patientId)
+        : <span className={shared.traco}>—</span>,
+    },
     { key: 'dueDate',  label: 'Vencimento' },
     { key: 'receivedAt', label: 'Recebimento', render: c => c.receivedAt ?? '—' },
     { key: 'method',      label: 'Forma', render: c => c.method ? PAYMENT_METHOD_LABEL[c.method] : '—' },
@@ -114,8 +135,8 @@ export function ReceivableTab() {
               <button
                 type="button"
                 className={`${shared.acaoBtn} ${shared['acaoBtn--confirmar']}`}
-                title="Dar settlement"
-                aria-label={`Dar settlement em ${c.description}`}
+                title="Dar baixa"
+                aria-label={`Dar baixa em ${c.description}`}
                 onClick={() => setToSettle(c)}
               >
                 <IconCheck />
@@ -147,8 +168,27 @@ export function ReceivableTab() {
     },
   ]
 
+  const switcher = (
+    <div className={shared.subVisao}>
+      <SegmentedControl options={viewOptions} value={view} onChange={setView} />
+    </div>
+  )
+
+  // Visão "A faturar": procedimentos executados sem cobrança, com o botão que
+  // gera o título — o outro caminho legítimo de nascimento de um recebível
+  // (o primeiro é o aceite do orçamento).
+  if (view === 'unbilled') {
+    return (
+      <>
+        {switcher}
+        <UnbilledTab />
+      </>
+    )
+  }
+
   return (
     <>
+      {switcher}
       <Table
         columns={columns}
         data={pagination.visible}
@@ -179,10 +219,10 @@ export function ReceivableTab() {
                   Dar baixa em lote
                 </Button>
               )}
+              {/* SEM "Nova conta a receber": título de paciente NASCE no aceite do
+                  orçamento (parcelas) ou no faturamento do procedimento — nunca
+                  digitado aqui, senão vira recebível sem contrato por trás. */}
               <PerPageSelect perPage={pagination.perPage} onChange={pagination.setPerPage} />
-              <Button size="sm" iconLeft={<IconPlus />} onClick={() => setCreating(true)}>
-                Nova conta a receber
-              </Button>
             </div>
           </>
         }
@@ -255,9 +295,6 @@ export function ReceivableTab() {
         message={toReverse ? `"${toReverse.description}" volta para aberto. Confirma o estorno?` : ''}
         variant="danger"
       />
-
-      {/* ── Modal: cadastrar nova conta a receber ── */}
-      {creating && <AccountFormModal kind="receivable" onClose={() => setCreating(false)} />}
 
       {/* ── Baixa em lote: uma data/forma/conta para todas as selecionadas ──
           Sempre baixa o valor CHEIO — quem precisa de parcial usa a linha. */}

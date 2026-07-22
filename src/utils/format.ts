@@ -3,6 +3,17 @@ export function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+/**
+ * 1234.5 → '1.234,50' — dinheiro SEM o símbolo, para colunas estreitas.
+ *
+ * Existe para a matriz de metas, onde o "R$" fica no rótulo da linha e repeti-lo
+ * em 12 células só empurraria o número para fora da coluna. Faz par com
+ * `parseBRL`, que lê tanto esta forma quanto a de `formatBRL`.
+ */
+export function formatAmount(v: number) {
+  return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 /** 3.5 → '3,5%' (percentual pt-BR, até 2 casas). */
 export function formatPercent(v: number) {
   return `${v.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`

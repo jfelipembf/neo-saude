@@ -17,7 +17,7 @@ import { useDashboardStats, useDayAppointments, useSetAppointmentStatus } from '
 import { usePatientName } from '@/hooks/useDisplayNames'
 import {
   IconDashboard, IconClock, IconCheck, IconX,
-  IconSchedule, IconPatients, IconTrendUp, IconTrendDown, IconKanban,
+  IconSchedule, IconTrendUp, IconTrendDown, IconKanban,
 } from '@/components/icons'
 import {
   APP_ROUTES, GOAL_METRIC_LABEL, GOAL_METRIC_IS_MONEY, GOAL_METRIC_HIGHER_IS_BETTER,
@@ -32,7 +32,7 @@ export function DashboardPage() {
   const { data: appointments, isLoading } = useDayAppointments()
   // Query própria: os cartões não seguram a agenda no loader (e vice-versa).
   // Enquanto não chega, cada cartão mostra '—' em vez de um zero que seria lido
-  // como "a clínica não tem nenhum paciente".
+  // como "o mês está zerado" (ver `metricCard`).
   const { data: stats } = useDashboardStats()
   const patientName = usePatientName()
   const { mutate: setStatus } = useSetAppointmentStatus()
@@ -49,10 +49,10 @@ export function DashboardPage() {
    * Monta um cartão de métrica a partir de `metrics` da RPC.
    *
    * O hint é CALCULADO aqui, e só existe quando `percentChange` devolve número:
-   * sem mês anterior (active_patients) ou com mês anterior zerado (clínica no
-   * primeiro mês), o cartão sai sem hint em vez de sair com uma variação
-   * inventada. O TOM segue `GOAL_METRIC_HIGHER_IS_BETTER` e não o sinal: gasto
-   * subindo é vermelho, gasto caindo é verde.
+   * com o mês anterior zerado (clínica no primeiro mês de uso) o cartão sai sem
+   * hint, em vez de sair com uma variação inventada. O TOM segue
+   * `GOAL_METRIC_HIGHER_IS_BETTER` e não o sinal: gasto subindo é vermelho,
+   * gasto caindo é verde.
    */
   function metricCard(metric: GoalMetric, icon: ReactNode) {
     const m = stats?.metrics[metric]
@@ -167,19 +167,26 @@ export function DashboardPage() {
           </div>
 
           <div className={styles.widgets}>
-            {/* Todos os números vêm da RPC dashboard_stats (um round-trip só).
-                As duas primeiras linhas são operacionais (o dia de hoje) e não
-                acompanham meta — não existe métrica de meta para "hoje". As
-                quatro seguintes são as métricas de `metrics`, cada uma com meta
-                e com a variação sobre o mês anterior CALCULADA aqui. */}
-            <div className={styles.statsGrid}>
-              <StatsCard label="Consultas hoje" value={stats?.appointmentsToday ?? '—'}     icon={<IconSchedule />} />
-              <StatsCard label="A confirmar"    value={stats?.pendingConfirmations ?? '—'}  icon={<IconClock />} />
+            {/* ⚠️ NÃO ADICIONE CARTÃO AQUI SEM O DONO PEDIR.
+                O Dashboard mostra SOMENTE as métricas QUE TÊM META — as quatro
+                de `metrics`, cada uma com meta e com a variação sobre o mês
+                anterior CALCULADA aqui. Vêm todas da RPC dashboard_stats, num
+                round-trip só.
 
-              <StatsCard {...metricCard('appointments',    <IconSchedule />)} />
-              <StatsCard {...metricCard('active_patients', <IconPatients />)} />
-              <StatsCard {...metricCard('revenue',         <IconTrendUp />)} />
-              <StatsCard {...metricCard('expenses',        <IconTrendDown />)} />
+                Os contadores OPERACIONAIS que ficavam antes destes ("Consultas
+                hoje", "A confirmar" e "Pacientes ativos") foram REMOVIDOS A
+                PEDIDO DO DONO — ele viu os três na tela e mandou tirar. A
+                ausência deles é DELIBERADA, não é regressão: dois agentes já os
+                "restauraram" achando que alguém tinha apagado por engano. Se
+                bater a vontade de repor, é engano. Com a remoção, a RPC também
+                deixou de calcular e de devolver appointments_today,
+                pending_confirmations, active_patients e monthly_revenue — repor
+                o cartão exigiria despodar o banco junto. */}
+            <div className={styles.statsGrid}>
+              <StatsCard {...metricCard('appointments_scheduled', <IconSchedule />)} />
+              <StatsCard {...metricCard('appointments_completed', <IconCheck />)} />
+              <StatsCard {...metricCard('revenue',                <IconTrendUp />)} />
+              <StatsCard {...metricCard('expenses',               <IconTrendDown />)} />
             </div>
 
             {/* O que há para cobrar: vencidos e pendentes, mais antigo primeiro. */}

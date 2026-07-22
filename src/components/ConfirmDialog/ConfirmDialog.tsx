@@ -14,6 +14,12 @@ interface ConfirmDialogProps {
   variant?: 'default' | 'danger'
   confirmLabel?: string
   cancelLabel?: string
+  /**
+   * Trava o botão de confirmar. Existe para diálogos cujo `children` pede uma
+   * decisão incompleta — ex.: "não cobrar" sem o motivo escrito, que salvaria o
+   * procedimento gerando a cobrança que o usuário acabou de recusar.
+   */
+  confirmDisabled?: boolean
   /** Conteúdo extra abaixo da mensagem (ex.: um Toggle de opção). */
   children?: ReactNode
 }
@@ -25,6 +31,7 @@ export function ConfirmDialog({
   variant = 'default',
   confirmLabel = 'Confirmar',
   cancelLabel = 'Cancelar',
+  confirmDisabled = false,
   children,
 }: ConfirmDialogProps) {
   const isDanger = variant === 'danger'
@@ -42,7 +49,7 @@ export function ConfirmDialog({
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>{cancelLabel}</Button>
-          <Button variant={isDanger ? 'danger' : 'primary'} onClick={handleConfirm}>
+          <Button variant={isDanger ? 'danger' : 'primary'} onClick={handleConfirm} disabled={confirmDisabled}>
             {confirmLabel}
           </Button>
         </>

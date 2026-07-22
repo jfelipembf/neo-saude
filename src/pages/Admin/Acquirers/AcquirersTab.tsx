@@ -13,7 +13,7 @@ import { AVAILABLE_CARD_BRANDS } from '@/constants'
 import { parsePercent } from '@/utils/format'
 import type { InstallmentRate } from '@/types/domain'
 import { InstallmentsEditor } from './InstallmentsEditor'
-import shared from '../shared/finance.module.scss'
+import shared from '@/pages/Finance/shared/finance.module.scss'
 import styles from './AcquirersTab.module.scss'
 
 interface AcquirerFormState {

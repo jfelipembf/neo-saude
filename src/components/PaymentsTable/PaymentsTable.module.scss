@@ -13,6 +13,40 @@
   gap: $sp-3;
 }
 
+// Saldo do paciente: o número que ele pergunta no balcão, antes da tabela.
+.saldo {
+  display: flex;
+  align-items: baseline;
+  gap: $sp-2;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+
+  strong {
+    font-size: $fs-lg;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+  }
+
+  @include phone {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+.saldoDevendo { color: var(--danger-fg); }
+
+.saldoMeta {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+// Parcela de cartão em aberto: não há botão de receber, há uma informação.
+.aguardando {
+  font-size: $fs-xs;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
 // Topo do cartão: registros por página à esquerda, filtro de status à direita.
 .toolbar {
   display: flex;

@@ -1,36 +1,42 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
-import { listGoals, removeGoal, saveGoal } from '@/services/goalsService'
-import type { GoalMetric } from '@/types/domain'
+import { listGoals, saveGoals } from '@/services/goalsService'
+import type { GoalYearInput } from '@/services/goalsService'
 
-export function useGoals() {
-  return useQuery({ queryKey: queryKeys.goals.all, queryFn: listGoals })
-}
-
-/**
- * As duas mutações invalidam TAMBÉM `appointments.stats`: a meta viaja de volta
- * dentro da RPC `dashboard_stats` (em `metrics.*.target`), então mexer numa meta
- * sem refazer os cartões deixaria o Dashboard mostrando a meta antiga até o
- * próximo refetch — e o usuário que acabou de salvar leria isso como falha.
- */
-function useGoalMutation<TArg>(mutationFn: (arg: TArg) => Promise<void>) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.goals.all })
-      queryClient.invalidateQueries({ queryKey: queryKeys.appointments.stats })
-    },
+/** Matriz de metas do ano — uma linha por métrica que tenha ao menos um mês. */
+export function useGoals(year: number) {
+  return useQuery({
+    queryKey: queryKeys.goals.byYear(year),
+    queryFn: () => listGoals(year),
   })
 }
 
-/** Grava (ou regrava) a meta de uma métrica. */
-export function useSaveGoal() {
-  return useGoalMutation(({ metric, targetValue }: { metric: GoalMetric; targetValue: number }) =>
-    saveGoal(metric, targetValue))
+interface SaveGoalsInput {
+  year: number
+  rows: GoalYearInput[]
 }
 
-/** Apaga a meta de uma métrica. */
-export function useRemoveGoal() {
-  return useGoalMutation((metric: GoalMetric) => removeGoal(metric))
+/**
+ * Grava a matriz de um ano em LOTE (uma chamada, uma transação).
+ *
+ * Invalida DUAS keys:
+ *
+ *   `goals.byYear(year)`      só o ano salvo — mexer em 2026 não torna a
+ *                             matriz de 2027 obsoleta.
+ *   `appointments.stats`      a meta viaja de volta dentro de `dashboard_stats`
+ *                             (em `metrics.*.target`), então salvar sem refazer
+ *                             os cartões deixaria o Dashboard mostrando a meta
+ *                             antiga — e quem acabou de salvar leria isso como
+ *                             falha do salvamento.
+ */
+export function useSaveGoals() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ year, rows }: SaveGoalsInput) => saveGoals(year, rows),
+    onSuccess: (_result, { year }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.goals.byYear(year) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.appointments.stats })
+    },
+  })
 }

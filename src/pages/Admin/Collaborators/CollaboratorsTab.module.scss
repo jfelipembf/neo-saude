@@ -1,0 +1,92 @@
+@use '../../../styles/mixins' as *;
+
+// Mesmo desenho de Comissões/Cargos: lista lateral + área de detalhe.
+.layout {
+  display: flex;
+  align-items: flex-start;
+  gap: $sp-4;
+
+  @include mobile {
+    flex-direction: column;
+  }
+}
+
+.formArea {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.formRoot {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+// Lista de contatos (somente leitura) no cabeçalho do detalhe.
+.contatos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-3;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.contato {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  min-width: 200px;
+}
+
+.contatoIcone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--field-bg);
+  color: var(--text-muted);
+}
+
+.contatoTexto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.contatoLabel {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.contatoValor {
+  font-size: $fs-sm;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+// Corpo dos modais (novo colaborador / redefinir senha).
+.modalCorpo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.dica {
+  margin: 0;
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.erro {
+  margin: 0;
+  font-size: $fs-sm;
+  color: var(--danger-fg);
+}

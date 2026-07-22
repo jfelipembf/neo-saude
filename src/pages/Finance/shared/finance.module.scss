@@ -249,6 +249,13 @@
   }
 }
 
+// Busca do paciente devedor — mesma lista do agendamento (mixins compartilhados).
+.pacienteCampo { @include suggestion-wrapper; }
+.sugestoes     { @include suggestion-list; }
+.sugestao      { @include suggestion-item; }
+.sugestaoNome  { @include suggestion-name; }
+.sugestaoMeta  { @include suggestion-meta; }
+
 .erro {
   font-size: $fs-sm;
   color: var(--danger-fg);
@@ -260,4 +267,10 @@
   align-items: center;
   gap: $sp-2;
   flex-wrap: wrap;
+}
+
+// Alternador de visão dentro de uma aba (ex.: Contas a Receber → Títulos | A faturar).
+.subVisao {
+  display: flex;
+  margin-bottom: $sp-4;
 }

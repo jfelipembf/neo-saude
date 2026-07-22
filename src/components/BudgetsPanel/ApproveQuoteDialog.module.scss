@@ -1,0 +1,121 @@
+@use '../../styles/mixins' as *;
+
+.corpo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.intro {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.linhas {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+// Forma · Valor · Parcelas · 1º vencimento · remover — colapsa no mobile.
+.linha {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) 110px 160px auto;
+  gap: $sp-2;
+  align-items: end;
+
+  @include mobile {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+// A linha do plano + o que só o cartão precisa (adquirente ou o aviso de que
+// não há nenhuma cadastrada), agrupados para andarem juntos.
+.grupoLinha {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+// Alinha a adquirente com a coluna "Forma", que é de quem ela é dependente.
+.adquirente {
+  max-width: 320px;
+
+  @include phone {
+    max-width: none;
+  }
+}
+
+.aviso {
+  font-size: $fs-xs;
+  line-height: 1.45;
+  color: var(--warning-fg);
+}
+
+.remover {
+  margin-bottom: 2px;
+}
+
+.prefixo {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.adicionar {
+  align-self: flex-start;
+}
+
+.resumo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  padding-top: $sp-3;
+  border-top: 1px solid var(--glass-border);
+  font-size: $fs-sm;
+}
+
+.resumoTotal {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.erro {
+  color: var(--danger-fg);
+}
+
+.previa {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+// Aviso de dupla cobrança (item 3): procedimento avulso em aberto que pode
+// estar dentro do orçamento. Chama atenção sem bloquear a aprovação.
+.avisoDupla {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  padding: $sp-3;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--warning-fg) 40%, transparent);
+  background: color-mix(in srgb, var(--warning-fg) 10%, transparent);
+  font-size: $fs-sm;
+  color: var(--text-primary);
+
+  strong { color: var(--warning-fg); }
+  p { margin: 0; color: var(--text-secondary); line-height: 1.5; }
+}
+
+.avisoLista {
+  margin: 0;
+  padding-left: $sp-4;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--text-primary);
+}

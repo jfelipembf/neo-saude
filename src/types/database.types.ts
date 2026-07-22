@@ -598,15 +598,18 @@ export type Database = {
       appointment: {
         Row: {
           clinic_id: string
+          color: string | null
           created_at: string
           date: string
           duration_minutes: number
           ends_at: string | null
           id: string
+          notes: string | null
           patient_id: string
           professional_id: string
           room_id: string | null
           schedule_slot_id: string | null
+          send_confirmation: boolean
           service: string
           start_time: string
           starts_at: string | null
@@ -615,15 +618,18 @@ export type Database = {
         }
         Insert: {
           clinic_id: string
+          color?: string | null
           created_at?: string
           date: string
           duration_minutes?: number
           ends_at?: string | null
           id?: string
+          notes?: string | null
           patient_id: string
           professional_id: string
           room_id?: string | null
           schedule_slot_id?: string | null
+          send_confirmation?: boolean
           service: string
           start_time: string
           starts_at?: string | null
@@ -632,15 +638,18 @@ export type Database = {
         }
         Update: {
           clinic_id?: string
+          color?: string | null
           created_at?: string
           date?: string
           duration_minutes?: number
           ends_at?: string | null
           id?: string
+          notes?: string | null
           patient_id?: string
           professional_id?: string
           room_id?: string | null
           schedule_slot_id?: string | null
+          send_confirmation?: boolean
           service?: string
           start_time?: string
           starts_at?: string | null
@@ -1204,6 +1213,35 @@ export type Database = {
           },
         ]
       }
+      clinic_finance_setting: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          overdue_grace_days: number
+          updated_at: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          overdue_grace_days?: number
+          updated_at?: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          overdue_grace_days?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinic_finance_setting_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: true
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clinic_goal: {
         Row: {
           clinic_id: string
@@ -1249,6 +1287,7 @@ export type Database = {
           created_at: string
           id: string
           invited_by: string | null
+          is_owner: boolean
           joined_at: string | null
           status: Database["public"]["Enums"]["membership_status"]
           updated_at: string
@@ -1260,6 +1299,7 @@ export type Database = {
           created_at?: string
           id?: string
           invited_by?: string | null
+          is_owner?: boolean
           joined_at?: string | null
           status?: Database["public"]["Enums"]["membership_status"]
           updated_at?: string
@@ -1271,6 +1311,7 @@ export type Database = {
           created_at?: string
           id?: string
           invited_by?: string | null
+          is_owner?: boolean
           joined_at?: string | null
           status?: Database["public"]["Enums"]["membership_status"]
           updated_at?: string
@@ -2646,10 +2687,12 @@ export type Database = {
       receivable: {
         Row: {
           acquirer_id: string | null
+          auto_settle_blocked: boolean
           bank_account_id: string | null
           clinic_id: string
           code: string
           created_at: string
+          debtor: Database["public"]["Enums"]["receivable_debtor"] | null
           description: string
           due_date: string
           fee: number
@@ -2667,14 +2710,17 @@ export type Database = {
           received_at: string | null
           source: string
           status: Database["public"]["Enums"]["payment_status"]
+          treatment_session_id: string | null
           updated_at: string
         }
         Insert: {
           acquirer_id?: string | null
+          auto_settle_blocked?: boolean
           bank_account_id?: string | null
           clinic_id: string
           code: string
           created_at?: string
+          debtor?: Database["public"]["Enums"]["receivable_debtor"] | null
           description: string
           due_date: string
           fee?: number
@@ -2692,14 +2738,17 @@ export type Database = {
           received_at?: string | null
           source: string
           status?: Database["public"]["Enums"]["payment_status"]
+          treatment_session_id?: string | null
           updated_at?: string
         }
         Update: {
           acquirer_id?: string | null
+          auto_settle_blocked?: boolean
           bank_account_id?: string | null
           clinic_id?: string
           code?: string
           created_at?: string
+          debtor?: Database["public"]["Enums"]["receivable_debtor"] | null
           description?: string
           due_date?: string
           fee?: number
@@ -2717,6 +2766,7 @@ export type Database = {
           received_at?: string | null
           source?: string
           status?: Database["public"]["Enums"]["payment_status"]
+          treatment_session_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2760,6 +2810,13 @@ export type Database = {
             columns: ["quote_id", "clinic_id"]
             isOneToOne: false
             referencedRelation: "quote"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "receivable_session_fk"
+            columns: ["treatment_session_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_session"
             referencedColumns: ["id", "clinic_id"]
           },
         ]
@@ -3131,37 +3188,55 @@ export type Database = {
       treatment_session: {
         Row: {
           amount: number | null
+          billing_status: Database["public"]["Enums"]["session_billing_status"]
+          client_token: string | null
           clinic_id: string
           created_at: string
           description: string | null
           id: string
+          not_billable_reason: string | null
           notes: string | null
           performed_on: string
           professional_id: string | null
+          quote_id: string | null
+          quote_item_id: string | null
+          receivable_id: string | null
           treatment_id: string
           updated_at: string
         }
         Insert: {
           amount?: number | null
+          billing_status?: Database["public"]["Enums"]["session_billing_status"]
+          client_token?: string | null
           clinic_id: string
           created_at?: string
           description?: string | null
           id?: string
+          not_billable_reason?: string | null
           notes?: string | null
           performed_on: string
           professional_id?: string | null
+          quote_id?: string | null
+          quote_item_id?: string | null
+          receivable_id?: string | null
           treatment_id: string
           updated_at?: string
         }
         Update: {
           amount?: number | null
+          billing_status?: Database["public"]["Enums"]["session_billing_status"]
+          client_token?: string | null
           clinic_id?: string
           created_at?: string
           description?: string | null
           id?: string
+          not_billable_reason?: string | null
           notes?: string | null
           performed_on?: string
           professional_id?: string | null
+          quote_id?: string | null
+          quote_item_id?: string | null
+          receivable_id?: string | null
           treatment_id?: string
           updated_at?: string
         }
@@ -3185,6 +3260,27 @@ export type Database = {
             columns: ["professional_id", "clinic_id"]
             isOneToOne: false
             referencedRelation: "professional_directory"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "treatment_session_quote_fk"
+            columns: ["quote_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "quote"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "treatment_session_quote_item_fk"
+            columns: ["quote_item_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "quote_item"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "treatment_session_receivable_fk"
+            columns: ["receivable_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "receivable"
             referencedColumns: ["id", "clinic_id"]
           },
           {
@@ -3631,7 +3727,20 @@ export type Database = {
           value: number
         }[]
       }
+      approve_quote: { Args: { p_plan?: Json; p_quote: string }; Returns: number }
       archive_anamnesis: { Args: { p_patient: string }; Returns: string }
+      bill_treatment_session: {
+        Args: {
+          p_acquirer?: string
+          p_charge_anyway?: boolean
+          p_due_date?: string
+          p_installments?: number
+          p_method?: Database["public"]["Enums"]["payment_method"]
+          p_not_billable_reason?: string
+          p_session: string
+        }
+        Returns: Database["public"]["Enums"]["session_billing_status"]
+      }
       cash_flow: { Args: { p_days?: number }; Returns: Json }
       dashboard_stats: { Args: never; Returns: Json }
       finance_series: {
@@ -3642,9 +3751,24 @@ export type Database = {
           label: string
         }[]
       }
+      is_clinic_admin: { Args: { p_clinic: string }; Returns: boolean }
       link_professional_user: {
         Args: { p_professional: string; p_user: string }
         Returns: undefined
+      }
+      list_clinic_staff: {
+        Args: { p_clinic: string }
+        Returns: {
+          access_profile_id: string
+          avatar_url: string
+          clinic_user_id: string
+          email: string
+          full_name: string
+          phone: string
+          role_name: string
+          status: Database["public"]["Enums"]["membership_status"]
+          user_id: string
+        }[]
       }
       my_session: { Args: { p_clinic?: string }; Returns: Json }
       my_subscription: { Args: { p_clinic?: string }; Returns: Json }
@@ -3655,6 +3779,19 @@ export type Database = {
       patient_anamnesis: { Args: { p_patient: string }; Returns: Json }
       patient_anamnesis_history: { Args: { p_patient: string }; Returns: Json }
       patient_treatments: { Args: { p_patient: string }; Returns: Json }
+      preview_session_billing: {
+        Args: {
+          p_acquirer?: string
+          p_amount?: number
+          p_due_date?: string
+          p_installments?: number
+          p_method?: Database["public"]["Enums"]["payment_method"]
+          p_not_billable_reason?: string
+          p_patient: string
+          p_performed_on?: string
+        }
+        Returns: Json
+      }
       professional_conflicts: {
         Args: {
           p_ends: string
@@ -3675,6 +3812,19 @@ export type Database = {
           start_time: string
           starts_at: string
           status: Database["public"]["Enums"]["appointment_status"]
+        }[]
+      }
+      professional_earnings: {
+        Args: { p_professional: string }
+        Returns: {
+          amount: number
+          billing_status: Database["public"]["Enums"]["session_billing_status"]
+          description: string
+          patient_id: string
+          patient_name: string
+          performed_on: string
+          received_amount: number
+          session_id: string
         }[]
       }
       professional_slot_conflicts: {
@@ -3700,10 +3850,16 @@ export type Database = {
       professionals_in_use: { Args: { p_clinic?: string }; Returns: number }
       record_treatment_session: {
         Args: {
+          p_acquirer?: string
           p_actions?: string[]
           p_amount?: unknown
+          p_client_token?: string
           p_description?: string
+          p_due_date?: string
+          p_installments?: number
           p_materials?: Json
+          p_method?: Database["public"]["Enums"]["payment_method"]
+          p_not_billable_reason?: string
           p_notes?: string
           p_odontogram?: Json
           p_performed_on: string
@@ -3722,9 +3878,45 @@ export type Database = {
         Args: { p_clinic: string; p_goals: Json; p_year: number }
         Returns: undefined
       }
+      set_collaborator: {
+        Args: {
+          p_access_profile?: string
+          p_clinic_user: string
+          p_status?: Database["public"]["Enums"]["membership_status"]
+        }
+        Returns: undefined
+      }
       set_technical_manager: {
         Args: { p_professional: string }
         Returns: undefined
+      }
+      settle_receivable: {
+        Args: {
+          p_amount: number
+          p_bank?: string | null
+          p_date?: string | null
+          p_id: string
+          p_method?: Database["public"]["Enums"]["payment_method"] | null
+          p_notes?: string | null
+        }
+        Returns: undefined
+      }
+      unbilled_sessions: {
+        Args: never
+        Returns: {
+          amount: number
+          clinic_id: string
+          description: string
+          has_insurance: boolean
+          id: string
+          patient_id: string
+          patient_name: string
+          pending_quote_code: string
+          performed_on: string
+          professional_id: string
+          treatment_id: string
+          treatment_name: string
+        }[]
       }
     }
     Enums: {
@@ -3760,7 +3952,11 @@ export type Database = {
       commission_payout: "fixed_day" | "per_visit"
       commission_type: "percentage" | "fixed"
       gender: "male" | "female"
-      goal_metric: "appointments" | "active_patients" | "revenue" | "expenses"
+      goal_metric:
+        | "appointments_scheduled"
+        | "appointments_completed"
+        | "revenue"
+        | "expenses"
       lead_status: "new" | "negotiating" | "scheduling" | "converted" | "lost"
       membership_status: "invited" | "active" | "suspended"
       payment_method:
@@ -3778,7 +3974,9 @@ export type Database = {
         | "certificate"
         | "document"
       quote_status: "pending" | "approved"
+      receivable_debtor: "payer" | "acquirer"
       schedule_slot_status: "active" | "canceled"
+      session_billing_status: "unbilled" | "billed" | "covered" | "not_billable"
       subscription_status: "active" | "past_due" | "canceled"
       task_priority: "high" | "medium" | "low"
       task_status: "todo" | "in_progress" | "done"
@@ -3946,7 +4144,12 @@ export const Constants = {
       commission_payout: ["fixed_day", "per_visit"],
       commission_type: ["percentage", "fixed"],
       gender: ["male", "female"],
-      goal_metric: ["appointments", "active_patients", "revenue", "expenses"],
+      goal_metric: [
+        "appointments_scheduled",
+        "appointments_completed",
+        "revenue",
+        "expenses",
+      ],
       lead_status: ["new", "negotiating", "scheduling", "converted", "lost"],
       membership_status: ["invited", "active", "suspended"],
       payment_method: [
@@ -3966,7 +4169,9 @@ export const Constants = {
         "document",
       ],
       quote_status: ["pending", "approved"],
+      receivable_debtor: ["payer", "acquirer"],
       schedule_slot_status: ["active", "canceled"],
+      session_billing_status: ["unbilled", "billed", "covered", "not_billable"],
       subscription_status: ["active", "past_due", "canceled"],
       task_priority: ["high", "medium", "low"],
       task_status: ["todo", "in_progress", "done"],
@@ -3975,5 +4180,3 @@ export const Constants = {
     },
   },
 } as const
-A new version of Supabase CLI is available: v2.109.1 (currently installed v2.54.11)
-We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

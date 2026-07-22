@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { APP_ROUTES } from '@/constants'
 import { useTheme } from '@/context/ThemeProvider'
+import { useSession } from '@/context/SessionProvider'
 import { HeaderSearch } from '@/components/HeaderSearch/HeaderSearch'
 import { ProfileMenu } from '@/components/ProfileMenu/ProfileMenu'
 import {
@@ -9,18 +10,22 @@ import {
 } from '@/components/icons'
 import styles from './Header.module.scss'
 
+// `feature` casa 1:1 com a chave do mapa de permissões (my_session) e com a aba
+// Cargos: o item some do menu quando o cargo não pode ver aquela página.
 const NAV_ITEMS = [
-  { to: APP_ROUTES.DASHBOARD,      label: 'Dashboard',      icon: <IconDashboard />, end: true },
-  { to: APP_ROUTES.SCHEDULE,         label: 'Agenda',         icon: <IconSchedule /> },
-  { to: APP_ROUTES.PATIENTS,      label: 'Pacientes',      icon: <IconPatients /> },
-  { to: APP_ROUTES.PROFESSIONALS,  label: 'Profissionais',  icon: <IconProfessionals /> },
-  { to: APP_ROUTES.FINANCE,     label: 'Financeiro',     icon: <IconFinance /> },
-  { to: APP_ROUTES.ADMIN, label: 'Administrativo', icon: <IconAdmin /> },
+  { to: APP_ROUTES.DASHBOARD,      label: 'Dashboard',      icon: <IconDashboard />, feature: 'dashboard',     end: true },
+  { to: APP_ROUTES.SCHEDULE,         label: 'Agenda',         icon: <IconSchedule />,      feature: 'schedule' },
+  { to: APP_ROUTES.PATIENTS,      label: 'Pacientes',      icon: <IconPatients />,      feature: 'patients' },
+  { to: APP_ROUTES.PROFESSIONALS,  label: 'Profissionais',  icon: <IconProfessionals />, feature: 'professionals' },
+  { to: APP_ROUTES.FINANCE,     label: 'Financeiro',     icon: <IconFinance />,       feature: 'finance' },
+  { to: APP_ROUTES.ADMIN, label: 'Administrativo', icon: <IconAdmin />,         feature: 'admin' },
 ]
 
 /** Barra horizontal do topo: marca à esquerda, navegação no centro, ações à direita. */
 export function Header() {
   const { toggleTheme } = useTheme()
+  const { canView } = useSession()
+  const navItems = NAV_ITEMS.filter(item => canView(item.feature))
 
   return (
     <header className={styles.header}>
@@ -29,7 +34,7 @@ export function Header() {
       </div>
 
       <nav className={styles.nav}>
-        {NAV_ITEMS.map(item => (
+        {navItems.map(item => (
           <NavLink
             key={item.to}
             to={item.to}

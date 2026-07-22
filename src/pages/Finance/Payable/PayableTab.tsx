@@ -56,8 +56,8 @@ export function PayableTab() {
               <button
                 type="button"
                 className={`${shared.acaoBtn} ${shared['acaoBtn--confirmar']}`}
-                title="Dar settlement"
-                aria-label={`Dar settlement em ${c.description}`}
+                title="Dar baixa"
+                aria-label={`Dar baixa em ${c.description}`}
                 onClick={() => setToSettle(c)}
               >
                 <IconCheck />
@@ -125,7 +125,7 @@ export function PayableTab() {
       />
 
       {/* ── Modal: cadastrar nova conta ── */}
-      {creating && <AccountFormModal kind="payable" onClose={() => setCreating(false)} />}
+      {creating && <AccountFormModal onClose={() => setCreating(false)} />}
 
       {/* ── Modal: dar settlement ── */}
       {toSettle && (

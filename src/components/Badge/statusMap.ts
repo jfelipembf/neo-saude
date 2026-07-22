@@ -25,6 +25,10 @@ export const STATUS_MAP: Record<string, StatusEntry> = {
   active:   { variant: 'success', label: 'Ativo' },
   inactive: { variant: 'gray',    label: 'Inativo' },
 
+  // ── Colaboradores (Administrativo) ──
+  suspended: { variant: 'danger', label: 'Suspenso' },
+  invited:   { variant: 'warning', label: 'Convidado' },
+
   // ── Assinatura do SaaS (Configurações) ──
   past_due: { variant: 'danger', label: 'Inadimplente' },
 

@@ -5,7 +5,7 @@ import { Button } from '@/components/Button/Button'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { IconSchedule, IconPhone, IconMessage, IconEye } from '@/components/icons'
 import { buildRoute, DAY_OF_WEEK_LONG } from '@/constants'
-import { useScheduleSlots } from '@/hooks/useSchedule'
+import { useAgendaAppointments } from '@/hooks/useSchedule'
 import { usePatients } from '@/hooks/usePatients'
 import { toIsoDate, localDate } from '@/utils/date'
 import { digitsOnly } from '@/utils/text'
@@ -17,33 +17,29 @@ interface ScheduleTabProps {
   professional: Professional
 }
 
-/** Aba "Agenda": calendário + atendimentos do dia escolhido. A grade é semanal
- *  (recorrente), então um dia do calendário mostra as sessões daquele dia da
- *  semana. */
+/** Aba "Agenda": calendário + consultas do dia escolhido. Consultas são
+ *  eventos datados (não recorrentes); a janela de ±6 meses cobre de sobra a
+ *  navegação do calendário. */
 export function ScheduleTab({ professional }: ScheduleTabProps) {
   const navigate = useNavigate()
-  const { data: slots } = useScheduleSlots()
+  const today = new Date()
+  const fromIso = toIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 182))
+  const toIso = toIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 182))
+  const { data: appointments } = useAgendaAppointments(fromIso, toIso)
   const { data: patients } = usePatients()
 
   const [selectedDate, setSelectedDate] = useState(() => toIsoDate(new Date()))
 
-  const today = new Date()
-  const professionalSlots = (slots ?? []).filter(
-    s => s.status === 'active' && s.professionalId === professional.id,
+  const professionalSlots = (appointments ?? []).filter(
+    s => s.status !== 'canceled' && s.professionalId === professional.id,
   )
 
-  // Pontinho no calendário nos dias com atendimento (janela de ±6 meses —
-  // cobre de sobra a navegação entre meses).
-  const weekdaysWithAppointments = new Set(professionalSlots.map(s => s.weekday))
-  const marked: string[] = []
-  for (let i = -182; i <= 182; i++) {
-    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i)
-    if (weekdaysWithAppointments.has(d.getDay())) marked.push(toIsoDate(d))
-  }
+  // Pontinho no calendário nos dias com atendimento.
+  const marked = [...new Set(professionalSlots.map(s => s.date))]
 
   const selectedDay = localDate(selectedDate)
   const daySlots = professionalSlots
-    .filter(s => s.weekday === selectedDay.getDay())
+    .filter(s => s.date === selectedDate)
     .sort((a, b) => a.startTime.localeCompare(b.startTime))
 
   // Contatos dos pacientes do dia (a grade guarda o id; o nome sai daqui).
@@ -56,8 +52,8 @@ export function ScheduleTab({ professional }: ScheduleTabProps) {
       {professionalSlots.length === 0 ? (
         <EmptyState
           icon={<IconSchedule />}
-          title="Nenhum horário na grade"
-          description="Este profissional ainda não tem sessões recorrentes na grade semanal."
+          title="Nenhuma consulta agendada"
+          description="Este profissional ainda não tem consultas agendadas na Agenda."
         />
       ) : (
         <div className={styles.agendaGrid}>

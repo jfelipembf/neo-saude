@@ -1,26 +1,35 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
-import { addScheduleSlot, listScheduleSlots, updateScheduleSlot } from '@/services/scheduleService'
-import type { EditScheduleSlot } from '@/services/scheduleService'
+import { addAgendaAppointment, listAgendaAppointments, updateAgendaAppointment } from '@/services/scheduleService'
+import type { EditAgendaAppointment } from '@/services/scheduleService'
 
-export function useScheduleSlots() {
-  return useQuery({ queryKey: queryKeys.schedule.all, queryFn: listScheduleSlots })
-}
-
-/** Cria um agendamento (modal da grade) e atualiza a grade. */
-export function useCreateScheduleSlot() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (payload: EditScheduleSlot) => addScheduleSlot(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.schedule.all }),
+/** Consultas do intervalo visível (semana da grade / janela do calendário). */
+export function useAgendaAppointments(fromIso: string, toIso: string) {
+  return useQuery({
+    queryKey: queryKeys.appointments.range(fromIso, toIso),
+    queryFn: () => listAgendaAppointments(fromIso, toIso),
   })
 }
 
-/** Edita um agendamento existente (clique no card da grade). */
-export function useUpdateScheduleSlot() {
+// Invalidar `appointments.all` pega TODAS as leituras de consulta de uma vez:
+// a grade (range), "Consultas de hoje" (byDay), o gráfico (series) e os cartões
+// do Dashboard (stats) — agendar tem de refletir em todos, sem lista para
+// alguém esquecer de manter.
+
+/** Cria uma consulta datada (modal da Agenda). */
+export function useCreateAgendaAppointment() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: EditScheduleSlot }) => updateScheduleSlot(id, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.schedule.all }),
+    mutationFn: (payload: EditAgendaAppointment) => addAgendaAppointment(payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all }),
+  })
+}
+
+/** Edita uma consulta existente (clique no card da grade). */
+export function useUpdateAgendaAppointment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: EditAgendaAppointment }) => updateAgendaAppointment(id, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all }),
   })
 }

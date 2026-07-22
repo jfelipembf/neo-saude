@@ -1,0 +1,36 @@
+@use '../../../styles/mixins' as *;
+
+// Procedimento + tratamento na mesma célula: o nome do procedimento é o que se
+// procura, o do tratamento é o contexto.
+.procedimento {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+// ── Modal de faturamento ─────────────────────────────────────────────────────
+.resumoModal {
+  font-size: $fs-sm;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.convenio {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding: $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  background: var(--glass-bg-hover);
+
+  @include phone {
+    padding: $sp-2;
+  }
+}
+
+.convenioTexto {
+  font-size: $fs-xs;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}

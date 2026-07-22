@@ -25,6 +25,10 @@ interface SessionContextValue {
   info: SessionInfo | null
   /** true enquanto a sessão inicial ainda não foi resolvida (evita flash de login). */
   loading: boolean
+  /** O cargo permite VER a feature? (esconde menu/rota). */
+  canView: (feature: string) => boolean
+  /** O cargo permite EDITAR a feature? (esconde botões de salvar/criar). */
+  canEdit: (feature: string) => boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   /** Envia o e-mail de recuperação de senha. */
@@ -130,8 +134,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return { error: error ? 'Não foi possível enviar o e-mail. Tente novamente.' : null }
   }
 
+  // Portões de permissão por cargo. FAIL-CLOSED numa sessão real: só liberamos
+  // o que o mapa de features do my_session() traz explicitamente (chave ausente
+  // = sem acesso). Sessão sem features resolvidas (cargo desconhecido, usuário
+  // suspenso, ou falha do my_session) não vê nada — o backend/RLS é a parede
+  // real, mas o front não deve exibir o que o cargo não pode acessar. O modo
+  // demonstração (mock) libera tudo. O dono (cargo Administrador) sempre traz
+  // as 13 features, então nunca é trancado.
+  const canView = (feature: string) => isMockMode || Boolean(info?.features?.[feature]?.view)
+  const canEdit = (feature: string) => isMockMode || Boolean(info?.features?.[feature]?.edit)
+
   return (
-    <SessionContext.Provider value={{ session, info, loading, signIn, signOut, resetPassword }}>
+    <SessionContext.Provider value={{ session, info, loading, canView, canEdit, signIn, signOut, resetPassword }}>
       {children}
     </SessionContext.Provider>
   )

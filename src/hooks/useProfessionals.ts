@@ -4,6 +4,7 @@ import {
   addProfessional,
   getProfessional,
   linkProfessionalToUser,
+  listProfessionalEarnings,
   listProfessionals,
   updateProfessional,
 } from '@/services/professionalsService'
@@ -18,6 +19,15 @@ export function useProfessional(id: string) {
     queryKey: queryKeys.professionals.detail(id),
     queryFn: () => getProfessional(id),
     enabled: Boolean(id),
+  })
+}
+
+/** Produção do profissional, procedimento a procedimento (aba Ganhos). */
+export function useProfessionalEarnings(professionalId: string) {
+  return useQuery({
+    queryKey: queryKeys.professionals.earnings(professionalId),
+    queryFn: () => listProfessionalEarnings(professionalId),
+    enabled: Boolean(professionalId),
   })
 }
 

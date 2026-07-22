@@ -10,8 +10,10 @@
  * Variação percentual do mês corrente sobre o anterior, ou `null` quando a
  * comparação NÃO EXISTE. Os dois casos de null:
  *
- *   `previous == null` — não há mês anterior comparável. É o caso de
- *                        `active_patients`, que é estoque e não tem histórico.
+ *   `previous == null` — não há mês anterior comparável. Nenhuma das quatro
+ *                        métricas atuais produz isso (todas são de fluxo); o
+ *                        caso segue tratado porque quem sumiu foi a métrica de
+ *                        estoque, não a possibilidade de uma nova aparecer.
  *   `previous === 0`   — o mês anterior foi zero. Qualquer número dividido por
  *                        zero é infinito, e "+∞%" (ou "+100%" por um crescimento
  *                        de 0 para 1) diz muito mais do que o dado sustenta —

@@ -3,16 +3,12 @@ import { getCurrentClinicId, type ClientPayload } from '@/lib/tenant'
 import type { Insert, ClientInsert } from '@/lib/db'
 import { brToIsoDate, isoToBrDate, localDate } from '@/utils/date'
 import type {
-  Acquirer, CashSession, BankAccount, Payable, Receivable,
-  CashFlowDay, CashMovement, ChartPeriod, CollectionAttempt, FinancePoint, PaymentMethod, PaymentStatus, InstallmentRate,
+  Acquirer, BankAccount, Payable, Receivable, ReceivableDebtor,
+  CashFlowDay, ChartPeriod, CollectionAttempt, FinancePoint, PaymentMethod, PaymentStatus, InstallmentRate,
+  SessionBillingStatus, UnbilledSession,
 } from '@/types/domain'
 
 const clinic = () => getCurrentClinicId()
-
-function fmtDateTime(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
 
 /** Conta em aberto vira 'overdue' só a PARTIR do dia seguinte ao vencimento. */
 function openStatusIso(dueIso: string): 'pending' | 'overdue' {
@@ -56,30 +52,6 @@ export async function getCashFlow(): Promise<{ baseBalance: number; days: CashFl
       outflows: Number(d.outflows),
     })),
   }
-}
-
-// ── Caixa: movimentos do dia ─────────────────────────────────────────────────
-type CashMovementRow = {
-  id: string; clinic_id: string; name: string; payment_method: PaymentMethod | null
-  description: string; posted_at: string; type: CashMovement['type']; amount: number
-}
-export async function listCashMovements(): Promise<CashMovement[]> {
-  const { data, error } = await supabase
-    .from('cash_movement')
-    .select('id, clinic_id, name, payment_method, description, posted_at, type, amount')
-    .eq('clinic_id', clinic())
-    .order('posted_at', { ascending: false })
-  if (error) throw error
-  return (data as CashMovementRow[]).map(r => ({
-    id: r.id,
-    clinicId: r.clinic_id,
-    name: r.name,
-    paymentMethod: r.payment_method ?? undefined,
-    description: r.description,
-    postedAt: fmtDateTime(r.posted_at),
-    type: r.type,
-    amount: Number(r.amount),
-  }))
 }
 
 // ── Contas a pagar ───────────────────────────────────────────────────────────
@@ -133,7 +105,8 @@ type ReceivableRow = {
   id: string; clinic_id: string; code: string; description: string; due_date: string; received_at: string | null
   method: PaymentMethod | null; source: string; gross_amount: number; fee: number; net_amount: number; status: PaymentStatus
   patient_id: string | null; quote_id: string | null; installment_number: number | null; installment_count: number | null
-  acquirer_id: string | null; bank_account_id: string | null; received_amount: number | null; notes: string | null
+  acquirer_id: string | null; debtor: ReceivableDebtor; treatment_session_id: string | null
+  bank_account_id: string | null; received_amount: number | null; notes: string | null
 }
 function toReceivable(r: ReceivableRow): Receivable {
   return {
@@ -142,39 +115,103 @@ function toReceivable(r: ReceivableRow): Receivable {
     method: r.method ?? undefined, source: r.source, grossAmount: Number(r.gross_amount), fee: Number(r.fee), status: r.status,
     patientId: r.patient_id ?? undefined, quoteId: r.quote_id ?? undefined,
     installmentNumber: r.installment_number ?? undefined, installmentCount: r.installment_count ?? undefined,
-    acquirerId: r.acquirer_id ?? undefined, bankAccountId: r.bank_account_id ?? undefined,
+    acquirerId: r.acquirer_id ?? undefined, debtor: r.debtor,
+    treatmentSessionId: r.treatment_session_id ?? undefined, bankAccountId: r.bank_account_id ?? undefined,
     receivedAmount: r.received_amount != null ? Number(r.received_amount) : undefined, notes: r.notes ?? undefined,
   }
 }
-const RECEIVABLE_COLS = 'id, clinic_id, code, description, due_date, received_at, method, source, gross_amount, fee, net_amount, status, patient_id, quote_id, installment_number, installment_count, acquirer_id, bank_account_id, received_amount, notes'
+const RECEIVABLE_COLS = 'id, clinic_id, code, description, due_date, received_at, method, source, gross_amount, fee, net_amount, status, patient_id, quote_id, installment_number, installment_count, acquirer_id, debtor, treatment_session_id, bank_account_id, received_amount, notes'
 export async function listReceivables(): Promise<Receivable[]> {
   const { data, error } = await supabase.from('receivable').select(RECEIVABLE_COLS).eq('clinic_id', clinic()).order('due_date')
   if (error) throw error
   return (data as ReceivableRow[]).map(toReceivable)
 }
 
-/** Campos do modal "Nova conta a receber" (avulsa, fora de orçamento). */
-export interface NewReceivable {
-  description: string
-  source: string
-  dueDate: string       // dd/mm/aaaa
-  grossAmount: number
-  notes?: string
-}
-export async function addReceivable(p: NewReceivable): Promise<void> {
-  const row: ClientInsert<'receivable'> = {
-    clinic_id: clinic(),
-    description: p.description,
-    source: p.source,
-    due_date: brToIsoDate(p.dueDate)!,
-    gross_amount: p.grossAmount,
-    fee: 0,
-    net_amount: p.grossAmount,   // avulsa: sem adquirente, líquido = bruto.
-    notes: p.notes ?? null,
-    // status → default 'pending'; code → trigger tr_code.
-  }
-  const { error } = await supabase.from('receivable').insert(row as Insert<'receivable'>)
+/**
+ * Extrato financeiro de UM paciente — o que a aba "Pagamentos" do perfil mostra.
+ *
+ * Lê `receivable`, e não `public.payment`: aquela tabela está CONGELADA (zero
+ * linhas, nenhum escritor em todo o src/ e sem GRANT de escrita desde a
+ * migration de congelamento). A aba lia de lá e por isso vinha vazia para todo
+ * mundo, inclusive para paciente com parcela de contrato aprovado em aberto.
+ */
+export async function listPatientReceivables(patientId: string): Promise<Receivable[]> {
+  const { data, error } = await supabase
+    .from('receivable').select(RECEIVABLE_COLS)
+    .eq('clinic_id', clinic()).eq('patient_id', patientId)
+    .order('due_date')
   if (error) throw error
+  return (data as ReceivableRow[]).map(toReceivable)
+}
+
+// NÃO existe addReceivable avulso: título a receber nunca nasce digitado à mão —
+// vem do aceite do orçamento (quotesService.approveQuote gera as parcelas) ou do
+// faturamento do procedimento (billTreatmentSession, logo abaixo).
+
+// ── A faturar: procedimento executado que ninguém cobrou ─────────────────────
+/**
+ * Mora aqui, e não em treatmentsService, porque a pergunta é FINANCEIRA ("o que
+ * a clínica produziu e não cobrou?") e a porta é a feature 'finance'. As duas
+ * RPCs são SECURITY DEFINER porque cruzam prontuário × financeiro: sem elas o
+ * usuário do Financeiro precisaria de acesso ao prontuário inteiro para ver uma
+ * lista de valores em aberto.
+ *
+ * O FILTRO POR CLÍNICA É NOSSO, e não da RPC, de propósito: `unbilled_sessions`
+ * devolve TODAS as clínicas em que o usuário tem vínculo ativo
+ * (`clinic_id = any(private.auth_clinic_ids())`), que é o mesmo recorte das
+ * policies. Só que o resto do app — inclusive todas as outras listas deste
+ * arquivo — trabalha na clínica CORRENTE (`getCurrentClinicId()`, resolvida por
+ * `my_session()`). Sem este filtro, um usuário com vínculo em duas clínicas
+ * veria na tela da clínica A o nome e o valor do paciente da clínica B, e o
+ * botão "Faturar" geraria o título NA CLÍNICA B sem erro nenhum — a RPC
+ * `bill_treatment_session` confere o vínculo com a clínica DA SESSÃO, e ele
+ * existe. `clinic_user` tem UNIQUE (clinic_id, user_id), ou seja, o segundo
+ * vínculo é permitido hoje; hoje ninguém tem dois, e é por isso que a falha
+ * seria silenciosa até o primeiro dono com duas unidades.
+ */
+export async function listUnbilledSessions(): Promise<UnbilledSession[]> {
+  const { data, error } = await supabase.rpc('unbilled_sessions')
+  if (error) throw error
+  const current = clinic()
+  return (data ?? []).filter(r => r.clinic_id === current).map(r => ({
+    id: r.id,
+    clinicId: r.clinic_id,
+    patientId: r.patient_id,
+    patientName: r.patient_name,
+    hasInsurance: r.has_insurance,
+    pendingQuoteCode: r.pending_quote_code ?? undefined,
+    treatmentId: r.treatment_id,
+    treatmentName: r.treatment_name,
+    description: r.description,
+    date: isoToBrDate(r.performed_on) ?? '',
+    professionalId: r.professional_id ?? undefined,
+    amount: Number(r.amount),
+  }))
+}
+
+/** Decisão tomada na aba "A faturar" sobre um procedimento parado. */
+export interface BillSessionInput {
+  dueDate?: string        // dd/mm/aaaa
+  /** Preenchido = cortesia/garantia: não gera título, mas registra o motivo. */
+  notBillableReason?: string
+  /**
+   * Cobrar assim mesmo — decisão humana e explícita. Vale para os DOIS desvios
+   * da escada que existem para não cobrar ninguém automaticamente: paciente de
+   * convênio e procedimento segurado por um contrato JÁ QUITADO. Nunca vence o
+   * 'covered' (contrato com saldo em aberto): ali a dívida está viva e cobrar
+   * de novo é cobrar duas vezes.
+   */
+  chargeAnyway?: boolean
+}
+export async function billTreatmentSession(sessionId: string, input: BillSessionInput): Promise<SessionBillingStatus> {
+  const { data, error } = await supabase.rpc('bill_treatment_session', {
+    p_session: sessionId,
+    p_due_date: brToIsoDate(input.dueDate) ?? undefined,
+    p_not_billable_reason: input.notBillableReason?.trim() || undefined,
+    p_charge_anyway: input.chargeAnyway ?? false,
+  })
+  if (error) throw error
+  return data as SessionBillingStatus
 }
 
 // ── Contas bancárias ─────────────────────────────────────────────────────────
@@ -240,20 +277,50 @@ export async function settlePayable(id: string, s: SettlementInput): Promise<voi
   if (error) throw error
 }
 
+/**
+ * A FORMA DE PAGAMENTO NÃO SE REESCREVE NA BAIXA.
+ *
+ * Dois estragos, os dois reais e os dois deste jeitinho `method: s.method ?? null`:
+ *
+ *  1. TÍTULO DE CARTÃO. Ele nasceu com a forma da VENDA e o CHECK
+ *     `receivable_acquirer_is_card_ck` (acquirer_id null OR method null OR method
+ *     in credit/debit) RECUSA trocá-la por pix/dinheiro/boleto. Como o
+ *     PaymentModal abre com 'cash' selecionado, dar baixa numa parcela de
+ *     maquininha pela aba Contas a Receber estourava
+ *     "violates check constraint receivable_acquirer_is_card_ck" na cara do
+ *     usuário — e na baixa em LOTE, que atualiza uma linha por vez sem
+ *     transação, o lote parava no meio, deixando parte baixada e parte não.
+ *  2. SEM FORMA ESCOLHIDA. O SettleModal e o "Confirmar repasse" da Conciliação
+ *     mandam `method` vazio; gravar null APAGAVA a forma que o título já tinha.
+ *     Um crédito que perde o `method` nunca mais é baixado sozinho — a rotina
+ *     private.settle_card_receivables filtra `method = 'credit'`.
+ *
+ * Regra: título com adquirente mantém a forma da venda, sempre; sem adquirente,
+ * só grava quando o usuário de fato escolheu uma.
+ */
+function methodPatch(s: { method?: PaymentMethod }, acquirerId: string | null): { method?: PaymentMethod } {
+  if (acquirerId || !s.method) return {}
+  return { method: s.method }
+}
+
+/**
+ * Baixa via RPC ATÔMICA `settle_receivable`: o incremento de `received_amount`
+ * é uma única UPDATE no banco. Antes era read-modify-write no cliente (lê o
+ * recebido, soma, grava), e duas baixas parciais simultâneas se sobrescreviam —
+ * a segunda partia do valor ANTES da primeira. A regra da forma da venda
+ * (não reescrever no cartão; só gravar quando o usuário escolheu) mora agora
+ * dentro da função (ver methodPatch, ainda usado na baixa em lote).
+ */
 export async function settleReceivable(id: string, s: SettlementInput): Promise<void> {
-  const { data, error } = await supabase
-    .from('receivable').select('received_amount, net_amount').eq('id', id).single()
+  const { error } = await supabase.rpc('settle_receivable', {
+    p_id: id,
+    p_amount: s.amount,
+    p_date: brToIsoDate(s.date),
+    p_method: s.method ?? null,
+    p_bank: s.bankAccountId ?? null,
+    p_notes: s.notes ?? null,
+  })
   if (error) throw error
-  const totalReceived = Number(data.received_amount ?? 0) + s.amount
-  const settled = totalReceived >= Number(data.net_amount) - 0.001
-  // CHECK receivable_received_requires_date_ck: com received_amount > 0, received_at
-  // é OBRIGATÓRIO — carimba-se a data em QUALQUER recebimento (parcial ou total).
-  const { error: upError } = await supabase.from('receivable').update({
-    status: settled ? 'paid' : 'pending', received_at: brToIsoDate(s.date),
-    method: s.method ?? null, bank_account_id: s.bankAccountId ?? null, received_amount: totalReceived,
-    ...(s.notes ? { notes: s.notes } : {}),
-  }).eq('id', id)
-  if (upError) throw upError
 }
 
 function formatBRLPlain(n: number) {
@@ -273,12 +340,21 @@ export async function reversePayable(id: string): Promise<void> {
 }
 
 export async function reverseReceivable(id: string): Promise<void> {
-  const { data, error } = await supabase.from('receivable').select('status, due_date, received_amount, notes').eq('id', id).single()
+  const { data, error } = await supabase.from('receivable').select('status, due_date, received_amount, notes, acquirer_id').eq('id', id).single()
   if (error) throw error
   if (data.status !== 'paid' && !data.received_amount) return
   const trail = `Recebimento de ${formatBRLPlain(Number(data.received_amount ?? 0))} estornado em ${new Date().toLocaleDateString('pt-BR')}.`
+  // Estorno de título de CARTÃO volta para 'pending', nunca 'overdue': quem deve
+  // é a adquirente, e o CHECK receivable_acquirer_never_overdue_ck recusaria o
+  // UPDATE inteiro — o estorno falharia em vez de estornar.
+  const reopened = data.acquirer_id ? 'pending' : openStatusIso(data.due_date)
   const { error: upError } = await supabase.from('receivable').update({
-    status: openStatusIso(data.due_date), received_at: null, bank_account_id: null, received_amount: 0,
+    status: reopened, received_at: null, bank_account_id: null, received_amount: 0,
+    // Estornar um repasse de cartão é dizer "este dinheiro NÃO caiu". Sem esta
+    // marca a rotina diária o encontrava de novo (pending, sem recebimento, com
+    // a data já passada) e rebaixava tudo na madrugada seguinte — o sistema
+    // desfazendo, todo dia, a conferência que o humano fez no extrato.
+    ...(data.acquirer_id ? { auto_settle_blocked: true } : {}),
     notes: data.notes ? `${data.notes} · ${trail}` : trail,
   }).eq('id', id)
   if (upError) throw upError
@@ -290,13 +366,16 @@ export interface BatchSettlementInput {
 export async function settleReceivablesBatch(ids: string[], s: BatchSettlementInput): Promise<number> {
   if (ids.length === 0) return 0
   const { data, error } = await supabase
-    .from('receivable').select('id, status, net_amount').in('id', ids)
+    .from('receivable').select('id, status, net_amount, acquirer_id').in('id', ids)
   if (error) throw error
   let settled = 0
   for (const row of data ?? []) {
     if (row.status === 'paid' || row.status === 'canceled') continue
+    // Mesma regra da baixa avulsa (ver methodPatch): o lote da Conciliação vem
+    // SEM forma, e gravar null aqui apagaria o 'credit' de cada parcela — que é
+    // justamente o que faz a rotina diária reconhecê-la como cartão.
     const { error: upError } = await supabase.from('receivable').update({
-      status: 'paid', received_at: brToIsoDate(s.date), method: s.method ?? null,
+      status: 'paid', received_at: brToIsoDate(s.date), ...methodPatch(s, row.acquirer_id),
       bank_account_id: s.bankAccountId ?? null, received_amount: Number(row.net_amount),
       ...(s.notes ? { notes: s.notes } : {}),
     }).eq('id', row.id as string)
@@ -315,46 +394,10 @@ export async function cancelReceivable(id: string): Promise<void> {
   if (error) throw error
 }
 
-// ── Sessão do caixa ──────────────────────────────────────────────────────────
-export async function getCashSession(): Promise<CashSession> {
-  const { data, error } = await supabase
-    .from('cash_session')
-    .select('operator_name, opened_at, opening_amount, closed_at')
-    .eq('clinic_id', clinic())
-    .order('opened_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (error) throw error
-  if (!data || data.closed_at) return { isOpen: false, openingAmount: 0 }
-  return {
-    isOpen: true,
-    operator: data.operator_name ?? undefined,
-    openedAt: fmtDateTime(data.opened_at),
-    openingAmount: Number(data.opening_amount),
-  }
-}
-
-export async function openCash(openingAmount: number): Promise<void> {
-  const { data: userData } = await supabase.auth.getUser()
-  const userId = userData.user?.id
-  let operator = 'Operador'
-  if (userId) {
-    const { data: prof } = await supabase.from('profile').select('full_name').eq('id', userId).maybeSingle()
-    operator = prof?.full_name ?? operator
-  }
-  const { error } = await supabase.from('cash_session').insert({
-    clinic_id: clinic(), opened_by: userId ?? null, operator_name: operator, opening_amount: openingAmount,
-  })
-  if (error) throw error
-}
-
-export async function closeCash(): Promise<void> {
-  const { data: userData } = await supabase.auth.getUser()
-  const { error } = await supabase.from('cash_session')
-    .update({ closed_at: new Date().toISOString(), closed_by: userData.user?.id ?? null })
-    .eq('clinic_id', clinic()).is('closed_at', null)
-  if (error) throw error
-}
+// NÃO existe sessão de caixa (abrir/fechar): a aba foi removida — conferência
+// diária, se voltar, será um RELATÓRIO sobre as baixas (modelo Simples Dental),
+// não um ritual de sessão. As tabelas cash_session/cash_movement seguem no
+// banco, inertes, até uma limpeza de schema.
 
 // ── CRUD de contas bancárias e adquirentes ───────────────────────────────────
 export type EditBankAccount = ClientPayload<BankAccount>

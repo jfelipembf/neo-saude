@@ -8,7 +8,7 @@ import { Select } from '@/components/Select/Select'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { useToast } from '@/components/Toast/useToast'
 import { SCHEDULE_TAGS } from '@/constants'
-import { useCreateScheduleSlot, useUpdateScheduleSlot } from '@/hooks/useSchedule'
+import { useCreateAgendaAppointment, useUpdateAgendaAppointment } from '@/hooks/useSchedule'
 import { usePatients } from '@/hooks/usePatients'
 import { useProfessionals } from '@/hooks/useProfessionals'
 import { useRooms } from '@/hooks/useRooms'
@@ -16,25 +16,13 @@ import { usePatientName } from '@/hooks/useDisplayNames'
 import { toIsoDate } from '@/utils/date'
 import { digitsOnly } from '@/utils/text'
 import { IconPhone, IconX } from '@/components/icons'
-import type { ScheduleSlot } from '@/types/domain'
+import type { AgendaAppointment } from '@/types/domain'
 import styles from './AppointmentModal.module.scss'
 
 const CONFIRMATION_OPTIONS = [
   { value: 'yes', label: 'Sim' },
   { value: 'no', label: 'Não' },
 ] as const
-
-/** 'aaaa-mm-dd' → Date LOCAL (new Date(iso) escorregaria um dia no fuso BR). */
-function localDate(iso: string) {
-  const [year, month, day] = iso.split('-').map(Number)
-  return new Date(year, month - 1, day)
-}
-
-/** Data (nesta semana) do dia da semana da sessão — preenche o input date na edição. */
-function dateForWeekday(weekday: number) {
-  const today = new Date()
-  return toIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() + weekday))
-}
 
 /** '07:30' + 30 → '08:00'. */
 function addMinutes(hhmm: string, minutes: number) {
@@ -61,8 +49,8 @@ function activityColor(activity: string) {
 interface AppointmentModalProps {
   open: boolean
   onClose: () => void
-  /** Sessão em edição — sem ela, o modal cria um agendamento novo. */
-  slot?: ScheduleSlot | null
+  /** Consulta em edição — sem ela, o modal cria um agendamento novo. */
+  slot?: AgendaAppointment | null
 }
 
 /**
@@ -75,8 +63,8 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
   const { data: professionals } = useProfessionals()
   const { data: patients } = usePatients()
   const { data: rooms } = useRooms()
-  const { mutate: create, isPending: creating } = useCreateScheduleSlot()
-  const { mutate: update, isPending: saving } = useUpdateScheduleSlot()
+  const { mutate: create, isPending: creating } = useCreateAgendaAppointment()
+  const { mutate: update, isPending: saving } = useUpdateAgendaAppointment()
 
   const patientName = usePatientName()
   const [professionalId, setProfessionalId] = useState('')
@@ -107,7 +95,7 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
       if (slot) {
         setProfessionalId(slot.professionalId)
         setPatientSearch(patientName(slot.patientId))
-        setDateIso(dateForWeekday(slot.weekday))
+        setDateIso(slot.date)
         setTime(slot.startTime)
         setDuration(String(durationBetween(slot.startTime, slot.endTime)))
         setRoom(slot.room ?? '')
@@ -144,16 +132,16 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
 
   const currentPatient = (patients ?? []).find(p => p.name === patientSearch.trim())
 
-  /** Monta o payload da sessão com um status específico. */
-  function buildPayload(status: ScheduleSlot['status']) {
+  /** Monta o payload da consulta com um status específico. */
+  function buildPayload(status: AgendaAppointment['status']) {
     // A atividade (e a cor do card) vem da especialidade do profissional —
-    // na edição, mantém a atividade que a sessão já tinha.
+    // na edição, mantém a atividade que a consulta já tinha.
     const specialty = (professionals ?? []).find(p => p.id === professionalId)?.specialty
     const activity = slot?.activity ?? specialty ?? 'Consulta'
     return {
       patientId: currentPatient!.id,
       activity,
-      weekday: localDate(dateIso).getDay(),
+      date: dateIso,
       startTime: time,
       endTime: addMinutes(time, Number(duration) || 30),
       professionalId,
@@ -182,7 +170,7 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
     }
 
     // Salvar mantém o status atual (reativa se estava cancelada e editou).
-    const payload = buildPayload(slot?.status ?? 'active')
+    const payload = buildPayload(slot?.status ?? 'scheduled')
     const options = {
       onSuccess: () => {
         toast.success(slot ? 'Agendamento atualizado!' : 'Consulta agendada!')
@@ -212,7 +200,7 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
   function reactivateAppointment() {
     if (!slot) return
     update(
-      { id: slot.id, payload: buildPayload('active') },
+      { id: slot.id, payload: buildPayload('scheduled') },
       {
         onSuccess: () => {
           toast.success('Consulta reativada!')

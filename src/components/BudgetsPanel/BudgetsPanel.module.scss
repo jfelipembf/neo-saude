@@ -41,6 +41,10 @@
   align-items: center;
   gap: $sp-3;
   flex-shrink: 0;
+
+  @include phone {
+    flex-wrap: wrap;
+  }
 }
 
 .acoesRodape {
@@ -109,6 +113,70 @@
   display: flex;
   flex-wrap: wrap;
   gap: $sp-1;
+}
+
+// Odontograma: grid 2×2 de quadrantes espelhando a boca vista de frente —
+// coluna esquerda = lado DIREITO do paciente, dentes alinhados à linha média.
+.grupoDentes {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+}
+
+.grupoRotulo {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.odontograma {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-2;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.quadrante {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  padding: $sp-2;
+  border: 1px dashed var(--glass-border);
+  border-radius: $radius-md;
+}
+
+.quadranteTitulo {
+  @include focus-ring;
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-family: inherit;
+  font-size: $fs-xs;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+
+  &:hover { color: var(--primary-fg); }
+}
+
+.quadranteDentes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-1;
+}
+
+// Lado direito do paciente: título e dentes encostam na linha média (centro do grid).
+.quadranteDireito {
+  .quadranteTitulo { align-self: flex-end; }
+  .quadranteDentes { justify-content: flex-end; }
+
+  @include phone {
+    .quadranteTitulo { align-self: flex-start; }
+    .quadranteDentes { justify-content: flex-start; }
+  }
 }
 
 .dente,

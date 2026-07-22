@@ -12,13 +12,18 @@ import styles from './ProfileMenu.module.scss'
  *  menu de perfil (meu perfil · configurações · sair). */
 export function ProfileMenu() {
   const navigate = useNavigate()
-  const { signOut } = useSession()
+  const { signOut, canView } = useSession()
   const { data: user } = useCurrentUser()
 
   const [open, setOpen] = useState(false)
   const ref = useOutsideClick<HTMLDivElement>(() => setOpen(false), open)
 
   if (!user) return null
+
+  // "Configurações" é gated pela feature settings; "Meu perfil" só aparece se
+  // leva a algum lugar (perfil de profissional OU a página de configurações).
+  const canSettings = canView('settings')
+  const showProfile = Boolean(user.professionalId) || canSettings
 
   const avatar = user.photo
     ? <img src={user.photo} alt="" className={styles.avatarImg} />
@@ -65,20 +70,24 @@ export function ProfileMenu() {
           </div>
 
           <div className={styles.menuLista}>
-            <button type="button" className={styles.item} role="menuitem" onClick={goToProfile}>
-              <IconUser />
-              Meu perfil
-            </button>
+            {showProfile && (
+              <button type="button" className={styles.item} role="menuitem" onClick={goToProfile}>
+                <IconUser />
+                Meu perfil
+              </button>
+            )}
 
-            <NavLink
-              to={APP_ROUTES.SETTINGS}
-              className={styles.item}
-              role="menuitem"
-              onClick={() => setOpen(false)}
-            >
-              <IconSettings />
-              Configurações
-            </NavLink>
+            {canSettings && (
+              <NavLink
+                to={APP_ROUTES.SETTINGS}
+                className={styles.item}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+              >
+                <IconSettings />
+                Configurações
+              </NavLink>
+            )}
 
             <button
               type="button"

@@ -1,0 +1,21 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CONSERTO IMEDIATO DA MIGRATION ANTERIOR (não editar migration aplicada).
+--
+-- treatment_session não tem GRANT de tabela para `authenticated`: tem grant POR
+-- COLUNA (INSERT em clinic_id, treatment_id, description, performed_on,
+-- professional_id, amount, notes). Isso é proposital — billing_status,
+-- receivable_id e quote_id só podem ser escritos pela função DEFINER que decide
+-- o dinheiro.
+--
+-- Só que public.record_treatment_session é SECURITY INVOKER: ela grava com os
+-- privilégios do usuário logado. Ao passar a inserir `client_token` sem o grant
+-- da coluna, TODO salvamento de procedimento morreria com "permission denied
+-- for column client_token" — a RPC inteira, não só a idempotência.
+--
+-- client_token é escrita legítima do cliente (é a chave de idempotência que ele
+-- gera), então entra na mesma lista das outras colunas do editor.
+-- ─────────────────────────────────────────────────────────────────────────────
+grant insert (client_token) on public.treatment_session to authenticated;
+
+-- UPDATE de propósito NÃO é concedido: reescrever o token de um procedimento já
+-- gravado transformaria a trava de retentativa em porta de duplicação.

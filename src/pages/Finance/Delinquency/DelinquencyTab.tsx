@@ -45,7 +45,18 @@ export function DelinquencyTab() {
   const billingTemplate = automations?.find(a => a.trigger === 'billing')?.message
     ?? 'Olá, {paciente}. Consta um saldo em aberto de {valor}, com vencimento em {data}.'
 
-  const overdue = (receivables ?? []).filter(r => r.status === 'overdue' && r.patientId)
+  /**
+   * 🚨 `debtor === 'payer'` é a trava do cartão NESTA TELA, e ela é cinto por
+   * cima do suspensório: o CHECK receivable_acquirer_never_overdue_ck já impede
+   * que um título de maquininha fique 'overdue', e a rotina diária pula esses
+   * títulos. Mesmo assim o filtro está escrito aqui, porque esta é a tela que
+   * dispara mensagem de cobrança para o paciente — e cobrar alguém por uma
+   * venda que a adquirente já garantiu não é um bug de listagem, é o cliente
+   * do nosso cliente sendo constrangido por uma dívida que ele não tem.
+   */
+  const overdue = (receivables ?? []).filter(
+    r => r.status === 'overdue' && r.debtor === 'payer' && r.patientId,
+  )
 
   const groups = new Map<string, DebtorGroup>()
   for (const r of overdue) {

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Badge } from '@/components/Badge/Badge'
+import { ApproveQuoteDialog } from '@/components/BudgetsPanel/ApproveQuoteDialog'
 import { Button } from '@/components/Button/Button'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { Input } from '@/components/Input/Input'
@@ -15,23 +16,47 @@ import { useToast } from '@/components/Toast/useToast'
 import { usePagination } from '@/hooks/usePagination'
 import { useInsuranceOptions } from '@/hooks/useInsurances'
 import { usePatientQuotes, useCreateQuote, useApproveQuote } from '@/hooks/useQuotes'
+import { usePatientReceivables } from '@/hooks/useFinance'
 import type { NewQuote } from '@/services/quotesService'
 import { useProfessionals } from '@/hooks/useProfessionals'
 import { useProfessionalName } from '@/hooks/useDisplayNames'
 import { useClinic } from '@/hooks/useClinic'
 import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { esc } from '@/utils/printDocument'
-import { toIsoDate } from '@/utils/date'
+import { isoToBrDate, toIsoDate } from '@/utils/date'
 import { formatBRL, parseBRL } from '@/utils/format'
+import { PAYMENT_METHOD_LABEL } from '@/constants/payments'
 import { IconPlus, IconX, IconCheck, IconPrint, IconDocument } from '@/components/icons'
-import type { QuoteItem, Quote, QuoteStatus } from '@/types/domain'
+import type { PaymentPlanEntry, QuoteItem, Quote, QuoteStatus } from '@/types/domain'
 import styles from './BudgetsPanel.module.scss'
 
-// Dentes FDI: permanentes em cima, decíduos embaixo (mesma ordem da ficha).
-const UPPER_TEETH = ['18', '17', '16', '15', '14', '13', '12', '11', '21', '22', '23', '24', '25', '26', '27', '28']
-const LOWER_TEETH = ['48', '47', '46', '45', '44', '43', '42', '41', '31', '32', '33', '34', '35', '36', '37', '38']
-const UPPER_DECIDUOUS = ['55', '54', '53', '52', '51', '61', '62', '63', '64', '65']
-const LOWER_DECIDUOUS = ['85', '84', '83', '82', '81', '71', '72', '73', '74', '75']
+// Quadrantes FDI, na ordem em que aparecem no grid 2×2 (espelho da boca vista
+// de frente): superiores em cima (1º | 2º), inferiores embaixo (4º | 3º).
+interface Quadrant {
+  number: number
+  label: string
+  /** Coluna esquerda do grid = lado direito do paciente (dentes alinhados à linha média). */
+  rightSide: boolean
+  teeth: string[]
+}
+
+const PERMANENT_QUADRANTS: Quadrant[] = [
+  { number: 1, label: '1º quadrante · Superior direito', rightSide: true, teeth: ['18', '17', '16', '15', '14', '13', '12', '11'] },
+  { number: 2, label: '2º quadrante · Superior esquerdo', rightSide: false, teeth: ['21', '22', '23', '24', '25', '26', '27', '28'] },
+  { number: 4, label: '4º quadrante · Inferior direito', rightSide: true, teeth: ['48', '47', '46', '45', '44', '43', '42', '41'] },
+  { number: 3, label: '3º quadrante · Inferior esquerdo', rightSide: false, teeth: ['31', '32', '33', '34', '35', '36', '37', '38'] },
+]
+
+const DECIDUOUS_QUADRANTS: Quadrant[] = [
+  { number: 5, label: '5º quadrante · Superior direito', rightSide: true, teeth: ['55', '54', '53', '52', '51'] },
+  { number: 6, label: '6º quadrante · Superior esquerdo', rightSide: false, teeth: ['61', '62', '63', '64', '65'] },
+  { number: 8, label: '8º quadrante · Inferior direito', rightSide: true, teeth: ['85', '84', '83', '82', '81'] },
+  { number: 7, label: '7º quadrante · Inferior esquerdo', rightSide: false, teeth: ['71', '72', '73', '74', '75'] },
+]
+
+// Arcadas permanentes (atalhos): superior = 1º + 2º, inferior = 4º + 3º.
+const UPPER_TEETH = PERMANENT_QUADRANTS.filter(q => q.number <= 2).flatMap(q => q.teeth)
+const LOWER_TEETH = PERMANENT_QUADRANTS.filter(q => q.number >= 3).flatMap(q => q.teeth)
 
 const FACES = ['M', 'O/I', 'D', 'V/L', 'P']
 
@@ -49,9 +74,20 @@ function quoteBody(
   clinicName: string,
   professionalName: (id?: string) => string,
   patientName?: string,
+  plan?: PaymentPlanEntry[],
 ) {
   const { subtotal, total } = totalsOf(quote)
   const approved = quote.status === 'approved'
+
+  // Com plano (definido no aceite), o contrato imprime as condições REAIS —
+  // forma a forma; sem plano, cai na simulação de parcelamento do orçamento.
+  const paymentLines = plan?.length
+    ? plan.map(e => `${PAYMENT_METHOD_LABEL[e.method]} — ${
+        e.installments > 1 ? `${e.installments}x de ${formatBRL(e.amount / e.installments)}` : formatBRL(e.amount)
+      }, 1º venc. ${isoToBrDate(e.firstDueDate) ?? e.firstDueDate}`).join('<br>')
+    : quote.installments && quote.installments > 1
+      ? `Pagamento em ${quote.installments}x de ${formatBRL(total / quote.installments)}`
+      : 'Pagamento à vista'
   const rows = quote.items.map(i => `
     <tr>
       <td>${esc(i.treatment)}${i.teeth?.length ? `<br><small>Dente(s): ${esc(i.teeth.join(', '))}${i.faces?.length ? ` · Face(s): ${esc(i.faces.join(', '))}` : ''}</small>` : ''}</td>
@@ -70,9 +106,7 @@ function quoteBody(
       Subtotal: ${formatBRL(subtotal)}<br>
       ${quote.discount ? `Desconto: −${formatBRL(quote.discount)}<br>` : ''}
       <strong>Total: ${formatBRL(total)}</strong><br>
-      ${quote.installments && quote.installments > 1
-        ? `Pagamento em ${quote.installments}x de ${formatBRL(total / quote.installments)}`
-        : 'Pagamento à vista'}
+      ${paymentLines}
     </div>
     ${quote.notes ? `<p class="clausula"><strong>Observações:</strong> ${esc(quote.notes)}</p>` : ''}
     ${approved ? `<p class="clausula">Pelo presente instrumento, as partes acordam a execução dos tratamentos
@@ -97,23 +131,40 @@ export function BudgetsPanel({ patientId, patientName }: BudgetsPanelProps) {
   const { data: professionals } = useProfessionals()
   const professionalName = useProfessionalName()
   const { mutate: create, isPending: creating } = useCreateQuote()
-  const { mutate: approve } = useApproveQuote()
+  const { mutate: approve, isPending: approving } = useApproveQuote()
+  // Procedimentos avulsos AINDA EM ABERTO do paciente — para avisar, na
+  // aprovação, sobre risco de cobrar em duplicidade (item 3).
+  const { data: patientReceivables } = usePatientReceivables(patientId)
+  const openProcedureCharges = (patientReceivables ?? [])
+    .filter(r => r.source === 'Procedimentos' && (r.status === 'pending' || r.status === 'overdue'))
+    .map(r => ({ description: r.description, amount: r.grossAmount, dueDate: r.dueDate }))
+  // Aprovar pelo editor são DOIS passos (criar + aprovar): os botões só
+  // destravam quando o segundo termina.
+  const saving = creating || approving
   const { data: clinic } = useClinic()
   const print = usePrintDocument()
   const insuranceOptions = useInsuranceOptions()
 
-  /** Orçamento aprovado vira contrato — muda título e adiciona as assinaturas. */
-  function printQuote(o: NewQuote) {
+  /** Orçamento aprovado vira contrato — muda título e adiciona as assinaturas.
+   *  `plan` (quando o aceite acabou de acontecer) imprime as condições reais. */
+  function printQuote(o: NewQuote, plan?: PaymentPlanEntry[]) {
     const approved = o.status === 'approved'
     print({
       title: approved ? 'Contrato de prestação de serviços' : 'Orçamento',
       subtitle: o.name,
-      body: quoteBody(o, clinic?.name ?? 'a contratada', professionalName, patientName),
+      body: quoteBody(o, clinic?.name ?? 'a contratada', professionalName, patientName, plan),
       width: 680,
     })
   }
 
   const [mode, setMode] = useState<'list' | 'new'>('list')
+
+  // Qual botão do editor disparou o salvamento — o spinner aparece SÓ nele.
+  const [editorAction, setEditorAction] = useState<'save' | 'approve' | null>(null)
+  // Orçamento aguardando o passo de condições de pagamento (diálogo da lista).
+  const [toApprove, setToApprove] = useState<Quote | null>(null)
+  // Diálogo de condições aberto a partir do EDITOR ("Aprovar orçamento").
+  const [editorApproveOpen, setEditorApproveOpen] = useState(false)
 
   // Cabeçalho do orçamento.
   const [name, setName] = useState('')
@@ -176,8 +227,8 @@ export function BudgetsPanel({ patientId, patientName }: BudgetsPanelProps) {
     setSelectedFaces(current => (current.includes(f) ? current.filter(x => x !== f) : [...current, f]))
   }
 
-  // Arcada inteira: se já está toda marcada, desmarca; senão completa.
-  function toggleArch(teeth: string[]) {
+  // Grupo inteiro (quadrante ou arcada): se já está todo marcado, desmarca; senão completa.
+  function toggleGroup(teeth: string[]) {
     setSelectedTeeth(current => {
       const all = teeth.every(d => current.includes(d))
       if (all) return current.filter(d => !teeth.includes(d))
@@ -213,7 +264,20 @@ export function BudgetsPanel({ patientId, patientName }: BudgetsPanelProps) {
     clearDraftItem()
   }
 
-  function save(status: QuoteStatus) {
+  /** Valida o rascunho e abre o passo de condições de pagamento do editor. */
+  function requestApprove() {
+    if (!name.trim()) {
+      setNameError('Dê um nome ao orçamento.')
+      return
+    }
+    if (items.length === 0) {
+      setItemError('Adicione ao menos um tratamento ao orçamento.')
+      return
+    }
+    setEditorApproveOpen(true)
+  }
+
+  function save(status: QuoteStatus, plan?: PaymentPlanEntry[]) {
     if (!name.trim()) {
       setNameError('Dê um nome ao orçamento.')
       return
@@ -223,23 +287,46 @@ export function BudgetsPanel({ patientId, patientName }: BudgetsPanelProps) {
       return
     }
     const discount = parseBRL(discountText || '0')
+    // O orçamento NASCE SEMPRE 'pending'. Aprovar é o mesmo caminho do botão da
+    // lista — `approveQuote` —, porque é ele (e só ele) que gera as parcelas em
+    // Contas a Receber. Gravar 'approved' direto no insert deixava o contrato
+    // aprovado e SEM cobrança, sem volta: quote_status não retrocede e o botão
+    // "Aprovar" da lista só aparece em 'pending'.
     const payload = {
       patientId,
       name: name.trim(),
       date: dateIso.split('-').reverse().join('/'),
-      status,
+      status: 'pending' as QuoteStatus,
       items,
       discount: Number.isFinite(discount) && discount > 0 ? discount : undefined,
       installments: Number(installments) || 1,
       notes: notes.trim() || undefined,
     }
+    const approveAfter = status === 'approved'
+    setEditorAction(approveAfter ? 'approve' : 'save')
+
     create(payload, {
-      onSuccess: () => {
-        toast.success(status === 'approved' ? 'Orçamento aprovado — contrato gerado!' : 'Orçamento salvo!')
-        if (status === 'approved') {
-          printQuote(payload)
+      onSuccess: id => {
+        if (!approveAfter) {
+          toast.success('Orçamento salvo!')
+          setMode('list')
+          return
         }
-        setMode('list')
+        // Só aqui o contrato existe de verdade: o toast e a impressão esperam as
+        // parcelas. Se a geração falhar, o texto NÃO pode dizer que gerou.
+        approve({ id, plan }, {
+          onSuccess: () => {
+            toast.success('Orçamento aprovado — contrato gerado!')
+            printQuote({ ...payload, status: 'approved' }, plan)
+            setEditorApproveOpen(false)
+            setMode('list')
+          },
+          onError: () => {
+            toast.error('Orçamento salvo, mas as parcelas não foram geradas. Aprove pela lista para gerar o contrato.')
+            setEditorApproveOpen(false)
+            setMode('list')
+          },
+        })
       },
     })
   }
@@ -278,7 +365,7 @@ export function BudgetsPanel({ patientId, patientName }: BudgetsPanelProps) {
                 iconLeft={<IconCheck />}
                 title="Aprovar orçamento"
                 aria-label={`Aprovar ${o.name}`}
-                onClick={() => approve(o.id, { onSuccess: () => toast.success('Orçamento aprovado!') })}
+                onClick={() => setToApprove(o)}
               />
             )}
             <Button
@@ -365,6 +452,28 @@ export function BudgetsPanel({ patientId, patientName }: BudgetsPanelProps) {
             }
           />
         )}
+
+        {/* Aprovar é irreversível (gera contrato + parcelas) — o aceite define
+            AQUI as condições reais: forma(s), valores, parcelas e vencimentos. */}
+        <ApproveQuoteDialog
+          open={toApprove !== null}
+          onClose={() => setToApprove(null)}
+          quoteName={toApprove?.name ?? ''}
+          total={toApprove ? totalsOf(toApprove).total : 0}
+          defaultInstallments={toApprove?.installments}
+          approving={approving}
+          openProcedureCharges={openProcedureCharges}
+          onConfirm={plan => {
+            if (!toApprove) return
+            approve({ id: toApprove.id, plan }, {
+              onSuccess: () => {
+                toast.success('Orçamento aprovado — parcelas geradas em Contas a Receber!')
+                setToApprove(null)
+              },
+              onError: () => toast.error('Não foi possível aprovar o orçamento. Tente novamente.'),
+            })
+          }}
+        />
       </div>
     )
   }
@@ -376,9 +485,9 @@ export function BudgetsPanel({ patientId, patientName }: BudgetsPanelProps) {
         <header className={styles.cabecalho}>
           <h2 className={styles.cabecalhoTitulo}>Criar orçamento</h2>
           <div className={styles.acoesTopo}>
-            <Button variant="ghost" onClick={() => setMode('list')} disabled={creating}>Cancelar</Button>
-            <Button variant="outline" onClick={() => save('pending')} loading={creating}>Salvar</Button>
-            <Button onClick={() => save('approved')} loading={creating}>Aprovar orçamento</Button>
+            <Button variant="ghost" onClick={() => setMode('list')} disabled={saving}>Cancelar</Button>
+            <Button variant="outline" onClick={() => save('pending')} loading={saving && editorAction === 'save'} disabled={saving}>Salvar</Button>
+            <Button onClick={requestApprove} loading={saving && editorAction === 'approve'} disabled={saving}>Aprovar orçamento</Button>
           </div>
         </header>
 
@@ -429,24 +538,45 @@ export function BudgetsPanel({ patientId, patientName }: BudgetsPanelProps) {
 
         <div className={styles.selecao}>
           <span className={styles.selecaoRotulo}>Dente(s)</span>
-          {[UPPER_TEETH, LOWER_TEETH, UPPER_DECIDUOUS, LOWER_DECIDUOUS].map((row, i) => (
-            <div key={i} className={styles.dentesLinha}>
-              {row.map(d => (
-                <button
-                  key={d}
-                  type="button"
-                  className={`${styles.dente} ${selectedTeeth.includes(d) ? styles.denteAtivo : ''}`}
-                  aria-pressed={selectedTeeth.includes(d)}
-                  onClick={() => toggleTooth(d)}
-                >
-                  {d}
-                </button>
-              ))}
+          {[
+            { label: 'Permanentes', quadrants: PERMANENT_QUADRANTS },
+            { label: 'Decíduos (dentes de leite)', quadrants: DECIDUOUS_QUADRANTS },
+          ].map(group => (
+            <div key={group.label} className={styles.grupoDentes}>
+              <span className={styles.grupoRotulo}>{group.label}</span>
+              <div className={styles.odontograma}>
+                {group.quadrants.map(q => (
+                  <div key={q.number} className={`${styles.quadrante} ${q.rightSide ? styles.quadranteDireito : ''}`}>
+                    <button
+                      type="button"
+                      className={styles.quadranteTitulo}
+                      title="Marcar/desmarcar o quadrante inteiro"
+                      aria-label={`Marcar ou desmarcar todos os dentes do ${q.label}`}
+                      onClick={() => toggleGroup(q.teeth)}
+                    >
+                      {q.label}
+                    </button>
+                    <div className={styles.quadranteDentes}>
+                      {q.teeth.map(d => (
+                        <button
+                          key={d}
+                          type="button"
+                          className={`${styles.dente} ${selectedTeeth.includes(d) ? styles.denteAtivo : ''}`}
+                          aria-pressed={selectedTeeth.includes(d)}
+                          onClick={() => toggleTooth(d)}
+                        >
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
           <div className={styles.arcadas}>
-            <Button variant="outline" size="sm" onClick={() => toggleArch(UPPER_TEETH)}>Arcada Superior</Button>
-            <Button variant="outline" size="sm" onClick={() => toggleArch(LOWER_TEETH)}>Arcada Inferior</Button>
+            <Button variant="outline" size="sm" onClick={() => toggleGroup(UPPER_TEETH)}>Arcada Superior</Button>
+            <Button variant="outline" size="sm" onClick={() => toggleGroup(LOWER_TEETH)}>Arcada Inferior</Button>
           </div>
         </div>
 
@@ -566,11 +696,24 @@ export function BudgetsPanel({ patientId, patientName }: BudgetsPanelProps) {
         </div>
 
         <div className={styles.acoesRodape}>
-          <Button variant="ghost" onClick={() => setMode('list')} disabled={creating}>Cancelar</Button>
-          <Button variant="outline" onClick={() => save('pending')} loading={creating}>Salvar</Button>
-          <Button onClick={() => save('approved')} loading={creating}>Aprovar orçamento</Button>
+          <Button variant="ghost" onClick={() => setMode('list')} disabled={saving}>Cancelar</Button>
+          <Button variant="outline" onClick={() => save('pending')} loading={saving && editorAction === 'save'} disabled={saving}>Salvar</Button>
+          <Button onClick={requestApprove} loading={saving && editorAction === 'approve'} disabled={saving}>Aprovar orçamento</Button>
         </div>
       </section>
+
+      {/* Condições de pagamento do aceite feito direto do editor: confirma →
+          cria o orçamento (pending) e aprova com o plano, gerando as parcelas. */}
+      <ApproveQuoteDialog
+        open={editorApproveOpen}
+        onClose={() => setEditorApproveOpen(false)}
+        quoteName={name.trim() || 'este orçamento'}
+        total={total}
+        defaultInstallments={Number(installments) || 1}
+        approving={saving && editorAction === 'approve'}
+        openProcedureCharges={openProcedureCharges}
+        onConfirm={plan => save('approved', plan)}
+      />
     </div>
   )
 }

@@ -22,6 +22,7 @@
   --on-card-line:  rgba(255, 255, 255, 0.28);
   --on-card-chip:  rgba(255, 255, 255, 0.22);
   --on-card-fill:  rgba(255, 255, 255, 0.95);
+  --on-card-fill-ink: rgba(0, 0, 0, 0.8);   // ícone SOBRE o fill (inverso do texto)
 
   // …e ESCURO sobre cores claras (amarelo, lima…)
   &--onLight {
@@ -31,6 +32,7 @@
     --on-card-line:  rgba(0, 0, 0, 0.24);
     --on-card-chip:  rgba(0, 0, 0, 0.14);
     --on-card-fill:  rgba(0, 0, 0, 0.78);
+    --on-card-fill-ink: rgba(255, 255, 255, 0.95);
   }
 
   &--clicavel {
@@ -152,6 +154,53 @@
   border-radius: $radius-sm;
   color: var(--on-card);
   background: var(--on-card-chip);
+}
+
+// ── Desfecho da consulta (compareceu · faltou · cancelou) — círculos no pé do card ──
+.actions {
+  display: flex;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--on-card-line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--on-card-soft);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+
+  svg { width: 11px; height: 11px; }
+
+  &:hover {
+    background: var(--on-card-chip);
+    color: var(--on-card);
+    border-color: var(--on-card-soft);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--on-card);
+    outline-offset: 1px;
+  }
+}
+
+// Desfecho registrado: círculo preenchido, ícone na cor inversa do card.
+.action--ativa {
+  background: var(--on-card-fill);
+  border-color: var(--on-card-fill);
+  color: var(--on-card-fill-ink);
+
+  &:hover {
+    background: var(--on-card-fill);
+    color: var(--on-card-fill-ink);
+    border-color: var(--on-card-fill);
+  }
 }
 
 // byline: profissional — UMA linha (1º nome; nome completo no tooltip).

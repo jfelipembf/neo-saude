@@ -155,8 +155,29 @@ export interface Quote {
   status: QuoteStatus
   items: QuoteItem[]
   discount?: number        // R$ abatidos do subtotal
-  installments?: number        // 1 = à vista
+  installments?: number        // 1 = à vista (simulação; o plano real se define no aceite)
   notes?: string
+}
+
+/**
+ * Uma linha do plano de pagamento definido no ACEITE do orçamento — o paciente
+ * pode combinar mais de uma forma (entrada no cartão + resto no Pix). Cada
+ * linha gera `installments` parcelas MENSAIS em Contas a Receber a partir de
+ * `firstDueDate`; a soma das linhas precisa fechar com o total do orçamento.
+ * O plano não é persistido no orçamento: ele se materializa nas parcelas.
+ */
+export interface PaymentPlanEntry {
+  method: PaymentMethod
+  amount: number           // R$ total desta forma (dividido entre as parcelas)
+  installments: number     // 1 = à vista
+  firstDueDate: string     // aaaa-mm-dd — vencimento da 1ª parcela
+  /**
+   * Obrigatório no cartão (crédito/débito), proibido fora dele. É o adquirente
+   * que define `receivable.debtor`: sem ele o título nasce como dívida DO
+   * PACIENTE e vai parar na Inadimplência por uma venda que a maquininha já
+   * garantiu. O CHECK receivable_card_requires_acquirer_ck recusa a combinação.
+   */
+  acquirerId?: string
 }
 
 // ── Anamnese (aba do perfil do paciente) ─────────────────────────────────────
@@ -308,6 +329,22 @@ export interface Role {
   pages: AppPage[]
 }
 
+// ── Colaboradores (membros da clínica com login) — aba do Administrativo ──────
+export type MembershipStatus = 'invited' | 'active' | 'suspended'
+
+export interface Collaborator {
+  /** Id do vínculo clinic_user (chave das ações de cargo/status). */
+  clinicUserId: string
+  userId: string
+  name: string           // full_name; cai no e-mail quando vazio
+  email: string
+  photo?: string         // avatar_url (cai nas iniciais quando não houver)
+  phone?: string
+  roleId: string         // access_profile_id — o cargo
+  roleName: string
+  status: MembershipStatus
+}
+
 // ── Comissões dos profissionais (aba do Administrativo) ──────────────────────
 export type CommissionType = 'percentage' | 'fixed'
 /** Base do percentual: sobre o que o paciente PAGOU (recebido — protege o
@@ -393,21 +430,21 @@ export interface UserProfile {
   memberSince: string    // dd/mm/aaaa
 }
 
-// ── Grade semanal de horários (agenda) ───────────────────────────────────────
-export type ScheduleSlotStatus = 'active' | 'canceled'
-
-export interface ScheduleSlot {
+// ── Agenda (consultas datadas) ───────────────────────────────────────────────
+// Uma consulta é um evento ÚNICO com data — não recorrência semanal (decisão
+// do dono). Vive na tabela `appointment`, a mesma que o Dashboard conta.
+export interface AgendaAppointment {
   id: string
   clinicId: string
   patientId: string
   activity: string      // tipo de atendimento/etiqueta (define a cor; vai no tooltip)
-  weekday: number      // 0 = Dom … 6 = Sáb (Date.getDay)
+  date: string          // aaaa-mm-dd — o dia da consulta
   startTime: string     // '07:00'
   endTime: string        // '08:00'
   professionalId: string
   room?: string
   color?: string           // cor da atividade (hex)
-  status: ScheduleSlotStatus
+  status: AppointmentStatus
   notes?: string
   /** Enviar mensagem de confirmação ao paciente. */
   sendConfirmation?: boolean
@@ -453,6 +490,60 @@ export interface AppointmentHistory {
 export type ToothStatus = 'open' | 'finished' | 'extracted'
 
 /** Um PROCEDIMENTO (sessão) de um tratamento — o que foi feito num dia. */
+/**
+ * O que aconteceu com o DINHEIRO de um procedimento executado. As três formas
+ * de não cobrar são estados distintos de propósito: 'covered' = a dívida já
+ * nasceu na aprovação do orçamento; 'unbilled' = ainda vai virar cobrança
+ * (convênio, ou sem valor); 'not_billable' = a clínica decidiu não cobrar e
+ * escreveu por quê. Confundi-las é o que produz cobrança indevida.
+ */
+export type SessionBillingStatus = 'unbilled' | 'billed' | 'covered' | 'not_billable'
+
+/** Uma parcela do plano de repasse do cartão (prévia e realidade têm o mesmo formato). */
+export interface SessionInstallment {
+  number: number
+  count: number
+  dueDate: string        // dd/mm/aaaa — data prevista de REPASSE, não de cobrança
+  grossAmount: number
+  fee: number
+  netAmount: number
+}
+
+/**
+ * O que vai acontecer com o dinheiro se o procedimento for salvo agora — a
+ * frase que o diálogo de salvamento mostra. Vem inteira do banco (RPC
+ * preview_session_billing), pela MESMA escada que decide na hora de gravar:
+ * o dentista não tem permissão de Financeiro e, calculada no navegador dele,
+ * a resposta sobre "existe contrato em aberto?" viria sempre vazia.
+ */
+export interface SessionBillingPreview {
+  status: SessionBillingStatus
+  /** Contrato que cobre o procedimento (só em 'covered'). */
+  quoteId?: string
+  quoteCode?: string
+  /** Vencimento do título que vai nascer (só em 'billed'), dd/mm/aaaa. */
+  dueDate?: string
+  /**
+   * Contrato aprovado JÁ QUITADO que segurou o procedimento em "A faturar".
+   * Não cobrar sozinho é proposital: o paciente já pagou aquele plano, e o
+   * procedimento pode estar dentro dele — quem decide é gente.
+   */
+  pendingQuoteCode?: string
+  /** Parcelas do cartão, quando a forma escolhida passa por adquirente. */
+  installments: SessionInstallment[]
+}
+
+/** Escolha de cobrança feita no diálogo de salvamento do procedimento. */
+export interface SessionBillingChoice {
+  /** Vencimento do título (padrão: a data do procedimento). */
+  dueDate?: string        // dd/mm/aaaa
+  /** Preenchido = cortesia/garantia: não gera título e o motivo fica registrado. */
+  notBillableReason?: string
+  method?: PaymentMethod
+  acquirerId?: string
+  installments?: number
+}
+
 export interface TreatmentSession {
   id: string
   description?: string     // nome do procedimento (ex.: "Abertura e instrumentação")
@@ -466,6 +557,47 @@ export interface TreatmentSession {
   amount?: number
   /** Snapshot do odontograma no fim do procedimento — reabre a ficha marcada. */
   odontogram?: Record<string, unknown>
+}
+
+/**
+ * Linha da aba "A faturar": procedimento EXECUTADO, com valor, que não virou
+ * título nem contrato. É a rede de segurança do módulo — dinheiro que a clínica
+ * produziu e ninguém cobrou.
+ */
+export interface UnbilledSession {
+  id: string
+  clinicId: string
+  patientId: string
+  patientName: string
+  /** Paciente de convênio: a trava que impediu a cobrança automática. */
+  hasInsurance: boolean
+  /**
+   * Contrato aprovado e QUITADO com valor de plano ainda não consumido. É o
+   * motivo mais delicado da lista: cobrar sem conferir é cobrar de novo o que
+   * o paciente já pagou.
+   */
+  pendingQuoteCode?: string
+  treatmentId: string
+  treatmentName: string
+  description: string
+  date: string           // dd/mm/aaaa
+  professionalId?: string
+  amount: number
+}
+
+/** Um procedimento na apuração de ganhos do profissional (RPC professional_earnings). */
+export interface ProfessionalEarning {
+  sessionId: string
+  date: string           // dd/mm/aaaa
+  dateIso: string
+  patientId: string
+  patientName: string
+  description: string
+  /** Valor EXECUTADO (base 'performed'). */
+  amount: number
+  billingStatus: SessionBillingStatus
+  /** Quanto já entrou pelos títulos ligados a esta sessão (base 'received'). */
+  receivedAmount: number
 }
 
 /**
@@ -576,27 +708,48 @@ export interface FinancePoint {
  * metrics`: quem grava a meta e quem lê o número indexam pelo mesmo nome.
  * Rótulo em português vive em `constants/goals.ts`.
  */
-export type GoalMetric = 'appointments' | 'active_patients' | 'revenue' | 'expenses'
+export type GoalMetric =
+  | 'appointments_scheduled'
+  | 'appointments_completed'
+  | 'revenue'
+  | 'expenses'
 
 /**
- * Meta da clínica para UMA métrica, em valor fixo — sem competência mensal
- * ("faturar R$ 50.000 por mês", não "R$ 50.000 em julho"). Uma linha por
- * (clínica, métrica); métrica sem linha = meta não definida.
+ * As 12 metas de um ano, de Janeiro (índice 0) a Dezembro (índice 11).
+ *
+ * `null` numa posição é MÊS SEM META, e é diferente de zero: zero é um alvo
+ * que a clínica escolheu ("gastar R$ 0 em janeiro") e null é a ausência de
+ * escolha. O cartão do Dashboard mostra "Meta: não definida" só no null.
+ *
+ * O comprimento é sempre 12 — o CHECK `clinic_goal_monthly_shape_ck` garante
+ * isso do lado do banco, e `goalsService` normaliza do lado de cá.
+ */
+export type MonthlyTargets = (number | null)[]
+
+/**
+ * Meta da clínica para UMA métrica em UM ano civil: uma linha por
+ * (clínica, métrica, ano). Métrica sem linha no ano = nenhum mês tem meta —
+ * a RPC `set_clinic_goals_year` APAGA a linha quando os 12 meses ficam em
+ * branco, em vez de guardar um vetor de 12 nulls que não afirma nada.
  */
 export interface Goal {
   id: string
   clinicId: string
   metric: GoalMetric
-  /** Alvo em número CRU: reais para revenue/expenses, quantidade nas outras. */
-  targetValue: number
+  /** Ano civil (2000..2100, pelo CHECK do banco). */
+  year: number
+  /** Alvo de cada mês em número CRU: reais em revenue/expenses, quantidade nas outras. */
+  monthly: MonthlyTargets
 }
 
 /**
  * O trio que a RPC devolve por métrica.
  *
  * `previous` é null quando a comparação NÃO EXISTE, e isso é diferente de
- * zero: `active_patients` é estoque e o banco não guarda histórico de status,
- * então nunca terá mês anterior. Zero é um mês anterior real e vazio.
+ * zero — zero é um mês anterior real e vazio. Hoje as QUATRO métricas são de
+ * fluxo e sempre têm mês anterior, então na prática o null não aparece; o tipo
+ * o mantém porque quem some é a métrica, não a possibilidade (era
+ * `active_patients`, estoque sem histórico de status, que o produzia).
  * `target` é null quando a clínica não definiu meta — nunca 0 (o banco proíbe
  * meta zerada justamente para que 0 não seja lido como "meta batida").
  */
@@ -606,27 +759,22 @@ export interface MetricComparison {
   target: number | null
 }
 
+/**
+ * O que o Dashboard mostra no topo: SÓ as métricas que têm meta.
+ *
+ * A interface tinha também quatro contadores operacionais soltos
+ * (appointmentsToday, activePatients, pendingConfirmations, monthlyRevenue).
+ * Eles saíram junto com os cartões que os exibiam — decisão do dono, que pediu
+ * um Dashboard só de meta — e a RPC `dashboard_stats` foi podada para não
+ * calculá-los mais. Por isso restou um campo só: repor qualquer um deles é
+ * mexer no banco também, não é acrescentar uma linha aqui.
+ */
 export interface DashboardStats {
-  appointmentsToday: number
-  activePatients: number
-  pendingConfirmations: number
-  monthlyRevenue: string
   /** Por métrica: mês corrente, mês anterior e meta. */
   metrics: Record<GoalMetric, MetricComparison>
 }
 
-// ── Página Financeiro (caixa, fluxo, contas, bancos e adquirentes) ───────────
-export interface CashMovement {
-  id: string
-  clinicId: string
-  name: string             // pagador/recebedor
-  paymentMethod?: string
-  description: string
-  postedAt: string       // dd/mm/aaaa HH:mm
-  type: 'inflow' | 'outflow'
-  amount: number            // R$ (sempre positivo; o tipo dá o sinal)
-}
-
+// ── Página Financeiro (fluxo, contas, bancos e adquirentes) ──────────────────
 export interface CashFlowDay {
   id: string               // aaaa-mm-dd (ordenável)
   date: string             // dd/mm/aaaa
@@ -654,6 +802,8 @@ export interface Payable {
   notes?: string
 }
 
+export type ReceivableDebtor = 'payer' | 'acquirer'
+
 export interface Receivable {
   id: string
   clinicId: string
@@ -674,6 +824,16 @@ export interface Receivable {
   installmentCount?: number    // …de N
   /** Adquirente que processa (cartões) — habilita a conciliação de repasse. */
   acquirerId?: string
+  /**
+   * QUEM DEVE. Coluna GERADA no banco a partir de `acquirerId`, então não pode
+   * divergir dele. 'acquirer' = venda na maquininha, já garantida na
+   * autorização: NUNCA vira inadimplência e a baixa acontece sozinha na data do
+   * repasse. Cobrar o paciente por um título desses é erro grave — a aba
+   * Inadimplência filtra por aqui, não pelo status.
+   */
+  debtor: ReceivableDebtor
+  /** Procedimento que originou o título (1 sessão → N parcelas de cartão). */
+  treatmentSessionId?: string
   // Dados da baixa (aceita recebimento PARCIAL: acumula até quitar o líquido).
   bankAccountId?: string
   receivedAmount?: number
@@ -732,10 +892,3 @@ export interface Acquirer {
   notes?: string
 }
 
-/** Sessão do caixa do dia (aberto/fechado + dados da abertura). */
-export interface CashSession {
-  isOpen: boolean
-  operator?: string
-  openedAt?: string        // dd/mm/aaaa HH:mm
-  openingAmount: number    // fundo de troco inicial (R$)
-}

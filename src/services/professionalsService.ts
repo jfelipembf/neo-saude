@@ -4,7 +4,7 @@ import type { ClientPayload } from '@/lib/tenant'
 import type { ClientInsert, Insert, Update } from '@/lib/db'
 import { capitalizeName, cepToDb, phoneToDb, emailToDb, ufToDb } from '@/utils/text'
 import { brToIsoDate, isoToBrDate } from '@/utils/date'
-import type { Professional, EducationItem, ExperienceItem } from '@/types/domain'
+import type { Professional, EducationItem, ExperienceItem, ProfessionalEarning } from '@/types/domain'
 
 /** Núcleo do profissional (sem currículo). Exportado porque o responsável
  *  técnico é lido da MESMA tabela por outro recorte (ver clinicService). */
@@ -76,6 +76,33 @@ export async function listProfessionals(): Promise<Professional[]> {
     .order('name')
   if (error) throw error
   return (data as ProfessionalRow[]).map(toProfessionalCore)
+}
+
+/**
+ * O profissional VINCULADO ao usuário logado (professional.user_id = auth.uid())
+ * na clínica corrente — ou `null` quando quem está na tela não é profissional
+ * (recepção, financeiro) ou ainda não teve o login vinculado.
+ *
+ * A policy `professional_select` libera explicitamente a PRÓPRIA linha
+ * (`user_id = auth.uid()`) mesmo para quem não tem a feature 'professionals',
+ * então isto resolve para qualquer dentista logado.
+ *
+ * NÃO lança: é atribuição de autoria, não regra de negócio — um prontuário
+ * nunca pode deixar de ser salvo porque esta consulta falhou. Sem resposta,
+ * a sessão é gravada sem profissional (como era antes) em vez de se inventar
+ * um id.
+ */
+export async function getCurrentProfessionalId(): Promise<string | null> {
+  const { data: userData } = await supabase.auth.getUser()
+  const userId = userData.user?.id
+  if (!userId) return null
+  const { data } = await supabase
+    .from('professional')
+    .select('id')
+    .eq('clinic_id', getCurrentClinicId())
+    .eq('user_id', userId)
+    .maybeSingle()
+  return data?.id ?? null
 }
 
 // Perfil: núcleo + currículo (education/experiences das tabelas filhas).
@@ -281,4 +308,33 @@ export async function updateProfessional(id: string, payload: EditProfessional):
   // 2) Currículo em tabelas filhas — reconcilia só se o form enviou a seção.
   await replaceEducation(clinicId, id, payload.education)
   await replaceExperiences(clinicId, id, payload.experiences)
+}
+
+/**
+ * Produção do profissional, procedimento a procedimento (RPC professional_earnings).
+ *
+ * FONTE VIVA: a aba Ganhos somava `billed_treatment`, tabela CONGELADA com zero
+ * linhas e nenhum insert em todo o src/ — o gráfico mostrava R$ 0,00 para todo
+ * profissional, sempre. O que existe de verdade é `treatment_session`
+ * (professional_id + amount + performed_on).
+ *
+ * A RPC é SECURITY DEFINER porque cruza prontuário × financeiro; devolve o
+ * valor EXECUTADO e o quanto dele já entrou, para que a tela possa honrar a
+ * base cadastrada em professional_commission ('performed' × 'received') em vez
+ * de escolher uma por nós.
+ */
+export async function listProfessionalEarnings(professionalId: string): Promise<ProfessionalEarning[]> {
+  const { data, error } = await supabase.rpc('professional_earnings', { p_professional: professionalId })
+  if (error) throw error
+  return (data ?? []).map(r => ({
+    sessionId: r.session_id,
+    date: isoToBrDate(r.performed_on) ?? '',
+    dateIso: r.performed_on,
+    patientId: r.patient_id,
+    patientName: r.patient_name,
+    description: r.description,
+    amount: Number(r.amount),
+    billingStatus: r.billing_status,
+    receivedAmount: Number(r.received_amount),
+  }))
 }

@@ -1,0 +1,130 @@
+@use '../../styles/mixins' as *;
+
+.bloco {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  width: 100%;
+  text-align: left;
+}
+
+// A LINHA: a frase que diz o que vai acontecer com o dinheiro.
+.linha {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  width: 100%;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+
+  @include phone {
+    flex-wrap: wrap;
+  }
+}
+
+.linhaErro { color: var(--warning-fg); }
+
+.texto {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.45;
+}
+
+// Bolinha de cor do desfecho: o olho pega o estado antes de ler a frase.
+.marcador {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: $radius-pill;
+  background: var(--text-muted);
+}
+
+.marcador--billed       { background: var(--success-fg); }
+.marcador--covered      { background: var(--accent-fg); }
+.marcador--not_billable { background: var(--text-muted); }
+.marcador--unbilled     { background: var(--warning-fg); }
+
+// ── Painel de troca (só aparece quando o usuário pede) ───────────────────────
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding: $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  background: var(--glass-bg-hover);
+}
+
+.pagamento {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+// auto-fit em vez de media query: este bloco vive dentro de um diálogo estreito
+// (ConfirmDialog é `sm`), então quem manda é a largura DISPONÍVEL, não a da
+// tela — no telefone e no diálogo apertado do desktop as duas viram uma coluna.
+.cartao {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: $sp-3;
+}
+
+.aviso {
+  font-size: $fs-xs;
+  line-height: 1.45;
+  color: var(--warning-fg);
+}
+
+// ── Parcelas do cartão ───────────────────────────────────────────────────────
+.parcelas {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.parcela {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: $sp-2;
+  align-items: baseline;
+  padding: $sp-1 0;
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--glass-border);
+
+  &:last-child { border-bottom: 0; }
+
+  // No telefone a linha vira duas: número + data em cima, taxa + valor embaixo.
+  @include phone {
+    grid-template-columns: auto 1fr;
+  }
+}
+
+.parcelaNum {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.parcelaData { color: var(--text-muted); }
+
+.parcelaTaxa {
+  color: var(--danger-fg);
+
+  @include phone {
+    justify-self: start;
+  }
+}
+
+.parcelaValor {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--success-fg);
+
+  @include phone {
+    justify-self: end;
+  }
+}
