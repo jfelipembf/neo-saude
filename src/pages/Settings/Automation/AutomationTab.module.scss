@@ -1,0 +1,64 @@
+@use '../../../styles/mixins' as *;
+
+.coluna {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  max-width: 760px;
+}
+
+// Aviso de WhatsApp não conectado, no topo da lista.
+.aviso {
+  padding: $sp-3 $sp-4;
+  border-radius: $radius-sm;
+  background: rgba($warning, 0.1);
+  border: 1px solid rgba($warning, 0.3);
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  line-height: 1.5;
+
+  strong { color: var(--text-primary); }
+}
+
+.corpo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.horario {
+  max-width: 200px;
+}
+
+.rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  flex-wrap: wrap;
+}
+
+// Variáveis que podem ser usadas no texto da mensagem.
+.variaveis {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $sp-2;
+  min-width: 0;
+}
+
+.variaveisLabel {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.variavel {
+  padding: 2px 8px;
+  border-radius: $radius-sm;
+  background: var(--glass-bg-hover);
+  border: 1px solid var(--glass-border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: $fs-xs;
+  color: var(--primary-fg);
+  white-space: nowrap;
+}

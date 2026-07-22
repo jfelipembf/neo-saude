@@ -6,7 +6,8 @@ import { toIsoDate } from '@/utils/date'
 import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
-import { RemindersCard } from '@/components/RemindersCard/RemindersCard'
+import { BillingCard } from '@/components/BillingCard/BillingCard'
+import { TasksCard } from '@/components/TasksCard/TasksCard'
 import { AppointmentsChart } from '@/components/AppointmentsChart/AppointmentsChart'
 import { FinanceChart } from '@/components/FinanceChart/FinanceChart'
 import { StatsCard } from '@/components/StatsCard/StatsCard'
@@ -126,11 +127,16 @@ export function DashboardPage() {
               <StatsCard label="Gastos"    value="R$ 3.180"   icon={<IconTendenciaBaixa />} hint="-3% vs. mês anterior" trend="down" meta="R$ 5.000"  progresso={64} />
             </div>
 
-            <RemindersCard />
+            {/* O que há para cobrar: vencidos e pendentes, mais antigo primeiro. */}
+            <BillingCard />
 
-            {/* Linha 2 do grid de widgets: barras à esquerda, linhas à direita. */}
-            <AppointmentsChart />
-            <FinanceChart />
+            {/* Linha 2: tarefas à esquerda, os dois gráficos empilhados à direita
+                — como são a MESMA célula do grid, terminam na mesma altura. */}
+            <TasksCard />
+            <div className={styles.graficos}>
+              <AppointmentsChart />
+              <FinanceChart />
+            </div>
           </div>
         </div>
       )}

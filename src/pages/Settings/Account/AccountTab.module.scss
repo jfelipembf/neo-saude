@@ -1,0 +1,101 @@
+@use '../../../styles/mixins' as *;
+
+.coluna {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  max-width: 760px;
+}
+
+// Pares rótulo/valor em 2 colunas (colapsa no phone) — mesmo desenho dos perfis.
+.pares {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3 $sp-4;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.par {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  dt {
+    font-size: $fs-xs;
+    color: var(--text-muted);
+  }
+
+  dd {
+    font-size: $fs-sm;
+    font-weight: 500;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+  }
+}
+
+// Campos em 2 colunas dos formulários (colapsa no phone).
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+// ── Responsável técnico ──────────────────────────────────────────────────────
+.responsavel {
+  display: flex;
+  align-items: center;
+  gap: $sp-4;
+}
+
+.foto {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--accent-bg);
+  color: var(--primary-fg);
+
+  svg { width: 22px; height: 22px; }
+}
+
+.fotoImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.responsavelInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.responsavelNome {
+  font-size: $fs-md;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.responsavelSub {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}

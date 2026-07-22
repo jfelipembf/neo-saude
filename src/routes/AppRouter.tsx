@@ -17,6 +17,7 @@ const ProfessionalsPage  = lazy(() => import('@/pages/Professionals/Professional
 const ProfessionalProfilePage = lazy(() => import('@/pages/Professionals/Profile/ProfessionalProfilePage').then(m => ({ default: m.ProfessionalProfilePage })))
 const FinancePage        = lazy(() => import('@/pages/Finance/FinancePage').then(m => ({ default: m.FinancePage })))
 const AdminPage          = lazy(() => import('@/pages/Admin/AdminPage').then(m => ({ default: m.AdminPage })))
+const SettingsPage       = lazy(() => import('@/pages/Settings/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const NotFoundPage       = lazy(() => import('@/pages/System/NotFound/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
 
 export function AppRouter() {
@@ -41,6 +42,7 @@ export function AppRouter() {
               <Route path={APP_ROUTES.FINANCEIRO}      element={<FinancePage />} />
               {/* Administrativo: página única com abas (consultório · salas · materiais). */}
               <Route path={APP_ROUTES.ADMINISTRATIVO}  element={<AdminPage />} />
+              <Route path={APP_ROUTES.CONFIGURACOES}   element={<SettingsPage />} />
             </Route>
           </Route>
 

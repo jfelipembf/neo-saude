@@ -32,6 +32,23 @@
   }
 }
 
+// Os dois gráficos empilhados numa célula só do .widgets: as linhas 1fr dividem
+// a altura em partes iguais, e a célula tem a mesma altura do card de tarefas
+// (são itens da MESMA linha do grid, que esticam juntos).
+.graficos {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: $sp-6;
+  min-height: 0;   // deixa as linhas encolherem em vez de estourar a célula
+
+  > * { min-height: 0; }
+
+  // Empilhado no mobile também, mas com altura natural de cada gráfico.
+  @include mobile {
+    grid-template-rows: auto auto;
+  }
+}
+
 // Indicadores em 2×2: as duas linhas (1fr) dividem a altura total da coluna.
 .statsGrid {
   display: grid;

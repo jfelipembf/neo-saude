@@ -16,6 +16,7 @@ const TreatmentsPanel = lazy(() =>
   import('@/components/TreatmentsPanel/TreatmentsPanel').then(m => ({ default: m.TreatmentsPanel })),
 )
 import { DocumentsUpload } from '@/components/DocumentsUpload/DocumentsUpload'
+import { AnamnesisTab } from './Anamnesis/AnamnesisTab'
 import { BudgetsPanel } from '@/components/BudgetsPanel/BudgetsPanel'
 import { PrescriptionsPanel } from '@/components/PrescriptionsPanel/PrescriptionsPanel'
 import { useToast } from '@/components/Toast/useToast'
@@ -29,10 +30,11 @@ import { initials, somenteDigitos } from '@/utils/text'
 import type { Patient, Gender } from '@/types/domain'
 import styles from './PatientProfilePage.module.scss'
 
-type TabKey = 'dados' | 'tratamento' | 'orcamentos' | 'prescricoes' | 'pagamentos' | 'documentos'
+type TabKey = 'dados' | 'anamnese' | 'tratamento' | 'orcamentos' | 'prescricoes' | 'pagamentos' | 'documentos'
 
 const TABS = [
   { key: 'dados',       label: 'Dados pessoais' },
+  { key: 'anamnese',    label: 'Anamnese' },
   { key: 'tratamento',  label: 'Tratamento' },
   { key: 'orcamentos',  label: 'Orçamentos' },
   { key: 'prescricoes', label: 'Prescrições' },
@@ -386,6 +388,10 @@ export function PatientProfilePage() {
             ))}
           </section>
           ))}
+
+          {tab === 'anamnese' && (
+            <AnamnesisTab pacienteId={paciente.id} pacienteNome={paciente.nome} />
+          )}
 
           {tab === 'tratamento' && (
             <Suspense fallback={<PageLoader />}>

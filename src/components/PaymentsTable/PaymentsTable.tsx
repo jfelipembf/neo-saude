@@ -7,7 +7,8 @@ import { PaymentModal } from '@/components/PaymentModal/PaymentModal'
 import { Select } from '@/components/Select/Select'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { IconChevronDireita, IconImprimir, IconFinanceiro } from '@/components/icons'
-import { usePagamentosDoPaciente } from '@/hooks/usePagamentos'
+import { usePagamentosDoPaciente, useReceberPagamento } from '@/hooks/usePagamentos'
+import { useToast } from '@/components/Toast/useToast'
 import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { esc } from '@/utils/printDocument'
 import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
@@ -75,6 +76,8 @@ interface PaymentsTableProps {
 /** Tabela de pagamentos: filtro por status, paginação, detalhe expansível, receber e recibo. */
 export function PaymentsTable({ pacienteId, pacienteNome, pacienteCpf }: PaymentsTableProps) {
   const { data: pagamentos, isLoading } = usePagamentosDoPaciente(pacienteId)
+  const { mutate: receber, isPending: recebendo } = useReceberPagamento()
+  const toast = useToast()
   const imprimir = usePrintDocument()
 
   const [abertos, setAbertos] = useState<Set<string>>(new Set())
@@ -244,8 +247,20 @@ export function PaymentsTable({ pacienteId, pacienteNome, pacienteCpf }: Payment
       </div>
 
       <PaymentModal
-        pagamento={aReceber}
+        cobranca={aReceber && {
+          id: aReceber.id,
+          descricao: aReceber.descricao,
+          valor: aReceber.valor,
+          tratamentos: aReceber.tratamentos,
+        }}
         paciente={pacienteNome ? { nome: pacienteNome, cpf: pacienteCpf } : undefined}
+        confirmando={recebendo}
+        onConfirm={dados => {
+          if (!aReceber) return
+          receber({ id: aReceber.id, dados }, {
+            onSuccess: () => { toast.success('Pagamento registrado!'); setAReceber(null) },
+          })
+        }}
         onClose={() => setAReceber(null)}
       />
     </div>

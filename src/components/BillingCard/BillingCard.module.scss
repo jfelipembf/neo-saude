@@ -22,12 +22,13 @@
   color: var(--text-primary);
 }
 
+// Contagem de vencidas: vermelho, porque é o que dói no caixa.
 .contagem {
   font-size: $fs-xs;
   font-weight: 500;
-  color: var(--warning-fg);
-  background: rgba($warning, 0.12);
-  border: 1px solid rgba($warning, 0.35);
+  color: var(--danger-fg);
+  background: rgba($danger, 0.12);
+  border: 1px solid rgba($danger, 0.35);
   border-radius: $radius-pill;
   padding: 2px 10px;
   white-space: nowrap;
@@ -37,13 +38,6 @@
   display: flex;
   align-items: center;
   gap: $sp-2;
-}
-
-// Formulário do modal "Novo lembrete".
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: $sp-3;
 }
 
 .carregando {
@@ -67,46 +61,10 @@
   display: flex;
   align-items: center;
   gap: $sp-3;
-  padding: $sp-2 0;
+  padding: $sp-3 0;
   border-bottom: 1px solid var(--glass-border);
 
   &:last-child { border-bottom: none; }
-
-  &--feito {
-    .itemTexto {
-      text-decoration: line-through;
-      color: var(--text-muted);
-    }
-  }
-}
-
-// Círculo de concluir (mesma linguagem dos círculos de presença da agenda).
-.checkBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: transparent;
-  border: 1.5px solid $success;
-  color: transparent;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
-
-  svg { width: 12px; height: 12px; }
-
-  &:hover { background: rgba($success, 0.12); color: var(--success-fg); }
-  &:active { transform: scale(0.92); }
-
-  &--ativo {
-    background: $success;
-    border-color: $success;
-    color: #fff;
-
-    &:hover { background: $success; color: #fff; }
-  }
 }
 
 .itemInfo {
@@ -117,10 +75,21 @@
   min-width: 0;
 }
 
-.itemTexto {
+.itemPaciente {
   font-size: $fs-sm;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemDescricao {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .itemData {
@@ -130,10 +99,26 @@
   font-size: $fs-xs;
   color: var(--text-muted);
 
-  svg { width: 12px; height: 12px; }
+  svg { width: 12px; height: 12px; flex-shrink: 0; }
 }
 
-.removerBtn {
+.itemDireita {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.valor {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.verBtn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -144,14 +129,37 @@
   border: none;
   border-radius: 6px;
   color: var(--text-muted);
+  cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 
   svg { width: 14px; height: 14px; }
 
   &:hover {
-    background: rgba($danger, 0.12);
-    color: var(--danger-fg);
+    background: var(--glass-bg-hover);
+    color: var(--primary-fg);
   }
+}
+
+// Total em aberto, fechando o card.
+.rodape {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $sp-2;
+  padding-top: $sp-3;
+  border-top: 1px solid var(--glass-border);
+}
+
+.rodapeLabel {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.rodapeValor {
+  font-size: $fs-md;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .vazio {

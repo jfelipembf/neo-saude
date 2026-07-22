@@ -1,0 +1,157 @@
+@use '../../../../styles/mixins' as *;
+
+.card {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  padding: $sp-5;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $sp-3;
+  flex-wrap: wrap;
+}
+
+.titulo {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.atualizada {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.acoes {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+}
+
+// ── Seções do questionário ───────────────────────────────────────────────────
+.secao {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.secaoTitulo {
+  font-size: $fs-sm;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  padding-bottom: $sp-1;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.secaoDica {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  margin-top: -$sp-2;
+}
+
+// ── Leitura: pergunta à esquerda, resposta à direita ─────────────────────────
+.respostas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3 $sp-5;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+.resposta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $sp-3;
+  padding-bottom: $sp-2;
+  border-bottom: 1px solid var(--glass-border);
+
+  dt {
+    font-size: $fs-sm;
+    color: var(--text-secondary);
+    min-width: 0;
+  }
+
+  dd {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    font-size: $fs-sm;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: right;
+    flex-shrink: 0;
+    max-width: 55%;
+  }
+
+  // Texto livre ocupa a linha inteira, com a resposta embaixo da pergunta.
+  &--aberta {
+    grid-column: 1 / -1;
+    flex-direction: column;
+    align-items: stretch;
+
+    dd {
+      align-items: flex-start;
+      text-align: left;
+      max-width: 100%;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+  }
+}
+
+// Resposta que muda a conduta clínica (alergia, gestante, cardiopatia…).
+.alerta {
+  color: var(--danger-fg) !important;
+}
+
+.detalhe {
+  font-size: $fs-xs;
+  font-weight: 400;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+// ── Formulário ───────────────────────────────────────────────────────────────
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-5;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.pergunta {
+  font-size: $fs-sm;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+// Recuo para mostrar que o detalhe pertence à pergunta acima.
+.detalheCampo {
+  padding-left: $sp-4;
+  border-left: 2px solid var(--glass-border);
+  max-width: 480px;
+}
+
+.formAcoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-3;
+  padding-top: $sp-3;
+  border-top: 1px solid var(--glass-border);
+}

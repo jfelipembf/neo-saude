@@ -24,6 +24,15 @@ export const STATUS_MAP: Record<string, StatusEntry> = {
   ativo:       { variant: 'success', label: 'Ativo' },
   inativo:     { variant: 'gray',    label: 'Inativo' },
 
+  // ── Assinatura do SaaS (Configurações) ──
+  ativa:         { variant: 'success', label: 'Ativa' },
+  inadimplente:  { variant: 'danger',  label: 'Inadimplente' },
+
+  // ── Conexão do WhatsApp (Configurações) ──
+  conectado:    { variant: 'success', label: 'Conectado' },
+  desconectado: { variant: 'gray',    label: 'Desconectado' },
+  conectando:   { variant: 'warning', label: 'Conectando...' },
+
   // ── Financeiro ──
   pago:        { variant: 'success', label: 'Pago' },
   pendente:    { variant: 'warning', label: 'Pendente' },

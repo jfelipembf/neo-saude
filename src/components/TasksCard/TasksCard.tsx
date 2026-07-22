@@ -7,16 +7,11 @@ import { Modal } from '@/components/Modal/Modal'
 import { Select } from '@/components/Select/Select'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { useToast } from '@/components/Toast/useToast'
-import { IconCheck, IconMais, IconRelogio } from '@/components/icons'
-import { useTarefas, useSetStatusTarefa, useCriarTarefa } from '@/hooks/useTarefas'
+import { IconCheck, IconMais, IconRelogio, IconLixeira } from '@/components/icons'
+import { useTarefas, useSetStatusTarefa, useCriarTarefa, useRemoverTarefa } from '@/hooks/useTarefas'
+import { OPCOES_PRIORIDADE } from '@/constants'
 import type { TaskPriority, Task } from '@/types/domain'
 import styles from './TasksCard.module.scss'
-
-const OPCOES_PRIORIDADE = [
-  { value: 'alta',  label: 'Alta' },
-  { value: 'media', label: 'Média' },
-  { value: 'baixa', label: 'Baixa' },
-]
 
 /** Card compacto de tarefas (coluna estreita do Dashboard, sob a agenda). */
 export function TasksCard() {
@@ -24,6 +19,7 @@ export function TasksCard() {
   const { data: tarefas, isLoading } = useTarefas()
   const { mutate: setStatus } = useSetStatusTarefa()
   const { mutate: criar, isPending: criando } = useCriarTarefa()
+  const { mutate: excluir } = useRemoverTarefa()
 
   const [modalAberto, setModalAberto] = useState(false)
   const [titulo, setTitulo] = useState('')
@@ -118,6 +114,16 @@ export function TasksCard() {
                   {t.prazo && <span className={styles.prazo}><IconRelogio /> {t.prazo}</span>}
                 </span>
               </div>
+
+              <button
+                type="button"
+                className={styles.removerBtn}
+                onClick={() => excluir(t.id)}
+                title="Excluir tarefa"
+                aria-label={`Excluir: ${t.titulo}`}
+              >
+                <IconLixeira />
+              </button>
             </li>
           ))}
         </ul>

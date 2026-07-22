@@ -9,6 +9,17 @@ export const queryKeys = {
     all:    ['pacientes'] as const,
     detail: (id: string) => ['pacientes', id] as const,
   },
+  anamneses: {
+    byPaciente: (pacienteId: string) => ['anamneses', pacienteId] as const,
+  },
+  whatsapp: {
+    conexao:    ['whatsapp', 'conexao'] as const,
+    automacoes: ['whatsapp', 'automacoes'] as const,
+  },
+  assinatura: {
+    plano:   ['assinatura', 'plano'] as const,
+    faturas: ['assinatura', 'faturas'] as const,
+  },
   consultas: {
     all:    ['consultas'] as const,
     byDay:  (isoDate: string) => ['consultas', 'dia', isoDate] as const,
@@ -35,9 +46,6 @@ export const queryKeys = {
   },
   tarefas: {
     all: ['tarefas'] as const,
-  },
-  lembretes: {
-    all: ['lembretes'] as const,
   },
   leads: {
     all: ['leads'] as const,

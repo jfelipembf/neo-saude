@@ -118,6 +118,114 @@ export interface Quote {
   observacao?: string
 }
 
+// ── Anamnese (aba do perfil do paciente) ─────────────────────────────────────
+// Questionário de saúde no modelo sugerido pelos Conselhos Regionais de
+// Odontologia: respostas fechadas + campos de detalhe quando a resposta pede.
+export type SimNao = 'sim' | 'nao'
+export type SimNaoNaoSei = 'sim' | 'nao' | 'nao_sei'
+export type PressaoArterial = 'normal' | 'alta' | 'baixa' | 'controlada'
+export type NivelSangramento = 'normal' | 'excessivo'
+export type NivelCicatrizacao = 'normal' | 'complicada'
+export type SangramentoGengival = 'nao' | 'sim' | 'durante_higiene' | 'as_vezes'
+export type UsoFioDental = 'diariamente' | 'as_vezes' | 'nao'
+
+export interface Anamnesis {
+  pacienteId: string
+  /** Última atualização — a ficha é revisada a cada retorno. */
+  atualizadaEm: string   // dd/mm/aaaa
+
+  // Saúde geral
+  medicamentos: SimNao
+  medicamentosQuais?: string      // posologia e dose
+  alergia: SimNaoNaoSei
+  alergiaQual?: string
+  pressao: PressaoArterial
+  problemaCoracao: SimNao
+  problemaCoracaoQual?: string
+  faltaDeAr: SimNao
+  diabetes: SimNaoNaoSei
+  sangramento: NivelSangramento
+  cicatrizacao: NivelCicatrizacao
+  cirurgia: SimNao
+  gestante: SimNaoNaoSei
+  gestanteSemanas?: string
+  problemasSaude?: string         // texto livre
+
+  // Saúde bucal
+  queixaPrincipal?: string
+  reacaoAnestesia: SimNao
+  reacaoAnestesiaQual?: string
+  ultimoTratamento?: string
+  dorDentesGengiva: SimNao
+  gengivaSangra: SangramentoGengival
+  gostoRuimBocaSeca: SimNao
+  escovacoesPorDia?: string
+  fioDental: UsoFioDental
+  dorEstalosMaxilar: SimNao
+  rangeDentes: SimNao
+  feridaBolhaFace: SimNao
+  fuma: SimNao
+  fumaQuantidade?: string
+}
+
+// ── Assinatura do SaaS (Configurações) ───────────────────────────────────────
+// O que a CLÍNICA paga para usar o Neo Saúde — não confundir com o Financeiro,
+// que é o caixa da clínica.
+export type SubscriptionStatus = 'ativa' | 'inadimplente' | 'cancelada'
+export type BillingCycle = 'mensal' | 'anual'
+
+export interface Subscription {
+  plano: string                  // "Profissional"
+  valor: number                  // R$ por ciclo
+  ciclo: BillingCycle
+  status: SubscriptionStatus
+  desde: string                  // dd/mm/aaaa
+  proximaCobranca: string        // dd/mm/aaaa
+  /** Forma cadastrada para a cobrança recorrente. */
+  formaPagamento?: string        // "Cartão Visa •••• 4242"
+  /** Limites do plano contratado (o que o preço cobre). */
+  profissionaisIncluidos?: number
+  profissionaisEmUso?: number
+}
+
+/** Uma fatura da assinatura (histórico de pagamentos ao SaaS). */
+export interface SubscriptionInvoice {
+  id: string
+  competencia: string            // "Julho de 2026"
+  vencimento: string             // dd/mm/aaaa
+  pagamento?: string             // dd/mm/aaaa — vazio enquanto em aberto
+  valor: number
+  status: PaymentStatus          // reaproveita pago | pendente | vencido | cancelado
+  formaPagamento?: string
+}
+
+// ── WhatsApp: conexão e automações (Configurações) ───────────────────────────
+export type WhatsAppStatus = 'conectado' | 'desconectado' | 'conectando'
+
+export interface WhatsAppConnection {
+  status: WhatsAppStatus
+  numero?: string        // (79) 99999-0000 — preenchido quando conectado
+  conectadoEm?: string   // dd/mm/aaaa HH:mm
+  /** Conteúdo do QR de pareamento (mock: string qualquer que vira o desenho). */
+  qrCode?: string
+}
+
+/** Momento que dispara a mensagem automática. */
+export type AutomationTrigger =
+  | 'apos_agendamento'
+  | 'dia_da_consulta'
+  | 'falta'
+  | 'aniversario'
+  | 'cobranca'
+
+export interface WhatsAppAutomation {
+  gatilho: AutomationTrigger
+  status: ActiveStatus
+  mensagem: string
+  /** Horário de disparo dos gatilhos por data (dia da consulta, aniversário…). */
+  horario?: string       // HH:mm
+}
+
 // ── Prescrições e documentos do paciente (aba do perfil) ─────────────────────
 export type PrescriptionType = 'receituario' | 'prontuario' | 'atestado' | 'documento'
 
@@ -220,6 +328,9 @@ export interface Material {
 /** Perfil do usuário logado (exibido no ResumeProfile do Dashboard). */
 export interface UserProfile {
   id: string             // código de exibição (ex.: NS-00016)
+  /** Profissional correspondente — liga o usuário logado ao próprio perfil. */
+  profissionalId?: string
+  foto?: string          // URL do avatar (cai nas iniciais quando não houver)
   nome: string
   especialidade: string
   registro: string       // conselho + número (CRM, CRO, CREFITO…)
@@ -366,14 +477,6 @@ export interface Task {
   prioridade: TaskPriority
   prazo?: string         // dd/mm
   status: TaskStatus
-}
-
-// ── Lembretes (card do Dashboard) ────────────────────────────────────────────
-export interface Reminder {
-  id: string
-  texto: string
-  data?: string          // dd/mm (opcional)
-  concluido: boolean
 }
 
 // ── Leads / funil de contatos (kanban) ───────────────────────────────────────

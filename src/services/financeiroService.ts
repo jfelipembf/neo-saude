@@ -46,6 +46,11 @@ export interface SettlementInput {
   contaBancariaId?: string
   valor: number
   observacao?: string
+  // Dados da maquininha quando a baixa é no cartão (vêm do modal de pagamento).
+  bandeira?: string
+  autorizacao?: string
+  nsu?: string
+  parcelas?: number
 }
 
 /** Dá baixa numa conta a pagar com os dados do modal. */

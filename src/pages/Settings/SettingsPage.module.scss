@@ -1,0 +1,8 @@
+@use '../../styles/mixins' as *;
+
+// Cabeçalho + abas coladas (mesmo desenho do Administrativo e do Financeiro).
+.topo {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: $sp-6;
+}

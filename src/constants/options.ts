@@ -12,3 +12,10 @@ export const SEXO_LABEL: Record<Gender, string> = {
   masculino: 'Masculino',
   feminino:  'Feminino',
 }
+
+/** Opções de prioridade das tarefas (quadro de Tarefas e card do Dashboard). */
+export const OPCOES_PRIORIDADE = [
+  { value: 'alta',  label: 'Alta' },
+  { value: 'media', label: 'Média' },
+  { value: 'baixa', label: 'Baixa' },
+]

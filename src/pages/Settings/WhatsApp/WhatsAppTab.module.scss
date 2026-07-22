@@ -1,0 +1,110 @@
+@use '../../../styles/mixins' as *;
+
+.coluna {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  max-width: 760px;
+}
+
+// ── Pareamento: QR à esquerda, instruções à direita ──────────────────────────
+.pareamento {
+  display: flex;
+  align-items: flex-start;
+  gap: $sp-6;
+
+  @include mobile {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+// Grid 21×21 do QR de demonstração (módulos são <span>, não SVG).
+.qr {
+  display: grid;
+  grid-template-columns: repeat(21, 1fr);
+  width: 200px;
+  height: 200px;
+  flex-shrink: 0;
+  padding: $sp-3;
+  border-radius: $radius-md;
+  border: 1px solid var(--glass-border);
+  background: #fff;   // QR só é legível sobre branco, mesmo no tema escuro
+}
+
+.qrCheio {
+  background: #12211C;
+}
+
+.instrucoes {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  min-width: 0;
+}
+
+.passosTitulo {
+  font-size: $fs-sm;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.passos {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  padding-left: $sp-4;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  line-height: 1.5;
+
+  strong { color: var(--text-primary); }
+}
+
+.aviso {
+  padding: $sp-3;
+  border-radius: $radius-sm;
+  background: rgba($warning, 0.1);
+  border: 1px solid rgba($warning, 0.3);
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-3;
+}
+
+// ── Estado conectado ─────────────────────────────────────────────────────────
+.conectado {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: $sp-4;
+  flex-wrap: wrap;
+}
+
+.dados {
+  display: flex;
+  gap: $sp-6;
+  flex-wrap: wrap;
+}
+
+.par {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  dt {
+    font-size: $fs-xs;
+    color: var(--text-muted);
+  }
+
+  dd {
+    font-size: $fs-sm;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+}

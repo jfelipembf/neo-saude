@@ -1,10 +1,10 @@
 import { NavLink } from 'react-router-dom'
 import { APP_ROUTES } from '@/constants'
-import { useSession } from '@/context/SessionProvider'
 import { useTheme } from '@/context/ThemeProvider'
+import { ProfileMenu } from '@/components/ProfileMenu/ProfileMenu'
 import {
   IconLogo, IconDashboard, IconAgenda, IconPacientes, IconProfissionais, IconFinanceiro,
-  IconAdministrativo, IconSair, IconTema,
+  IconAdministrativo, IconTema,
 } from '@/components/icons'
 import styles from './Header.module.scss'
 
@@ -19,7 +19,6 @@ const NAV_ITEMS = [
 
 /** Barra horizontal do topo: marca à esquerda, navegação no centro, ações à direita. */
 export function Header() {
-  const { signOut } = useSession()
   const { toggleTheme } = useTheme()
 
   return (
@@ -46,9 +45,8 @@ export function Header() {
         <button type="button" className={styles.iconBtn} onClick={toggleTheme} title="Alternar tema" aria-label="Alternar tema">
           <IconTema />
         </button>
-        <button type="button" className={styles.iconBtn} onClick={() => void signOut()} title="Sair" aria-label="Sair">
-          <IconSair />
-        </button>
+        {/* Identidade + menu (perfil · configurações · sair). */}
+        <ProfileMenu />
       </div>
     </header>
   )

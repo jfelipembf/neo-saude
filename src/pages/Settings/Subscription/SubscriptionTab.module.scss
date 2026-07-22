@@ -1,0 +1,129 @@
+@use '../../../styles/mixins' as *;
+
+.coluna {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  max-width: 900px;
+}
+
+// ── Plano atual ──────────────────────────────────────────────────────────────
+.plano {
+  display: flex;
+  align-items: flex-start;
+  gap: $sp-6;
+
+  @include mobile {
+    flex-direction: column;
+    gap: $sp-4;
+  }
+}
+
+.preco {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  padding-right: $sp-6;
+  border-right: 1px solid var(--glass-border);
+  flex-shrink: 0;
+
+  @include mobile {
+    padding-right: 0;
+    padding-bottom: $sp-4;
+    border-right: none;
+    border-bottom: 1px solid var(--glass-border);
+    width: 100%;
+  }
+}
+
+.precoNome {
+  font-size: $fs-xs;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary-fg);
+}
+
+.precoValor {
+  display: flex;
+  align-items: baseline;
+  gap: $sp-2;
+  font-size: $fs-2xl;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+
+  small {
+    font-size: $fs-sm;
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+}
+
+.pares {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3 $sp-5;
+  flex: 1;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.par {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  dt {
+    font-size: $fs-xs;
+    color: var(--text-muted);
+  }
+
+  dd {
+    font-size: $fs-sm;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+}
+
+.parDica {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+// ── Tabela de faturas ────────────────────────────────────────────────────────
+.competencia {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.valor {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  width: 100%;
+
+  @include phone {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.resumo {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  white-space: nowrap;
+
+  strong {
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+}

@@ -1,15 +1,15 @@
 import { Input } from '@/components/Input/Input'
 import { useCep } from '@/hooks/useCep'
 import type { Address } from '@/types/domain'
-import styles from './ClinicTab.module.scss'
+import styles from './AccountTab.module.scss'
 
 interface AddressFieldsProps {
   value: Address
   onChange: (campo: keyof Address, valor: string) => void
 }
 
-/** Bloco de endereço compartilhado pelos formulários da página Inicial.
- *  Ao completar o CEP, estado/cidade/bairro/rua se preenchem sozinhos. */
+/** Bloco de endereço dos cadastros. Ao completar o CEP, estado/cidade/bairro/rua
+ *  se preenchem sozinhos (ViaCEP). */
 export function AddressFields({ value, onChange }: AddressFieldsProps) {
   const { buscarCep, buscando, erro } = useCep()
 
@@ -20,7 +20,7 @@ export function AddressFields({ value, onChange }: AddressFieldsProps) {
     const endereco = await buscarCep(cep)
     if (!endereco) return   // incompleto, inexistente ou serviço fora do ar
 
-    // O `set` dos formulários usa update funcional — pode encadear em sequência.
+    // O `set` do formulário usa update funcional — pode encadear em sequência.
     onChange('estado', endereco.estado)
     onChange('cidade', endereco.cidade)
     onChange('bairro', endereco.bairro)

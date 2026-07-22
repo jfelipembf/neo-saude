@@ -3,10 +3,8 @@ import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
 import { Modal } from '@/components/Modal/Modal'
 import { Select } from '@/components/Select/Select'
-import { useToast } from '@/components/Toast/useToast'
-import { useReceberPagamento } from '@/hooks/usePagamentos'
 import { TIPO_PAGAMENTO_LABEL } from '@/constants'
-import type { Payment, PaymentMethod } from '@/types/domain'
+import type { BilledTreatment, PaymentMethod } from '@/types/domain'
 import styles from './PaymentModal.module.scss'
 
 const FORMAS = Object.keys(TIPO_PAGAMENTO_LABEL) as PaymentMethod[]
@@ -28,37 +26,58 @@ function hojeIso() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-interface PaymentModalProps {
-  /** Pagamento em aberto a receber; null mantém o modal fechado. */
-  pagamento: Payment | null
+/** O que o modal devolve ao confirmar — quem chama decide onde persistir. */
+export interface PaymentModalResult {
+  tipo: PaymentMethod
+  valor: number
+  data: string           // dd/mm/aaaa
+  bandeira?: string
+  autorizacao?: string
+  nsu?: string
+  parcelas?: number      // só crédito
+  contaBancariaId?: string
+}
+
+export interface PaymentModalProps {
+  /** Cobrança em aberto; null mantém o modal fechado. */
+  cobranca: {
+    /** Remonta o formulário a cada cobrança diferente. */
+    id: string
+    descricao: string
+    valor: number
+    /** Detalhamento; sem ele a própria cobrança vira o único item. */
+    tratamentos?: BilledTreatment[]
+  } | null
   paciente?: { nome: string; cpf?: string }
+  /** Contas bancárias para escolher onde o dinheiro entra (opcional). */
+  contas?: { value: string; label: string }[]
+  confirmando?: boolean
+  onConfirm: (dados: PaymentModalResult) => void
   onClose: () => void
 }
 
-/** Modal "Realizar pagamento": tratamentos cobrados, forma, valor e data. */
-export function PaymentModal({ pagamento, paciente, onClose }: PaymentModalProps) {
-  if (!pagamento) return null
-  // key remonta o formulário a cada pagamento — o estado nasce pronto
+/** Modal "Realizar pagamento": itens cobrados, forma, valor e data.
+ *  É APRESENTACIONAL — não persiste nada; devolve os dados em `onConfirm`. */
+export function PaymentModal({ cobranca, ...resto }: PaymentModalProps) {
+  if (!cobranca) return null
+  // key remonta o formulário a cada cobrança — o estado nasce pronto
   // (valor cheio + data de hoje) sem precisar de reset via efeito.
-  return <PaymentForm key={pagamento.id} pagamento={pagamento} paciente={paciente} onClose={onClose} />
+  return <PaymentForm key={cobranca.id} cobranca={cobranca} {...resto} />
 }
 
-interface PaymentFormProps {
-  pagamento: Payment
-  paciente?: { nome: string; cpf?: string }
-  onClose: () => void
+type PaymentFormProps = Omit<PaymentModalProps, 'cobranca'> & {
+  cobranca: NonNullable<PaymentModalProps['cobranca']>
 }
 
-function PaymentForm({ pagamento, paciente, onClose }: PaymentFormProps) {
-  const toast = useToast()
-  const { mutate: receber, isPending: recebendo } = useReceberPagamento()
+function PaymentForm({ cobranca, paciente, contas, confirmando, onConfirm, onClose }: PaymentFormProps) {
 
   const [forma, setForma] = useState<PaymentMethod>('dinheiro')
   const [valorTexto, setValorTexto] = useState(() =>
-    pagamento.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+    cobranca.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
   )
   const [dataIso, setDataIso] = useState(hojeIso())
   const [erroValor, setErroValor] = useState('')
+  const [contaId, setContaId] = useState('')
   // Campos exclusivos de cartão (crédito/débito).
   const [bandeira, setBandeira] = useState('')
   const [parcelas, setParcelas] = useState(1)
@@ -79,9 +98,9 @@ function PaymentForm({ pagamento, paciente, onClose }: PaymentFormProps) {
   })
 
   // Sem detalhamento cadastrado, a própria cobrança vira o único item da lista.
-  const tratamentos = pagamento.tratamentos?.length
-    ? pagamento.tratamentos
-    : [{ nome: pagamento.descricao, profissional: '', valor: pagamento.valor }]
+  const tratamentos = cobranca.tratamentos?.length
+    ? cobranca.tratamentos
+    : [{ nome: cobranca.descricao, profissional: '', valor: cobranca.valor }]
 
   function confirmar() {
     const valor = parseValor(valorTexto)
@@ -93,28 +112,18 @@ function PaymentForm({ pagamento, paciente, onClose }: PaymentFormProps) {
       setErroBandeira('Selecione a bandeira do cartão.')
       return
     }
-    receber(
-      {
-        id: pagamento.id,
-        dados: {
-          tipo: forma,
-          valor,
-          data: dataIso.split('-').reverse().join('/'),
-          ...(ehCartao && {
-            bandeira,
-            autorizacao: autorizacao.trim() || undefined,
-            nsu: nsu.trim() || undefined,
-          }),
-          ...(forma === 'credito' && { parcelas }),
-        },
-      },
-      {
-        onSuccess: () => {
-          toast.success('Pagamento registrado!')
-          onClose()
-        },
-      },
-    )
+    onConfirm({
+      tipo: forma,
+      valor,
+      data: dataIso.split('-').reverse().join('/'),
+      ...(ehCartao && {
+        bandeira,
+        autorizacao: autorizacao.trim() || undefined,
+        nsu: nsu.trim() || undefined,
+      }),
+      ...(forma === 'credito' && { parcelas }),
+      ...(contaId && { contaBancariaId: contaId }),
+    })
   }
 
   return (
@@ -124,8 +133,8 @@ function PaymentForm({ pagamento, paciente, onClose }: PaymentFormProps) {
       title="Realizar pagamento"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={recebendo}>Cancelar</Button>
-          <Button onClick={confirmar} loading={recebendo}>Confirmar pagamento</Button>
+          <Button variant="ghost" onClick={onClose} disabled={confirmando}>Cancelar</Button>
+          <Button onClick={confirmar} loading={confirmando}>Confirmar pagamento</Button>
         </>
       }
     >
@@ -151,7 +160,7 @@ function PaymentForm({ pagamento, paciente, onClose }: PaymentFormProps) {
             ))}
           </ul>
           <p className={styles.total}>
-            Total a ser pago <strong>{formatarReais(pagamento.valor)}</strong>
+            Total a ser pago <strong>{formatarReais(cobranca.valor)}</strong>
           </p>
         </section>
 
@@ -232,6 +241,17 @@ function PaymentForm({ pagamento, paciente, onClose }: PaymentFormProps) {
             onChange={e => setDataIso(e.target.value)}
           />
         </div>
+
+        {/* Só aparece quando o chamador informa as contas (baixa do financeiro). */}
+        {contas && contas.length > 0 && (
+          <Select
+            label="Conta bancária"
+            placeholder="Selecione a conta..."
+            options={contas}
+            value={contaId}
+            onChange={e => setContaId(e.target.value)}
+          />
+        )}
       </div>
     </Modal>
   )

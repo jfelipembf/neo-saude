@@ -8,12 +8,14 @@ import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
 import { useToast } from '@/components/Toast/useToast'
 import { IconCheck, IconX } from '@/components/icons'
-import { useContasReceber, useBaixarContaReceber, useCancelarContaReceber } from '@/hooks/useFinanceiro'
+import {
+  useContasReceber, useBaixarContaReceber, useCancelarContaReceber, useContasBancarias,
+} from '@/hooks/useFinanceiro'
 import { usePagination } from '@/hooks/usePagination'
 import { TIPO_PAGAMENTO_LABEL } from '@/constants'
 import { formatarReais } from '@/utils/format'
 import type { Receivable } from '@/types/domain'
-import { SettleModal } from '../shared/SettleModal'
+import { PaymentModal } from '@/components/PaymentModal/PaymentModal'
 import shared from '../shared/finance.module.scss'
 
 /** Restante a receber = líquido − o que já entrou (baixas parciais). */
@@ -27,6 +29,9 @@ export function ReceivableTab() {
   const { data: contas, isLoading } = useContasReceber()
   const { mutate: baixar, isPending: baixando } = useBaixarContaReceber()
   const { mutate: cancelar } = useCancelarContaReceber()
+  // Contas BANCÁRIAS (onde o dinheiro entra) — não confundir com as a receber.
+  const { data: contasBancarias } = useContasBancarias()
+  const opcoesConta = (contasBancarias ?? []).map(c => ({ value: c.id, label: c.nome }))
 
   const lista = contas ?? []
   const pag = usePagination(lista)
@@ -109,26 +114,29 @@ export function ReceivableTab() {
         }
       />
 
-      {/* ── Modal: dar baixa (recebimento parcial mantém a conta em aberto) ── */}
-      {aBaixar && (
-        <SettleModal
-          key={aBaixar.id}
-          titulo="Confirmar Recebimento"
-          confirmLabel="Confirmar Recebimento"
-          dataLabel="Data do recebimento"
-          valorLabel="Valor recebido"
-          hintValor="Recebimento parcial mantém a conta em aberto com o restante."
-          valorInicial={Math.max(restanteDe(aBaixar), 0)}
-          confirmando={baixando}
-          onClose={() => setABaixar(null)}
-          onConfirm={baixa =>
-            baixar(
-              { id: aBaixar.id, baixa },
-              { onSuccess: () => { toast.success('Recebimento registrado!'); setABaixar(null) } },
-            )
-          }
-        />
-      )}
+      {/* ── Modal de pagamento (o mesmo do perfil do paciente) ──
+          Recebimento parcial mantém a conta em aberto com o restante. */}
+      <PaymentModal
+        cobranca={aBaixar && {
+          id: aBaixar.id,
+          descricao: aBaixar.descricao,
+          valor: Math.max(restanteDe(aBaixar), 0),
+        }}
+        contas={opcoesConta}
+        confirmando={baixando}
+        onConfirm={dados => {
+          if (!aBaixar) return
+          baixar(
+            {
+              id: aBaixar.id,
+              // O modal fala em "tipo"; a baixa do financeiro chama de "forma".
+              baixa: { ...dados, forma: dados.tipo },
+            },
+            { onSuccess: () => { toast.success('Recebimento registrado!'); setABaixar(null) } },
+          )
+        }}
+        onClose={() => setABaixar(null)}
+      />
 
       {/* ── Cancelar recebimento ── */}
       <ConfirmDialog
