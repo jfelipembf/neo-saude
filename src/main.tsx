@@ -5,6 +5,7 @@ import './styles/global.scss'
 import { SessionProvider } from './context/SessionProvider'
 import { ThemeProvider } from './context/ThemeProvider'
 import { ToastProvider } from './components/Toast/useToast'
+import { ErrorBoundary } from './components/ErrorBoundary/ErrorBoundary'
 import App from './App.tsx'
 
 // Em dev o PWA NÃO registra service worker (devOptions.enabled: false), mas um
@@ -32,7 +33,9 @@ createRoot(document.getElementById('root')!).render(
       <SessionProvider>
         <ThemeProvider>
           <ToastProvider>
-            <App />
+            <ErrorBoundary>
+              <App />
+            </ErrorBoundary>
           </ToastProvider>
         </ThemeProvider>
       </SessionProvider>

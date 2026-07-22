@@ -1,6 +1,8 @@
-import { MOCK_TREATMENTS } from '@/mocks/treatments'
-import type { UsedMaterial, ToothStatus, Treatment } from '@/types/domain'
-import { CURRENT_CLINIC } from '@/lib/tenant'
+import { supabase } from '@/lib/supabase'
+import { getCurrentClinicId } from '@/lib/tenant'
+import { brToIsoDate, isoToBrDate } from '@/utils/date'
+import type { Json } from '@/types/database.types'
+import type { UsedMaterial, ToothStatus, Treatment, TreatmentSession } from '@/types/domain'
 
 /**
  * O tratamento nasce VAZIO (sem odontograma) e recebe PROCEDIMENTOS (sessões)
@@ -21,49 +23,104 @@ export interface NewTreatmentSession {
   teeth?: string[]      // dentes sinalizados (mesclados no tratamento)
   materials?: UsedMaterial[]
   notes?: string
-  /** Valor cobrado pelo procedimento. */
   amount?: number
-  /** Snapshot do odontograma (payload do motor) — reabre a ficha marcada. */
   odontogram?: Record<string, unknown>
-  /** Situação do tratamento APÓS este procedimento. */
   statusAfter: ToothStatus
 }
 
-// MODO MOCK: retorna dados de demonstração. Quando o schema Supabase existir,
-// viram as tabelas `treatments` 1—N `tratamento_sessoes` (mesmas assinaturas).
-export async function listPatientTreatments(patientId: string): Promise<Treatment[]> {
-  return MOCK_TREATMENTS.filter(t => t.patientId === patientId)
+// Formato devolvido pela RPC patient_treatments (snake_case).
+type SessionJson = {
+  id: string
+  description: string | null
+  performed_on: string
+  professional_id: string | null
+  amount: number | null
+  notes: string | null
+  teeth: string[]
+  actions: string[]
+  materials: { material_id: string | null; name: string; quantity: string }[]
+  odontogram: Record<string, unknown> | null
+}
+type TreatmentJson = {
+  id: string
+  clinic_id: string
+  patient_id: string
+  procedure: string
+  status: ToothStatus
+  started_at: string
+  completed_at: string | null
+  notes: string | null
+  teeth: string[]
+  sessions: SessionJson[]
 }
 
-// Contadores de id do mock — no Supabase os ids virão do banco.
-let nextId = 100
-let nextSessionId = 100
+function toSession(s: SessionJson): TreatmentSession {
+  return {
+    id: s.id,
+    description: s.description ?? undefined,
+    date: isoToBrDate(s.performed_on) ?? '',
+    professionalId: s.professional_id ?? undefined,
+    teeth: s.teeth ?? [],
+    actions: s.actions ?? [],
+    materials: (s.materials ?? []).map(m => ({ name: m.name, quantity: m.quantity })),
+    notes: s.notes ?? undefined,
+    amount: s.amount != null ? Number(s.amount) : undefined,
+    odontogram: s.odontogram ?? undefined,
+  }
+}
+
+function toTreatment(t: TreatmentJson): Treatment {
+  return {
+    id: t.id,
+    clinicId: t.clinic_id,
+    patientId: t.patient_id,
+    tooth: t.teeth?.length ? t.teeth.join(', ') : undefined,
+    procedure: t.procedure,
+    status: t.status,
+    startedAt: isoToBrDate(t.started_at) ?? '',
+    completedAt: isoToBrDate(t.completed_at),
+    notes: t.notes ?? undefined,
+    sessions: (t.sessions ?? []).map(toSession),
+  }
+}
+
+export async function listPatientTreatments(patientId: string): Promise<Treatment[]> {
+  const { data, error } = await supabase.rpc('patient_treatments', { p_patient: patientId })
+  if (error) throw error
+  return ((data ?? []) as unknown as TreatmentJson[]).map(toTreatment)
+}
 
 /** Cria o tratamento (guarda-chuva) vazio — os procedimentos vêm depois. */
 export async function addTreatment(payload: NewTreatment): Promise<void> {
-  MOCK_TREATMENTS.unshift({
-    id: `t${nextId++}`, clinicId: CURRENT_CLINIC,
-    patientId: payload.patientId,
+  const { error } = await supabase.from('treatment').insert({
+    clinic_id: getCurrentClinicId(),
+    patient_id: payload.patientId,
     procedure: payload.procedure,
     status: 'open',
-    startedAt: payload.date,
-    sessions: [],
+    started_at: brToIsoDate(payload.date) ?? undefined,
   })
+  if (error) throw error
 }
 
-/** Adiciona um procedimento ao tratamento (dias diferentes, mesmo tratamento). */
+/**
+ * Adiciona um procedimento ao tratamento via RPC transacional
+ * `record_treatment_session` (grava sessão + dentes + etapas + materiais +
+ * odontograma e atualiza o status do tratamento, tudo numa transação).
+ */
 export async function addTreatmentSession(treatmentId: string, session: NewTreatmentSession): Promise<void> {
-  const treatment = MOCK_TREATMENTS.find(t => t.id === treatmentId)
-  if (!treatment) return
-
-  const { statusAfter, ...sessionPayload } = session
-  treatment.sessions.push({ id: `s${nextSessionId++}`, ...sessionPayload })
-  treatment.status = statusAfter
-  treatment.completedAt = statusAfter !== 'open' ? session.date : undefined
-
-  // Mescla os dentes trabalhados neste procedimento aos do tratamento.
-  if (session.teeth?.length) {
-    const current = treatment.tooth ? treatment.tooth.split(', ') : []
-    treatment.tooth = [...new Set([...current, ...session.teeth])].join(', ')
-  }
+  const performedOn = brToIsoDate(session.date)
+  if (!performedOn) throw new Error('Data do procedimento inválida.')
+  const { error } = await supabase.rpc('record_treatment_session', {
+    p_treatment: treatmentId,
+    p_performed_on: performedOn,
+    p_status_after: session.statusAfter,
+    p_description: session.description ?? undefined,
+    p_amount: session.amount ?? undefined,
+    p_notes: session.notes ?? undefined,
+    p_teeth: session.teeth ?? [],
+    p_actions: session.actions,
+    p_materials: (session.materials ?? []).map(m => ({ material_id: null, name: m.name, quantity: m.quantity })) as unknown as Json,
+    p_odontogram: (session.odontogram ?? undefined) as unknown as Json | undefined,
+  })
+  if (error) throw error
 }

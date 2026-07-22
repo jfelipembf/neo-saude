@@ -2,9 +2,14 @@ import { MOCK_ANAMNESIS } from '@/mocks/anamnesis'
 import type { Anamnesis } from '@/types/domain'
 import { CURRENT_CLINIC, type ClientPayload } from '@/lib/tenant'
 
-// MODO MOCK: retorna dados de demonstração. Quando o schema Supabase existir,
-// trocar o corpo por supabase.from('anamnesis')… mantendo a MESMA assinatura —
-// páginas e hooks não mudam.
+// TODO(neoSaúde) — BLOQUEADO por incompatibilidade de modelo (segue em MOCK):
+// O domínio `Anamnesis` é um objeto PLANO de campos fixos (medications, allergy,
+// bloodPressure, …), mas o banco modela a anamnese como QUESTIONÁRIO DINÂMICO
+// (anamnesis_template → section → question → answer) e as RPCs trabalham por
+// CÓDIGO de pergunta: `save_anamnesis(p_patient, p_answers jsonb {codigo: valor})`
+// e `patient_anamnesis(p_patient)` (devolve template + record + archived_count).
+// Ligar isto exige um DE-PARA campo-plano ↔ código-de-pergunta (ou migrar o
+// front para o shape dinâmico) — decisão de produto. Até lá, mock.
 // Cópias ({ ...mock }) para o cache do TanStack Query não apontar para o objeto
 // mutável (senão salvar não re-renderiza quem assina a query).
 

@@ -1,4 +1,8 @@
+import type { CSSProperties } from 'react'
 import { Button } from '@/components/Button/Button'
+import { useToast } from '@/components/Toast/useToast'
+import { useUpdateProfessional } from '@/hooks/useProfessionals'
+import { COLOR_PALETTE } from '@/constants'
 import { IconEdit, IconStar, IconPhone, IconMessage, IconEmail } from '@/components/icons'
 import { initials } from '@/utils/text'
 import type { Professional } from '@/types/domain'
@@ -13,6 +17,18 @@ interface ProfileSummaryProps {
 /** Card-resumo da lateral esquerda: identidade, contato, dados profissionais,
  *  especializações e "sobre" — visível em todas as abas. */
 export function ProfileSummary({ professional, onEdit }: ProfileSummaryProps) {
+  const toast = useToast()
+  const { mutate: atualizar } = useUpdateProfessional()
+
+  const cor = professional.color ?? COLOR_PALETTE[0]
+
+  function escolherCor(color: string) {
+    if (color === professional.color) return
+    atualizar(
+      { id: professional.id, payload: { color } },
+      { onSuccess: () => toast.success('Cor atualizada!') },
+    )
+  }
   const contacts = [
     { label: 'Telefone', value: professional.phone, icon: <IconPhone /> },
     { label: 'WhatsApp', value: professional.whatsapp, icon: <IconMessage /> },
@@ -39,7 +55,12 @@ export function ProfileSummary({ professional, onEdit }: ProfileSummaryProps) {
       />
 
       <div className={styles.identidade}>
-        <span className={styles.avatar}>{initials(professional.name)}</span>
+        <span
+          className={styles.avatar}
+          style={{ '--avatar-ring': cor } as CSSProperties}
+        >
+          {initials(professional.name)}
+        </span>
         <h2 className={styles.nome}>{professional.name}</h2>
         <p className={styles.subtitulo}>
           {[professional.specialty, professional.license].filter(Boolean).join(' · ')}
@@ -50,6 +71,22 @@ export function ProfileSummary({ professional, onEdit }: ProfileSummaryProps) {
             {professional.rating.toLocaleString('pt-BR')}
           </span>
         )}
+      </div>
+
+      <div className={styles.bloco}>
+        <h3 className={styles.blocoTitulo}>Cor na agenda</h3>
+        <div className={styles.corLinha}>
+          {/* Círculo único: clicar abre o color picker nativo. */}
+          <label className={styles.corPicker} style={{ background: cor }} title="Escolher cor">
+            <input
+              type="color"
+              value={cor}
+              onChange={e => escolherCor(e.target.value)}
+              aria-label="Escolher cor na agenda"
+              className={styles.corInput}
+            />
+          </label>
+        </div>
       </div>
 
       <div className={styles.bloco}>

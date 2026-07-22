@@ -14,13 +14,18 @@
   white-space: nowrap;
 }
 
-// Campo estreito: só o número cabe dentro.
-.campo {
+// Campo estreito: só o número cabe dentro. Aninhado sob `.root` de propósito —
+// o Select aplica `.campo` no seu `.field`, que tem `width: 100%` (mixin
+// field-root). Ambos seriam 1 classe (mesma especificidade), e aí quem vence
+// depende da ORDEM de importação dos CSS modules (varia por build/HMR): por
+// isso o campo às vezes esticava e o "p/ página" sumia. `.root .campo` (2
+// classes) vence sempre.
+.root .campo {
   width: 76px;
   flex-shrink: 0;
 }
 
 @include phone {
   .texto { font-size: $fs-xs; }
-  .campo { width: 68px; }
+  .root .campo { width: 68px; }
 }

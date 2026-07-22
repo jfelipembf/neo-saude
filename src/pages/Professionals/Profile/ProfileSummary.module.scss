@@ -32,11 +32,52 @@
   height: 88px;
   margin-bottom: $sp-2;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  // Preenchido na COR do profissional (fallback na marca via var).
+  background: var(--avatar-ring, linear-gradient(135deg, var(--primary), var(--secondary)));
   color: #fff;
   font-size: $fs-2xl;
   font-weight: 600;
-  box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.15);   // anel sutil da marca
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--avatar-ring, var(--primary)) 22%, transparent);
+}
+
+// ── Seletor de cor do profissional (círculo único + color picker nativo) ─────
+.corLinha {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+}
+
+.corPicker {
+  position: relative;
+  display: block;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--glass-border);
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 0%, transparent);
+  cursor: pointer;
+  transition: transform 0.12s ease;
+
+  &:hover { transform: scale(1.06); }
+
+  &:focus-within {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+}
+
+// O input nativo cobre o círculo (clicar em qualquer ponto abre o picker),
+// mas fica invisível — quem aparece é o fundo colorido do label.
+.corInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 .nome {

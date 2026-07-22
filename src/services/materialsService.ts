@@ -1,6 +1,33 @@
-import { MOCK_MATERIALS } from '@/mocks/materials'
+import { supabase } from '@/lib/supabase'
+import { getCurrentClinicId } from '@/lib/tenant'
+import { brToIsoDate, isoToBrDate } from '@/utils/date'
 import type { Material } from '@/types/domain'
-import { CURRENT_CLINIC } from '@/lib/tenant'
+
+const COLUMNS = 'id, clinic_id, name, photo_url, in_stock, min_quantity, expiry_date, notes'
+
+type MaterialRow = {
+  id: string
+  clinic_id: string
+  name: string
+  photo_url: string | null
+  in_stock: number
+  min_quantity: number
+  expiry_date: string | null
+  notes: string | null
+}
+
+function toMaterial(row: MaterialRow): Material {
+  return {
+    id: row.id,
+    clinicId: row.clinic_id,
+    name: row.name,
+    photo: row.photo_url ?? undefined,
+    inStock: Number(row.in_stock),
+    minQuantity: Number(row.min_quantity),
+    expiryDate: isoToBrDate(row.expiry_date),
+    notes: row.notes ?? undefined,
+  }
+}
 
 /** Dados do formulário de novo material (id nasce aqui). */
 export interface NewMaterial {
@@ -12,23 +39,37 @@ export interface NewMaterial {
   notes?: string
 }
 
-// MODO MOCK: retorna dados de demonstração. Quando o schema Supabase existir,
-// trocar o corpo por supabase.from('materials')… mantendo a MESMA assinatura —
-// páginas e hooks não mudam.
-export async function listMaterials(): Promise<Material[]> {
-  return MOCK_MATERIALS
+function toRow(payload: NewMaterial) {
+  return {
+    name: payload.name,
+    photo_url: payload.photo ?? null,
+    in_stock: payload.inStock,
+    min_quantity: payload.minQuantity,
+    expiry_date: brToIsoDate(payload.expiryDate),
+    notes: payload.notes ?? null,
+  }
 }
 
-// Contador de id do mock — no Supabase o id virá do banco.
-let nextId = 100
+export async function listMaterials(): Promise<Material[]> {
+  const { data, error } = await supabase
+    .from('material')
+    .select(COLUMNS)
+    .eq('clinic_id', getCurrentClinicId())
+    .order('name')
+  if (error) throw error
+  return (data as MaterialRow[]).map(toMaterial)
+}
 
 /** Cadastra um material novo. */
 export async function addMaterial(payload: NewMaterial): Promise<void> {
-  MOCK_MATERIALS.push({ id: `m${nextId++}`, clinicId: CURRENT_CLINIC, ...payload })
+  const { error } = await supabase
+    .from('material')
+    .insert({ clinic_id: getCurrentClinicId(), ...toRow(payload) })
+  if (error) throw error
 }
 
-/** Atualiza um material (mock: muta o registro em memória). */
+/** Atualiza um material. */
 export async function updateMaterial(id: string, payload: NewMaterial): Promise<void> {
-  const material = MOCK_MATERIALS.find(m => m.id === id)
-  if (material) Object.assign(material, payload)
+  const { error } = await supabase.from('material').update(toRow(payload)).eq('id', id)
+  if (error) throw error
 }

@@ -92,6 +92,7 @@ export interface Professional {
   description?: string     // breve explicação da especialidade (lista de profissionais)
   rating?: number          // nota média de atendimento (0–5)
   license: string       // conselho + número (CRM, CRO, CREFITO…)
+  color?: string           // cor de identificação (agenda, gráficos) — hex
   status: ActiveStatus
   // Dados pessoais (mesmo cadastro do paciente).
   sex?: Gender

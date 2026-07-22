@@ -28,6 +28,19 @@ export function parseBrDate(br: string) {
   return new Date(year, month - 1, day)
 }
 
+/** 'dd/mm/aaaa' → 'aaaa-mm-dd' para o banco (null/vazio → null). */
+export function brToIsoDate(br: string | null | undefined): string | null {
+  if (!br) return null
+  const d = parseBrDate(br)
+  return Number.isNaN(d.getTime()) ? null : toIsoDate(d)
+}
+
+/** 'aaaa-mm-dd' (banco) → 'dd/mm/aaaa' do domínio (null/vazio → undefined). */
+export function isoToBrDate(iso: string | null | undefined): string | undefined {
+  if (!iso) return undefined
+  return toShortDateWithYear(localDate(iso))
+}
+
 /** Soma dias corridos a uma data — usado para prever a data de repasse
  *  (data da venda + D+N dias da adquirente). */
 export function addDays(d: Date, days: number) {

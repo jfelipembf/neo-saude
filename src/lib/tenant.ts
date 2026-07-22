@@ -1,17 +1,45 @@
 /**
  * Tenant e códigos humanos — ponto único.
  *
- * MODO MOCK: a clínica é fixa e o código é calculado em memória.
+ * No Supabase (modo real):
+ *  - A clínica atual NÃO vem de um claim do JWT. O modelo de segurança é por
+ *    ASSOCIAÇÃO: `private.auth_clinic_ids()` lê a tabela `clinic_user` para o
+ *    `auth.uid()` logado. O front descobre a clínica corrente chamando a RPC
+ *    `my_session()` no login (ver SessionProvider), que devolve `clinic.id`.
+ *    Esse UUID é guardado aqui via `setCurrentClinicId()` e lido pelos services
+ *    com `getCurrentClinicId()`.
+ *  - Nos INSERTs o cliente MANDA `clinic_id` (a policy `with_check` exige que
+ *    ele pertença a `auth_clinic_ids()`); `id` e `code` NÃO são enviados —
+ *    `id` tem default `gen_random_uuid()` e `code` é preenchido pelo trigger
+ *    `tr_code` (BEFORE INSERT), sem corrida entre usuários.
  *
- * No Supabase:
- *  - `clinicId` vem do JWT (`auth.jwt() ->> 'clinica_id'`), NUNCA do cliente —
- *    aceitar do front permitiria a uma clínica gravar na outra.
- *  - `code` vem de uma sequence por clínica, gerada no INSERT (trigger ou
- *    default), para não haver corrida entre dois usuários criando ao mesmo tempo.
+ * MODO MOCK (legado): `CURRENT_CLINIC` abaixo ainda é usado pelos services que
+ * não foram migrados para o banco real. Cada service migrado troca
+ * `CURRENT_CLINIC` por `getCurrentClinicId()`; quando o último sair, a const
+ * pode ser removida.
  */
 
-/** Clínica da sessão atual (mock: instalação de clínica única). */
+/** @deprecated Clínica fixa do modo mock — só para services ainda não migrados. */
 export const CURRENT_CLINIC = 'c1'
+
+/**
+ * Clínica corrente resolvida da sessão real (UUID). É preenchida pelo
+ * SessionProvider após o `my_session()`, e zerada no logout. Módulo-nível
+ * (não é hook) porque os services não são componentes React.
+ */
+let currentClinicId: string | null = null
+
+export function setCurrentClinicId(id: string | null): void {
+  currentClinicId = id
+}
+
+/** UUID da clínica corrente. Lança se a sessão ainda não foi resolvida. */
+export function getCurrentClinicId(): string {
+  if (!currentClinicId) {
+    throw new Error('Clínica atual não resolvida — sessão não inicializada (my_session).')
+  }
+  return currentClinicId
+}
 
 /**
  * O que um formulário pode enviar: os dados da entidade MENOS os três campos
