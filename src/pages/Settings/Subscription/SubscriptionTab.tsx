@@ -1,4 +1,5 @@
 import { Badge } from '@/components/Badge/Badge'
+import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { FormSection } from '@/components/FormSection/FormSection'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { Pagination } from '@/components/Pagination/Pagination'
@@ -23,7 +24,8 @@ export function SubscriptionTab() {
 
   const pagination = usePagination(invoices ?? [])
 
-  if (loadingPlan || loadingInvoices || !subscription) return <PageLoader />
+  // Só o carregamento prende a tela — sem plano contratado a aba ainda aparece.
+  if (loadingPlan || loadingInvoices) return <PageLoader />
 
   const columns: TableColumn<SubscriptionInvoice>[] = [
     {
@@ -49,41 +51,48 @@ export function SubscriptionTab() {
       <FormSection
         title="Plano atual"
         description="Cobrança recorrente pelo acesso ao sistema."
-        actions={<Badge status={subscription.status} />}
+        actions={subscription && <Badge status={subscription.status} />}
       >
-        <div className={styles.plano}>
-          <div className={styles.preco}>
-            <span className={styles.precoNome}>{subscription.plan}</span>
-            <span className={styles.precoValor}>
-              {formatBRL(subscription.amount)}
-              <small>{CYCLE_LABEL[subscription.cycle]}</small>
-            </span>
-          </div>
+        {subscription ? (
+          <div className={styles.plano}>
+            <div className={styles.preco}>
+              <span className={styles.precoNome}>{subscription.plan}</span>
+              <span className={styles.precoValor}>
+                {formatBRL(subscription.amount)}
+                <small>{CYCLE_LABEL[subscription.cycle]}</small>
+              </span>
+            </div>
 
-          <dl className={styles.pares}>
-            <div className={styles.par}>
-              <dt>Próxima cobrança</dt>
-              <dd>{subscription.nextBilling}</dd>
-            </div>
-            <div className={styles.par}>
-              <dt>Cliente desde</dt>
-              <dd>{subscription.since}</dd>
-            </div>
-            <div className={styles.par}>
-              <dt>Forma de pagamento</dt>
-              <dd>{subscription.paymentMethod ?? '—'}</dd>
-            </div>
-            {subscription.includedProfessionals != null && (
+            <dl className={styles.pares}>
               <div className={styles.par}>
-                <dt>Profissionais</dt>
-                <dd>
-                  {subscription.professionalsInUse ?? 0} de {subscription.includedProfessionals}
-                  <span className={styles.parDica}> incluídos no plano</span>
-                </dd>
+                <dt>Próxima cobrança</dt>
+                <dd>{subscription.nextBilling}</dd>
               </div>
-            )}
-          </dl>
-        </div>
+              <div className={styles.par}>
+                <dt>Cliente desde</dt>
+                <dd>{subscription.since}</dd>
+              </div>
+              <div className={styles.par}>
+                <dt>Forma de pagamento</dt>
+                <dd>{subscription.paymentMethod ?? '—'}</dd>
+              </div>
+              {subscription.includedProfessionals != null && (
+                <div className={styles.par}>
+                  <dt>Profissionais</dt>
+                  <dd>
+                    {subscription.professionalsInUse ?? 0} de {subscription.includedProfessionals}
+                    <span className={styles.parDica}> incluídos no plano</span>
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </div>
+        ) : (
+          <EmptyState
+            title="Nenhum plano contratado"
+            description="Sua clínica ainda não tem uma assinatura ativa. Fale com o suporte para contratar um plano."
+          />
+        )}
       </FormSection>
 
       <FormSection

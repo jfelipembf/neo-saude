@@ -34,19 +34,28 @@ export function ProfessionalProfilePage() {
   const [tab, setTab] = useState<TabKey>('personal')
   const [editingData, setEditingData] = useState(false)
   const [editingCv, setEditingCv] = useState(false)
+  // Foto escolhida no avatar (já subiu pro Storage), pendente de SALVAR junto
+  // do formulário de dados pessoais — não persiste no cadastro antes disso.
+  const [pendingPhoto, setPendingPhoto] = useState<string | null>(null)
 
   // Trocar de aba no meio de uma edição descarta o rascunho (o formulário
   // desmonta e nasce de novo a partir do cadastro salvo).
   function changeTab(key: string) {
     setTab(key as TabKey)
-    if (key !== 'personal') setEditingData(false)
+    if (key !== 'personal') { setEditingData(false); setPendingPhoto(null) }
     if (key !== 'curriculum') setEditingCv(false)
   }
 
   function openDataEdit() {
     setEditingCv(false)
     setEditingData(true)
+    setPendingPhoto(null)
     setTab('personal')   // a edição vive na aba de dados pessoais
+  }
+
+  function closeDataEdit() {
+    setEditingData(false)
+    setPendingPhoto(null)
   }
 
   function openCvEdit() {
@@ -82,12 +91,18 @@ export function ProfessionalProfilePage() {
       {headerZone}
 
       <div className={styles.grid}>
-        <ProfileSummary professional={professional} onEdit={openDataEdit} />
+        <ProfileSummary
+          professional={professional}
+          onEdit={openDataEdit}
+          editing={editingData}
+          pendingPhoto={pendingPhoto}
+          onPhotoChange={setPendingPhoto}
+        />
 
         {/* ── Painel da direita: conteúdo da aba ativa ── */}
         <div className={styles.painel}>
           {tab === 'personal' && (editingData ? (
-            <PersonalDataForm professional={professional} onClose={() => setEditingData(false)} />
+            <PersonalDataForm professional={professional} pendingPhoto={pendingPhoto} onClose={closeDataEdit} />
           ) : (
             <PersonalDataCard professional={professional} onEdit={openDataEdit} />
           ))}

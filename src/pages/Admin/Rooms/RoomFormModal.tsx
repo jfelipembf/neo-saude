@@ -66,7 +66,7 @@ export function RoomFormModal({ room, onClose }: RoomFormModalProps) {
           error={nameError}
           autoFocus
         />
-        <PhotoInput label="Foto da sala" value={photo} onChange={setPhoto} />
+        <PhotoInput label="Foto da sala" value={photo} onChange={setPhoto} folder="rooms" />
       </form>
     </Modal>
   )

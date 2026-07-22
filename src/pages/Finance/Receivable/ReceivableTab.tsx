@@ -8,7 +8,8 @@ import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
 import { useToast } from '@/components/Toast/useToast'
-import { IconCheck, IconUndo, IconX } from '@/components/icons'
+import { IconCheck, IconUndo, IconX, IconPlus } from '@/components/icons'
+import { AccountFormModal } from '../shared/AccountFormModal'
 import {
   useReceivables, useSettleReceivable, useCancelReceivable, useReverseReceivable,
   useSettleReceivablesBatch, useBankAccounts,
@@ -47,6 +48,7 @@ export function ReceivableTab() {
   const [toReverse, setToReverse] = useState<Receivable | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [batchOpen, setBatchOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
 
   if (isLoading) return <PageLoader />
 
@@ -171,12 +173,17 @@ export function ReceivableTab() {
                 <span className={shared.barraLoteTexto}>Selecionar em aberto</span>
               )}
             </label>
-            {selected.size > 0 && (
-              <Button size="sm" iconLeft={<IconCheck />} onClick={() => setBatchOpen(true)}>
-                Dar baixa em lote
+            <div className={shared.barraDireita}>
+              {selected.size > 0 && (
+                <Button size="sm" iconLeft={<IconCheck />} onClick={() => setBatchOpen(true)}>
+                  Dar baixa em lote
+                </Button>
+              )}
+              <PerPageSelect perPage={pagination.perPage} onChange={pagination.setPerPage} />
+              <Button size="sm" iconLeft={<IconPlus />} onClick={() => setCreating(true)}>
+                Nova conta a receber
               </Button>
-            )}
-            <PerPageSelect perPage={pagination.perPage} onChange={pagination.setPerPage} />
+            </div>
           </>
         }
         footer={
@@ -248,6 +255,9 @@ export function ReceivableTab() {
         message={toReverse ? `"${toReverse.description}" volta para aberto. Confirma o estorno?` : ''}
         variant="danger"
       />
+
+      {/* ── Modal: cadastrar nova conta a receber ── */}
+      {creating && <AccountFormModal kind="receivable" onClose={() => setCreating(false)} />}
 
       {/* ── Baixa em lote: uma data/forma/conta para todas as selecionadas ──
           Sempre baixa o valor CHEIO — quem precisa de parcial usa a linha. */}

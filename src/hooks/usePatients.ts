@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
-import { addPatient, listPatients, updatePatient } from '@/services/patientsService'
+import { addPatient, listPatients, updatePatient, updatePatientPhoto } from '@/services/patientsService'
 import type { EditPatient, NewPatient } from '@/services/patientsService'
 
 export function usePatients() {
@@ -22,6 +22,15 @@ export function useUpdatePatient() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: EditPatient }) => updatePatient(id, payload),
     // A key de detalhe é prefixada por ['patients'] — uma invalidação cobre as duas.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.patients.all }),
+  })
+}
+
+/** Troca a foto (avatar) do paciente — ação rápida no perfil. */
+export function useUpdatePatientPhoto() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, photo }: { id: string; photo: string | undefined }) => updatePatientPhoto(id, photo),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.patients.all }),
   })
 }

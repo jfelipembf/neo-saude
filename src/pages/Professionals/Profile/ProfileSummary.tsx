@@ -1,9 +1,11 @@
-import type { CSSProperties } from 'react'
+import { useState } from 'react'
+import type { ChangeEvent, CSSProperties } from 'react'
 import { Button } from '@/components/Button/Button'
 import { useToast } from '@/components/Toast/useToast'
 import { useUpdateProfessional } from '@/hooks/useProfessionals'
+import { uploadImage } from '@/lib/storage'
 import { COLOR_PALETTE } from '@/constants'
-import { IconEdit, IconStar, IconPhone, IconMessage, IconEmail } from '@/components/icons'
+import { IconEdit, IconStar, IconPhone, IconMessage, IconEmail, IconCamera } from '@/components/icons'
 import { initials } from '@/utils/text'
 import type { Professional } from '@/types/domain'
 import shared from './shared/profile.module.scss'
@@ -12,13 +14,20 @@ import styles from './ProfileSummary.module.scss'
 interface ProfileSummaryProps {
   professional: Professional
   onEdit: () => void
+  /** Em edição: mostra o botão de câmera no canto do avatar para trocar a foto. */
+  editing?: boolean
+  /** Foto escolhida ainda não salva (preview no avatar até clicar em Salvar). */
+  pendingPhoto?: string | null
+  /** Avisa o pai que uma nova foto foi escolhida (sobe pro Storage aqui). */
+  onPhotoChange?: (url: string) => void
 }
 
 /** Card-resumo da lateral esquerda: identidade, contato, dados profissionais,
  *  especializações e "sobre" — visível em todas as abas. */
-export function ProfileSummary({ professional, onEdit }: ProfileSummaryProps) {
+export function ProfileSummary({ professional, onEdit, editing = false, pendingPhoto, onPhotoChange }: ProfileSummaryProps) {
   const toast = useToast()
   const { mutate: atualizar } = useUpdateProfessional()
+  const [uploadingFoto, setUploadingFoto] = useState(false)
 
   const cor = professional.color ?? COLOR_PALETTE[0]
 
@@ -29,6 +38,27 @@ export function ProfileSummary({ professional, onEdit }: ProfileSummaryProps) {
       { onSuccess: () => toast.success('Cor atualizada!') },
     )
   }
+
+  /** Foto escolhida: sobe pro Storage (para o preview) mas só PERSISTE no
+   *  cadastro quando o formulário for salvo — avisa o pai com a URL. */
+  async function escolherFoto(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''   // permite reescolher o mesmo arquivo
+    if (!file) return
+
+    setUploadingFoto(true)
+    try {
+      const url = await uploadImage(file, 'professionals')
+      onPhotoChange?.(url)
+    } catch {
+      toast.error('Não foi possível enviar a foto.')
+    } finally {
+      setUploadingFoto(false)
+    }
+  }
+
+  // No avatar: a foto pendente (recém-escolhida) tem prioridade sobre a salva.
+  const fotoExibida = pendingPhoto ?? professional.photo
   const contacts = [
     { label: 'Telefone', value: professional.phone, icon: <IconPhone /> },
     { label: 'WhatsApp', value: professional.whatsapp, icon: <IconMessage /> },
@@ -55,12 +85,32 @@ export function ProfileSummary({ professional, onEdit }: ProfileSummaryProps) {
       />
 
       <div className={styles.identidade}>
-        <span
-          className={styles.avatar}
-          style={{ '--avatar-ring': cor } as CSSProperties}
-        >
-          {initials(professional.name)}
-        </span>
+        <div className={styles.avatarWrap}>
+          <span
+            className={styles.avatar}
+            style={{ '--avatar-ring': cor } as CSSProperties}
+          >
+            {fotoExibida ? (
+              <img src={fotoExibida} alt={professional.name} className={styles.avatarImg} />
+            ) : (
+              initials(professional.name)
+            )}
+          </span>
+
+          {/* Só em edição: círculo de câmera no canto para trocar a foto. */}
+          {editing && (
+            <label className={`${styles.fotoBtn} ${uploadingFoto ? styles.fotoBtnLoading : ''}`} title="Trocar foto">
+              <IconCamera />
+              <input
+                type="file"
+                accept="image/*"
+                className={styles.fotoInput}
+                onChange={escolherFoto}
+                disabled={uploadingFoto}
+              />
+            </label>
+          )}
+        </div>
         <h2 className={styles.nome}>{professional.name}</h2>
         <p className={styles.subtitulo}>
           {[professional.specialty, professional.license].filter(Boolean).join(' · ')}

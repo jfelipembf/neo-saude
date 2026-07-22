@@ -1,9 +1,12 @@
 import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
+import { Pagination } from '@/components/Pagination/Pagination'
+import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
 import { useToast } from '@/components/Toast/useToast'
+import { usePagination } from '@/hooks/usePagination'
 import { IconCheck } from '@/components/icons'
 import { useReceivables, useAcquirers, useBankAccounts, useSettleReceivablesBatch } from '@/hooks/useFinance'
 import { PAYMENT_METHOD_LABEL } from '@/constants'
@@ -37,8 +40,6 @@ export function ReconciliationTab() {
   const { data: bankAccounts } = useBankAccounts()
   const { mutate: settleBatch, isPending: settling } = useSettleReceivablesBatch()
 
-  if (loadingReceivables || loadingAcquirers) return <PageLoader />
-
   const acquirerById = new Map((acquirers ?? []).map(a => [a.id, a]))
   const accountNameById = new Map((bankAccounts ?? []).map(a => [a.id, a.name]))
 
@@ -67,6 +68,9 @@ export function ReconciliationTab() {
   const rows = [...groups.values()].sort((a, b) => parseBrDate(a.expectedDate).getTime() - parseBrDate(b.expectedDate).getTime())
   const totalExpected = rows.reduce((s, g) => s + g.netAmount, 0)
   const totalPending = rows.reduce((s, g) => s + g.pendingIds.length, 0)
+  const pagination = usePagination(rows)
+
+  if (loadingReceivables || loadingAcquirers) return <PageLoader />
 
   function confirmPayout(group: PayoutGroup) {
     const acquirer = acquirerById.get(group.acquirerId)
@@ -104,9 +108,10 @@ export function ReconciliationTab() {
   return (
     <Table
       columns={columns}
-      data={rows}
+      data={pagination.visible}
       rowKey={g => g.key}
       emptyMessage="Nenhum recebível de cartão para conciliar."
+      toolbar={<PerPageSelect perPage={pagination.perPage} onChange={pagination.setPerPage} />}
       renderExpanded={g => (
         <ul className={shared.detalheLista}>
           {g.items.map(item => (
@@ -124,6 +129,15 @@ export function ReconciliationTab() {
           <div className={shared.resumo}>
             <span className={shared.resumoItem}>Líquido esperado <strong className={shared.pos}>{formatBRL(totalExpected)}</strong></span>
             <span className={`${shared.resumoItem} ${shared.resumoDireita}`}>Pendentes de repasse <strong>{totalPending}</strong></span>
+          </div>
+          <div className={shared.rodapePaginacao}>
+            <Pagination
+              page={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onChange={pagination.setPage}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.perPage}
+            />
           </div>
         </div>
       }

@@ -1,22 +1,38 @@
+import { useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { Button } from '@/components/Button/Button'
+import { useToast } from '@/components/Toast/useToast'
+import { uploadImage } from '@/lib/storage'
 import { IconCamera } from '@/components/icons'
 import styles from './PhotoInput.module.scss'
 
 interface PhotoInputProps {
   label?: string
-  /** URL da imagem atual (objectURL no modo mock; URL do Storage no Supabase). */
+  /** URL pública da imagem atual (persiste no Storage; objectURL no mock). */
   value?: string
   onChange: (url: string | undefined) => void
+  /** Subpasta no Storage por entidade (ex.: 'clinic', 'materials'). */
+  folder?: string
 }
 
-/** Campo de foto com preview: clica na área para escolher a imagem. */
-export function PhotoInput({ label = 'Foto', value, onChange }: PhotoInputProps) {
-  function handleSelect(e: ChangeEvent<HTMLInputElement>) {
+/** Campo de foto com preview: escolhe a imagem, sobe pro Storage e persiste. */
+export function PhotoInput({ label = 'Foto', value, onChange, folder = 'assets' }: PhotoInputProps) {
+  const toast = useToast()
+  const [uploading, setUploading] = useState(false)
+
+  async function handleSelect(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) onChange(URL.createObjectURL(file))
-    // Limpa o input: permite escolher o MESMO arquivo de novo após remover.
-    e.target.value = ''
+    e.target.value = ''   // permite reescolher o MESMO arquivo após remover
+    if (!file) return
+
+    setUploading(true)
+    try {
+      onChange(await uploadImage(file, folder))
+    } catch {
+      toast.error('Não foi possível enviar a imagem.')
+    } finally {
+      setUploading(false)
+    }
   }
 
   return (
@@ -29,13 +45,13 @@ export function PhotoInput({ label = 'Foto', value, onChange }: PhotoInputProps)
         ) : (
           <span className={styles.placeholder}>
             <IconCamera />
-            Escolher foto
+            {uploading ? 'Enviando...' : 'Escolher foto'}
           </span>
         )}
-        <input type="file" accept="image/*" className={styles.input} onChange={handleSelect} />
+        <input type="file" accept="image/*" className={styles.input} onChange={handleSelect} disabled={uploading} />
       </label>
 
-      {value && (
+      {value && !uploading && (
         <Button variant="ghost" size="sm" onClick={() => onChange(undefined)}>
           Remover foto
         </Button>

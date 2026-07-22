@@ -263,7 +263,7 @@ export function MaterialsTab() {
             onChange={e => set('notes')(e.target.value)}
           />
 
-          <PhotoInput label="Foto do material" value={form.photo} onChange={url => setForm(current => ({ ...current, photo: url }))} />
+          <PhotoInput label="Foto do material" value={form.photo} onChange={url => setForm(current => ({ ...current, photo: url }))} folder="materials" />
         </form>
       </Modal>
     </>

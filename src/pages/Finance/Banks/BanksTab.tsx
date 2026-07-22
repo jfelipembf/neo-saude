@@ -133,7 +133,7 @@ export function BanksTab() {
         selectedId={selected}
         onSelect={id => handleSelect(String(id))}
         onAdd={handleNew}
-        searchPlaceholder="Buscar conta..."
+        hideSearch
         emptyText="Nenhuma conta cadastrada"
       />
 

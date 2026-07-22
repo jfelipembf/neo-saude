@@ -1,0 +1,139 @@
+@use '../../../styles/mixins' as *;
+
+.card {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  padding: $sp-5;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+}
+
+.title {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+// Quatro colunas: identificação (elástica), valor atual, campo do alvo e ações.
+// As três últimas têm largura fixa para que os campos fiquem alinhados entre as
+// linhas — meta de consulta e meta de faturamento devem começar na mesma coluna.
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px 180px auto;
+  align-items: start;
+  gap: $sp-4;
+  padding: $sp-3 0;
+  border-top: 1px solid var(--glass-border);
+
+  &:first-child {
+    border-top: none;
+  }
+
+  // Tablet: o campo e as ações descem para uma segunda faixa, mas identificação
+  // e valor atual continuam lado a lado (cabem, e ler os dois juntos é o ponto).
+  @include mobile {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: $sp-3;
+  }
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.metric {
+  font-size: $fs-base;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.help {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.current {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  @include mobile {
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  @include phone {
+    align-items: flex-start;
+    text-align: left;
+  }
+}
+
+.currentLabel {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.currentValue {
+  font-size: $fs-md;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.currentPct {
+  font-size: $fs-xs;
+  color: var(--primary-fg);
+}
+
+.field {
+  // O campo ocupa a faixa inteira quando a linha vira duas colunas (tablet) e
+  // quando vira uma só (phone).
+  @include mobile {
+    grid-column: 1 / -1;
+  }
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  // Alinha os botões com o campo, que tem o rótulo "Meta" acima.
+  padding-top: 22px;
+
+  @include mobile {
+    grid-column: 1 / -1;
+    padding-top: 0;
+  }
+
+  @include phone {
+    // Botões grandes o bastante para o dedo: "Salvar" estica e o ícone fica fixo.
+    > :first-child {
+      flex: 1;
+    }
+  }
+}

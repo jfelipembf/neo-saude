@@ -25,7 +25,7 @@ export function useAppointmentHistory(patientId: string) {
 }
 
 export function useDashboardStats() {
-  return useQuery({ queryKey: [...queryKeys.appointments.all, 'stats'], queryFn: getDashboardStats })
+  return useQuery({ queryKey: queryKeys.appointments.stats, queryFn: getDashboardStats })
 }
 
 /** Muda o status de uma consulta (presença/falta) e atualiza as listas. */

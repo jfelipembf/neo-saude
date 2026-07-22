@@ -62,7 +62,9 @@ export function HeaderSearch() {
               {results.map(p => (
                 <li key={p.id}>
                   <button type="button" className={styles.item} onClick={() => openPatient(p.id)}>
-                    <span className={styles.avatar}>{initials(p.name)}</span>
+                    <span className={styles.avatar}>
+                      {p.photo ? <img src={p.photo} alt="" className={styles.avatarImg} /> : initials(p.name)}
+                    </span>
                     <span className={styles.info}>
                       <span className={styles.nome}>{p.name}</span>
                       <span className={styles.meta}>{[p.phone, p.cpf].filter(Boolean).join(' · ')}</span>

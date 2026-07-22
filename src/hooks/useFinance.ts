@@ -6,9 +6,12 @@ import {
   getFinanceSeries, listAcquirers, listBankAccounts, listPayables,
   listReceivables, listCashMovements, updateAcquirer, updateBankAccount,
   reversePayable, reverseReceivable, settleReceivablesBatch,
-  listCollectionAttempts, addCollectionAttempt,
+  listCollectionAttempts, addCollectionAttempt, addPayable, addReceivable,
 } from '@/services/financeService'
-import type { BatchSettlementInput, EditAcquirer, EditBankAccount, NewCollectionAttempt, SettlementInput } from '@/services/financeService'
+import type {
+  BatchSettlementInput, EditAcquirer, EditBankAccount, NewCollectionAttempt,
+  NewPayable, NewReceivable, SettlementInput,
+} from '@/services/financeService'
 import type { ChartPeriod } from '@/types/domain'
 
 /** Série financeira do gráfico; mantém a série anterior no ar durante a troca. */
@@ -59,6 +62,24 @@ export function useSettleReceivable() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, settlement: settlement }: { id: string; settlement: SettlementInput }) => settleReceivable(id, settlement),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.receivables }),
+  })
+}
+
+/** Cadastra uma conta a pagar (modal "Nova conta a pagar") e refaz a lista. */
+export function useAddPayable() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: NewPayable) => addPayable(payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.payables }),
+  })
+}
+
+/** Cadastra uma conta a receber avulsa (modal "Nova conta a receber") e refaz a lista. */
+export function useAddReceivable() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: NewReceivable) => addReceivable(payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.receivables }),
   })
 }

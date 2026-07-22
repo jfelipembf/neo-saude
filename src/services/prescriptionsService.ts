@@ -59,12 +59,11 @@ export async function listPatientPrescriptions(patientId: string): Promise<Presc
 /** Dados do modal "Nova prescrição". */
 export type NewPrescription = ClientPayload<Prescription>
 
-// ATENÇÃO(neoSaúde): o cabeçalho (prescription) grava normalmente, mas a linha
-// de MEDICAMENTO falha em runtime — `authenticated` NÃO tem GRANT de INSERT em
-// `prescription_medication` (erro "permission denied for table"). É uma lacuna
-// pontual das migrations (falta `grant insert on prescription_medication to
-// authenticated`), não do código. Com o GRANT, o bloco de medicamentos abaixo
-// passa a funcionar sem alteração.
+// `prescription_type` NÃO é enviado: é a coluna discriminadora da FK composta
+// (prescription_id, prescription_type)→prescription(id,type), com DEFAULT
+// 'prescription' e CHECK. Como todo cadastro filho, o cliente não tem GRANT de
+// coluna nela (nem em id/created_at) — mandá-la dá "permission denied for table".
+// O default preenche, e a FK garante que só receituário aceita medicamento.
 
 export async function addPrescription(payload: NewPrescription): Promise<void> {
   const clinicId = getCurrentClinicId()
@@ -89,7 +88,6 @@ export async function addPrescription(payload: NewPrescription): Promise<void> {
     const meds = payload.medications.map((m, i) => ({
       clinic_id: clinicId,
       prescription_id: data.id,
-      prescription_type: 'prescription' as const,
       sort_order: i,
       name: m.name,
       dosage: m.dosage,

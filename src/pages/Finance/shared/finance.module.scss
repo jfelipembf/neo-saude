@@ -230,3 +230,34 @@
 .fieldFull {
   grid-column: 1 / -1;
 }
+
+// ── Modal de cadastro de conta (a pagar / a receber) ─────────────────────────
+.formCorpo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.formLinha2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
+  align-items: start;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.erro {
+  font-size: $fs-sm;
+  color: var(--danger-fg);
+}
+
+// Grupo de controles à direita da toolbar (lote · por página · nova conta).
+.barraDireita {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  flex-wrap: wrap;
+}

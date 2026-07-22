@@ -24,6 +24,10 @@ export const queryKeys = {
     all:    ['appointments'] as const,
     byDay:  (isoDate: string) => ['appointments', 'day', isoDate] as const,
     detail: (id: string) => ['appointments', id] as const,
+    // Prefixada por 'appointments' de propósito: invalidar a agenda (marcar
+    // presença/falta) tem de refazer os cartões do topo junto, e o prefixo
+    // garante isso sem uma segunda invalidação que alguém esqueceria.
+    stats:  ['appointments', 'stats'] as const,
     series:  (period: string, isoMonth: string) => ['appointments', 'series', period, isoMonth] as const,
     history: (patientId: string) => ['appointments', 'history', patientId] as const,
   },
@@ -91,5 +95,8 @@ export const queryKeys = {
   },
   materials: {
     all: ['materials'] as const,
+  },
+  goals: {
+    all: ['goals'] as const,
   },
 }

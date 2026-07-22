@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/Button/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { Input } from '@/components/Input/Input'
@@ -93,37 +93,38 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
 
   const canceled = slot?.status === 'canceled'
 
-  // Guardado em ref porque a hidratação abaixo só depende de `open`/`slot`:
-  // se `patientName` entrasse nas dependências, o efeito re-rodaria quando a
-  // lista de pacientes terminasse de carregar e apagaria o que já foi digitado.
-  const patientNameRef = useRef(patientName)
-  useEffect(() => { patientNameRef.current = patientName })
-
-  // Abriu o modal: hidrata da sessão (edição) ou reseta (criação).
-  useEffect(() => {
-    if (!open) return
-    setError('')
-    setSuggestionsOpen(false)
-    if (slot) {
-      setProfessionalId(slot.professionalId)
-      setPatientSearch(patientNameRef.current(slot.patientId))
-      setDateIso(dateForWeekday(slot.weekday))
-      setTime(slot.startTime)
-      setDuration(String(durationBetween(slot.startTime, slot.endTime)))
-      setRoom(slot.room ?? '')
-      setNotes(slot.notes ?? '')
-      setConfirmation(slot.sendConfirmation === false ? 'no' : 'yes')
-    } else {
-      setProfessionalId('')
-      setPatientSearch('')
-      setDateIso(toIsoDate(new Date()))
-      setTime('07:30')
-      setDuration('30')
-      setRoom('')
-      setNotes('')
-      setConfirmation('yes')
+  // Abriu o modal (ou trocou a sessão): hidrata da sessão (edição) ou reseta
+  // (criação). Padrão do React "resetar estado quando um prop muda" — ajuste
+  // DURANTE O RENDER com guarda (não um efeito com setState): evita o flash de
+  // estado velho de um efeito e o aviso react-hooks/set-state-in-effect.
+  const hydrationKey = open ? (slot?.id ?? 'new') : null
+  const [hydratedFor, setHydratedFor] = useState<string | null>(null)
+  if (hydrationKey !== hydratedFor) {
+    setHydratedFor(hydrationKey)
+    if (open) {
+      setError('')
+      setSuggestionsOpen(false)
+      if (slot) {
+        setProfessionalId(slot.professionalId)
+        setPatientSearch(patientName(slot.patientId))
+        setDateIso(dateForWeekday(slot.weekday))
+        setTime(slot.startTime)
+        setDuration(String(durationBetween(slot.startTime, slot.endTime)))
+        setRoom(slot.room ?? '')
+        setNotes(slot.notes ?? '')
+        setConfirmation(slot.sendConfirmation === false ? 'no' : 'yes')
+      } else {
+        setProfessionalId('')
+        setPatientSearch('')
+        setDateIso(toIsoDate(new Date()))
+        setTime('07:30')
+        setDuration('30')
+        setRoom('')
+        setNotes('')
+        setConfirmation('yes')
+      }
     }
-  }, [open, slot])
+  }
 
   const professionalOptions = (professionals ?? [])
     .filter(p => p.status === 'active')

@@ -1,12 +1,12 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
 import type { ClientInsert, Insert } from '@/lib/db'
-import { capitalizeName } from '@/utils/text'
+import { capitalizeName, cepToDb, phoneToDb, emailToDb, ufToDb, digitsOnly } from '@/utils/text'
 import { brToIsoDate, isoToBrDate } from '@/utils/date'
 import type { Patient, Gender } from '@/types/domain'
 
 const COLUMNS =
-  'id, clinic_id, code, name, cpf, phone, insurance_id, last_visit, status, sex, birth_date, email, whatsapp, cep, state, city, neighborhood, number'
+  'id, clinic_id, code, name, cpf, phone, insurance_id, last_visit, status, photo_url, sex, birth_date, email, whatsapp, cep, state, city, neighborhood, number'
 
 // Rótulo do "sem convênio": no banco é insurance_id NULL (não é linha de insurance).
 const PARTICULAR = 'Particular'
@@ -21,6 +21,7 @@ type PatientRow = {
   insurance_id: string | null
   last_visit: string | null
   status: Patient['status']
+  photo_url: string | null
   sex: Gender | null
   birth_date: string | null
   email: string | null
@@ -62,6 +63,7 @@ function toPatient(row: PatientRow, insMap: Map<string, string>): Patient {
     insurance: row.insurance_id ? (insMap.get(row.insurance_id) ?? PARTICULAR) : PARTICULAR,
     lastVisit: isoToBrDate(row.last_visit) ?? '—',
     status: row.status,
+    photo: row.photo_url ?? undefined,
     sex: row.sex ?? undefined,
     birthDate: isoToBrDate(row.birth_date),
     email: row.email ?? undefined,
@@ -119,11 +121,11 @@ export async function addPatient(payload: NewPatient): Promise<void> {
     name: capitalizeName(`${firstName} ${lastName}`),
     sex: sex ?? null,
     birth_date: brToIsoDate(birthDate),
-    email: email ?? null,
-    phone,
-    whatsapp: whatsapp ?? null,
-    cep: cep ?? null,
-    state: state ?? null,
+    email: emailToDb(email),
+    phone: digitsOnly(phone),      // obrigatório: 10–13 díg. (o form valida)
+    whatsapp: phoneToDb(whatsapp),
+    cep: cepToDb(cep),
+    state: ufToDb(state),
     city: city ?? null,
     neighborhood: neighborhood ?? null,
     number: number ?? null,
@@ -148,16 +150,25 @@ export async function updatePatient(id: string, payload: EditPatient): Promise<v
       name: capitalizeName(`${firstName} ${lastName}`),
       sex: sex ?? null,
       birth_date: brToIsoDate(birthDate),
-      email: email ?? null,
-      phone,
-      whatsapp: whatsapp ?? null,
+      email: emailToDb(email),
+      phone: digitsOnly(phone),
+      whatsapp: phoneToDb(whatsapp),
       insurance_id: insuranceId,
-      cep: cep ?? null,
-      state: state ?? null,
+      cep: cepToDb(cep),
+      state: ufToDb(state),
       city: city ?? null,
       neighborhood: neighborhood ?? null,
       number: number ?? null,
     })
+    .eq('id', id)
+  if (error) throw error
+}
+
+/** Troca só a foto (avatar) do paciente — ação rápida, fora do formulário. */
+export async function updatePatientPhoto(id: string, photo: string | undefined): Promise<void> {
+  const { error } = await supabase
+    .from('patient')
+    .update({ photo_url: photo ?? null })
     .eq('id', id)
   if (error) throw error
 }

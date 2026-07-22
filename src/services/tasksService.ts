@@ -1,39 +1,63 @@
-import { MOCK_TASKS } from '@/mocks/tasks'
+import { supabase } from '@/lib/supabase'
+import { getCurrentClinicId } from '@/lib/tenant'
+import { brToIsoDate, localDate, toShortDate } from '@/utils/date'
 import type { TaskPriority, TaskStatus, Task } from '@/types/domain'
-import { CURRENT_CLINIC } from '@/lib/tenant'
 
-/** Dados do formulário de nova tarefa (o resto — id, status — nasce aqui). */
+/** Dados do formulário de nova tarefa (o resto — id, status — nasce no banco). */
 export interface NewTask {
   title: string
   priority: TaskPriority
   dueDate?: string   // dd/mm
 }
 
-// MODO MOCK: retorna dados de demonstração. Quando o schema Supabase existir,
-// trocar o corpo por supabase.from('tasks')… mantendo a MESMA assinatura.
-// Cópias ({ ...mock }) para o cache do TanStack Query não apontar para o objeto
-// mutável: devolver a MESMA referência faz o React Query concluir que nada mudou
-// e deixar de re-renderizar quem assina a query (o card do Dashboard e o quadro).
+type TaskRow = {
+  id: string
+  clinic_id: string
+  title: string
+  priority: TaskPriority
+  status: TaskStatus
+  due_date: string | null
+}
+
 export async function listTasks(): Promise<Task[]> {
-  return MOCK_TASKS.map(t => ({ ...t }))
+  const { data, error } = await supabase
+    .from('task')
+    .select('id, clinic_id, title, priority, status, due_date')
+    .eq('clinic_id', getCurrentClinicId())
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data as TaskRow[]).map(r => ({
+    id: r.id,
+    clinicId: r.clinic_id,
+    title: r.title,
+    priority: r.priority,
+    // due_date é DATE completa no banco; o domínio mostra só dd/mm.
+    dueDate: r.due_date ? toShortDate(localDate(r.due_date)) : undefined,
+    status: r.status,
+  }))
 }
 
-// Contador de id do mock — no Supabase o id virá do banco.
-let nextId = 100
-
-/** Cria uma tarefa nova (entra como "a fazer"). */
+/** Cria uma tarefa nova (entra como "a fazer" pelo default da coluna status). */
 export async function addTask(payload: NewTask): Promise<void> {
-  MOCK_TASKS.push({ id: `t${nextId++}`, clinicId: CURRENT_CLINIC, status: 'todo', ...payload })
+  // dueDate vem como 'dd/mm' (sem ano) — assume o ano corrente para a coluna DATE.
+  const dueIso = payload.dueDate ? brToIsoDate(`${payload.dueDate}/${new Date().getFullYear()}`) : null
+  const { error } = await supabase.from('task').insert({
+    clinic_id: getCurrentClinicId(),
+    title: payload.title,
+    priority: payload.priority,
+    due_date: dueIso,
+  })
+  if (error) throw error
 }
 
-/** Move a tarefa de coluna/estado (mock: muta o array em memória). */
+/** Move a tarefa de coluna/estado (o trigger tg_task_stamp_completion cuida do completed_at). */
 export async function setTaskStatus(id: string, status: TaskStatus): Promise<void> {
-  const task = MOCK_TASKS.find(t => t.id === id)
-  if (task) task.status = status
+  const { error } = await supabase.from('task').update({ status }).eq('id', id)
+  if (error) throw error
 }
 
 /** Exclui uma tarefa. */
 export async function removeTask(id: string): Promise<void> {
-  const index = MOCK_TASKS.findIndex(t => t.id === id)
-  if (index >= 0) MOCK_TASKS.splice(index, 1)
+  const { error } = await supabase.from('task').delete().eq('id', id)
+  if (error) throw error
 }

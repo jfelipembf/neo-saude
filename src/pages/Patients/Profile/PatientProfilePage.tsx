@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
+import { AddressFields } from '@/components/AddressFields/AddressFields'
 import { Select } from '@/components/Select/Select'
 import { Tabs } from '@/components/Tabs/Tabs'
 import { PaymentsTable } from '@/components/PaymentsTable/PaymentsTable'
@@ -24,8 +25,9 @@ import { SEX_OPTIONS, SEX_LABEL } from '@/constants'
 import { useInsuranceOptions } from '@/hooks/useInsurances'
 import { queryKeys } from '@/lib/queryKeys'
 import { getPatient } from '@/services/patientsService'
-import { useUpdatePatient } from '@/hooks/usePatients'
-import { IconUser, IconEdit, IconPhone, IconMessage, IconEmail } from '@/components/icons'
+import { useUpdatePatient, useUpdatePatientPhoto } from '@/hooks/usePatients'
+import { uploadImage } from '@/lib/storage'
+import { IconUser, IconEdit, IconPhone, IconMessage, IconEmail, IconCamera } from '@/components/icons'
 import { initials, digitsOnly } from '@/utils/text'
 import type { Patient, Gender } from '@/types/domain'
 import styles from './PatientProfilePage.module.scss'
@@ -88,12 +90,14 @@ export function PatientProfilePage() {
     enabled: Boolean(id),
   })
   const { mutate: save, isPending: saving } = useUpdatePatient()
+  const { mutate: savePhoto } = useUpdatePatientPhoto()
   const insuranceOptions = useInsuranceOptions()
 
   const [tab, setTab] = useState<TabKey>('personal')
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<PatientFormState | null>(null)
   const [nameError, setNameError] = useState('')
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
 
   // Zona de cabeçalho compartilhada: fica no lugar em QUALQUER estado da página
   // (carregando, não encontrado, conteúdo) — o breadcrumb nunca pula.
@@ -133,6 +137,23 @@ export function PatientProfilePage() {
     setEditing(false)
     setForm(null)
     setNameError('')
+  }
+
+  /** Foto escolhida: sobe pro Storage (persiste) e salva no cadastro. */
+  async function escolherFoto(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !patient) return
+
+    setUploadingPhoto(true)
+    try {
+      const photo = await uploadImage(file, 'patients')
+      savePhoto({ id: patient.id, photo }, { onSuccess: () => toast.success('Foto atualizada!') })
+    } catch {
+      toast.error('Não foi possível enviar a foto.')
+    } finally {
+      setUploadingPhoto(false)
+    }
   }
 
   // Trocar de aba no meio de uma edição descarta o rascunho.
@@ -241,7 +262,29 @@ export function PatientProfilePage() {
           />
 
           <div className={styles.identidade}>
-            <span className={styles.avatar}>{initials(patient.name)}</span>
+            <div className={styles.avatarWrap}>
+              <span className={styles.avatar}>
+                {patient.photo ? (
+                  <img src={patient.photo} alt={patient.name} className={styles.avatarImg} />
+                ) : (
+                  initials(patient.name)
+                )}
+              </span>
+
+              {/* Em edição: círculo de câmera no canto para trocar a foto. */}
+              {editing && (
+                <label className={`${styles.fotoBtn} ${uploadingPhoto ? styles.fotoBtnLoading : ''}`} title="Trocar foto">
+                  <IconCamera />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className={styles.fotoInput}
+                    onChange={escolherFoto}
+                    disabled={uploadingPhoto}
+                  />
+                </label>
+              )}
+            </div>
             <h2 className={styles.nome}>{patient.name}</h2>
             <p className={styles.subtitulo}>
               {[patient.insurance, address].filter(Boolean).join(' · ')}
@@ -345,17 +388,12 @@ export function PatientProfilePage() {
 
               <section className={styles.formSection}>
                 <h3>Endereço</h3>
-                <div className={styles.grid2}>
-                  <Input label="CEP" value={form.cep} onChange={e => set('cep')(e.target.value)} />
-                  <Input label="Estado" maxLength={2} value={form.state} onChange={e => set('state')(e.target.value)} />
-                </div>
-                <div className={styles.grid2}>
-                  <Input label="Cidade" value={form.city} onChange={e => set('city')(e.target.value)} />
-                  <Input label="Bairro" value={form.neighborhood} onChange={e => set('neighborhood')(e.target.value)} />
-                </div>
-                <div className={styles.grid2}>
-                  <Input label="Número" value={form.number} onChange={e => set('number')(e.target.value)} />
-                </div>
+                {/* CEP autopreenche estado/cidade/bairro (paciente não guarda rua). */}
+                <AddressFields
+                  value={form}
+                  onChange={(field, value) => set(field as keyof PatientFormState)(value)}
+                  showStreet={false}
+                />
               </section>
 
               <div className={styles.formAcoes}>

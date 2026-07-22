@@ -17,7 +17,7 @@ export function CashFlowTab() {
   const { data, isLoading } = useCashFlow()
 
   const baseBalance = data?.baseBalance ?? 0
-  const days = data?.dias ?? []
+  const days = data?.days ?? []
 
   // Saldo projetado cumulativo a partir do saldo base.
   const rows: CashFlowRow[] = []

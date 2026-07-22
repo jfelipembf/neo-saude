@@ -52,7 +52,9 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
       label: 'Profissional',
       render: p => (
         <span className={styles.profCell}>
-          <span className={styles.avatar}>{initials(p.name)}</span>
+          <span className={styles.avatar}>
+            {p.photo ? <img src={p.photo} alt="" className={styles.avatarImg} /> : initials(p.name)}
+          </span>
           <span className={styles.profInfo}>
             <span className={styles.nome}>{p.name}</span>
             <span className={styles.registro}>{p.license}</span>

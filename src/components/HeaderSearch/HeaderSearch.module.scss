@@ -64,11 +64,18 @@
   width: 30px;
   height: 30px;
   flex-shrink: 0;
+  overflow: hidden;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   color: #fff;
   font-size: $fs-xs;
   font-weight: 600;
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .info {

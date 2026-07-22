@@ -33,8 +33,10 @@ export function AutomationTab() {
       )}
 
       {AUTOMATION_CATALOG.map(item => {
+        // Sem registro salvo ainda (clínica nova / sem conexão): o card aparece
+        // do mesmo jeito, num padrão inativo e vazio pronto para configurar.
         const current = automations.find(a => a.trigger === item.trigger)
-        if (!current) return null
+          ?? { trigger: item.trigger, status: 'inactive' as const, message: '', sendTime: undefined }
         return <AutomationCard key={item.trigger} catalog={item} automation={current} />
       })}
     </div>

@@ -74,3 +74,49 @@ export function initials(name: string) {
 export function digitsOnly(text: string) {
   return text.replace(/\D/g, '')
 }
+
+// ── Normalizadores para os DOMÍNIOS do banco (evitam erro de constraint) ─────
+// O Postgres valida formato por domínio: CEP 8 díg., telefone 10–13, CPF 11,
+// CNPJ 14, e-mail por regex, UF numa lista fixa. O app manda com máscara/vazio,
+// então cada campo é normalizado aqui ANTES de gravar; inválido/vazio → null.
+
+/** CEP: só os 8 dígitos (domínio `cep_digits`). */
+export function cepToDb(cep: string | undefined | null): string | null {
+  const digits = digitsOnly(cep ?? '')
+  return digits.length === 8 ? digits : null
+}
+
+/** Telefone/WhatsApp: 10–13 dígitos (domínio `phone_digits`). */
+export function phoneToDb(phone: string | undefined | null): string | null {
+  const digits = digitsOnly(phone ?? '')
+  return digits.length >= 10 && digits.length <= 13 ? digits : null
+}
+
+/** CPF: 11 dígitos (domínio `cpf_digits`). */
+export function cpfToDb(cpf: string | undefined | null): string | null {
+  const digits = digitsOnly(cpf ?? '')
+  return digits.length === 11 ? digits : null
+}
+
+/** CNPJ: 14 dígitos (domínio `cnpj_digits`). */
+export function cnpjToDb(cnpj: string | undefined | null): string | null {
+  const digits = digitsOnly(cnpj ?? '')
+  return digits.length === 14 ? digits : null
+}
+
+/** E-mail: válido (domínio `email_address`) ou null — vazio nunca vai. */
+export function emailToDb(email: string | undefined | null): string | null {
+  const value = (email ?? '').trim()
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value) ? value : null
+}
+
+const UF_LIST = new Set([
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+  'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+])
+
+/** UF: sigla válida em maiúsculas (domínio `uf`) ou null. */
+export function ufToDb(state: string | undefined | null): string | null {
+  const value = (state ?? '').trim().toUpperCase()
+  return UF_LIST.has(value) ? value : null
+}

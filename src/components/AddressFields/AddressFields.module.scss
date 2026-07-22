@@ -1,0 +1,12 @@
+@use '../../styles/mixins' as *;
+
+// Campos em 2 colunas; no phone cada campo ocupa a linha inteira.
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}

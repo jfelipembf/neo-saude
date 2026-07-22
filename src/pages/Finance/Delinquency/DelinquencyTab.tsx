@@ -1,8 +1,11 @@
 import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { Button } from '@/components/Button/Button'
+import { Pagination } from '@/components/Pagination/Pagination'
+import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
 import { useToast } from '@/components/Toast/useToast'
+import { usePagination } from '@/hooks/usePagination'
 import { IconMessage } from '@/components/icons'
 import { useReceivables, useCollectionAttempts, useAddCollectionAttempt } from '@/hooks/useFinance'
 import { usePatients } from '@/hooks/usePatients'
@@ -38,8 +41,6 @@ export function DelinquencyTab() {
   const { data: attempts } = useCollectionAttempts()
   const { mutate: addAttempt } = useAddCollectionAttempt()
 
-  if (loadingReceivables || loadingPatients) return <PageLoader />
-
   const patientById = new Map((patients ?? []).map(p => [p.id, p]))
   const billingTemplate = automations?.find(a => a.trigger === 'billing')?.message
     ?? 'Olá, {paciente}. Consta um saldo em aberto de {valor}, com vencimento em {data}.'
@@ -63,6 +64,9 @@ export function DelinquencyTab() {
 
   const rows = [...groups.values()].sort((a, b) => b.total - a.total)
   const totalOverdue = rows.reduce((s, g) => s + g.total, 0)
+  const pagination = usePagination(rows)
+
+  if (loadingReceivables || loadingPatients) return <PageLoader />
 
   function attemptsOf(patientId: string) {
     return (attempts ?? []).filter(a => a.patientId === patientId).sort((a, b) => parseBrDate(b.date).getTime() - parseBrDate(a.date).getTime())
@@ -109,9 +113,10 @@ export function DelinquencyTab() {
   return (
     <Table
       columns={columns}
-      data={rows}
+      data={pagination.visible}
       rowKey={g => g.patientId}
       emptyMessage="Nenhum paciente inadimplente. 🎉"
+      toolbar={<PerPageSelect perPage={pagination.perPage} onChange={pagination.setPerPage} />}
       renderExpanded={g => {
         const history = attemptsOf(g.patientId)
         return (
@@ -142,6 +147,15 @@ export function DelinquencyTab() {
           <div className={shared.resumo}>
             <span className={shared.resumoItem}>Total em aberto <strong className={shared.neg}>{formatBRL(totalOverdue)}</strong></span>
             <span className={`${shared.resumoItem} ${shared.resumoDireita}`}>Devedores <strong>{rows.length}</strong></span>
+          </div>
+          <div className={shared.rodapePaginacao}>
+            <Pagination
+              page={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onChange={pagination.setPage}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.perPage}
+            />
           </div>
         </div>
       }

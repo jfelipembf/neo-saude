@@ -1,9 +1,8 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
 import { toIsoDate, isoToBrDate } from '@/utils/date'
-import { MOCK_APPOINTMENTS } from '@/mocks/appointments'
-import { buildAppointmentSeries } from '@/mocks/appointmentSeries'
-import type { Appointment, AppointmentHistory, DashboardStats, ChartPeriod, SeriesPoint, AppointmentStatus } from '@/types/domain'
+import { formatBRL } from '@/utils/format'
+import type { Appointment, AppointmentHistory, DashboardStats, ChartPeriod, SeriesPoint, AppointmentStatus, GoalMetric, MetricComparison } from '@/types/domain'
 
 const hhmm = (t: string) => t.slice(0, 5)
 
@@ -82,19 +81,55 @@ export async function listPatientHistory(patientId: string): Promise<Appointment
   }))
 }
 
-// TODO(neoSaúde): série do gráfico e stats do dashboard são AGREGAÇÕES sem RPC
-// dedicada (e o faturamento cruza com o Financeiro). Seguem em modo mock até
-// existir uma RPC de agregação (ex.: dashboard_stats/appointment_series).
+/** Série do gráfico de consultas por período (RPC appointment_series). */
 export async function getAppointmentSeries(period: ChartPeriod, monthIso: string): Promise<SeriesPoint[]> {
-  return buildAppointmentSeries(period, monthIso)
+  const { data, error } = await supabase.rpc('appointment_series', { p_period: period, p_month_iso: monthIso })
+  if (error) throw error
+  return (data ?? []).map(r => ({ label: r.label, value: Number(r.value) }))
 }
 
+/** Trio cru de uma métrica, como a RPC devolve (numeric chega como number). */
+type MetricRow = { current: number; previous: number | null; target: number | null }
+
+type DashboardStatsRow = {
+  appointments_today: number
+  active_patients: number
+  pending_confirmations: number
+  monthly_revenue: number
+  metrics: Record<GoalMetric, MetricRow>
+}
+
+/**
+ * `null` TEM de sobreviver à conversão: `Number(null)` é 0, e 0 é um valor
+ * legítimo e diferente ("o mês passado foi zerado" ≠ "não existe mês passado
+ * para comparar"). Por isso o null passa reto em vez de virar número.
+ */
+const toMetric = (m: MetricRow): MetricComparison => ({
+  current:  Number(m.current),
+  previous: m.previous == null ? null : Number(m.previous),
+  target:   m.target   == null ? null : Number(m.target),
+})
+
+/** Os números do topo do Dashboard (RPC dashboard_stats), em uma chamada. */
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const active = MOCK_APPOINTMENTS.filter(c => c.status !== 'canceled')
+  const { data, error } = await supabase.rpc('dashboard_stats')
+  if (error) throw error
+  const s = data as unknown as DashboardStatsRow
   return {
-    appointmentsToday: active.length,
-    activePatients: 132,
-    pendingConfirmations: MOCK_APPOINTMENTS.filter(c => c.status === 'scheduled').length,
-    monthlyRevenue: 'R$ 24.380',
+    appointmentsToday: Number(s.appointments_today),
+    activePatients: Number(s.active_patients),
+    pendingConfirmations: Number(s.pending_confirmations),
+    // A RPC devolve o faturamento CRU; a máscara de moeda é do front (o domínio
+    // pede string). Usa o util do projeto para não haver duas formatações de R$.
+    monthlyRevenue: formatBRL(Number(s.monthly_revenue)),
+    // `metrics` é o material novo da RPC: { current, previous, target } por
+    // métrica. Os quatro campos acima são DEPRECIADOS no banco e continuam aqui
+    // só enquanto houver tela lendo o formato antigo.
+    metrics: {
+      appointments:    toMetric(s.metrics.appointments),
+      active_patients: toMetric(s.metrics.active_patients),
+      revenue:         toMetric(s.metrics.revenue),
+      expenses:        toMetric(s.metrics.expenses),
+    },
   }
 }

@@ -46,6 +46,7 @@ export interface Patient {
   insurance: string
   lastVisit: string   // dd/mm/aaaa
   status: ActiveStatus
+  photo?: string        // URL do avatar (cai nas iniciais quando não houver)
   // Cadastro completo (opcionais — preenchidos pelo modal de novo paciente).
   sex?: Gender
   birthDate?: string    // dd/mm/aaaa
@@ -93,6 +94,7 @@ export interface Professional {
   rating?: number          // nota média de atendimento (0–5)
   license: string       // conselho + número (CRM, CRO, CREFITO…)
   color?: string           // cor de identificação (agenda, gráficos) — hex
+  photo?: string           // URL do avatar (cai nas iniciais quando não houver)
   status: ActiveStatus
   // Dados pessoais (mesmo cadastro do paciente).
   sex?: Gender
@@ -348,16 +350,9 @@ export interface ClinicData extends Address {
   phone: string
 }
 
-/** Responsável técnico do consultório (Administrativo → Inicial). */
-export interface TechnicalManager extends Address {
-  photo?: string
-  firstName: string
-  lastName: string
-  sex?: Gender
-  birthDate?: string    // dd/mm/aaaa
-  phone: string
-  email: string
-}
+// O RESPONSÁVEL TÉCNICO não tem tipo próprio: pela norma do conselho ele é
+// inscrito no CRO, logo é um `Professional` marcado no banco com
+// `is_technical_manager`. Ver clinicService.getTechnicalManager().
 
 /** Sala de atendimento (Administrativo → Salas). */
 export interface Room {
@@ -573,11 +568,51 @@ export interface FinancePoint {
   expenses: number
 }
 
+// ── Metas da clínica e as métricas do Dashboard ──────────────────────────────
+
+/**
+ * As quatro métricas que o dashboard compara contra meta. Os rótulos são
+ * IGUAIS aos do enum `public.goal_metric` e às chaves de `dashboard_stats() ->
+ * metrics`: quem grava a meta e quem lê o número indexam pelo mesmo nome.
+ * Rótulo em português vive em `constants/goals.ts`.
+ */
+export type GoalMetric = 'appointments' | 'active_patients' | 'revenue' | 'expenses'
+
+/**
+ * Meta da clínica para UMA métrica, em valor fixo — sem competência mensal
+ * ("faturar R$ 50.000 por mês", não "R$ 50.000 em julho"). Uma linha por
+ * (clínica, métrica); métrica sem linha = meta não definida.
+ */
+export interface Goal {
+  id: string
+  clinicId: string
+  metric: GoalMetric
+  /** Alvo em número CRU: reais para revenue/expenses, quantidade nas outras. */
+  targetValue: number
+}
+
+/**
+ * O trio que a RPC devolve por métrica.
+ *
+ * `previous` é null quando a comparação NÃO EXISTE, e isso é diferente de
+ * zero: `active_patients` é estoque e o banco não guarda histórico de status,
+ * então nunca terá mês anterior. Zero é um mês anterior real e vazio.
+ * `target` é null quando a clínica não definiu meta — nunca 0 (o banco proíbe
+ * meta zerada justamente para que 0 não seja lido como "meta batida").
+ */
+export interface MetricComparison {
+  current: number
+  previous: number | null
+  target: number | null
+}
+
 export interface DashboardStats {
   appointmentsToday: number
   activePatients: number
   pendingConfirmations: number
   monthlyRevenue: string
+  /** Por métrica: mês corrente, mês anterior e meta. */
+  metrics: Record<GoalMetric, MetricComparison>
 }
 
 // ── Página Financeiro (caixa, fluxo, contas, bancos e adquirentes) ───────────

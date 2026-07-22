@@ -96,7 +96,8 @@ export function CommissionsTab() {
 
   if (loadingProfessionals || loadingCommissions) return <PageLoader />
 
-  const list = professionals ?? []
+  // Ordem alfabética pelo nome (pt-BR: acentos não bagunçam a ordenação).
+  const list = [...(professionals ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
   const ruleById = new Map((commissions ?? []).map(c => [c.professionalId, c]))
 
   const items = list.map(p => {
@@ -164,7 +165,7 @@ export function CommissionsTab() {
         items={items}
         selectedId={selected}
         onSelect={id => selectProfessional(String(id))}
-        searchPlaceholder="Buscar profissional..."
+        hideSearch
         emptyText="Nenhum profissional cadastrado"
       />
 

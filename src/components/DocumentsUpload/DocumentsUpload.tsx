@@ -26,12 +26,6 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`
 }
 
-/** 'exames-jun.pdf' → 'PDF' */
-function fileExtension(fileName: string) {
-  const parts = fileName.split('.')
-  return parts.length > 1 ? parts[parts.length - 1].toUpperCase() : 'ARQ'
-}
-
 interface DocumentsUploadProps {
   patientId: string
 }
@@ -98,10 +92,7 @@ export function DocumentsUpload({ patientId }: DocumentsUploadProps) {
         patientId,
         name: name.trim(),
         description: description.trim() || undefined,
-        fileName: file.name,
-        type: fileExtension(file.name),
-        size: formatSize(file.size),
-        url: URL.createObjectURL(file),
+        file,
       },
       {
         onSuccess: () => {

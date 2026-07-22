@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
-import { getClinic, updateClinic, getTechnicalManager, updateTechnicalManager } from '@/services/clinicService'
-import type { ClinicData, TechnicalManager } from '@/types/domain'
+import { getClinic, updateClinic, getTechnicalManager, setTechnicalManager } from '@/services/clinicService'
+import type { ClinicData } from '@/types/domain'
 
 export function useClinic() {
   return useQuery({ queryKey: queryKeys.clinic.data, queryFn: getClinic })
@@ -16,15 +16,21 @@ export function useSaveClinic() {
   })
 }
 
+/** O profissional marcado como responsável técnico — `null` enquanto a clínica
+ *  não designar um (é o estado de quem ainda não cadastrou profissionais). */
 export function useTechnicalManager() {
   return useQuery({ queryKey: queryKeys.clinic.manager, queryFn: getTechnicalManager })
 }
 
-/** Salva os dados do responsável técnico (Administrativo → Inicial). */
-export function useSaveTechnicalManager() {
+/** Designa qual profissional responde tecnicamente pela clínica. */
+export function useSetTechnicalManager() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (payload: TechnicalManager) => updateTechnicalManager(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.clinic.manager }),
+    mutationFn: (professionalId: string) => setTechnicalManager(professionalId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.clinic.manager })
+      // A troca reescreve `is_technical_manager` de DOIS profissionais.
+      queryClient.invalidateQueries({ queryKey: queryKeys.professionals.all })
+    },
   })
 }

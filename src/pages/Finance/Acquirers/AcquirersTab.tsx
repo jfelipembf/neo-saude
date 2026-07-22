@@ -174,7 +174,7 @@ export function AcquirersTab() {
         selectedId={selected}
         onSelect={id => selectAcquirer(String(id))}
         onAdd={handleNew}
-        searchPlaceholder="Buscar adquirente..."
+        hideSearch
         emptyText="Nenhuma adquirente cadastrada"
       />
 

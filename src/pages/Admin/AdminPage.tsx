@@ -7,9 +7,10 @@ import { MaterialsTab } from './Materials/MaterialsTab'
 import { CommissionsTab } from './Commissions/CommissionsTab'
 import { RolesTab } from './Roles/RolesTab'
 import { InsurancesTab } from './Insurances/InsurancesTab'
+import { GoalsTab } from './Goals/GoalsTab'
 import styles from './AdminPage.module.scss'
 
-type TabKey = 'rooms' | 'materials' | 'insurances' | 'commissions' | 'roles'
+type TabKey = 'rooms' | 'materials' | 'insurances' | 'commissions' | 'roles' | 'goals'
 
 const TABS = [
   { key: 'rooms',     label: 'Salas' },
@@ -17,6 +18,7 @@ const TABS = [
   { key: 'insurances', label: 'Convênios' },
   { key: 'commissions', label: 'Comissões' },
   { key: 'roles',    label: 'Cargos' },
+  { key: 'goals',    label: 'Metas' },
 ]
 
 /** Página Administrativo: uma rota só, com o conteúdo organizado em abas. */
@@ -35,6 +37,7 @@ export function AdminPage() {
       {tab === 'insurances' && <InsurancesTab />}
       {tab === 'commissions' && <CommissionsTab />}
       {tab === 'roles'    && <RolesTab />}
+      {tab === 'goals'    && <GoalsTab />}
     </>
   )
 }

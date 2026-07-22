@@ -47,10 +47,15 @@
 }
 
 // ── Meta + barra de progresso (base do card) ─────────────────────────────────
+// A linha divisória e o rótulo "Meta" aparecem em TODO cartão que acompanha
+// meta, cadastrada ou não — cartão sem meta ficava mais baixo e sem o traço, e
+// a fileira toda saía desalinhada.
 .meta {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  padding-top: $sp-3;
+  border-top: 1px solid var(--glass-border);
 }
 
 .metaRow {
@@ -67,6 +72,13 @@
   color: var(--primary-fg);
 }
 
+// Meta ainda não cadastrada: mais apagada que o rótulo normal, para não
+// competir com o número do cartão.
+.metaEmpty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .bar {
   height: 6px;
   border-radius: $radius-pill;
@@ -74,8 +86,11 @@
   overflow: hidden;
 }
 
+// A largura chega por `--stats-progress` (definida no .bar por quem renderiza);
+// o fallback 0% cobre o cartão sem meta, onde a propriedade não é usada.
 .barFill {
   display: block;
+  width: var(--stats-progress, 0%);
   height: 100%;
   border-radius: $radius-pill;
   background: rgba(var(--primary-rgb), 0.45);

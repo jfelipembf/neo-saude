@@ -29,11 +29,18 @@
   width: 88px;
   height: 88px;
   flex-shrink: 0;
+  overflow: hidden;
   border-radius: $radius-lg;
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   color: #fff;
   font-weight: 600;
   font-size: $fs-2xl;
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .identity {

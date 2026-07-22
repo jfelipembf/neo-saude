@@ -1,4 +1,4 @@
-import type { ClinicData, TechnicalManager } from '@/types/domain'
+import type { ClinicData } from '@/types/domain'
 
 export const MOCK_CLINIC: ClinicData = {
   id: 'c1',                    // o tenant desta instalação
@@ -15,19 +15,4 @@ export const MOCK_CLINIC: ClinicData = {
   neighborhood: 'Centro',
   street: 'Av. Beira Mar',
   number: '1234',
-}
-
-export const MOCK_TECHNICAL_MANAGER: TechnicalManager = {
-  firstName: 'Camila',
-  lastName: 'Duarte',
-  sex: 'female',
-  birthDate: '12/05/1988',
-  phone: '(79) 99988-7766',
-  email: 'camila.duarte@neosaude.com.br',
-  cep: '49000-000',
-  state: 'SE',
-  city: 'Aracaju',
-  neighborhood: 'Jardins',
-  street: 'Rua das Acácias',
-  number: '56',
 }

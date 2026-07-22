@@ -1,0 +1,90 @@
+@use '../../styles/mixins' as *;
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-5;
+
+  @include phone {
+    gap: $sp-4;
+  }
+}
+
+// Seções do cadastro (Identificação / Contato / Endereço / Meu acesso).
+.formSection {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+
+  h3 {
+    font-size: $fs-sm;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    padding-bottom: $sp-1;
+    border-bottom: 1px solid var(--glass-border);
+  }
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ── Cor na agenda ────────────────────────────────────────────────────────────
+// Amostra + rótulo na mesma linha; a dica quebra para baixo no mobile.
+.colorField {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: $sp-1 $sp-3;
+}
+
+.colorLabel {
+  grid-column: 1 / -1;
+  font-size: $fs-xs;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+// O <input type="color"> já desenha a amostra — sem estilo inline com a cor.
+.colorInput {
+  width: 44px;
+  height: $ctrl-h-sm;
+  padding: 2px;
+  border: 1px solid var(--field-border);
+  border-radius: $radius-sm;
+  background: var(--field-bg);
+  cursor: pointer;
+
+  &::-webkit-color-swatch-wrapper { padding: 0; }
+  &::-webkit-color-swatch { border: none; border-radius: 3px; }
+  &::-moz-color-swatch { border: none; border-radius: 3px; }
+}
+
+.colorHint {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+
+  @include phone {
+    grid-column: 1 / -1;
+  }
+}
+
+// ── Sou eu (vínculo com o login) ─────────────────────────────────────────────
+.selfRow {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.selfHint {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}

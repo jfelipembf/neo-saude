@@ -1,3 +1,7 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// ARQUIVO GERADO — não edite à mão. Regenere após QUALQUER migration com:
+//   npx supabase gen types typescript --project-id cchbamuhjvxxayokklux > src/types/database.types.ts
+// ─────────────────────────────────────────────────────────────────────────────
 export type Json =
   | string
   | number
@@ -1200,6 +1204,44 @@ export type Database = {
           },
         ]
       }
+      clinic_goal: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          id: string
+          metric: Database["public"]["Enums"]["goal_metric"]
+          monthly: number[]
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          id?: string
+          metric: Database["public"]["Enums"]["goal_metric"]
+          monthly?: number[]
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          id?: string
+          metric?: Database["public"]["Enums"]["goal_metric"]
+          monthly?: number[]
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinic_goal_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clinic_user: {
         Row: {
           access_profile_id: string
@@ -1569,6 +1611,7 @@ export type Database = {
           neighborhood: string | null
           number: string | null
           phone: string
+          photo_url: string | null
           search_name: string | null
           sex: Database["public"]["Enums"]["gender"] | null
           state: string | null
@@ -1593,6 +1636,7 @@ export type Database = {
           neighborhood?: string | null
           number?: string | null
           phone: string
+          photo_url?: string | null
           search_name?: string | null
           sex?: Database["public"]["Enums"]["gender"] | null
           state?: string | null
@@ -1617,6 +1661,7 @@ export type Database = {
           neighborhood?: string | null
           number?: string | null
           phone?: string
+          photo_url?: string | null
           search_name?: string | null
           sex?: Database["public"]["Enums"]["gender"] | null
           state?: string | null
@@ -2118,12 +2163,14 @@ export type Database = {
           description: string | null
           email: string | null
           id: string
+          is_technical_manager: boolean
           languages: string[]
           license: string
           name: string
           neighborhood: string | null
           number: string | null
           phone: string | null
+          photo_url: string | null
           rating: number | null
           sex: Database["public"]["Enums"]["gender"] | null
           specializations: string[]
@@ -2147,12 +2194,14 @@ export type Database = {
           description?: string | null
           email?: string | null
           id?: string
+          is_technical_manager?: boolean
           languages?: string[]
           license: string
           name: string
           neighborhood?: string | null
           number?: string | null
           phone?: string | null
+          photo_url?: string | null
           rating?: number | null
           sex?: Database["public"]["Enums"]["gender"] | null
           specializations?: string[]
@@ -2176,12 +2225,14 @@ export type Database = {
           description?: string | null
           email?: string | null
           id?: string
+          is_technical_manager?: boolean
           languages?: string[]
           license?: string
           name?: string
           neighborhood?: string | null
           number?: string | null
           phone?: string | null
+          photo_url?: string | null
           rating?: number | null
           sex?: Database["public"]["Enums"]["gender"] | null
           specializations?: string[]
@@ -3573,7 +3624,24 @@ export type Database = {
       }
     }
     Functions: {
+      appointment_series: {
+        Args: { p_month_iso?: string; p_period: string }
+        Returns: {
+          label: string
+          value: number
+        }[]
+      }
       archive_anamnesis: { Args: { p_patient: string }; Returns: string }
+      cash_flow: { Args: { p_days?: number }; Returns: Json }
+      dashboard_stats: { Args: never; Returns: Json }
+      finance_series: {
+        Args: { p_month_iso?: string; p_period: string }
+        Returns: {
+          expenses: number
+          income: number
+          label: string
+        }[]
+      }
       link_professional_user: {
         Args: { p_professional: string; p_user: string }
         Returns: undefined
@@ -3650,6 +3718,14 @@ export type Database = {
         Args: { p_answers: Json; p_patient: string }
         Returns: string
       }
+      set_clinic_goals_year: {
+        Args: { p_clinic: string; p_goals: Json; p_year: number }
+        Returns: undefined
+      }
+      set_technical_manager: {
+        Args: { p_professional: string }
+        Returns: undefined
+      }
     }
     Enums: {
       active_status: "active" | "inactive"
@@ -3684,6 +3760,7 @@ export type Database = {
       commission_payout: "fixed_day" | "per_visit"
       commission_type: "percentage" | "fixed"
       gender: "male" | "female"
+      goal_metric: "appointments" | "active_patients" | "revenue" | "expenses"
       lead_status: "new" | "negotiating" | "scheduling" | "converted" | "lost"
       membership_status: "invited" | "active" | "suspended"
       payment_method:
@@ -3869,6 +3946,7 @@ export const Constants = {
       commission_payout: ["fixed_day", "per_visit"],
       commission_type: ["percentage", "fixed"],
       gender: ["male", "female"],
+      goal_metric: ["appointments", "active_patients", "revenue", "expenses"],
       lead_status: ["new", "negotiating", "scheduling", "converted", "lost"],
       membership_status: ["invited", "active", "suspended"],
       payment_method: [
@@ -3897,3 +3975,5 @@ export const Constants = {
     },
   },
 } as const
+A new version of Supabase CLI is available: v2.109.1 (currently installed v2.54.11)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

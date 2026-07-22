@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId, type ClientPayload } from '@/lib/tenant'
+import { phoneToDb, emailToDb } from '@/utils/text'
 import type { Insurance } from '@/types/domain'
 
 const COLUMNS = 'id, clinic_id, name, ans, phone, email, payout_days, notes, status'
@@ -47,8 +48,8 @@ function toRow(payload: EditInsurance) {
   return {
     name: payload.name,
     ans: payload.ans ?? null,
-    phone: payload.phone ?? null,
-    email: payload.email ?? null,
+    phone: phoneToDb(payload.phone),
+    email: emailToDb(payload.email),
     payout_days: payload.payoutDays ?? null,
     notes: payload.notes ?? null,
     status: payload.status,

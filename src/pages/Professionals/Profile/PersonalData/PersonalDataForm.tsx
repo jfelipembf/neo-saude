@@ -8,6 +8,7 @@ import { Toggle } from '@/components/Toggle/Toggle'
 import { useToast } from '@/components/Toast/useToast'
 import { SEX_OPTIONS } from '@/constants'
 import { useUpdateProfessional } from '@/hooks/useProfessionals'
+import { userMessage } from '@/lib/errors'
 import type { Professional, Gender } from '@/types/domain'
 import shared from '../shared/profile.module.scss'
 
@@ -59,12 +60,14 @@ function formStateFromProfessional(p: Professional): ProfessionalFormState {
 
 interface PersonalDataFormProps {
   professional: Professional
+  /** Foto escolhida no avatar (já no Storage), salva junto com o formulário. */
+  pendingPhoto?: string | null
   onClose: () => void
 }
 
 /** Aba "Dados pessoais" em modo edição. O rascunho nasce do cadastro salvo a
  *  cada montagem — fechar/trocar de aba descarta o que não foi salvo. */
-export function PersonalDataForm({ professional, onClose }: PersonalDataFormProps) {
+export function PersonalDataForm({ professional, pendingPhoto, onClose }: PersonalDataFormProps) {
   const toast = useToast()
   const { mutate: save, isPending: saving } = useUpdateProfessional()
 
@@ -102,6 +105,8 @@ export function PersonalDataForm({ professional, onClose }: PersonalDataFormProp
           neighborhood: form.neighborhood.trim(),
           number: form.number.trim(),
           status: form.active ? 'active' : 'inactive',
+          // Só vai se o usuário trocou a foto nesta edição.
+          ...(pendingPhoto ? { photo: pendingPhoto } : {}),
         },
       },
       {
@@ -109,6 +114,12 @@ export function PersonalDataForm({ professional, onClose }: PersonalDataFormProp
           toast.success('Dados atualizados!')
           onClose()
         },
+        // Inativar o responsável técnico é recusado pelo banco (a clínica ficaria
+        // formalmente sem responsável). Sem este onError o formulário não dava
+        // sinal nenhum: o modal seguia aberto como se nada tivesse acontecido.
+        onError: error => toast.error(
+          userMessage(error, 'Não foi possível salvar os dados do profissional.'),
+        ),
       },
     )
   }

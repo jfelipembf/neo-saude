@@ -21,6 +21,8 @@ interface SideListProps {
   /** Botão + no cabeçalho (criar novo item). */
   onAdd?: () => void
   searchPlaceholder?: string
+  /** Oculta o campo de busca (listas curtas, ex.: contas/adquirentes). */
+  hideSearch?: boolean
   emptyText?: string
   size?: SideListSize
 }
@@ -33,6 +35,7 @@ export function SideList({
   onSelect,
   onAdd,
   searchPlaceholder = 'Pesquisar...',
+  hideSearch = false,
   emptyText = 'Nenhum item encontrado',
   size = 'md',
 }: SideListProps) {
@@ -54,16 +57,18 @@ export function SideList({
         )}
       </div>
 
-      <div className={styles.searchWrap}>
-        <Input
-          size="sm"
-          iconLeft={<IconSearch />}
-          placeholder={searchPlaceholder}
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          aria-label={searchPlaceholder}
-        />
-      </div>
+      {!hideSearch && (
+        <div className={styles.searchWrap}>
+          <Input
+            size="sm"
+            iconLeft={<IconSearch />}
+            placeholder={searchPlaceholder}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            aria-label={searchPlaceholder}
+          />
+        </div>
+      )}
 
       <div className={styles.list}>
         {filtered.length === 0 ? (

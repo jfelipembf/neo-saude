@@ -9,6 +9,7 @@ import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
 import { Modal } from '@/components/Modal/Modal'
 import { Select } from '@/components/Select/Select'
+import { AddressFields } from '@/components/AddressFields/AddressFields'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { Pagination } from '@/components/Pagination/Pagination'
 import { useToast } from '@/components/Toast/useToast'
@@ -121,7 +122,9 @@ export function PatientsPage() {
       label: 'Nome',
       render: p => (
         <span className={styles.pacienteCell}>
-          <span className={styles.avatar}>{initials(p.name)}</span>
+          <span className={styles.avatar}>
+            {p.photo ? <img src={p.photo} alt="" className={styles.avatarImg} /> : initials(p.name)}
+          </span>
           {p.name}
         </span>
       ),
@@ -302,43 +305,12 @@ export function PatientsPage() {
 
           <section className={styles.formSection}>
             <h3>Endereço</h3>
-            <div className={styles.grid2}>
-              <Input
-                label="CEP"
-                placeholder="49000-000"
-                value={form.cep}
-                onChange={e => set('cep')(e.target.value)}
-              />
-              <Input
-                label="Estado"
-                placeholder="SE"
-                maxLength={2}
-                value={form.state}
-                onChange={e => set('state')(e.target.value)}
-              />
-            </div>
-            <div className={styles.grid2}>
-              <Input
-                label="Cidade"
-                placeholder="Aracaju"
-                value={form.city}
-                onChange={e => set('city')(e.target.value)}
-              />
-              <Input
-                label="Bairro"
-                placeholder="Centro"
-                value={form.neighborhood}
-                onChange={e => set('neighborhood')(e.target.value)}
-              />
-            </div>
-            <div className={styles.grid2}>
-              <Input
-                label="Número"
-                placeholder="123"
-                value={form.number}
-                onChange={e => set('number')(e.target.value)}
-              />
-            </div>
+            {/* CEP autopreenche estado/cidade/bairro (paciente não guarda rua). */}
+            <AddressFields
+              value={form}
+              onChange={(field, value) => set(field as keyof PatientFormState)(value)}
+              showStreet={false}
+            />
           </section>
         </form>
       </Modal>

@@ -88,7 +88,9 @@ export function ResumeProfile() {
   return (
     <section className={styles.card} aria-label="Resumo do perfil">
       <header className={styles.top}>
-        <span className={styles.avatar}>{initials(user.name)}</span>
+        <span className={styles.avatar}>
+          {user.photo ? <img src={user.photo} alt="" className={styles.avatarImg} /> : initials(user.name)}
+        </span>
 
         <div className={styles.identity}>
           <h2 className={styles.nome}>{user.name}</h2>

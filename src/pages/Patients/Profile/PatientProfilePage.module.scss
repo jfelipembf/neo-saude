@@ -46,19 +46,72 @@
   text-align: center;
 }
 
+// Envolve o avatar para ancorar o botão de câmera no canto.
+.avatarWrap {
+  position: relative;
+  margin-bottom: $sp-2;
+}
+
 .avatar {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 88px;
   height: 88px;
-  margin-bottom: $sp-2;
+  overflow: hidden;   // recorta a foto no círculo (a sombra/anel fica fora)
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   color: #fff;
   font-size: $fs-2xl;
   font-weight: 600;
   box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.15);   // anel sutil da marca
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+// Círculo pequeno de câmera no canto inferior direito do avatar (modo edição).
+.fotoBtn {
+  @include focus-ring;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid var(--bg-elevated);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.12s ease;
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover { transform: scale(1.08); filter: brightness(1.05); }
+}
+
+.fotoBtnLoading {
+  pointer-events: none;
+  animation: fotoPulse 1s ease-in-out infinite;
+}
+
+@keyframes fotoPulse {
+  50% { opacity: 0.5; }
+}
+
+.fotoInput {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
 }
 
 .nome {

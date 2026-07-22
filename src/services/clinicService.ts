@@ -1,7 +1,9 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
-import { MOCK_TECHNICAL_MANAGER } from '@/mocks/clinic'
-import type { ClinicData, TechnicalManager } from '@/types/domain'
+import { cepToDb, cnpjToDb, emailToDb, phoneToDb, ufToDb } from '@/utils/text'
+import { PROFESSIONAL_CORE_COLUMNS, toProfessionalCore } from '@/services/professionalsService'
+import type { ProfessionalRow } from '@/services/professionalsService'
+import type { ClinicData, Professional } from '@/types/domain'
 
 // Colunas lidas/escritas na tabela `clinic`. `logo_url` ↔ domínio `photo`.
 const CLINIC_COLUMNS = 'id, specialty, logo_url, name, cnpj, email, phone, cep, state, city, neighborhood, street, number'
@@ -57,13 +59,13 @@ export async function updateClinic(payload: ClinicData): Promise<void> {
     .from('clinic')
     .update({
       name: payload.name,
-      cnpj: payload.cnpj,
-      email: payload.email,
-      phone: payload.phone,
+      cnpj: cnpjToDb(payload.cnpj),
+      email: emailToDb(payload.email),
+      phone: phoneToDb(payload.phone),
       logo_url: payload.photo ?? null,
       specialty: payload.specialty,
-      cep: payload.cep,
-      state: payload.state,
+      cep: cepToDb(payload.cep),
+      state: ufToDb(payload.state),
       city: payload.city,
       neighborhood: payload.neighborhood,
       street: payload.street,
@@ -73,14 +75,28 @@ export async function updateClinic(payload: ClinicData): Promise<void> {
   if (error) throw error
 }
 
-// TODO(neoSaude): não há tabela para o "responsável técnico" (TechnicalManager)
-// no schema atual. Decidir o mapeamento com o produto — provavelmente um
-// `professional` marcado como RT, ou colunas novas na `clinic`. Até lá, segue
-// em modo mock para não quebrar a aba Administrativo → Inicial.
-export async function getTechnicalManager(): Promise<TechnicalManager> {
-  return { ...MOCK_TECHNICAL_MANAGER }
+// ── Responsável técnico ──────────────────────────────────────────────────────
+// O RT NÃO é um cadastro à parte: pela norma do conselho ele é inscrito no CRO,
+// logo já é uma linha de `professional` — marcada com `is_technical_manager`.
+// Um índice único parcial garante um RT por clínica, e um CHECK exige que ele
+// esteja ativo. Editar os dados do RT = editar o profissional (updateProfessional).
+
+/** O profissional que responde tecnicamente pela clínica, ou `null` quando
+ *  ainda não foi designado (estado de uma clínica recém-criada). */
+export async function getTechnicalManager(): Promise<Professional | null> {
+  const { data, error } = await supabase
+    .from('professional')
+    .select(PROFESSIONAL_CORE_COLUMNS)
+    .eq('clinic_id', getCurrentClinicId())
+    .eq('is_technical_manager', true)
+    .maybeSingle()
+  if (error) throw error
+  return data ? toProfessionalCore(data as ProfessionalRow) : null
 }
 
-export async function updateTechnicalManager(payload: TechnicalManager): Promise<void> {
-  Object.assign(MOCK_TECHNICAL_MANAGER, payload)
+/** Promove um profissional a RT. A RPC desmarca o anterior e marca o novo na
+ *  mesma transação — sem ela o índice único barraria a troca. */
+export async function setTechnicalManager(professionalId: string): Promise<void> {
+  const { error } = await supabase.rpc('set_technical_manager', { p_professional: professionalId })
+  if (error) throw error
 }

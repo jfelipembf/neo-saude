@@ -1,48 +1,114 @@
-import { MOCK_DOCUMENTS } from '@/mocks/documents'
+import { supabase } from '@/lib/supabase'
+import { getCurrentClinicId } from '@/lib/tenant'
+import { isoToBrDate } from '@/utils/date'
 import type { PatientDocument } from '@/types/domain'
-import { CURRENT_CLINIC } from '@/lib/tenant'
 
-/** Dados do formulário de upload (id e data de envio nascem aqui). */
+// Anexos do paciente: o ARQUIVO vive no Storage (bucket privado) e os METADADOS
+// na tabela patient_document. Caminho: {clinic_id}/{patient_id}/{uuid}-{arquivo}
+// — o 1º segmento (clínica) é o que a policy de storage.objects confere.
+const BUCKET = 'patient-documents'
+const SIGNED_URL_TTL = 60 * 60 // 1h
+
+/** 1234567 → "1,2 MB" (mesma regra do componente de upload). */
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`
+}
+
+/** 'exames-jun.pdf' → 'PDF'. */
+function fileExtension(fileName: string): string {
+  const parts = fileName.split('.')
+  return parts.length > 1 ? parts[parts.length - 1].toUpperCase() : 'ARQ'
+}
+
+/** Dados do formulário de upload — o arquivo em si vai junto (bytes + tipo + tamanho). */
 export interface NewDocument {
   patientId: string
   name: string
   description?: string
-  fileName: string
-  type: string
-  size: string
-  url?: string
+  file: File
 }
 
-// TODO(neoSaúde) — PARCIALMENTE BLOQUEADO (segue em MOCK):
-// A tabela `patient_document` guarda METADADOS e o arquivo vive no Supabase
-// Storage (coluna storage_path NOT NULL). Ligar `addDocument` exige o fluxo de
-// UPLOAD (bucket + supabase.storage.upload → storage_path) que ainda não existe.
-// Além disso o domínio guarda campos JÁ FORMATADOS (size "1,2 MB", type "PDF")
-// enquanto o banco guarda cru (size_bytes int8, mime_type) — precisa de um
-// de-para de exibição. list/update/remove são triviais de ligar assim que o
-// Storage e esse de-para forem decididos; até lá, mock.
+type DocumentRow = {
+  id: string
+  clinic_id: string
+  patient_id: string
+  name: string
+  description: string | null
+  file_name: string
+  mime_type: string | null
+  size_bytes: number | null
+  storage_path: string
+  created_at: string
+}
+
 export async function listPatientDocuments(patientId: string): Promise<PatientDocument[]> {
-  return MOCK_DOCUMENTS.filter(d => d.patientId === patientId)
+  const { data, error } = await supabase
+    .from('patient_document')
+    .select('id, clinic_id, patient_id, name, description, file_name, mime_type, size_bytes, storage_path, created_at')
+    .eq('patient_id', patientId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  const rows = data as DocumentRow[]
+  if (rows.length === 0) return []
+
+  // URLs assinadas (bucket privado) — uma chamada em lote, ordem preservada.
+  const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrls(rows.map(r => r.storage_path), SIGNED_URL_TTL)
+
+  return rows.map((r, i) => ({
+    id: r.id,
+    clinicId: r.clinic_id,
+    patientId: r.patient_id,
+    name: r.name,
+    description: r.description ?? undefined,
+    fileName: r.file_name,
+    type: fileExtension(r.file_name),
+    size: r.size_bytes != null ? formatSize(Number(r.size_bytes)) : '—',
+    uploadedAt: isoToBrDate(r.created_at) ?? '',
+    url: signed?.[i]?.signedUrl ?? undefined,
+  }))
 }
 
-// Contador de id do mock — no Supabase o id virá do banco.
-let nextId = 100
-
-/** Registra um documento enviado (mock: em memória; arquivo vive como object URL). */
+/** Envia o arquivo ao Storage e registra os metadados. */
 export async function addDocument(payload: NewDocument): Promise<void> {
-  const today = new Date()
-  const uploadedAt = today.toLocaleDateString('pt-BR')
-  MOCK_DOCUMENTS.unshift({ id: `d${nextId++}`, clinicId: CURRENT_CLINIC, uploadedAt, ...payload })
+  const clinicId = getCurrentClinicId()
+  const path = `${clinicId}/${payload.patientId}/${crypto.randomUUID()}-${payload.file.name}`
+
+  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, payload.file)
+  if (uploadError) throw uploadError
+
+  const { error } = await supabase.from('patient_document').insert({
+    clinic_id: clinicId,
+    patient_id: payload.patientId,
+    name: payload.name,
+    description: payload.description ?? null,
+    file_name: payload.file.name,
+    mime_type: payload.file.type || null,
+    size_bytes: payload.file.size,
+    storage_path: path,
+  })
+  // Falhou o metadado? não deixa o objeto órfão no Storage.
+  if (error) {
+    await supabase.storage.from(BUCKET).remove([path])
+    throw error
+  }
 }
 
-/** Atualiza nome/descrição de um documento. */
+/** Atualiza nome/descrição de um documento (o arquivo não muda). */
 export async function updateDocument(id: string, payload: { name: string; description?: string }): Promise<void> {
-  const doc = MOCK_DOCUMENTS.find(d => d.id === id)
-  if (doc) Object.assign(doc, payload)
+  const { error } = await supabase
+    .from('patient_document')
+    .update({ name: payload.name, description: payload.description ?? null })
+    .eq('id', id)
+  if (error) throw error
 }
 
-/** Exclui um documento (mock: remove do array em memória). */
+/** Exclui o documento: remove o objeto do Storage e depois o registro. */
 export async function removeDocument(id: string): Promise<void> {
-  const index = MOCK_DOCUMENTS.findIndex(d => d.id === id)
-  if (index >= 0) MOCK_DOCUMENTS.splice(index, 1)
+  const { data, error } = await supabase.from('patient_document').select('storage_path').eq('id', id).single()
+  if (error) throw error
+  await supabase.storage.from(BUCKET).remove([data.storage_path])
+  const { error: delError } = await supabase.from('patient_document').delete().eq('id', id)
+  if (delError) throw delError
 }

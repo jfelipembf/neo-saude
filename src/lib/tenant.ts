@@ -12,15 +12,7 @@
  *    ele pertença a `auth_clinic_ids()`); `id` e `code` NÃO são enviados —
  *    `id` tem default `gen_random_uuid()` e `code` é preenchido pelo trigger
  *    `tr_code` (BEFORE INSERT), sem corrida entre usuários.
- *
- * MODO MOCK (legado): `CURRENT_CLINIC` abaixo ainda é usado pelos services que
- * não foram migrados para o banco real. Cada service migrado troca
- * `CURRENT_CLINIC` por `getCurrentClinicId()`; quando o último sair, a const
- * pode ser removida.
  */
-
-/** @deprecated Clínica fixa do modo mock — só para services ainda não migrados. */
-export const CURRENT_CLINIC = 'c1'
 
 /**
  * Clínica corrente resolvida da sessão real (UUID). É preenchida pelo

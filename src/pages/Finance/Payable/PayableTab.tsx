@@ -7,7 +7,9 @@ import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
 import { useToast } from '@/components/Toast/useToast'
-import { IconCheck, IconUndo, IconX } from '@/components/icons'
+import { Button } from '@/components/Button/Button'
+import { IconCheck, IconUndo, IconX, IconPlus } from '@/components/icons'
+import { AccountFormModal } from '../shared/AccountFormModal'
 import { usePayables, useSettlePayable, useCancelPayable, useReversePayable } from '@/hooks/useFinance'
 import { usePagination } from '@/hooks/usePagination'
 import { formatBRL } from '@/utils/format'
@@ -29,6 +31,7 @@ export function PayableTab() {
   const [toSettle, setToSettle] = useState<Payable | null>(null)
   const [toCancel, setToCancel] = useState<Payable | null>(null)
   const [toReverse, setToReverse] = useState<Payable | null>(null)
+  const [creating, setCreating] = useState(false)
 
   if (isLoading) return <PageLoader />
 
@@ -93,7 +96,14 @@ export function PayableTab() {
         data={pagination.visible}
         rowKey={c => c.id}
         emptyMessage="Nenhuma conta a pagar."
-        toolbar={<PerPageSelect perPage={pagination.perPage} onChange={pagination.setPerPage} />}
+        toolbar={
+          <>
+            <PerPageSelect perPage={pagination.perPage} onChange={pagination.setPerPage} />
+            <Button size="sm" iconLeft={<IconPlus />} onClick={() => setCreating(true)}>
+              Nova conta a pagar
+            </Button>
+          </>
+        }
         footer={
           <div className={shared.rodapeTabela}>
             <div className={shared.resumo}>
@@ -113,6 +123,9 @@ export function PayableTab() {
           </div>
         }
       />
+
+      {/* ── Modal: cadastrar nova conta ── */}
+      {creating && <AccountFormModal kind="payable" onClose={() => setCreating(false)} />}
 
       {/* ── Modal: dar settlement ── */}
       {toSettle && (
