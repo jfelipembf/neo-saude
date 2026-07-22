@@ -4,7 +4,7 @@
 // Só o número no rótulo — o texto ao redor vem do próprio PerPageSelect.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const OPCOES_POR_PAGINA = [
+export const PER_PAGE_OPTIONS = [
   { value: '5',  label: '5' },
   { value: '10', label: '10' },
   { value: '20', label: '20' },

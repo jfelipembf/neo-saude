@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Input } from '@/components/Input/Input'
-import { IconBuscar, IconMais } from '@/components/icons'
+import { IconSearch, IconPlus } from '@/components/icons'
 import { useDebounce } from '@/hooks/useDebounce'
-import { combinaBusca } from '@/utils/search'
+import { matchesSearch } from '@/utils/search'
 import styles from './SideList.module.scss'
 
 export interface SideListItem {
@@ -36,11 +36,11 @@ export function SideList({
   emptyText = 'Nenhum item encontrado',
   size = 'md',
 }: SideListProps) {
-  const [busca, setBusca] = useState('')
+  const [search, setSearch] = useState('')
 
-  const termo = useDebounce(busca)
-  const filtrados = termo.trim()
-    ? items.filter(i => combinaBusca(i.label, termo))
+  const term = useDebounce(search)
+  const filtered = term.trim()
+    ? items.filter(i => matchesSearch(i.label, term))
     : items
 
   return (
@@ -49,7 +49,7 @@ export function SideList({
         {title && <span className={styles.title}>{title}</span>}
         {onAdd && (
           <button type="button" className={styles.addBtn} onClick={onAdd} title="Novo" aria-label="Adicionar novo">
-            <IconMais />
+            <IconPlus />
           </button>
         )}
       </div>
@@ -57,19 +57,19 @@ export function SideList({
       <div className={styles.searchWrap}>
         <Input
           size="sm"
-          iconLeft={<IconBuscar />}
+          iconLeft={<IconSearch />}
           placeholder={searchPlaceholder}
-          value={busca}
-          onChange={e => setBusca(e.target.value)}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
           aria-label={searchPlaceholder}
         />
       </div>
 
       <div className={styles.list}>
-        {filtrados.length === 0 ? (
+        {filtered.length === 0 ? (
           <p className={styles.empty}>{emptyText}</p>
         ) : (
-          filtrados.map(item => (
+          filtered.map(item => (
             <div
               key={item.id}
               className={`${styles.item} ${item.id === selectedId ? styles['item--active'] : ''}`}

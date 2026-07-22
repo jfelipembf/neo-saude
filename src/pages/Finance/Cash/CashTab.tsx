@@ -9,9 +9,9 @@ import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
 import { useToast } from '@/components/Toast/useToast'
-import { useMovimentosCaixa, useCaixaSessao, useAbrirCaixa, useFecharCaixa } from '@/hooks/useFinanceiro'
+import { useCashMovements, useCashSession, useOpenCash, useCloseCash } from '@/hooks/useFinance'
 import { usePagination } from '@/hooks/usePagination'
-import { formatarReais, parseReais } from '@/utils/format'
+import { formatBRL, parseBRL } from '@/utils/format'
 import type { CashMovement } from '@/types/domain'
 import shared from '../shared/finance.module.scss'
 import styles from './CashTab.module.scss'
@@ -19,63 +19,63 @@ import styles from './CashTab.module.scss'
 /** Aba "Caixa": abrir/fechar o turno + resumo e movimentos do dia. */
 export function CashTab() {
   const toast = useToast()
-  const { data: sessao, isLoading: carregandoSessao } = useCaixaSessao()
-  const { data: movimentos, isLoading: carregandoMovimentos } = useMovimentosCaixa()
-  const { mutate: abrir, isPending: abrindo } = useAbrirCaixa()
-  const { mutate: fechar, isPending: fechando } = useFecharCaixa()
+  const { data: session, isLoading: sessionLoading } = useCashSession()
+  const { data: movements, isLoading: movementsLoading } = useCashMovements()
+  const { mutate: openCash, isPending: opening } = useOpenCash()
+  const { mutate: closeCash, isPending: closing } = useCloseCash()
 
-  const lista = movimentos ?? []
-  const pag = usePagination(lista)
+  const list = movements ?? []
+  const pagination = usePagination(list)
 
-  const [modalAbrir, setModalAbrir] = useState(false)
-  const [modalFechar, setModalFechar] = useState(false)
-  const [fundoTexto, setFundoTexto] = useState('')
-  const [contagemTexto, setContagemTexto] = useState('')
-  const [erroValor, setErroValor] = useState('')
+  const [showOpenModal, setShowOpenModal] = useState(false)
+  const [showCloseModal, setShowCloseModal] = useState(false)
+  const [openingText, setOpeningText] = useState('')
+  const [countText, setCountText] = useState('')
+  const [amountError, setAmountError] = useState('')
 
-  if (carregandoSessao || carregandoMovimentos) return <PageLoader />
+  if (sessionLoading || movementsLoading) return <PageLoader />
 
-  const entradas = lista.filter(m => m.tipo === 'entrada').reduce((s, m) => s + m.valor, 0)
-  const saidas   = lista.filter(m => m.tipo === 'saida').reduce((s, m) => s + m.valor, 0)
-  const abertura = sessao?.valorAbertura ?? 0
-  const saldoTurno = abertura + entradas - saidas
+  const inflows = list.filter(m => m.type === 'inflow').reduce((s, m) => s + m.amount, 0)
+  const outflows = list.filter(m => m.type === 'outflow').reduce((s, m) => s + m.amount, 0)
+  const openingAmount = session?.openingAmount ?? 0
+  const shiftBalance = openingAmount + inflows - outflows
 
-  function aoAbrirCaixa() {
-    const fundo = parseReais(fundoTexto || '0')
-    if (!Number.isFinite(fundo) || fundo < 0) {
-      setErroValor('Informe um valor válido.')
+  function handleOpenCash() {
+    const amount = parseBRL(openingText || '0')
+    if (!Number.isFinite(amount) || amount < 0) {
+      setAmountError('Informe um valor válido.')
       return
     }
-    abrir(fundo, {
+    openCash(amount, {
       onSuccess: () => {
         toast.success('Caixa aberto!')
-        setModalAbrir(false)
-        setFundoTexto('')
-        setErroValor('')
+        setShowOpenModal(false)
+        setOpeningText('')
+        setAmountError('')
       },
     })
   }
 
-  function aoFecharCaixa() {
-    fechar(undefined, {
+  function handleCloseCash() {
+    closeCash(undefined, {
       onSuccess: () => {
         toast.success('Caixa fechado!')
-        setModalFechar(false)
-        setContagemTexto('')
+        setShowCloseModal(false)
+        setCountText('')
       },
     })
   }
 
   const columns: TableColumn<CashMovement>[] = [
-    { key: 'nome',       label: 'Nome', render: m => <span className={shared.celulaForte}>{m.nome}</span> },
-    { key: 'forma',      label: 'Forma de pagamento', render: m => m.formaPagamento ?? '—' },
-    { key: 'descricao',  label: 'Descrição' },
-    { key: 'lancamento', label: 'Lançamento' },
+    { key: 'nome',       label: 'Nome', render: m => <span className={shared.celulaForte}>{m.name}</span> },
+    { key: 'forma',      label: 'Forma de pagamento', render: m => m.paymentMethod ?? '—' },
+    { key: 'description',  label: 'Descrição' },
+    { key: 'postedAt', label: 'Lançamento' },
     {
       key: 'valor', label: 'Valor',
       render: m => (
-        <span className={`${shared.valor} ${m.tipo === 'entrada' ? shared.pos : shared.neg}`}>
-          {m.tipo === 'entrada' ? '+' : '−'}{formatarReais(m.valor)}
+        <span className={`${shared.valor} ${m.type === 'inflow' ? shared.pos : shared.neg}`}>
+          {m.type === 'inflow' ? '+' : '−'}{formatBRL(m.amount)}
         </span>
       ),
     },
@@ -83,58 +83,58 @@ export function CashTab() {
 
   return (
     <div className={styles.aba}>
-      {!sessao?.aberto ? (
+      {!session?.isOpen ? (
         <EmptyState
           title="Caixa fechado"
           description="Abra o caixa para registrar as movimentações do dia."
-          action={<Button onClick={() => setModalAbrir(true)}>Abrir Caixa</Button>}
+          action={<Button onClick={() => setShowOpenModal(true)}>Abrir Caixa</Button>}
         />
       ) : (
         <>
           {/* Cabeçalho do turno: operador + estatísticas inline. */}
           <div className={styles.turnoBar}>
             <div className={styles.caixaInfo}>
-              <span className={styles.caixaOperador}>{sessao.operador?.toUpperCase()}</span>
-              <span className={styles.caixaAbertura}>Caixa aberto em {sessao.abertoEm}</span>
+              <span className={styles.caixaOperador}>{session.operator?.toUpperCase()}</span>
+              <span className={styles.caixaAbertura}>Caixa aberto em {session.openedAt}</span>
             </div>
 
             <div className={styles.turnoStats}>
               <div className={styles.turnoStat}>
                 <span className={styles.turnoLabel}>Valor inicial</span>
-                <span className={styles.turnoValor}>{formatarReais(abertura)}</span>
+                <span className={styles.turnoValor}>{formatBRL(openingAmount)}</span>
               </div>
               <div className={styles.turnoStat}>
                 <span className={styles.turnoLabel}>Entradas</span>
-                <span className={`${styles.turnoValor} ${styles['turnoValor--entrada']}`}>{formatarReais(entradas)}</span>
+                <span className={`${styles.turnoValor} ${styles['turnoValor--entrada']}`}>{formatBRL(inflows)}</span>
               </div>
               <div className={styles.turnoStat}>
                 <span className={styles.turnoLabel}>Saídas</span>
-                <span className={`${styles.turnoValor} ${styles['turnoValor--saida']}`}>{formatarReais(saidas)}</span>
+                <span className={`${styles.turnoValor} ${styles['turnoValor--saida']}`}>{formatBRL(outflows)}</span>
               </div>
               <div className={styles.turnoStat}>
                 <span className={styles.turnoLabel}>Saldo do turno</span>
-                <span className={`${styles.turnoValor} ${styles['turnoValor--saldo']}`}>{formatarReais(saldoTurno)}</span>
+                <span className={`${styles.turnoValor} ${styles['turnoValor--saldo']}`}>{formatBRL(shiftBalance)}</span>
               </div>
             </div>
 
-            <Button variant="danger" loading={fechando} onClick={() => setModalFechar(true)}>
+            <Button variant="danger" loading={closing} onClick={() => setShowCloseModal(true)}>
               Fechar Caixa
             </Button>
           </div>
 
           <Table
             columns={columns}
-            data={pag.visiveis}
+            data={pagination.visible}
             rowKey={m => m.id}
             emptyMessage="Nenhum movimento no caixa de hoje."
-            toolbar={<PerPageSelect porPagina={pag.porPagina} onChange={pag.mudarPorPagina} />}
+            toolbar={<PerPageSelect perPage={pagination.perPage} onChange={pagination.setPerPage} />}
             footer={
               <Pagination
-                page={pag.paginaAtual}
-                totalPages={pag.totalPaginas}
-                onChange={pag.setPagina}
-                totalItems={pag.total}
-                itemsPerPage={pag.porPagina}
+                page={pagination.currentPage}
+                totalPages={pagination.totalPages}
+                onChange={pagination.setPage}
+                totalItems={pagination.total}
+                itemsPerPage={pagination.perPage}
               />
             }
           />
@@ -143,14 +143,14 @@ export function CashTab() {
 
       {/* ── Abertura de Caixa ── */}
       <Modal
-        open={modalAbrir}
-        onClose={() => setModalAbrir(false)}
+        open={showOpenModal}
+        onClose={() => setShowOpenModal(false)}
         title="Abertura de Caixa"
         size="sm"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setModalAbrir(false)} disabled={abrindo}>Cancelar</Button>
-            <Button loading={abrindo} onClick={aoAbrirCaixa}>Abrir Caixa</Button>
+            <Button variant="ghost" onClick={() => setShowOpenModal(false)} disabled={opening}>Cancelar</Button>
+            <Button loading={opening} onClick={handleOpenCash}>Abrir Caixa</Button>
           </>
         }
       >
@@ -159,9 +159,9 @@ export function CashTab() {
           iconLeft={<span className={shared.prefixo}>R$</span>}
           inputMode="decimal"
           placeholder="0,00"
-          value={fundoTexto}
-          onChange={e => { setFundoTexto(e.target.value); setErroValor('') }}
-          error={erroValor}
+          value={openingText}
+          onChange={e => { setOpeningText(e.target.value); setAmountError('') }}
+          error={amountError}
           hint="Valor em dinheiro disponível na gaveta ao iniciar o dia."
           autoFocus
         />
@@ -169,29 +169,29 @@ export function CashTab() {
 
       {/* ── Fechamento de Caixa ── */}
       <Modal
-        open={modalFechar}
-        onClose={() => setModalFechar(false)}
+        open={showCloseModal}
+        onClose={() => setShowCloseModal(false)}
         title="Fechamento de Caixa"
         size="sm"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setModalFechar(false)} disabled={fechando}>Revisar</Button>
-            <Button variant="danger" loading={fechando} onClick={aoFecharCaixa}>Confirmar fechamento</Button>
+            <Button variant="ghost" onClick={() => setShowCloseModal(false)} disabled={closing}>Revisar</Button>
+            <Button variant="danger" loading={closing} onClick={handleCloseCash}>Confirmar fechamento</Button>
           </>
         }
       >
         <div className={styles.modalCorpo}>
           <p className={styles.modalDica}>
             Informe o valor contado fisicamente na gaveta. O saldo esperado do turno é{' '}
-            <strong>{formatarReais(saldoTurno)}</strong> — divergências ficam registradas no fechamento.
+            <strong>{formatBRL(shiftBalance)}</strong> — divergências ficam registradas no fechamento.
           </p>
           <Input
             label="Contagem da gaveta"
             iconLeft={<span className={shared.prefixo}>R$</span>}
             inputMode="decimal"
             placeholder="0,00"
-            value={contagemTexto}
-            onChange={e => setContagemTexto(e.target.value)}
+            value={countText}
+            onChange={e => setCountText(e.target.value)}
             autoFocus
           />
         </div>

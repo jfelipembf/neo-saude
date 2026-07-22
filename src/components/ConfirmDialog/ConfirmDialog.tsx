@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Modal } from '@/components/Modal/Modal'
 import { Button } from '@/components/Button/Button'
-import { IconAlerta, IconInfo } from '@/components/icons'
+import { IconAlert, IconInfo } from '@/components/icons'
 import styles from './ConfirmDialog.module.scss'
 
 interface ConfirmDialogProps {
@@ -50,7 +50,7 @@ export function ConfirmDialog({
     >
       <div className={styles.content}>
         <div className={`${styles.icon} ${isDanger ? styles['icon--danger'] : styles['icon--default']}`}>
-          {isDanger ? <IconAlerta /> : <IconInfo />}
+          {isDanger ? <IconAlert /> : <IconInfo />}
         </div>
         <h3 className={styles.title}>{title}</h3>
         {message && <p className={styles.message}>{message}</p>}

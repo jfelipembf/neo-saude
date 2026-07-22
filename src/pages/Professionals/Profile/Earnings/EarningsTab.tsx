@@ -5,95 +5,95 @@ import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { SegmentedControl } from '@/components/SegmentedControl/SegmentedControl'
 import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
-import { usePacientes } from '@/hooks/usePacientes'
-import { usePagamentos } from '@/hooks/usePagamentos'
+import { usePatients } from '@/hooks/usePatients'
+import { usePayments } from '@/hooks/usePayments'
 import { usePagination } from '@/hooks/usePagination'
-import { formatarReais } from '@/utils/format'
+import { formatBRL } from '@/utils/format'
 import type { Professional } from '@/types/domain'
-import { bucketsGanhos, rangeDoMes, OPCOES_GRANULARIDADE } from './buckets'
+import { earningsBuckets, monthRange, GRANULARITY_OPTIONS } from './buckets'
 import type { EarningsGranularity } from './buckets'
 import shared from '../shared/profile.module.scss'
 import styles from './EarningsTab.module.scss'
 
 interface EarningsTabProps {
-  profissional: Professional
+  professional: Professional
 }
 
 /** Aba "Ganhos": barras por período (clicáveis) + destrinchado por paciente. */
-export function EarningsTab({ profissional }: EarningsTabProps) {
-  const { data: pacientes } = usePacientes()
-  const { data: pagamentos } = usePagamentos()
+export function EarningsTab({ professional }: EarningsTabProps) {
+  const { data: patients } = usePatients()
+  const { data: payments } = usePayments()
 
-  const [granularidade, setGranularidade] = useState<EarningsGranularity>('mes')
-  const [deIso, setDeIso] = useState(() => rangeDoMes(new Date()).de)
-  const [ateIso, setAteIso] = useState(() => rangeDoMes(new Date()).ate)
+  const [granularity, setGranularity] = useState<EarningsGranularity>('month')
+  const [fromIso, setFromIso] = useState(() => monthRange(new Date()).de)
+  const [toIso, setToIso] = useState(() => monthRange(new Date()).ate)
 
-  const hoje = new Date()
-  const pacientePorId = new Map((pacientes ?? []).map(p => [p.id, p]))
+  const today = new Date()
+  const patientById = new Map((patients ?? []).map(p => [p.id, p]))
 
   // Itens de pagamentos PAGOS atribuídos a este profissional.
-  const itensGanhos = (pagamentos ?? [])
-    .filter(p => p.status === 'pago')
+  const earningsItems = (payments ?? [])
+    .filter(p => p.status === 'paid')
     .flatMap(p =>
-      (p.tratamentos ?? [])
-        .filter(t => t.profissional === profissional.nome)
+      (p.treatments ?? [])
+        .filter(t => t.professionalId === professional.id)
         .map(t => ({
-          dataIso: p.data.split('/').reverse().join('-'),
-          data: p.data,
-          pacienteId: p.pacienteId,
-          nome: t.nome,
-          valor: t.valor,
+          dateIso: p.date.split('/').reverse().join('-'),
+          date: p.date,
+          patientId: p.patientId,
+          name: t.name,
+          amount: t.amount,
         })),
     )
 
   // Gráfico: um período por barra, conforme a granularidade escolhida.
-  const periodos = bucketsGanhos(granularidade, hoje).map(b => ({
+  const periods = earningsBuckets(granularity, today).map(b => ({
     ...b,
-    total: itensGanhos.filter(g => g.dataIso >= b.de && g.dataIso <= b.ate).reduce((s, g) => s + g.valor, 0),
+    total: earningsItems.filter(g => g.dateIso >= b.de && g.dateIso <= b.ate).reduce((s, g) => s + g.amount, 0),
   }))
-  const maiorTotal = Math.max(1, ...periodos.map(m => m.total))
+  const maxTotal = Math.max(1, ...periods.map(m => m.total))
 
   // Lista: agregado por paciente DENTRO do período, maior ganho primeiro.
-  const noPeriodo = itensGanhos.filter(g => g.dataIso >= deIso && g.dataIso <= ateIso)
-  const totalPeriodo = noPeriodo.reduce((soma, g) => soma + g.valor, 0)
-  const porPaciente = [...noPeriodo
-    .reduce((mapa, g) => {
-      const atual = mapa.get(g.pacienteId) ?? {
-        pacienteId: g.pacienteId,
-        nome: pacientePorId.get(g.pacienteId)?.nome ?? 'Paciente',
+  const periodItems = earningsItems.filter(g => g.dateIso >= fromIso && g.dateIso <= toIso)
+  const periodTotal = periodItems.reduce((sum, g) => sum + g.amount, 0)
+  const byPatient = [...periodItems
+    .reduce((map, g) => {
+      const current = map.get(g.patientId) ?? {
+        patientId: g.patientId,
+        name: patientById.get(g.patientId)?.name ?? 'Paciente',
         total: 0,
-        itens: [] as typeof noPeriodo,
+        items: [] as typeof periodItems,
       }
-      atual.total += g.valor
-      atual.itens.push(g)
-      return mapa.set(g.pacienteId, atual)
-    }, new Map<string, { pacienteId: string; nome: string; total: number; itens: typeof noPeriodo }>())
+      current.total += g.amount
+      current.items.push(g)
+      return map.set(g.patientId, current)
+    }, new Map<string, { patientId: string; name: string; total: number; items: typeof periodItems }>())
     .values()]
     .sort((a, b) => b.total - a.total)
 
-  const pag = usePagination(porPaciente)
+  const pagination = usePagination(byPatient)
 
   // Trocar a granularidade já seleciona o período ATUAL dela (hoje, esta
   // semana, este mês, este ano) — as barras refinam a partir daí.
-  function mudarGranularidade(g: EarningsGranularity) {
-    setGranularidade(g)
-    const atual = bucketsGanhos(g, new Date()).at(-1)!
-    setDeIso(atual.de)
-    setAteIso(atual.ate)
-    pag.setPagina(1)
+  function changeGranularity(g: EarningsGranularity) {
+    setGranularity(g)
+    const current = earningsBuckets(g, new Date()).at(-1)!
+    setFromIso(current.de)
+    setToIso(current.ate)
+    pagination.setPage(1)
   }
 
-  const colunas: TableColumn<(typeof porPaciente)[number]>[] = [
-    { key: 'paciente', label: 'Paciente', render: g => <span className={styles.ganhosPaciente}>{g.nome}</span> },
+  const columns: TableColumn<(typeof byPatient)[number]>[] = [
+    { key: 'paciente', label: 'Paciente', render: g => <span className={styles.ganhosPaciente}>{g.name}</span> },
     {
       key: 'procedimentos',
       label: 'Procedimentos',
-      render: g => `${g.itens.length} ${g.itens.length === 1 ? 'procedimento' : 'procedimentos'}`,
+      render: g => `${g.items.length} ${g.items.length === 1 ? 'procedimento' : 'procedimentos'}`,
     },
     {
       key: 'total',
       label: 'Ganho no período',
-      render: g => <span className={styles.ganhosItemValor}>{formatarReais(g.total)}</span>,
+      render: g => <span className={styles.ganhosItemValor}>{formatBRL(g.total)}</span>,
     },
   ]
 
@@ -106,34 +106,34 @@ export function EarningsTab({ profissional }: EarningsTabProps) {
             <span className={styles.ganhosDica}>Clique em um período para filtrar a lista</span>
           </div>
           <SegmentedControl
-            options={OPCOES_GRANULARIDADE}
-            value={granularidade}
-            onChange={mudarGranularidade}
+            options={GRANULARITY_OPTIONS}
+            value={granularity}
+            onChange={changeGranularity}
           />
         </div>
 
         {/* Gráfico de barras: um período por coluna; o clique filtra a lista. */}
         <div className={styles.ganhosChart}>
-          {periodos.map(m => {
-            const ativo = deIso === m.de && ateIso === m.ate
+          {periods.map(m => {
+            const active = fromIso === m.de && toIso === m.ate
             return (
               <button
                 key={m.de}
                 type="button"
-                className={`${styles.ganhosColuna} ${ativo ? styles.ganhosColunaAtiva : ''}`}
-                onClick={() => { setDeIso(m.de); setAteIso(m.ate); pag.setPagina(1) }}
-                title={`${m.rotulo}: ${formatarReais(m.total)}`}
-                aria-label={`${m.rotulo}: ${formatarReais(m.total)}`}
-                aria-pressed={ativo}
+                className={`${styles.ganhosColuna} ${active ? styles.ganhosColunaAtiva : ''}`}
+                onClick={() => { setFromIso(m.de); setToIso(m.ate); pagination.setPage(1) }}
+                title={`${m.rotulo}: ${formatBRL(m.total)}`}
+                aria-label={`${m.rotulo}: ${formatBRL(m.total)}`}
+                aria-pressed={active}
               >
                 <span className={styles.ganhosValor}>
-                  {m.total > 0 ? formatarReais(m.total).replace(/,00$/, '') : ''}
+                  {m.total > 0 ? formatBRL(m.total).replace(/,00$/, '') : ''}
                 </span>
                 <span className={styles.ganhosArea}>
                   {/* Altura vem do dado — via custom property, não estilo inline. */}
                   <span
                     className={styles.ganhosBarra}
-                    style={{ '--altura': `${(m.total / maiorTotal) * 100}%` } as CSSProperties}
+                    style={{ '--altura': `${(m.total / maxTotal) * 100}%` } as CSSProperties}
                   />
                 </span>
                 <span className={styles.ganhosRotulo}>{m.rotulo}</span>
@@ -145,35 +145,35 @@ export function EarningsTab({ profissional }: EarningsTabProps) {
 
       {/* Ganhos por paciente no período: expandir mostra cada procedimento. */}
       <Table
-        columns={colunas}
-        data={pag.visiveis}
-        rowKey={g => g.pacienteId}
+        columns={columns}
+        data={pagination.visible}
+        rowKey={g => g.patientId}
         emptyMessage="Sem ganhos no período selecionado."
         renderExpanded={g => (
           <ul className={styles.ganhosExp}>
-            {[...g.itens]
-              .sort((a, b) => b.dataIso.localeCompare(a.dataIso))
+            {[...g.items]
+              .sort((a, b) => b.dateIso.localeCompare(a.dateIso))
               .map((item, i) => (
-                <li key={`${item.dataIso}-${i}`} className={styles.ganhosExpLinha}>
-                  <span className={styles.ganhosExpData}>{item.data}</span>
-                  <span className={styles.ganhosExpNome}>{item.nome}</span>
-                  <span className={styles.ganhosItemValor}>{formatarReais(item.valor)}</span>
+                <li key={`${item.dateIso}-${i}`} className={styles.ganhosExpLinha}>
+                  <span className={styles.ganhosExpData}>{item.date}</span>
+                  <span className={styles.ganhosExpNome}>{item.name}</span>
+                  <span className={styles.ganhosItemValor}>{formatBRL(item.amount)}</span>
                 </li>
               ))}
           </ul>
         )}
-        toolbar={<PerPageSelect porPagina={pag.porPagina} onChange={pag.mudarPorPagina} />}
+        toolbar={<PerPageSelect perPage={pagination.perPage} onChange={pagination.setPerPage} />}
         footer={
           <div className={styles.ganhosRodape}>
             <span className={styles.ganhosResumo}>
-              Total no período <strong>{formatarReais(totalPeriodo)}</strong>
+              Total no período <strong>{formatBRL(periodTotal)}</strong>
             </span>
             <Pagination
-              page={pag.paginaAtual}
-              totalPages={pag.totalPaginas}
-              onChange={pag.setPagina}
-              totalItems={pag.total}
-              itemsPerPage={pag.porPagina}
+              page={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onChange={pagination.setPage}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.perPage}
             />
           </div>
         }

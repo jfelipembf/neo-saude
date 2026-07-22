@@ -85,12 +85,27 @@
   color: var(--text-secondary);
 }
 
-// Botão "Ligar" encostado à esquerda do rodapé do modal.
-.ligar {
+// Cancelar/Reativar consulta: encostado à esquerda do rodapé (separado das
+// ações de fechar/salvar, à direita).
+.cancelarConsulta {
   margin-right: auto;
 }
 
 .erro {
   font-size: $fs-sm;
   color: var(--danger-fg);
+}
+
+// Aviso no topo do modal quando a consulta está cancelada.
+.avisoCancelada {
+  padding: $sp-3 $sp-4;
+  border: 1px solid var(--glass-border);
+  border-left: 3px solid var(--text-muted);
+  border-radius: $radius-md;
+  background: var(--glass-bg);
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  line-height: 1.5;
+
+  strong { color: var(--text-primary); }
 }

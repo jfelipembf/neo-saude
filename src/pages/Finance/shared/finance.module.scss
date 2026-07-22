@@ -71,6 +71,75 @@
       border-color: rgba($danger, 0.45);
     }
   }
+
+  &--estornar {
+    color: var(--text-muted);
+
+    &:hover {
+      background: var(--surface-hover);
+      border-color: var(--text-muted);
+    }
+  }
+}
+
+// ── Seleção de linhas (checkbox) para baixa em lote ──────────────────────────
+.checkboxCell {
+  width: 32px;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: $success;
+  cursor: pointer;
+}
+
+.barraLote {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  flex-wrap: wrap;
+
+  @include phone {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+// ── Linha expandida de detalhe (Conciliação, Inadimplência) ──────────────────
+.detalheLista {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.detalheItem {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  padding: $sp-2 0;
+  border-bottom: 1px solid var(--glass-border);
+  font-size: $fs-sm;
+
+  &:last-child { border-bottom: none; }
+
+  > span:first-child {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  @include phone {
+    flex-wrap: wrap;
+  }
+}
+
+.barraLoteTexto {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+
+  strong { color: var(--text-primary); }
 }
 
 // ── Rodapé das tabelas: resumo + paginação empilhados ────────────────────────

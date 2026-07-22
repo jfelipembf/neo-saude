@@ -5,10 +5,10 @@ import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { FormSection } from '@/components/FormSection/FormSection'
 import { PhotoInput } from '@/components/PhotoInput/PhotoInput'
 import { useToast } from '@/components/Toast/useToast'
-import { useUsuarioLogado } from '@/hooks/useUsuario'
-import { useConsultorio, useSalvarConsultorio, useResponsavel } from '@/hooks/useConsultorio'
-import { IconEditar, IconUsuario } from '@/components/icons'
-import { SEXO_LABEL } from '@/constants'
+import { useCurrentUser } from '@/hooks/useUser'
+import { useClinic, useSaveClinic, useTechnicalManager } from '@/hooks/useClinic'
+import { IconEdit, IconUser } from '@/components/icons'
+import { CLINIC_SPECIALTY_LABEL, SEX_LABEL } from '@/constants'
 import { ResponsibleFormModal } from './ResponsibleForm'
 import styles from './AccountTab.module.scss'
 
@@ -16,16 +16,16 @@ import styles from './AccountTab.module.scss'
  *  O tema e o sair ficam no Header — aqui não se repetem. */
 export function AccountTab() {
   const toast = useToast()
-  const { data: usuario, isLoading: carregandoUsuario } = useUsuarioLogado()
-  const { data: clinica, isLoading: carregandoClinica } = useConsultorio()
-  const { data: responsavel, isLoading: carregandoResponsavel } = useResponsavel()
-  const { mutate: salvarClinica } = useSalvarConsultorio()
+  const { data: user, isLoading: loadingUser } = useCurrentUser()
+  const { data: clinic, isLoading: loadingClinic } = useClinic()
+  const { data: manager, isLoading: loadingManager } = useTechnicalManager()
+  const { mutate: saveClinic } = useSaveClinic()
 
-  const [editandoResponsavel, setEditandoResponsavel] = useState(false)
+  const [editingManager, setEditingManager] = useState(false)
 
-  if (carregandoUsuario || carregandoClinica || carregandoResponsavel) return <PageLoader />
+  if (loadingUser || loadingClinic || loadingManager) return <PageLoader />
 
-  if (!usuario) {
+  if (!user) {
     return (
       <EmptyState
         title="Conta não encontrada"
@@ -34,32 +34,32 @@ export function AccountTab() {
     )
   }
 
-  const dados: { label: string; valor?: string }[] = [
-    { label: 'Nome',          valor: usuario.nome },
-    { label: 'Código',        valor: usuario.id },
-    { label: 'Especialidade', valor: usuario.especialidade },
-    { label: 'Registro',      valor: usuario.registro },
-    { label: 'E-mail',        valor: usuario.email },
-    { label: 'Telefone',      valor: usuario.telefone },
-    { label: 'Membro desde',  valor: usuario.membroDesde },
+  const rows: { label: string; amount?: string }[] = [
+    { label: 'Nome',          amount: user.name },
+    { label: 'Código',        amount: user.code },
+    { label: 'Especialidade', amount: user.specialty },
+    { label: 'Registro',      amount: user.license },
+    { label: 'E-mail',        amount: user.email },
+    { label: 'Telefone',      amount: user.phone },
+    { label: 'Membro desde',  amount: user.memberSince },
   ]
 
   /** Troca só a logo, preservando o resto do cadastro da clínica. */
-  function trocarLogo(url: string | undefined) {
-    if (!clinica) return
-    salvarClinica({ ...clinica, logo: url }, {
+  function changeLogo(url: string | undefined) {
+    if (!clinic) return
+    saveClinic({ ...clinic, photo: url }, {
       onSuccess: () => toast.success(url ? 'Logo atualizada!' : 'Logo removida.'),
     })
   }
 
-  const nomeResponsavel = responsavel
-    ? `${responsavel.nome} ${responsavel.sobrenome}`.trim()
+  const managerName = manager
+    ? `${manager.firstName} ${manager.lastName}`.trim()
     : ''
 
-  const subResponsavel = responsavel
+  const managerSub = manager
     ? [
-        responsavel.sexo ? SEXO_LABEL[responsavel.sexo] : '',
-        responsavel.nascimento ? `nasc. ${responsavel.nascimento}` : '',
+        manager.sex ? SEX_LABEL[manager.sex] : '',
+        manager.birthDate ? `nasc. ${manager.birthDate}` : '',
       ].filter(Boolean).join(' · ')
     : ''
 
@@ -70,10 +70,10 @@ export function AccountTab() {
         description="Para alterar o cadastro profissional, use o seu perfil em Profissionais."
       >
         <dl className={styles.pares}>
-          {dados.map(d => (
-            <div key={d.label} className={styles.par}>
-              <dt>{d.label}</dt>
-              <dd>{d.valor || '—'}</dd>
+          {rows.map(row => (
+            <div key={row.label} className={styles.par}>
+              <dt>{row.label}</dt>
+              <dd>{row.amount || '—'}</dd>
             </div>
           ))}
         </dl>
@@ -83,37 +83,49 @@ export function AccountTab() {
         title="Logo da clínica"
         description="Aparece no topo de todos os documentos impressos (recibos, orçamentos, receituários)."
       >
-        <PhotoInput label="Logo" value={clinica?.logo} onChange={trocarLogo} />
+        <PhotoInput label="Logo" value={clinic?.photo} onChange={changeLogo} />
+      </FormSection>
+
+      <FormSection
+        title="Ramo de atuação"
+        description="Define as telas específicas do prontuário do paciente. Contratado no seu plano — para alterar, fale com o suporte."
+      >
+        <dl className={styles.pares}>
+          <div className={styles.par}>
+            <dt>Especialidade</dt>
+            <dd>{clinic ? CLINIC_SPECIALTY_LABEL[clinic.specialty] : '—'}</dd>
+          </div>
+        </dl>
       </FormSection>
 
       <FormSection
         title="Responsável técnico"
         description="Profissional responsável pela clínica perante o conselho."
         actions={
-          responsavel && (
+          manager && (
             <Button
               variant="outline"
               size="sm"
-              iconLeft={<IconEditar />}
-              onClick={() => setEditandoResponsavel(true)}
+              iconLeft={<IconEdit />}
+              onClick={() => setEditingManager(true)}
             >
               Editar
             </Button>
           )
         }
       >
-        {responsavel ? (
+        {manager ? (
           <div className={styles.responsavel}>
             <span className={styles.foto}>
-              {responsavel.foto
-                ? <img src={responsavel.foto} alt="" className={styles.fotoImg} />
-                : <IconUsuario />}
+              {manager.photo
+                ? <img src={manager.photo} alt="" className={styles.fotoImg} />
+                : <IconUser />}
             </span>
 
             <div className={styles.responsavelInfo}>
-              <span className={styles.responsavelNome}>{nomeResponsavel}</span>
-              {subResponsavel && <span className={styles.responsavelSub}>{subResponsavel}</span>}
-              <span className={styles.responsavelSub}>{responsavel.telefone} · {responsavel.email}</span>
+              <span className={styles.responsavelNome}>{managerName}</span>
+              {managerSub && <span className={styles.responsavelSub}>{managerSub}</span>}
+              <span className={styles.responsavelSub}>{manager.phone} · {manager.email}</span>
             </div>
           </div>
         ) : (
@@ -125,10 +137,10 @@ export function AccountTab() {
       </FormSection>
 
       {/* Monta só quando aberto — o formulário nasce do cadastro salvo. */}
-      {editandoResponsavel && responsavel && (
+      {editingManager && manager && (
         <ResponsibleFormModal
-          responsavel={responsavel}
-          onClose={() => setEditandoResponsavel(false)}
+          manager={manager}
+          onClose={() => setEditingManager(false)}
         />
       )}
     </div>

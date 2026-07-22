@@ -12,9 +12,9 @@ interface PhotoInputProps {
 
 /** Campo de foto com preview: clica na área para escolher a imagem. */
 export function PhotoInput({ label = 'Foto', value, onChange }: PhotoInputProps) {
-  function aoEscolher(e: ChangeEvent<HTMLInputElement>) {
-    const arquivo = e.target.files?.[0]
-    if (arquivo) onChange(URL.createObjectURL(arquivo))
+  function handleSelect(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) onChange(URL.createObjectURL(file))
     // Limpa o input: permite escolher o MESMO arquivo de novo após remover.
     e.target.value = ''
   }
@@ -32,7 +32,7 @@ export function PhotoInput({ label = 'Foto', value, onChange }: PhotoInputProps)
             Escolher foto
           </span>
         )}
-        <input type="file" accept="image/*" className={styles.input} onChange={aoEscolher} />
+        <input type="file" accept="image/*" className={styles.input} onChange={handleSelect} />
       </label>
 
       {value && (

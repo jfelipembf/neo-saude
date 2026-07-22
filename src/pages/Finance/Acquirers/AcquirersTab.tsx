@@ -8,158 +8,158 @@ import { Select } from '@/components/Select/Select'
 import { SideList } from '@/components/SideList/SideList'
 import { Toggle } from '@/components/Toggle/Toggle'
 import { useToast } from '@/components/Toast/useToast'
-import { useAdquirentes, useContasBancarias, useSalvarAdquirente } from '@/hooks/useFinanceiro'
-import { BANDEIRAS_DISPONIVEIS } from '@/constants'
-import { parsePercentual } from '@/utils/format'
+import { useAcquirers, useBankAccounts, useSaveAcquirer } from '@/hooks/useFinance'
+import { AVAILABLE_CARD_BRANDS } from '@/constants'
+import { parsePercent } from '@/utils/format'
 import type { InstallmentRate } from '@/types/domain'
 import { InstallmentsEditor } from './InstallmentsEditor'
 import shared from '../shared/finance.module.scss'
 import styles from './AcquirersTab.module.scss'
 
-interface AdquirenteFormState {
-  nome: string
-  ativa: boolean
-  bandeiras: string[]
-  taxaCreditoTexto: string
-  taxaDebitoTexto: string
-  taxasParcelas: InstallmentRate[]
-  prazoTexto: string
-  contaRepasseId: string
-  observacao: string
+interface AcquirerFormState {
+  name: string
+  active: boolean
+  cardBrands: string[]
+  creditFeeText: string
+  debitFeeText: string
+  installmentFees: InstallmentRate[]
+  settlementDaysText: string
+  payoutAccountId: string
+  notes: string
 }
 
-const ADQUIRENTE_FORM_VAZIO: AdquirenteFormState = {
-  nome: '', ativa: true, bandeiras: [], taxaCreditoTexto: '', taxaDebitoTexto: '',
-  taxasParcelas: [], prazoTexto: '1', contaRepasseId: '', observacao: '',
+const EMPTY_ACQUIRER_FORM: AcquirerFormState = {
+  name: '', active: true, cardBrands: [], creditFeeText: '', debitFeeText: '',
+  installmentFees: [], settlementDaysText: '1', payoutAccountId: '', notes: '',
 }
 
 /** Aba "Adquirentes": lista lateral + formulário de bandeiras, taxas e repasse. */
 export function AcquirersTab() {
   const toast = useToast()
-  const { data: adquirentes, isLoading } = useAdquirentes()
-  const { data: contas } = useContasBancarias()
-  const { mutate: salvar, isPending: salvando } = useSalvarAdquirente()
+  const { data: acquirers, isLoading } = useAcquirers()
+  const { data: accounts } = useBankAccounts()
+  const { mutate: save, isPending: saving } = useSaveAcquirer()
 
-  const [selecionada, setSelecionada] = useState<string | null>(null)
-  const [nova, setNova] = useState(false)
-  const [form, setForm] = useState<AdquirenteFormState>(ADQUIRENTE_FORM_VAZIO)
-  const [erroNome, setErroNome] = useState('')
-  const [novaBandeira, setNovaBandeira] = useState('')
+  const [selected, setSelected] = useState<string | null>(null)
+  const [isNew, setIsNew] = useState(false)
+  const [form, setForm] = useState<AcquirerFormState>(EMPTY_ACQUIRER_FORM)
+  const [nameError, setNameError] = useState('')
+  const [newBrand, setNewBrand] = useState('')
 
   if (isLoading) return <PageLoader />
 
-  const lista = adquirentes ?? []
-  const formVisivel = selecionada !== null || nova
+  const list = acquirers ?? []
+  const formVisible = selected !== null || isNew
 
   // Chips exibidos: as bandeiras conhecidas + qualquer custom já selecionada.
-  const bandeirasExibidas = [
-    ...BANDEIRAS_DISPONIVEIS,
-    ...form.bandeiras.filter(b => !BANDEIRAS_DISPONIVEIS.includes(b)),
+  const displayedBrands = [
+    ...AVAILABLE_CARD_BRANDS,
+    ...form.cardBrands.filter(b => !AVAILABLE_CARD_BRANDS.includes(b)),
   ]
 
-  const items = lista.map(a => ({
+  const items = list.map(a => ({
     id: a.id,
-    label: a.nome,
-    sublabel: `${a.bandeiras.length} bandeira(s) · D+${a.prazoRecebimento}`
-      + (a.status === 'ativo' ? '' : ' · Inativa'),
+    label: a.name,
+    sublabel: `${a.cardBrands.length} bandeira(s) · D+${a.settlementDays}`
+      + (a.status === 'active' ? '' : ' · Inativa'),
   }))
 
-  const opcoesConta = (contas ?? []).map(c => ({ value: c.id, label: c.nome }))
+  const accountOptions = (accounts ?? []).map(c => ({ value: c.id, label: c.name }))
 
-  function set<K extends keyof AdquirenteFormState>(campo: K, valor: AdquirenteFormState[K]) {
-    setForm(atual => ({ ...atual, [campo]: valor }))
-    if (campo === 'nome') setErroNome('')
+  function set<K extends keyof AcquirerFormState>(field: K, value: AcquirerFormState[K]) {
+    setForm(current => ({ ...current, [field]: value }))
+    if (field === 'name') setNameError('')
   }
 
-  function alternarBandeira(bandeira: string) {
-    setForm(atual => ({
-      ...atual,
-      bandeiras: atual.bandeiras.includes(bandeira)
-        ? atual.bandeiras.filter(b => b !== bandeira)
-        : [...atual.bandeiras, bandeira],
+  function toggleBrand(brand: string) {
+    setForm(current => ({
+      ...current,
+      cardBrands: current.cardBrands.includes(brand)
+        ? current.cardBrands.filter(b => b !== brand)
+        : [...current.cardBrands, brand],
     }))
   }
 
   /** Adiciona uma bandeira fora da lista padrão (já entra selecionada). */
-  function adicionarBandeira() {
-    const nome = novaBandeira.trim()
-    if (!nome) return
-    const existente = bandeirasExibidas.find(b => b.toLowerCase() === nome.toLowerCase())
-    if (existente) {
+  function addBrand() {
+    const name = newBrand.trim()
+    if (!name) return
+    const existing = displayedBrands.find(b => b.toLowerCase() === name.toLowerCase())
+    if (existing) {
       // Já conhecida: só garante a seleção, sem duplicar o chip.
-      if (!form.bandeiras.includes(existente)) alternarBandeira(existente)
+      if (!form.cardBrands.includes(existing)) toggleBrand(existing)
     } else {
-      setForm(atual => ({ ...atual, bandeiras: [...atual.bandeiras, nome] }))
+      setForm(current => ({ ...current, cardBrands: [...current.cardBrands, name] }))
     }
-    setNovaBandeira('')
+    setNewBrand('')
   }
 
-  function selecionar(id: string) {
-    const adquirente = lista.find(a => a.id === id)
-    if (!adquirente) return
-    setSelecionada(id)
-    setNova(false)
-    setErroNome('')
-    setNovaBandeira('')
+  function selectAcquirer(id: string) {
+    const acquirer = list.find(a => a.id === id)
+    if (!acquirer) return
+    setSelected(id)
+    setIsNew(false)
+    setNameError('')
+    setNewBrand('')
     setForm({
-      nome: adquirente.nome,
-      ativa: adquirente.status === 'ativo',
-      bandeiras: [...adquirente.bandeiras],
-      taxaCreditoTexto: String(adquirente.taxaCredito).replace('.', ','),
-      taxaDebitoTexto: String(adquirente.taxaDebito).replace('.', ','),
-      taxasParcelas: (adquirente.taxasParcelas ?? []).map(t => ({ ...t })),
-      prazoTexto: String(adquirente.prazoRecebimento),
-      contaRepasseId: adquirente.contaRepasseId ?? '',
-      observacao: adquirente.observacao ?? '',
+      name: acquirer.name,
+      active: acquirer.status === 'active',
+      cardBrands: [...acquirer.cardBrands],
+      creditFeeText: String(acquirer.creditFee).replace('.', ','),
+      debitFeeText: String(acquirer.debitFee).replace('.', ','),
+      installmentFees: (acquirer.installmentFees ?? []).map(t => ({ ...t })),
+      settlementDaysText: String(acquirer.settlementDays),
+      payoutAccountId: acquirer.payoutAccountId ?? '',
+      notes: acquirer.notes ?? '',
     })
   }
 
-  function aoNova() {
-    setSelecionada(null)
-    setNova(true)
-    setForm(ADQUIRENTE_FORM_VAZIO)
-    setErroNome('')
-    setNovaBandeira('')
+  function handleNew() {
+    setSelected(null)
+    setIsNew(true)
+    setForm(EMPTY_ACQUIRER_FORM)
+    setNameError('')
+    setNewBrand('')
   }
 
-  function aoCancelar() {
-    setSelecionada(null)
-    setNova(false)
-    setForm(ADQUIRENTE_FORM_VAZIO)
-    setErroNome('')
-    setNovaBandeira('')
+  function handleCancel() {
+    setSelected(null)
+    setIsNew(false)
+    setForm(EMPTY_ACQUIRER_FORM)
+    setNameError('')
+    setNewBrand('')
   }
 
-  function aoSalvar() {
-    if (!form.nome.trim()) {
-      setErroNome('Dê um nome à adquirente.')
+  function handleSave() {
+    if (!form.name.trim()) {
+      setNameError('Dê um nome à adquirente.')
       return
     }
-    const taxaCredito = parsePercentual(form.taxaCreditoTexto || '0')
-    const taxaDebito  = parsePercentual(form.taxaDebitoTexto || '0')
-    const prazo       = Number(form.prazoTexto || '1')
-    salvar(
+    const creditFee = parsePercent(form.creditFeeText || '0')
+    const debitFee  = parsePercent(form.debitFeeText || '0')
+    const days      = Number(form.settlementDaysText || '1')
+    save(
       {
-        id: selecionada,
-        dados: {
-          nome: form.nome.trim(),
-          bandeiras: form.bandeiras,
-          taxaCredito: Number.isFinite(taxaCredito) ? taxaCredito : 0,
-          taxaDebito: Number.isFinite(taxaDebito) ? taxaDebito : 0,
+        id: selected,
+        payload: {
+          name: form.name.trim(),
+          cardBrands: form.cardBrands,
+          creditFee: Number.isFinite(creditFee) ? creditFee : 0,
+          debitFee: Number.isFinite(debitFee) ? debitFee : 0,
           // Só linhas válidas entram (parcelas ≥ 2 e taxa ≥ 0), ordenadas.
-          taxasParcelas: form.taxasParcelas
-            .filter(t => t.parcelas >= 2 && t.taxa >= 0)
-            .sort((a, b) => a.parcelas - b.parcelas),
-          prazoRecebimento: Number.isFinite(prazo) && prazo > 0 ? prazo : 1,
-          contaRepasseId: form.contaRepasseId || undefined,
-          status: form.ativa ? 'ativo' : 'inativo',
-          observacao: form.observacao.trim() || undefined,
+          installmentFees: form.installmentFees
+            .filter(t => t.installments >= 2 && t.fee >= 0)
+            .sort((a, b) => a.installments - b.installments),
+          settlementDays: Number.isFinite(days) && days > 0 ? days : 1,
+          payoutAccountId: form.payoutAccountId || undefined,
+          status: form.active ? 'active' : 'inactive',
+          notes: form.notes.trim() || undefined,
         },
       },
       {
         onSuccess: () => {
           toast.success('Adquirente salva!')
-          aoCancelar()
+          handleCancel()
         },
       },
     )
@@ -171,15 +171,15 @@ export function AcquirersTab() {
         title="Adquirentes"
         size="lg"
         items={items}
-        selectedId={selecionada}
-        onSelect={id => selecionar(String(id))}
-        onAdd={aoNova}
+        selectedId={selected}
+        onSelect={id => selectAcquirer(String(id))}
+        onAdd={handleNew}
         searchPlaceholder="Buscar adquirente..."
         emptyText="Nenhuma adquirente cadastrada"
       />
 
       <div className={shared.formArea}>
-        {!formVisivel ? (
+        {!formVisible ? (
           <EmptyState
             title="Nenhuma adquirente selecionada"
             description="Selecione uma adquirente na lista ao lado ou crie uma nova clicando em +."
@@ -189,32 +189,32 @@ export function AcquirersTab() {
             <div className={shared.formRoot}>
               <FormSection
                 title="Dados da Adquirente"
-                actions={<Toggle label="Status" checked={form.ativa} onChange={v => set('ativa', v)} />}
+                actions={<Toggle label="Status" checked={form.active} onChange={v => set('active', v)} />}
               >
                 <div className={shared.fields}>
                   <div className={shared.fieldFull}>
                     <Input
                       label="Nome da adquirente / maquininha"
                       placeholder="Ex.: Stone, Cielo, PagBank..."
-                      value={form.nome}
-                      onChange={e => set('nome', e.target.value)}
-                      error={erroNome}
+                      value={form.name}
+                      onChange={e => set('name', e.target.value)}
+                      error={nameError}
                     />
                   </div>
                   <Select
                     label="Conta de repasse"
                     placeholder="Selecione a conta..."
-                    options={opcoesConta}
-                    value={form.contaRepasseId}
-                    onChange={e => set('contaRepasseId', e.target.value)}
+                    options={accountOptions}
+                    value={form.payoutAccountId}
+                    onChange={e => set('payoutAccountId', e.target.value)}
                   />
                   <Input
                     label="Prazo de repasse (D+N)"
                     type="number"
                     min={1}
                     hint="Dias até o dinheiro cair (1 = D+1)."
-                    value={form.prazoTexto}
-                    onChange={e => set('prazoTexto', e.target.value)}
+                    value={form.settlementDaysText}
+                    onChange={e => set('settlementDaysText', e.target.value)}
                   />
                 </div>
               </FormSection>
@@ -224,13 +224,13 @@ export function AcquirersTab() {
                   <div className={shared.fieldFull}>
                     <span className={styles.subLabel}>Bandeiras aceitas</span>
                     <div className={styles.chips} role="group" aria-label="Bandeiras aceitas">
-                      {bandeirasExibidas.map(b => (
+                      {displayedBrands.map(b => (
                         <button
                           key={b}
                           type="button"
-                          className={`${styles.chip} ${form.bandeiras.includes(b) ? styles['chip--ativa'] : ''}`}
-                          aria-pressed={form.bandeiras.includes(b)}
-                          onClick={() => alternarBandeira(b)}
+                          className={`${styles.chip} ${form.cardBrands.includes(b) ? styles['chip--ativa'] : ''}`}
+                          aria-pressed={form.cardBrands.includes(b)}
+                          onClick={() => toggleBrand(b)}
                         >
                           {b}
                         </button>
@@ -242,12 +242,12 @@ export function AcquirersTab() {
                       <Input
                         size="sm"
                         placeholder="Outra bandeira..."
-                        value={novaBandeira}
-                        onChange={e => setNovaBandeira(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); adicionarBandeira() } }}
+                        value={newBrand}
+                        onChange={e => setNewBrand(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addBrand() } }}
                         aria-label="Nova bandeira"
                       />
-                      <Button size="sm" variant="outline" onClick={adicionarBandeira} disabled={!novaBandeira.trim()}>
+                      <Button size="sm" variant="outline" onClick={addBrand} disabled={!newBrand.trim()}>
                         + Adicionar
                       </Button>
                     </div>
@@ -256,36 +256,36 @@ export function AcquirersTab() {
                     label="Taxa crédito à vista (%)"
                     inputMode="decimal"
                     placeholder="3,19"
-                    value={form.taxaCreditoTexto}
-                    onChange={e => set('taxaCreditoTexto', e.target.value)}
+                    value={form.creditFeeText}
+                    onChange={e => set('creditFeeText', e.target.value)}
                   />
                   <Input
                     label="Taxa débito (%)"
                     inputMode="decimal"
                     placeholder="1,45"
-                    value={form.taxaDebitoTexto}
-                    onChange={e => set('taxaDebitoTexto', e.target.value)}
+                    value={form.debitFeeText}
+                    onChange={e => set('debitFeeText', e.target.value)}
                   />
 
                   <div className={shared.fieldFull}>
                     <span className={styles.subLabel}>Crédito parcelado — taxa (%) por nº de parcelas</span>
                     <InstallmentsEditor
-                      rows={form.taxasParcelas}
-                      onChange={rows => set('taxasParcelas', rows)}
+                      rows={form.installmentFees}
+                      onChange={rows => set('installmentFees', rows)}
                     />
                   </div>
                 </div>
               </FormSection>
 
               <FormSection title="Observações">
-                <Input label="Observações" placeholder="Opcional" value={form.observacao} onChange={e => set('observacao', e.target.value)} />
+                <Input label="Observações" placeholder="Opcional" value={form.notes} onChange={e => set('notes', e.target.value)} />
               </FormSection>
             </div>
 
             {/* Ações no rodapé do formulário. */}
             <div className={shared.acoesBar}>
-              <Button variant="ghost" onClick={aoCancelar} disabled={salvando}>Cancelar</Button>
-              <Button loading={salvando} onClick={aoSalvar}>Salvar</Button>
+              <Button variant="ghost" onClick={handleCancel} disabled={saving}>Cancelar</Button>
+              <Button loading={saving} onClick={handleSave}>Salvar</Button>
             </div>
           </>
         )}

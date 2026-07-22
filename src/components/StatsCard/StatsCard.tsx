@@ -12,10 +12,10 @@ interface StatsCardProps {
   /** Meta do período (ex.: 20 ou "R$ 15.000") — exibe barra de progresso na base. */
   meta?: string | number
   /** Progresso da meta em % (0–100). Se omitido e value/meta forem numéricos, é calculado. */
-  progresso?: number
+  progress?: number
 }
 
-export function StatsCard({ label, value, icon, hint, trend = 'neutral', meta, progresso }: StatsCardProps) {
+export function StatsCard({ label, value, icon, hint, trend = 'neutral', meta, progress: progresso }: StatsCardProps) {
   const pctAuto = typeof value === 'number' && typeof meta === 'number' && meta > 0
     ? Math.round((value / meta) * 100)
     : 0

@@ -8,7 +8,7 @@ export function useLeads() {
 }
 
 /** Move um lead de etapa no funil (arrastar/setas do kanban) e atualiza o quadro. */
-export function useSetStatusLead() {
+export function useSetLeadStatus() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: LeadStatus }) => setStatusLead(id, status),

@@ -14,37 +14,38 @@ import type { TableColumn } from '@/components/Table/Table'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { useToast } from '@/components/Toast/useToast'
 import { usePagination } from '@/hooks/usePagination'
-import { usePrescricoesDoPaciente, useCriarPrescricao } from '@/hooks/usePrescricoes'
-import { useUsuarioLogado } from '@/hooks/useUsuario'
+import { usePatientPrescriptions, useCreatePrescription } from '@/hooks/usePrescriptions'
+import { useCurrentUser } from '@/hooks/useUser'
+import { useProfessionalName } from '@/hooks/useDisplayNames'
 import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { esc } from '@/utils/printDocument'
 import { toIsoDate } from '@/utils/date'
-import { IconMais, IconImprimir, IconX, IconDocumento } from '@/components/icons'
+import { IconPlus, IconPrint, IconX, IconDocument } from '@/components/icons'
 import type { PrescribedMedication, Prescription, PrescriptionType } from '@/types/domain'
 import styles from './PrescriptionsPanel.module.scss'
 
-const OPCOES_TIPO: { value: PrescriptionType; label: string }[] = [
-  { value: 'receituario', label: 'Receituário' },
-  { value: 'prontuario',  label: 'Prontuário' },
-  { value: 'atestado',    label: 'Atestado' },
-  { value: 'documento',   label: 'Documento' },
+const TYPE_OPTIONS: { value: PrescriptionType; label: string }[] = [
+  { value: 'prescription', label: 'Receituário' },
+  { value: 'clinical_record',  label: 'Prontuário' },
+  { value: 'certificate',    label: 'Atestado' },
+  { value: 'document',   label: 'Documento' },
 ]
 
-const OPCOES_FILTRO = [{ value: 'todos', label: 'Todos os tipos' }, ...OPCOES_TIPO]
+const FILTER_OPTIONS = [{ value: 'all', label: 'Todos os tipos' }, ...TYPE_OPTIONS]
 
 /** Texto-modelo do atestado — os dados do paciente entram sozinhos (padrão
  *  dos softwares do ramo); o texto continua editável antes de salvar. */
-function textoAtestado(pacienteNome: string | undefined, dias: number) {
-  return `Atesto, para os devidos fins, que ${pacienteNome ?? 'o(a) paciente'} esteve sob meus cuidados profissionais nesta data, necessitando de ${dias} dia(s) de afastamento de suas atividades a partir de hoje.`
+function certificateText(patientName: string | undefined, days: number) {
+  return `Atesto, para os devidos fins, que ${patientName ?? 'o(a) paciente'} esteve sob meus cuidados profissionais nesta data, necessitando de ${days} dia(s) de afastamento de suas atividades a partir de hoje.`
 }
 
 /** Rótulo do tipo da prescrição ("Receituário", "Atestado"…). */
-function rotuloTipo(p: Prescription) {
-  return OPCOES_TIPO.find(t => t.value === p.tipo)?.label ?? p.titulo
+function typeLabel(p: Prescription) {
+  return TYPE_OPTIONS.find(t => t.value === p.type)?.label ?? p.title
 }
 
 /** CSS específico do receituário — o resto vem da base de impressão. */
-const ESTILOS_PRESCRICAO = `
+const PRESCRIPTION_STYLES = `
   .meds { margin: 16px 0 0 20px; padding: 0; } .meds li { margin: 12px 0; font-size: 14px; }
   .pos { color: #334; font-size: 13px; }
   .texto { margin-top: 16px; font-size: 13.5px; line-height: 1.6; }
@@ -54,25 +55,29 @@ const ESTILOS_PRESCRICAO = `
 `
 
 /** Miolo da prescrição/documento — cabeçalho da clínica vem da base. */
-function corpoPrescricao(p: Prescription, pacienteNome?: string) {
-  const conteudo = p.tipo === 'receituario'
-    ? `<ol class="meds">${(p.medicamentos ?? [])
-        .map(m => `<li><strong>${esc(m.nome)}</strong>${m.quantidade ? ` — ${esc(m.quantidade)}` : ''}<br><span class="pos">${esc(m.posologia)}</span></li>`)
+function prescriptionBody(
+  p: Prescription,
+  professionalName: (id?: string) => string,
+  patientName?: string,
+) {
+  const content = p.type === 'prescription'
+    ? `<ol class="meds">${(p.medications ?? [])
+        .map(m => `<li><strong>${esc(m.name)}</strong>${m.quantity ? ` — ${esc(m.quantity)}` : ''}<br><span class="pos">${esc(m.dosage)}</span></li>`)
         .join('')}</ol>`
-    : `<p class="texto">${esc(p.texto ?? '').replace(/\n/g, '<br>')}</p>`
+    : `<p class="texto">${esc(p.text ?? '').replace(/\n/g, '<br>')}</p>`
 
   return `
-    ${pacienteNome ? `<p><strong>Patient:</strong> ${esc(pacienteNome)}</p>` : ''}
-    <p><strong>Data:</strong> ${esc(p.data)}</p>
-    ${conteudo}
-    ${p.observacao ? `<p class="clausula"><strong>Observações:</strong> ${esc(p.observacao)}</p>` : ''}
-    <div class="assinatura"><span class="linha">${esc(p.profissional ?? 'Profissional responsável')}</span></div>`
+    ${patientName ? `<p><strong>Paciente:</strong> ${esc(patientName)}</p>` : ''}
+    <p><strong>Data:</strong> ${esc(p.date)}</p>
+    ${content}
+    ${p.notes ? `<p class="clausula"><strong>Observações:</strong> ${esc(p.notes)}</p>` : ''}
+    <div class="assinatura"><span class="linha">${esc(professionalName(p.professionalId))}</span></div>`
 }
 
 interface PrescriptionsPanelProps {
-  pacienteId: string
+  patientId: string
   /** Nome usado no texto do atestado e na impressão. */
-  pacienteNome?: string
+  patientName?: string
 }
 
 /**
@@ -80,132 +85,133 @@ interface PrescriptionsPanelProps {
  * de prontuário, atestado com texto-modelo e documento personalizado — tudo
  * com histórico, expansão e impressão.
  */
-export function PrescriptionsPanel({ pacienteId, pacienteNome }: PrescriptionsPanelProps) {
+export function PrescriptionsPanel({ patientId, patientName }: PrescriptionsPanelProps) {
   const toast = useToast()
-  const { data: prescricoes, isLoading } = usePrescricoesDoPaciente(pacienteId)
-  const { data: usuario } = useUsuarioLogado()
-  const { mutate: criar, isPending: criando } = useCriarPrescricao()
-  const imprimir = usePrintDocument()
+  const { data: prescriptions, isLoading } = usePatientPrescriptions(patientId)
+  const { data: user } = useCurrentUser()
+  const professionalName = useProfessionalName()
+  const { mutate: create, isPending: creating } = useCreatePrescription()
+  const printDocument = usePrintDocument()
 
-  const [filtroTipo, setFiltroTipo] = useState<'todos' | PrescriptionType>('todos')
+  const [typeFilter, setTypeFilter] = useState<'all' | PrescriptionType>('all')
 
   // Modal "Nova prescrição".
-  const [modalAberto, setModalAberto] = useState(false)
-  const [tipo, setTipo] = useState<PrescriptionType>('receituario')
-  const [dataIso, setDataIso] = useState(() => toIsoDate(new Date()))
-  const [medicamentos, setMedicamentos] = useState<PrescribedMedication[]>([])
-  const [dias, setDias] = useState('1')
-  const [titulo, setTitulo] = useState('')
-  const [texto, setTexto] = useState('')
-  const [observacao, setObservacao] = useState('')
-  const [erro, setErro] = useState('')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [type, setType] = useState<PrescriptionType>('prescription')
+  const [dateIso, setDateIso] = useState(() => toIsoDate(new Date()))
+  const [medications, setMedications] = useState<PrescribedMedication[]>([])
+  const [days, setDays] = useState('1')
+  const [title, setTitle] = useState('')
+  const [text, setText] = useState('')
+  const [notes, setNotes] = useState('')
+  const [error, setError] = useState('')
 
-  const filtradas = (prescricoes ?? []).filter(p => filtroTipo === 'todos' || p.tipo === filtroTipo)
-  const pag = usePagination(filtradas)
+  const filtered = (prescriptions ?? []).filter(p => typeFilter === 'all' || p.type === typeFilter)
+  const pagination = usePagination(filtered)
 
   if (isLoading) {
     return <div className={styles.carregando}><Spinner size="lg" /></div>
   }
 
-  const lista = prescricoes ?? []
+  const list = prescriptions ?? []
 
-  function abrirModal() {
-    setTipo('receituario')
-    setDataIso(toIsoDate(new Date()))
-    setMedicamentos([{ nome: '', posologia: '', quantidade: '' }])
-    setDias('1')
-    setTitulo('')
-    setTexto('')
-    setObservacao('')
-    setErro('')
-    setModalAberto(true)
+  function openModal() {
+    setType('prescription')
+    setDateIso(toIsoDate(new Date()))
+    setMedications([{ name: '', dosage: '', quantity: '' }])
+    setDays('1')
+    setTitle('')
+    setText('')
+    setNotes('')
+    setError('')
+    setModalOpen(true)
   }
 
   // Trocar o tipo prepara os campos daquele modelo (atestado já vem escrito).
-  function mudarTipo(novo: PrescriptionType) {
-    setTipo(novo)
-    setErro('')
-    if (novo === 'atestado') setTexto(textoAtestado(pacienteNome, Number(dias) || 1))
-    else if (novo !== tipo) setTexto('')
+  function changeType(newType: PrescriptionType) {
+    setType(newType)
+    setError('')
+    if (newType === 'certificate') setText(certificateText(patientName, Number(days) || 1))
+    else if (newType !== type) setText('')
   }
 
-  function mudarDias(valor: string) {
-    setDias(valor)
+  function changeDays(value: string) {
+    setDays(value)
     // O modelo re-escreve o texto — edições manuais valem após ajustar os dias.
-    setTexto(textoAtestado(pacienteNome, Number(valor) || 1))
+    setText(certificateText(patientName, Number(value) || 1))
   }
 
-  function mudarMedicamento(indice: number, campo: keyof PrescribedMedication, valor: string) {
-    setMedicamentos(atual => atual.map((m, i) => (i === indice ? { ...m, [campo]: valor } : m)))
+  function changeMedication(index: number, field: keyof PrescribedMedication, value: string) {
+    setMedications(current => current.map((m, i) => (i === index ? { ...m, [field]: value } : m)))
   }
 
-  function aoSalvar() {
-    const dataBr = dataIso.split('-').reverse().join('/')
-    const meds = medicamentos
-      .map(m => ({ nome: m.nome.trim(), posologia: m.posologia.trim(), quantidade: m.quantidade?.trim() || undefined }))
-      .filter(m => m.nome)
+  function handleSave() {
+    const dateBr = dateIso.split('-').reverse().join('/')
+    const meds = medications
+      .map(m => ({ name: m.name.trim(), dosage: m.dosage.trim(), quantity: m.quantity?.trim() || undefined }))
+      .filter(m => m.name)
 
-    if (tipo === 'receituario' && meds.length === 0) {
-      setErro('Adicione ao menos um medicamento.')
+    if (type === 'prescription' && meds.length === 0) {
+      setError('Adicione ao menos um medicamento.')
       return
     }
-    if (tipo !== 'receituario' && !texto.trim()) {
-      setErro('Escreva o conteúdo do documento.')
+    if (type !== 'prescription' && !text.trim()) {
+      setError('Escreva o conteúdo do documento.')
       return
     }
-    if (tipo === 'documento' && !titulo.trim()) {
-      setErro('Dê um título ao documento.')
+    if (type === 'document' && !title.trim()) {
+      setError('Dê um título ao documento.')
       return
     }
 
-    const titulos: Record<PrescriptionType, string> = {
-      receituario: 'Receituário',
-      prontuario: 'Evolução clínica',
-      atestado: `Atestado — ${Number(dias) || 1} dia(s)`,
-      documento: titulo.trim(),
+    const titles: Record<PrescriptionType, string> = {
+      prescription: 'Receituário',
+      clinical_record: 'Evolução clínica',
+      certificate: `Atestado — ${Number(days) || 1} dia(s)`,
+      document: title.trim(),
     }
 
-    criar(
+    create(
       {
-        pacienteId,
-        tipo,
-        titulo: titulos[tipo],
-        data: dataBr,
-        profissional: usuario?.nome,
-        medicamentos: tipo === 'receituario' ? meds : undefined,
-        texto: tipo === 'receituario' ? undefined : texto.trim(),
-        observacao: observacao.trim() || undefined,
+        patientId,
+        type,
+        title: titles[type],
+        date: dateBr,
+        professionalId: user?.professionalId,
+        medications: type === 'prescription' ? meds : undefined,
+        text: type === 'prescription' ? undefined : text.trim(),
+        notes: notes.trim() || undefined,
       },
       {
         onSuccess: () => {
           toast.success('Prescrição emitida!')
-          setModalAberto(false)
+          setModalOpen(false)
         },
       },
     )
   }
 
   const columns: TableColumn<Prescription>[] = [
-    { key: 'data', label: 'Data', render: p => <span className={styles.data}>{p.data}</span> },
-    { key: 'tipo', label: 'Tipo', render: p => <Badge status={p.tipo} /> },
-    { key: 'titulo', label: 'Título', render: p => <span className={styles.titulo}>{p.titulo}</span> },
-    { key: 'profissional', label: 'Profissional', render: p => p.profissional ?? '—' },
+    { key: 'date', label: 'Data', render: p => <span className={styles.data}>{p.date}</span> },
+    { key: 'type', label: 'Tipo', render: p => <Badge status={p.type} /> },
+    { key: 'title', label: 'Título', render: p => <span className={styles.titulo}>{p.title}</span> },
+    { key: 'professional', label: 'Profissional', render: p => professionalName(p.professionalId) },
     {
-      key: 'acoes',
+      key: 'actions',
       label: 'Ação',
       render: p => (
         <Button
           variant="ghost"
           size="sm"
-          iconLeft={<IconImprimir />}
+          iconLeft={<IconPrint />}
           title="Imprimir"
-          aria-label={`Imprimir ${p.titulo}`}
-          onClick={() => imprimir({
-            titulo: rotuloTipo(p),
-            subtitulo: p.titulo && p.titulo !== rotuloTipo(p) ? p.titulo : undefined,
-            corpo: corpoPrescricao(p, pacienteNome),
-            estilos: ESTILOS_PRESCRICAO,
-            largura: 640,
+          aria-label={`Imprimir ${p.title}`}
+          onClick={() => printDocument({
+            title: typeLabel(p),
+            subtitle: p.title && p.title !== typeLabel(p) ? p.title : undefined,
+            body: prescriptionBody(p, professionalName, patientName),
+            styles: PRESCRIPTION_STYLES,
+            width: 640,
           })}
         />
       ),
@@ -219,49 +225,49 @@ export function PrescriptionsPanel({ pacienteId, pacienteNome }: PrescriptionsPa
           <h2 className={styles.cabecalhoTitulo}>Prescrições e documentos</h2>
           <p className={styles.cabecalhoHint}>Receituário, evolução de prontuário, atestado e documentos personalizados.</p>
         </div>
-        <Button iconLeft={<IconMais />} onClick={abrirModal}>Nova prescrição</Button>
+        <Button iconLeft={<IconPlus />} onClick={openModal}>Nova prescrição</Button>
       </header>
 
-      {lista.length === 0 ? (
+      {list.length === 0 ? (
         <EmptyState
-          icon={<IconDocumento />}
+          icon={<IconDocument />}
           title="Nenhuma prescrição emitida"
           description="Emita receituários, atestados e documentos — tudo fica no histórico do paciente, pronto para reimprimir."
-          action={<Button iconLeft={<IconMais />} onClick={abrirModal}>Nova prescrição</Button>}
+          action={<Button iconLeft={<IconPlus />} onClick={openModal}>Nova prescrição</Button>}
         />
       ) : (
         <Table
           columns={columns}
-          data={pag.visiveis}
+          data={pagination.visible}
           rowKey={p => p.id}
           emptyMessage="Nenhuma prescrição para o filtro."
           renderExpanded={p => (
             <div className={styles.detalhe}>
-              {p.tipo === 'receituario' ? (
+              {p.type === 'prescription' ? (
                 <ol className={styles.meds}>
-                  {(p.medicamentos ?? []).map((m, i) => (
-                    <li key={`${m.nome}-${i}`} className={styles.med}>
+                  {(p.medications ?? []).map((m, i) => (
+                    <li key={`${m.name}-${i}`} className={styles.med}>
                       <span className={styles.medNome}>
-                        {m.nome}{m.quantidade ? <span className={styles.medQtd}> — {m.quantidade}</span> : null}
+                        {m.name}{m.quantity ? <span className={styles.medQtd}> — {m.quantity}</span> : null}
                       </span>
-                      <span className={styles.medPosologia}>{m.posologia}</span>
+                      <span className={styles.medPosologia}>{m.dosage}</span>
                     </li>
                   ))}
                 </ol>
               ) : (
-                <p className={styles.texto}>{p.texto}</p>
+                <p className={styles.texto}>{p.text}</p>
               )}
-              {p.observacao && <p className={styles.obs}>Observações: {p.observacao}</p>}
+              {p.notes && <p className={styles.obs}>Observações: {p.notes}</p>}
             </div>
           )}
           toolbar={
             <>
-              <PerPageSelect porPagina={pag.porPagina} onChange={pag.mudarPorPagina} />
+              <PerPageSelect perPage={pagination.perPage} onChange={pagination.setPerPage} />
               <Select
                 size="sm"
-                options={OPCOES_FILTRO}
-                value={filtroTipo}
-                onChange={e => { setFiltroTipo(e.target.value as 'todos' | PrescriptionType); pag.setPagina(1) }}
+                options={FILTER_OPTIONS}
+                value={typeFilter}
+                onChange={e => { setTypeFilter(e.target.value as 'all' | PrescriptionType); pagination.setPage(1) }}
                 aria-label="Filtrar por tipo"
                 className={styles.filtroTipo}
               />
@@ -269,11 +275,11 @@ export function PrescriptionsPanel({ pacienteId, pacienteNome }: PrescriptionsPa
           }
           footer={
             <Pagination
-              page={pag.paginaAtual}
-              totalPages={pag.totalPaginas}
-              onChange={pag.setPagina}
-              totalItems={pag.total}
-              itemsPerPage={pag.porPagina}
+              page={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onChange={pagination.setPage}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.perPage}
             />
           }
         />
@@ -281,74 +287,74 @@ export function PrescriptionsPanel({ pacienteId, pacienteNome }: PrescriptionsPa
 
       {/* ── Modal: nova prescrição ── */}
       <Modal
-        open={modalAberto}
-        onClose={() => setModalAberto(false)}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
         title="Nova prescrição"
         size="lg"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setModalAberto(false)} disabled={criando}>Cancelar</Button>
-            <Button loading={criando} onClick={aoSalvar}>Emitir</Button>
+            <Button variant="ghost" onClick={() => setModalOpen(false)} disabled={creating}>Cancelar</Button>
+            <Button loading={creating} onClick={handleSave}>Emitir</Button>
           </>
         }
       >
         <div className={styles.modalCorpo}>
-          <SegmentedControl options={OPCOES_TIPO} value={tipo} onChange={mudarTipo} />
+          <SegmentedControl options={TYPE_OPTIONS} value={type} onChange={changeType} />
 
           <div className={styles.linhaData}>
             <Input
               label="Data"
               type="date"
-              value={dataIso}
-              onChange={e => setDataIso(e.target.value)}
+              value={dateIso}
+              onChange={e => setDateIso(e.target.value)}
             />
-            {tipo === 'atestado' && (
+            {type === 'certificate' && (
               <Input
                 label="Dias de afastamento"
                 type="number"
                 min={1}
-                value={dias}
-                onChange={e => mudarDias(e.target.value)}
+                value={days}
+                onChange={e => changeDays(e.target.value)}
               />
             )}
-            {tipo === 'documento' && (
+            {type === 'document' && (
               <Input
                 label="Título do documento"
                 placeholder="Ex: Orientações pós-operatórias"
-                value={titulo}
-                onChange={e => { setTitulo(e.target.value); setErro('') }}
+                value={title}
+                onChange={e => { setTitle(e.target.value); setError('') }}
               />
             )}
           </div>
 
-          {tipo === 'receituario' ? (
+          {type === 'prescription' ? (
             <div className={styles.medsEditor}>
               <span className={styles.medsRotulo}>Medicamentos</span>
-              {medicamentos.map((m, i) => (
+              {medications.map((m, i) => (
                 <div key={i} className={styles.medLinha}>
                   <Input
                     placeholder="Medicamento — ex: Amoxicilina 500 mg"
-                    value={m.nome}
-                    onChange={e => { mudarMedicamento(i, 'nome', e.target.value); setErro('') }}
+                    value={m.name}
+                    onChange={e => { changeMedication(i, 'name', e.target.value); setError('') }}
                     aria-label={`Medicamento ${i + 1}`}
                   />
                   <Input
                     placeholder="Posologia — ex: 1 cápsula a cada 8h por 7 dias"
-                    value={m.posologia}
-                    onChange={e => mudarMedicamento(i, 'posologia', e.target.value)}
+                    value={m.dosage}
+                    onChange={e => changeMedication(i, 'dosage', e.target.value)}
                     aria-label={`Posologia do medicamento ${i + 1}`}
                   />
                   <Input
                     placeholder="Qtd — ex: 1 caixa"
-                    value={m.quantidade ?? ''}
-                    onChange={e => mudarMedicamento(i, 'quantidade', e.target.value)}
+                    value={m.quantity ?? ''}
+                    onChange={e => changeMedication(i, 'quantity', e.target.value)}
                     aria-label={`Quantidade do medicamento ${i + 1}`}
                   />
                   <Button
                     variant="ghost"
                     size="sm"
                     iconLeft={<IconX />}
-                    onClick={() => setMedicamentos(atual => atual.filter((_, j) => j !== i))}
+                    onClick={() => setMedications(current => current.filter((_, j) => j !== i))}
                     title="Remover medicamento"
                     aria-label={`Remover medicamento ${i + 1}`}
                   />
@@ -357,34 +363,34 @@ export function PrescriptionsPanel({ pacienteId, pacienteNome }: PrescriptionsPa
               <Button
                 variant="outline"
                 size="sm"
-                iconLeft={<IconMais />}
+                iconLeft={<IconPlus />}
                 className={styles.medsAdicionar}
-                onClick={() => setMedicamentos(atual => [...atual, { nome: '', posologia: '', quantidade: '' }])}
+                onClick={() => setMedications(current => [...current, { name: '', dosage: '', quantity: '' }])}
               >
                 Adicionar medicamento
               </Button>
             </div>
           ) : (
             <Textarea
-              label={tipo === 'prontuario' ? 'Evolução clínica' : tipo === 'atestado' ? 'Texto do atestado' : 'Conteúdo do documento'}
-              placeholder={tipo === 'prontuario' ? 'O que foi observado e realizado no atendimento...' : 'Escreva o conteúdo...'}
-              rows={tipo === 'atestado' ? 4 : 6}
-              value={texto}
-              onChange={e => { setTexto(e.target.value); setErro('') }}
+              label={type === 'clinical_record' ? 'Evolução clínica' : type === 'certificate' ? 'Texto do atestado' : 'Conteúdo do documento'}
+              placeholder={type === 'clinical_record' ? 'O que foi observado e realizado no atendimento...' : 'Escreva o conteúdo...'}
+              rows={type === 'certificate' ? 4 : 6}
+              value={text}
+              onChange={e => { setText(e.target.value); setError('') }}
             />
           )}
 
-          {tipo === 'receituario' && (
+          {type === 'prescription' && (
             <Textarea
               label="Observações"
               placeholder="Orientações gerais que saem no receituário impresso."
               rows={2}
-              value={observacao}
-              onChange={e => setObservacao(e.target.value)}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
             />
           )}
 
-          {erro && <p className={styles.erro}>{erro}</p>}
+          {error && <p className={styles.erro}>{error}</p>}
         </div>
       </Modal>
     </div>

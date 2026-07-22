@@ -12,37 +12,37 @@ import type { TableColumn } from '@/components/Table/Table'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { Toggle } from '@/components/Toggle/Toggle'
 import { useToast } from '@/components/Toast/useToast'
-import { useConvenios, useCriarConvenio, useAtualizarConvenio } from '@/hooks/useConvenios'
+import { useInsurances, useCreateInsurance, useUpdateInsurance } from '@/hooks/useInsurances'
 import { useDebounce } from '@/hooks/useDebounce'
-import { combinaBusca } from '@/utils/search'
-import { IconBuscar, IconEditar, IconMais } from '@/components/icons'
-import type { EditInsurance } from '@/services/conveniosService'
+import { matchesSearch } from '@/utils/search'
+import { IconSearch, IconEdit, IconPlus } from '@/components/icons'
+import type { EditInsurance } from '@/services/insurancesService'
 import type { Insurance } from '@/types/domain'
 import styles from './InsurancesTab.module.scss'
 
-interface FormConvenio {
-  nome: string
+interface InsuranceFormState {
+  name: string
   ans: string
-  telefone: string
+  phone: string
   email: string
-  prazoDias: string      // texto do input; vira número ao salvar
-  observacao: string
-  ativo: boolean
+  payoutDays: string      // texto do input; vira número ao salvar
+  notes: string
+  active: boolean
 }
 
-const FORM_VAZIO: FormConvenio = {
-  nome: '', ans: '', telefone: '', email: '', prazoDias: '', observacao: '', ativo: true,
+const EMPTY_FORM: InsuranceFormState = {
+  name: '', ans: '', phone: '', email: '', payoutDays: '', notes: '', active: true,
 }
 
-function formDoConvenio(c: Insurance): FormConvenio {
+function formFromInsurance(c: Insurance): InsuranceFormState {
   return {
-    nome: c.nome,
+    name: c.name,
     ans: c.ans ?? '',
-    telefone: c.telefone ?? '',
+    phone: c.phone ?? '',
     email: c.email ?? '',
-    prazoDias: c.prazoRepasseDias != null ? String(c.prazoRepasseDias) : '',
-    observacao: c.observacao ?? '',
-    ativo: c.status === 'ativo',
+    payoutDays: c.payoutDays != null ? String(c.payoutDays) : '',
+    notes: c.notes ?? '',
+    active: c.status === 'active',
   }
 }
 
@@ -50,99 +50,99 @@ function formDoConvenio(c: Insurance): FormConvenio {
  *  app (paciente, orçamentos) montam as opções a partir daqui. */
 export function InsurancesTab() {
   const toast = useToast()
-  const { data: convenios, isLoading } = useConvenios()
-  const { mutate: criar, isPending: criando } = useCriarConvenio()
-  const { mutate: atualizar, isPending: salvando } = useAtualizarConvenio()
+  const { data: insurances, isLoading } = useInsurances()
+  const { mutate: create, isPending: creating } = useCreateInsurance()
+  const { mutate: update, isPending: saving } = useUpdateInsurance()
 
   // Modal: null = fechado; com convênio = edição; sem = cadastro novo.
-  const [modal, setModal] = useState<{ convenio?: Insurance } | null>(null)
-  const [form, setForm] = useState<FormConvenio>(FORM_VAZIO)
-  const [erroNome, setErroNome] = useState('')
+  const [modal, setModal] = useState<{ insurance?: Insurance } | null>(null)
+  const [form, setForm] = useState<InsuranceFormState>(EMPTY_FORM)
+  const [nameError, setNameError] = useState('')
 
   // Paginação + busca (mesmo desenho das outras listas).
-  const [pagina, setPagina] = useState(1)
-  const [porPagina, setPorPagina] = useState(10)
-  const [busca, setBusca] = useState('')
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
+  const [search, setSearch] = useState('')
 
   // Hook: fica ANTES do return condicional (ordem dos hooks em todo render).
-  const termo = useDebounce(busca)
+  const term = useDebounce(search)
 
   if (isLoading) return <PageLoader />
 
-  const filtrados = (convenios ?? []).filter(c => combinaBusca(c.nome, termo))
-  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / porPagina))
-  const paginaAtual = Math.min(pagina, totalPaginas)
-  const visiveis = filtrados.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina)
+  const filtered = (insurances ?? []).filter(c => matchesSearch(c.name, term))
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage))
+  const currentPage = Math.min(page, totalPages)
+  const visible = filtered.slice((currentPage - 1) * perPage, currentPage * perPage)
 
-  const set = (campo: keyof FormConvenio) => (valor: string | boolean) => {
-    setForm(atual => ({ ...atual, [campo]: valor }))
-    if (campo === 'nome') setErroNome('')
+  const set = (field: keyof InsuranceFormState) => (value: string | boolean) => {
+    setForm(current => ({ ...current, [field]: value }))
+    if (field === 'name') setNameError('')
   }
 
-  function abrirNovo() {
-    setForm(FORM_VAZIO)
-    setErroNome('')
+  function openNew() {
+    setForm(EMPTY_FORM)
+    setNameError('')
     setModal({})
   }
 
-  function abrirEdicao(convenio: Insurance) {
-    setForm(formDoConvenio(convenio))
-    setErroNome('')
-    setModal({ convenio })
+  function openEdit(insurance: Insurance) {
+    setForm(formFromInsurance(insurance))
+    setNameError('')
+    setModal({ insurance })
   }
 
-  function fecharModal() {
+  function closeModal() {
     setModal(null)
-    setForm(FORM_VAZIO)
-    setErroNome('')
+    setForm(EMPTY_FORM)
+    setNameError('')
   }
 
-  function aoSalvar(e: FormEvent) {
+  function handleSave(e: FormEvent) {
     e.preventDefault()
-    if (!form.nome.trim()) {
-      setErroNome('Informe o nome do convênio.')
+    if (!form.name.trim()) {
+      setNameError('Informe o nome do convênio.')
       return
     }
-    const dados: EditInsurance = {
-      nome: form.nome.trim(),
+    const payload: EditInsurance = {
+      name: form.name.trim(),
       ans: form.ans.trim() || undefined,
-      telefone: form.telefone.trim() || undefined,
+      phone: form.phone.trim() || undefined,
       email: form.email.trim() || undefined,
-      prazoRepasseDias: form.prazoDias.trim() ? Math.max(0, Number(form.prazoDias) || 0) : undefined,
-      observacao: form.observacao.trim() || undefined,
-      status: form.ativo ? 'ativo' : 'inativo',
+      payoutDays: form.payoutDays.trim() ? Math.max(0, Number(form.payoutDays) || 0) : undefined,
+      notes: form.notes.trim() || undefined,
+      status: form.active ? 'active' : 'inactive',
     }
-    const opcoes = {
+    const options = {
       onSuccess: () => {
-        toast.success(modal?.convenio ? 'Convênio atualizado!' : 'Convênio cadastrado!')
-        fecharModal()
+        toast.success(modal?.insurance ? 'Convênio atualizado!' : 'Convênio cadastrado!')
+        closeModal()
       },
     }
-    if (modal?.convenio) atualizar({ id: modal.convenio.id, dados }, opcoes)
-    else criar(dados, opcoes)
+    if (modal?.insurance) update({ id: modal.insurance.id, payload }, options)
+    else create(payload, options)
   }
 
   const columns: TableColumn<Insurance>[] = [
-    { key: 'nome', label: 'Convênio', render: c => <span className={styles.nome}>{c.nome}</span> },
+    { key: 'name', label: 'Convênio', render: c => <span className={styles.nome}>{c.name}</span> },
     { key: 'ans', label: 'Registro ANS', render: c => c.ans ?? '—' },
-    { key: 'telefone', label: 'Telefone', render: c => c.telefone ?? '—' },
+    { key: 'phone', label: 'Telefone', render: c => c.phone ?? '—' },
     {
-      key: 'prazo',
+      key: 'payoutDays',
       label: 'Prazo de repasse',
-      render: c => (c.prazoRepasseDias != null ? `${c.prazoRepasseDias} dias` : '—'),
+      render: c => (c.payoutDays != null ? `${c.payoutDays} dias` : '—'),
     },
     { key: 'status', label: 'Status', render: c => <Badge status={c.status} /> },
     {
-      key: 'acoes',
+      key: 'actions',
       label: 'Ação',
       render: c => (
         <Button
           variant="ghost"
           size="sm"
-          iconLeft={<IconEditar />}
+          iconLeft={<IconEdit />}
           title="Editar convênio"
-          aria-label={`Editar ${c.nome}`}
-          onClick={() => abrirEdicao(c)}
+          aria-label={`Editar ${c.name}`}
+          onClick={() => openEdit(c)}
         />
       ),
     },
@@ -152,23 +152,23 @@ export function InsurancesTab() {
     <>
       <Table
         columns={columns}
-        data={visiveis}
+        data={visible}
         rowKey={c => c.id}
-        emptyMessage={termo ? 'Nenhum convênio encontrado para a busca.' : 'Nenhum convênio cadastrado.'}
+        emptyMessage={term ? 'Nenhum convênio encontrado para a busca.' : 'Nenhum convênio cadastrado.'}
         toolbar={
           <>
-            <PerPageSelect porPagina={porPagina} onChange={n => { setPorPagina(n); setPagina(1) }} />
+            <PerPageSelect perPage={perPage} onChange={n => { setPerPage(n); setPage(1) }} />
             <div className={styles.toolbarDireita}>
               <Input
                 size="sm"
-                iconLeft={<IconBuscar />}
+                iconLeft={<IconSearch />}
                 placeholder="Buscar convênio..."
-                value={busca}
-                onChange={e => { setBusca(e.target.value); setPagina(1) }}
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPage(1) }}
                 aria-label="Buscar convênio"
                 className={styles.busca}
               />
-              <Button size="sm" iconLeft={<IconMais />} onClick={abrirNovo}>
+              <Button size="sm" iconLeft={<IconPlus />} onClick={openNew}>
                 Novo convênio
               </Button>
             </div>
@@ -176,35 +176,35 @@ export function InsurancesTab() {
         }
         footer={
           <Pagination
-            page={paginaAtual}
-            totalPages={totalPaginas}
-            onChange={setPagina}
-            totalItems={filtrados.length}
-            itemsPerPage={porPagina}
+            page={currentPage}
+            totalPages={totalPages}
+            onChange={setPage}
+            totalItems={filtered.length}
+            itemsPerPage={perPage}
           />
         }
       />
 
       <Modal
         open={modal !== null}
-        onClose={fecharModal}
-        title={modal?.convenio ? 'Editar convênio' : 'Novo convênio'}
+        onClose={closeModal}
+        title={modal?.insurance ? 'Editar convênio' : 'Novo convênio'}
         footer={
           <>
-            <Button variant="ghost" onClick={fecharModal} disabled={criando || salvando}>Cancelar</Button>
-            <Button type="submit" form="form-convenio" loading={criando || salvando}>
-              {modal?.convenio ? 'Salvar alterações' : 'Cadastrar'}
+            <Button variant="ghost" onClick={closeModal} disabled={creating || saving}>Cancelar</Button>
+            <Button type="submit" form="form-insurance" loading={creating || saving}>
+              {modal?.insurance ? 'Salvar alterações' : 'Cadastrar'}
             </Button>
           </>
         }
       >
-        <form id="form-convenio" className={styles.form} onSubmit={aoSalvar}>
+        <form id="form-insurance" className={styles.form} onSubmit={handleSave}>
           <Input
             label="Nome do convênio"
             placeholder="Ex: Unimed"
-            value={form.nome}
-            onChange={e => set('nome')(e.target.value)}
-            error={erroNome}
+            value={form.name}
+            onChange={e => set('name')(e.target.value)}
+            error={nameError}
             autoFocus
           />
           <div className={styles.grid2}>
@@ -219,16 +219,16 @@ export function InsurancesTab() {
               type="number"
               min={0}
               placeholder="Ex: 30"
-              value={form.prazoDias}
-              onChange={e => set('prazoDias')(e.target.value)}
+              value={form.payoutDays}
+              onChange={e => set('payoutDays')(e.target.value)}
             />
           </div>
           <div className={styles.grid2}>
             <Input
               label="Telefone"
               type="tel"
-              value={form.telefone}
-              onChange={e => set('telefone')(e.target.value)}
+              value={form.phone}
+              onChange={e => set('phone')(e.target.value)}
             />
             <Input
               label="E-mail"
@@ -241,10 +241,10 @@ export function InsurancesTab() {
             label="Observações"
             placeholder="Regras de credenciamento, tabelas, contatos..."
             rows={3}
-            value={form.observacao}
-            onChange={e => set('observacao')(e.target.value)}
+            value={form.notes}
+            onChange={e => set('notes')(e.target.value)}
           />
-          <Toggle label="Convênio ativo" checked={form.ativo} onChange={v => set('ativo')(v)} />
+          <Toggle label="Convênio ativo" checked={form.active} onChange={v => set('active')(v)} />
         </form>
       </Modal>
     </>

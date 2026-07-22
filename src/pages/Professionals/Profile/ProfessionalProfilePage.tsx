@@ -4,8 +4,8 @@ import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { Tabs } from '@/components/Tabs/Tabs'
-import { IconProfissionais } from '@/components/icons'
-import { useProfissional } from '@/hooks/useProfissionais'
+import { IconProfessionals } from '@/components/icons'
+import { useProfessional } from '@/hooks/useProfessionals'
 import { ProfileSummary } from './ProfileSummary'
 import { PersonalDataCard } from './PersonalData/PersonalDataCard'
 import { PersonalDataForm } from './PersonalData/PersonalDataForm'
@@ -15,13 +15,13 @@ import { EarningsTab } from './Earnings/EarningsTab'
 import { ScheduleTab } from './Schedule/ScheduleTab'
 import styles from './ProfessionalProfilePage.module.scss'
 
-type TabKey = 'dados' | 'curriculo' | 'ganhos' | 'agenda'
+type TabKey = 'personal' | 'curriculum' | 'earnings' | 'schedule'
 
 const TABS = [
-  { key: 'dados',     label: 'Dados pessoais' },
-  { key: 'curriculo', label: 'Currículo' },
-  { key: 'ganhos',    label: 'Ganhos' },
-  { key: 'agenda',    label: 'Agenda' },
+  { key: 'personal',     label: 'Dados pessoais' },
+  { key: 'curriculum', label: 'Currículo' },
+  { key: 'earnings',    label: 'Ganhos' },
+  { key: 'schedule',    label: 'Agenda' },
 ]
 
 /** Perfil do profissional: card-resumo à esquerda + painel da aba ativa à
@@ -29,49 +29,49 @@ const TABS = [
  *  estado de "qual aba" / "está editando". */
 export function ProfessionalProfilePage() {
   const { id } = useParams<{ id: string }>()
-  const { data: profissional, isLoading } = useProfissional(id ?? '')
+  const { data: professional, isLoading } = useProfessional(id ?? '')
 
-  const [tab, setTab] = useState<TabKey>('dados')
-  const [editandoDados, setEditandoDados] = useState(false)
-  const [editandoCv, setEditandoCv] = useState(false)
+  const [tab, setTab] = useState<TabKey>('personal')
+  const [editingData, setEditingData] = useState(false)
+  const [editingCv, setEditingCv] = useState(false)
 
   // Trocar de aba no meio de uma edição descarta o rascunho (o formulário
   // desmonta e nasce de novo a partir do cadastro salvo).
-  function mudarTab(key: string) {
+  function changeTab(key: string) {
     setTab(key as TabKey)
-    if (key !== 'dados') setEditandoDados(false)
-    if (key !== 'curriculo') setEditandoCv(false)
+    if (key !== 'personal') setEditingData(false)
+    if (key !== 'curriculum') setEditingCv(false)
   }
 
-  function abrirEdicaoDados() {
-    setEditandoCv(false)
-    setEditandoDados(true)
-    setTab('dados')   // a edição vive na aba de dados pessoais
+  function openDataEdit() {
+    setEditingCv(false)
+    setEditingData(true)
+    setTab('personal')   // a edição vive na aba de dados pessoais
   }
 
-  function abrirEdicaoCv() {
-    setEditandoDados(false)
-    setEditandoCv(true)
-    setTab('curriculo')
+  function openCvEdit() {
+    setEditingData(false)
+    setEditingCv(true)
+    setTab('curriculum')
   }
 
   // Zona de cabeçalho compartilhada: fica no lugar em QUALQUER estado da página
   // (carregando, não encontrado, conteúdo) — o breadcrumb nunca pula.
-  const cabecalho = (
+  const headerZone = (
     <header className={styles.topo}>
-      <PageHeader title="Perfil do profissional" icon={<IconProfissionais />} />
-      <Tabs tabs={TABS} active={tab} onChange={mudarTab} />
+      <PageHeader title="Perfil do profissional" icon={<IconProfessionals />} />
+      <Tabs tabs={TABS} active={tab} onChange={changeTab} />
     </header>
   )
 
   if (isLoading) {
-    return <>{cabecalho}<PageLoader /></>
+    return <>{headerZone}<PageLoader /></>
   }
 
-  if (!profissional) {
+  if (!professional) {
     return (
       <>
-        {cabecalho}
+        {headerZone}
         <EmptyState title="Profissional não encontrado" description="Verifique se o link está correto." />
       </>
     )
@@ -79,28 +79,28 @@ export function ProfessionalProfilePage() {
 
   return (
     <>
-      {cabecalho}
+      {headerZone}
 
       <div className={styles.grid}>
-        <ProfileSummary profissional={profissional} onEditar={abrirEdicaoDados} />
+        <ProfileSummary professional={professional} onEdit={openDataEdit} />
 
         {/* ── Painel da direita: conteúdo da aba ativa ── */}
         <div className={styles.painel}>
-          {tab === 'dados' && (editandoDados ? (
-            <PersonalDataForm profissional={profissional} onFechar={() => setEditandoDados(false)} />
+          {tab === 'personal' && (editingData ? (
+            <PersonalDataForm professional={professional} onClose={() => setEditingData(false)} />
           ) : (
-            <PersonalDataCard profissional={profissional} onEditar={abrirEdicaoDados} />
+            <PersonalDataCard professional={professional} onEdit={openDataEdit} />
           ))}
 
-          {tab === 'curriculo' && (editandoCv ? (
-            <CurriculumForm profissional={profissional} onFechar={() => setEditandoCv(false)} />
+          {tab === 'curriculum' && (editingCv ? (
+            <CurriculumForm professional={professional} onClose={() => setEditingCv(false)} />
           ) : (
-            <CurriculumCard profissional={profissional} onEditar={abrirEdicaoCv} />
+            <CurriculumCard professional={professional} onEdit={openCvEdit} />
           ))}
 
-          {tab === 'ganhos' && <EarningsTab profissional={profissional} />}
+          {tab === 'earnings' && <EarningsTab professional={professional} />}
 
-          {tab === 'agenda' && <ScheduleTab profissional={profissional} />}
+          {tab === 'schedule' && <ScheduleTab professional={professional} />}
         </div>
       </div>
     </>

@@ -5,68 +5,68 @@ import { Input } from '@/components/Input/Input'
 import { Modal } from '@/components/Modal/Modal'
 import { PhotoInput } from '@/components/PhotoInput/PhotoInput'
 import { useToast } from '@/components/Toast/useToast'
-import { useCriarSala, useAtualizarSala } from '@/hooks/useSalas'
+import { useCreateRoom, useUpdateRoom } from '@/hooks/useRooms'
 import type { Room } from '@/types/domain'
 import styles from './RoomFormModal.module.scss'
 
 interface RoomFormModalProps {
   /** Sala em edição — undefined significa cadastro novo. */
-  sala?: Room
+  room?: Room
   onClose: () => void
 }
 
 /** Modal de cadastro/edição de sala (página Inicial). */
-export function RoomFormModal({ sala, onClose }: RoomFormModalProps) {
+export function RoomFormModal({ room, onClose }: RoomFormModalProps) {
   const toast = useToast()
-  const { mutate: criar, isPending: criando } = useCriarSala()
-  const { mutate: atualizar, isPending: salvando } = useAtualizarSala()
+  const { mutate: create, isPending: creating } = useCreateRoom()
+  const { mutate: update, isPending: saving } = useUpdateRoom()
 
-  const [nome, setNome] = useState(sala?.nome ?? '')
-  const [foto, setFoto] = useState<string | undefined>(sala?.foto)
-  const [erroNome, setErroNome] = useState('')
+  const [name, setName] = useState(room?.name ?? '')
+  const [photo, setPhoto] = useState<string | undefined>(room?.photo)
+  const [nameError, setNameError] = useState('')
 
-  function aoSalvar(e: FormEvent) {
+  function handleSave(e: FormEvent) {
     e.preventDefault()
-    if (!nome.trim()) {
-      setErroNome('Informe o nome da sala.')
+    if (!name.trim()) {
+      setNameError('Informe o nome da sala.')
       return
     }
-    const dados = { nome: nome.trim(), foto }
-    const opcoes = {
+    const payload = { name: name.trim(), photo }
+    const options = {
       onSuccess: () => {
-        toast.success(sala ? 'Sala atualizada!' : 'Sala cadastrada!')
+        toast.success(room ? 'Sala atualizada!' : 'Sala cadastrada!')
         onClose()
       },
     }
-    if (sala) atualizar({ id: sala.id, dados }, opcoes)
-    else criar(dados, opcoes)
+    if (room) update({ id: room.id, payload }, options)
+    else create(payload, options)
   }
 
   return (
     <Modal
       open
       onClose={onClose}
-      title={sala ? 'Editar sala' : 'Nova sala'}
+      title={room ? 'Editar sala' : 'Nova sala'}
       size="sm"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" form="form-sala" loading={criando || salvando}>
-            {sala ? 'Salvar alterações' : 'Cadastrar sala'}
+          <Button type="submit" form="form-sala" loading={creating || saving}>
+            {room ? 'Salvar alterações' : 'Cadastrar sala'}
           </Button>
         </>
       }
     >
-      <form id="form-sala" className={styles.form} onSubmit={aoSalvar}>
+      <form id="form-sala" className={styles.form} onSubmit={handleSave}>
         <Input
           label="Nome"
           placeholder="Ex: Consultório 1"
-          value={nome}
-          onChange={e => { setNome(e.target.value); setErroNome('') }}
-          error={erroNome}
+          value={name}
+          onChange={e => { setName(e.target.value); setNameError('') }}
+          error={nameError}
           autoFocus
         />
-        <PhotoInput label="Foto da sala" value={foto} onChange={setFoto} />
+        <PhotoInput label="Foto da sala" value={photo} onChange={setPhoto} />
       </form>
     </Modal>
   )

@@ -1,9 +1,9 @@
 import { Select } from '@/components/Select/Select'
-import { OPCOES_POR_PAGINA } from '@/constants'
+import { PER_PAGE_OPTIONS } from '@/constants'
 import styles from './PerPageSelect.module.scss'
 
 interface PerPageSelectProps {
-  porPagina: number
+  perPage: number
   /** Recebe o novo tamanho — o chamador cuida de voltar para a página 1. */
   onChange: (n: number) => void
   /** Rótulo acessível (padrão "Registros por página"). */
@@ -13,7 +13,7 @@ interface PerPageSelectProps {
 /** Seletor de tamanho de página das toolbars de tabela — sempre no canto
  *  esquerdo, no formato "Exibir [N] p/ página". */
 export function PerPageSelect({
-  porPagina,
+  perPage: porPagina,
   onChange,
   ariaLabel = 'Registros por página',
 }: PerPageSelectProps) {
@@ -22,7 +22,7 @@ export function PerPageSelect({
       <span className={styles.texto}>Exibir</span>
       <Select
         size="sm"
-        options={OPCOES_POR_PAGINA}
+        options={PER_PAGE_OPTIONS}
         value={String(porPagina)}
         onChange={e => onChange(Number(e.target.value))}
         aria-label={ariaLabel}

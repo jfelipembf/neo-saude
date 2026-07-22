@@ -6,45 +6,45 @@ import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
-import { IconBuscar, IconEstrela, IconOlho } from '@/components/icons'
-import { useProfissionais } from '@/hooks/useProfissionais'
+import { IconSearch, IconStar, IconEye } from '@/components/icons'
+import { useProfessionals } from '@/hooks/useProfessionals'
 import { useDebounce } from '@/hooks/useDebounce'
 import { initials } from '@/utils/text'
-import { combinaBusca } from '@/utils/search'
+import { matchesSearch } from '@/utils/search'
 import type { Professional } from '@/types/domain'
 import styles from './ProfessionalsTable.module.scss'
 
 interface ProfessionalsTableProps {
   /** Ação do botão "Ver" (ex.: abrir o perfil do profissional). */
-  onView?: (profissional: Professional) => void
+  onView?: (professional: Professional) => void
 }
 
 /** Lista de profissionais: busca, paginação e linhas altas com foto maior,
  *  especialidade explicada e nota de atendimento. */
 export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
-  const { data: profissionais, isLoading } = useProfissionais()
+  const { data: professionals, isLoading } = useProfessionals()
 
-  const [busca, setBusca] = useState('')
-  const [pagina, setPagina] = useState(1)
-  const [porPagina, setPorPagina] = useState(5)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(5)
 
   // Termo "estabilizado" (debounce) — hook, então fica ANTES de qualquer
   // return condicional (ordem dos hooks precisa ser igual em todo render).
-  const termo = useDebounce(busca)
+  const term = useDebounce(search)
 
   if (isLoading) {
     return <div className={styles.loading}><Spinner /></div>
   }
 
   // Busca sem acento e sem partículas ("maria souza" acha "Maria de Souza").
-  const filtrados = (profissionais ?? []).filter(p =>
-    combinaBusca(p.nome, termo) || combinaBusca(p.especialidade, termo),
+  const filtered = (professionals ?? []).filter(p =>
+    matchesSearch(p.name, term) || matchesSearch(p.specialty, term),
   )
 
-  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / porPagina))
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage))
   // Se a lista encolher (busca ou "por página"), não fica em página fantasma.
-  const paginaAtual = Math.min(pagina, totalPaginas)
-  const visiveis = filtrados.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina)
+  const currentPage = Math.min(page, totalPages)
+  const visible = filtered.slice((currentPage - 1) * perPage, currentPage * perPage)
 
   const columns: TableColumn<Professional>[] = [
     {
@@ -52,10 +52,10 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
       label: 'Profissional',
       render: p => (
         <span className={styles.profCell}>
-          <span className={styles.avatar}>{initials(p.nome)}</span>
+          <span className={styles.avatar}>{initials(p.name)}</span>
           <span className={styles.profInfo}>
-            <span className={styles.nome}>{p.nome}</span>
-            <span className={styles.registro}>{p.registro}</span>
+            <span className={styles.nome}>{p.name}</span>
+            <span className={styles.registro}>{p.license}</span>
           </span>
         </span>
       ),
@@ -65,8 +65,8 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
       label: 'Especialidade',
       render: p => (
         <span className={styles.espCell}>
-          <span className={styles.especialidade}>{p.especialidade}</span>
-          {p.descricao && <span className={styles.descricao}>{p.descricao}</span>}
+          <span className={styles.especialidade}>{p.specialty}</span>
+          {p.description && <span className={styles.descricao}>{p.description}</span>}
         </span>
       ),
     },
@@ -74,10 +74,10 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
       key: 'nota',
       label: 'Nota',
       render: p => (
-        p.nota != null ? (
+        p.rating != null ? (
           <span className={styles.nota} title="Nota média de atendimento">
-            <IconEstrela />
-            {p.nota.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+            <IconStar />
+            {p.rating.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
           </span>
         ) : <span className={styles.semNota}>—</span>
       ),
@@ -89,9 +89,9 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
         <Button
           variant="ghost"
           size="sm"
-          iconLeft={<IconOlho />}
+          iconLeft={<IconEye />}
           title="Ver perfil"
-          aria-label={`Ver perfil de ${p.nome}`}
+          aria-label={`Ver perfil de ${p.name}`}
           onClick={e => { e.stopPropagation(); onView?.(p) }}
         />
       ),
@@ -101,19 +101,19 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
   return (
     <Table
       columns={columns}
-      data={visiveis}
+      data={visible}
       rowKey={p => p.id}
       onRowClick={onView}
-      emptyMessage={termo ? 'Nenhum profissional encontrado para a busca.' : 'Nenhum profissional cadastrado.'}
+      emptyMessage={term ? 'Nenhum profissional encontrado para a busca.' : 'Nenhum profissional cadastrado.'}
       toolbar={
         <>
-          <PerPageSelect porPagina={porPagina} onChange={n => { setPorPagina(n); setPagina(1) }} />
+          <PerPageSelect perPage={perPage} onChange={n => { setPerPage(n); setPage(1) }} />
           <Input
             size="sm"
-            iconLeft={<IconBuscar />}
+            iconLeft={<IconSearch />}
             placeholder="Buscar por nome ou especialidade..."
-            value={busca}
-            onChange={e => { setBusca(e.target.value); setPagina(1) }}
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
             aria-label="Buscar profissional"
             className={styles.busca}
           />
@@ -121,11 +121,11 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
       }
       footer={
         <Pagination
-          page={paginaAtual}
-          totalPages={totalPaginas}
-          onChange={setPagina}
-          totalItems={filtrados.length}
-          itemsPerPage={porPagina}
+          page={currentPage}
+          totalPages={totalPages}
+          onChange={setPage}
+          totalItems={filtered.length}
+          itemsPerPage={perPage}
         />
       }
     />

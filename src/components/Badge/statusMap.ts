@@ -1,7 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Mapa status → cor/rótulo do Badge. Fonte única: ao criar um status novo no
 // domínio (consulta, paciente, pagamento…), registre aqui — o Badge resolve
-// sozinho a partir da string do banco.
+// sozinho a partir da string do banco. Chave em inglês (o VALOR armazenado),
+// rótulo em português (o que o usuário vê).
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'accent' | 'gray'
@@ -13,65 +14,58 @@ interface StatusEntry {
 
 export const STATUS_MAP: Record<string, StatusEntry> = {
   // ── Consultas / agenda ──
-  agendada:    { variant: 'info',    label: 'Agendada' },
-  confirmada:  { variant: 'accent',  label: 'Confirmada' },
-  em_atendimento: { variant: 'warning', label: 'Em atendimento' },
-  concluida:   { variant: 'success', label: 'Concluída' },
-  cancelada:   { variant: 'danger',  label: 'Cancelada' },
-  faltou:      { variant: 'gray',    label: 'Faltou' },
+  scheduled:  { variant: 'info',    label: 'Agendada' },
+  confirmed:  { variant: 'accent',  label: 'Confirmada' },
+  in_service: { variant: 'warning', label: 'Em atendimento' },
+  completed:  { variant: 'success', label: 'Concluída' },
+  canceled:   { variant: 'danger',  label: 'Cancelada' },
+  no_show:    { variant: 'gray',    label: 'Faltou' },
 
-  // ── Pacientes ──
-  ativo:       { variant: 'success', label: 'Ativo' },
-  inativo:     { variant: 'gray',    label: 'Inativo' },
+  // ── Pacientes / cadastros ──
+  active:   { variant: 'success', label: 'Ativo' },
+  inactive: { variant: 'gray',    label: 'Inativo' },
 
   // ── Assinatura do SaaS (Configurações) ──
-  ativa:         { variant: 'success', label: 'Ativa' },
-  inadimplente:  { variant: 'danger',  label: 'Inadimplente' },
+  past_due: { variant: 'danger', label: 'Inadimplente' },
 
   // ── Conexão do WhatsApp (Configurações) ──
-  conectado:    { variant: 'success', label: 'Conectado' },
-  desconectado: { variant: 'gray',    label: 'Desconectado' },
-  conectando:   { variant: 'warning', label: 'Conectando...' },
+  connected:    { variant: 'success', label: 'Conectado' },
+  disconnected: { variant: 'gray',    label: 'Desconectado' },
+  connecting:   { variant: 'warning', label: 'Conectando...' },
 
   // ── Financeiro ──
-  pago:        { variant: 'success', label: 'Pago' },
-  pendente:    { variant: 'warning', label: 'Pendente' },
-  vencido:     { variant: 'danger',  label: 'Vencido' },
-  cancelado:   { variant: 'gray',    label: 'Cancelado' },
+  paid:    { variant: 'success', label: 'Pago' },
+  pending: { variant: 'warning', label: 'Pendente' },
+  overdue: { variant: 'danger',  label: 'Vencido' },
 
   // ── Orçamentos ──
-  aguardando: { variant: 'warning', label: 'Aguardando' },
-  aprovado:   { variant: 'success', label: 'Aprovado' },
+  // 'pending' já registrado no Financeiro — rótulo "Pendente" serve aos dois.
+  approved: { variant: 'success', label: 'Aprovado' },
 
   // ── Prescrições e documentos do paciente ──
-  receituario: { variant: 'info',    label: 'Receituário' },
-  prontuario:  { variant: 'accent',  label: 'Prontuário' },
-  atestado:    { variant: 'success', label: 'Atestado' },
-  documento:   { variant: 'gray',    label: 'Documento' },
+  prescription:    { variant: 'info',    label: 'Receituário' },
+  clinical_record: { variant: 'accent',  label: 'Prontuário' },
+  certificate:     { variant: 'success', label: 'Atestado' },
+  document:        { variant: 'gray',    label: 'Documento' },
 
   // ── Tarefas ──
-  a_fazer:      { variant: 'info',    label: 'A fazer' },
-  em_andamento: { variant: 'warning', label: 'Em andamento' },
-  // 'concluida' já registrado em Consultas — vale para tarefas também.
+  todo:        { variant: 'info',    label: 'A fazer' },
+  in_progress: { variant: 'warning', label: 'Em andamento' },
+  done:        { variant: 'success', label: 'Concluída' },
 
   // ── Prioridade de tarefas ──
-  alta:  { variant: 'danger',  label: 'Alta' },
-  media: { variant: 'warning', label: 'Média' },
-  baixa: { variant: 'gray',    label: 'Baixa' },
-
-  // ── Lembretes (urgência pela data) ──
-  hoje:     { variant: 'success', label: 'Hoje' },
-  em_breve: { variant: 'info',    label: 'Em breve' },
-  atrasado: { variant: 'danger',  label: 'Atrasado' },
+  high:   { variant: 'danger',  label: 'Alta' },
+  medium: { variant: 'warning', label: 'Média' },
+  low:    { variant: 'gray',    label: 'Baixa' },
 
   // ── Tratamentos / odontograma ──
-  finalizado: { variant: 'success', label: 'Finalizado' },
-  em_aberto:  { variant: 'warning', label: 'Em aberto' },
-  extraido:   { variant: 'gray',    label: 'Extraído' },
+  finished:  { variant: 'success', label: 'Finalizado' },
+  open:      { variant: 'warning', label: 'Em aberto' },
+  extracted: { variant: 'gray',    label: 'Extraído' },
 
   // ── Estoque (materiais) ──
-  em_estoque:    { variant: 'success', label: 'Em estoque' },
-  estoque_baixo: { variant: 'warning', label: 'Estoque baixo' },
-  esgotado:      { variant: 'danger',  label: 'Esgotado' },
-  // 'vencido' já registrado no Financeiro — vale para materiais também.
+  in_stock:     { variant: 'success', label: 'Em estoque' },
+  low_stock:    { variant: 'warning', label: 'Estoque baixo' },
+  out_of_stock: { variant: 'danger',  label: 'Esgotado' },
+  expired:      { variant: 'danger',  label: 'Vencido' },
 }

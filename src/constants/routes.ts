@@ -12,15 +12,15 @@ export const AUTH_ROUTES = {
 /** Rotas autenticadas (dentro do AppLayout, atrás do AuthGuard). */
 export const APP_ROUTES = {
   DASHBOARD:       '/',
-  AGENDA:          '/agenda',
-  PACIENTES:       '/pacientes',
-  PACIENTE_PERFIL: '/pacientes/:id',
-  PROFISSIONAIS:   '/profissionais',
-  PROFISSIONAL_PERFIL: '/profissionais/:id',
-  FINANCEIRO:      '/financeiro',
+  SCHEDULE:          '/agenda',
+  PATIENTS:       '/pacientes',
+  PATIENT_PROFILE: '/pacientes/:id',
+  PROFESSIONALS:   '/profissionais',
+  PROFESSIONAL_PROFILE: '/profissionais/:id',
+  FINANCE:      '/financeiro',
   // Página única com abas: Dados do consultório · Salas · Materiais.
-  ADMINISTRATIVO:  '/administrativo',
-  CONFIGURACOES:   '/configuracoes',
+  ADMIN:  '/administrativo',
+  SETTINGS:   '/configuracoes',
 } as const
 
 /** Rotas de sistema (erro, acesso negado…). */
@@ -30,18 +30,18 @@ export const SYSTEM_ROUTES = {
 } as const
 
 /** Páginas do app para o controle de acesso por cargo (aba Cargos). */
-export const PAGINAS_APP: { value: import('@/types/domain').AppPage; label: string }[] = [
+export const APP_PAGES: { value: import('@/types/domain').AppPage; label: string }[] = [
   { value: 'dashboard',      label: 'Dashboard' },
-  { value: 'agenda',         label: 'Agenda' },
-  { value: 'pacientes',      label: 'Pacientes' },
-  { value: 'profissionais',  label: 'Profissionais' },
-  { value: 'financeiro',     label: 'Financeiro' },
-  { value: 'administrativo', label: 'Administrativo' },
-  { value: 'configuracoes',  label: 'Configurações' },
+  { value: 'schedule',         label: 'Agenda' },
+  { value: 'patients',      label: 'Pacientes' },
+  { value: 'professionals',  label: 'Profissionais' },
+  { value: 'finance',     label: 'Financeiro' },
+  { value: 'admin', label: 'Administrativo' },
+  { value: 'settings',  label: 'Configurações' },
 ]
 
 /** Helpers para rotas com parâmetro — evita template string espalhada no app. */
 export const buildRoute = {
-  pacientePerfil: (id: string) => `/pacientes/${id}`,
-  profissionalPerfil: (id: string) => `/profissionais/${id}`,
+  patientProfile: (id: string) => `/pacientes/${id}`,
+  professionalProfile: (id: string) => `/profissionais/${id}`,
 }

@@ -1,417 +1,475 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos do DOMÍNIO (independentes do banco). Quando o schema Supabase existir,
 // os services convertem Row (database.types.ts) → estes tipos.
+//
+// CONVENÇÕES DE IDENTIDADE (valem para todo o domínio):
+//
+// `id`        Chave técnica (UUID no banco). Usada em toda referência entre
+//             entidades e NUNCA exibida ao usuário. Referência sempre por id —
+//             nome muda, id não; guardar nome quebra o vínculo no rename.
+//
+// `code`      Referência HUMANA, sequencial por clínica ("PAC-000042"). É o que
+//             a equipe fala em voz alta, o que vai no documento impresso e o que
+//             o paciente informa no atendimento. Só nas entidades que aparecem
+//             em documento ou são citadas verbalmente.
+//
+// `clinicId`  Tenant. Está em TODA entidade que pertence a uma clínica, mesmo
+//             quando daria para chegar nela por join — a policy de RLS fica
+//             direta e barata (`clinica_id = auth.jwt() ->> 'clinica_id'`).
+//             Sem isso, uma clínica enxerga o prontuário da outra.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type AppointmentStatus = 'agendada' | 'confirmada' | 'em_atendimento' | 'concluida' | 'cancelada' | 'faltou'
-export type ActiveStatus = 'ativo' | 'inativo'
+/**
+ * Ramo da clínica. A maior parte do app é igual entre eles; o que muda é a
+ * ficha clínica do paciente (odontograma, evolução, antropometria…).
+ */
+export type ClinicSpecialty =
+  | 'dentistry'
+  | 'physiotherapy'
+  | 'nutrition'
+  | 'psychology'
+  | 'personal_training'
 
-export type Gender = 'masculino' | 'feminino'
+export type AppointmentStatus = 'scheduled' | 'confirmed' | 'in_service' | 'completed' | 'canceled' | 'no_show'
+export type ActiveStatus = 'active' | 'inactive'
+
+export type Gender = 'male' | 'female'
 
 export interface Patient {
   id: string
-  nome: string           // nome completo (nome + sobrenome), usado nas listas
+  clinicId: string
+  /** Referência humana sequencial por clínica (PAC-000001). */
+  code: string
+  name: string           // nome completo (nome + sobrenome), usado nas listas
   cpf?: string           // 000.000.000-00
-  telefone: string
-  convenio: string
-  ultimaVisita: string   // dd/mm/aaaa
+  phone: string
+  insurance: string
+  lastVisit: string   // dd/mm/aaaa
   status: ActiveStatus
   // Cadastro completo (opcionais — preenchidos pelo modal de novo paciente).
-  sexo?: Gender
-  nascimento?: string    // dd/mm/aaaa
+  sex?: Gender
+  birthDate?: string    // dd/mm/aaaa
   email?: string
   whatsapp?: string
   cep?: string
-  estado?: string        // UF
-  cidade?: string
-  bairro?: string
-  numero?: string
+  state?: string        // UF
+  city?: string
+  neighborhood?: string
+  number?: string
 }
 
 export interface Appointment {
   id: string
-  hora: string           // HH:mm
-  paciente: string
-  atendimento: string    // tipo de atendimento (consulta, retorno, avaliação…)
-  profissional: string
+  clinicId: string
+  time: string           // HH:mm
+  patientId: string
+  service: string    // tipo de atendimento (consulta, retorno, avaliação…)
+  professionalId: string
   status: AppointmentStatus
 }
 
 /** Titulação acadêmica do currículo (ordem cronológica inversa na exibição). */
 export interface EducationItem {
-  curso: string          // "Especialização em Endodontia"
-  instituicao: string    // "UFS"
-  ano: string            // "2019"
+  course: string          // "Especialização em Endodontia"
+  institution: string    // "UFS"
+  year: string            // "2019"
 }
 
 /** Passagem profissional do currículo. */
 export interface ExperienceItem {
-  cargo: string          // "Dentista clínico"
-  local: string          // "Clínica Sorriso — Aracaju/SE"
-  periodo: string        // "2019 – atual"
+  position: string          // "Dentista clínico"
+  workplace: string          // "Clínica Sorriso — Aracaju/SE"
+  period: string        // "2019 – atual"
 }
 
 export interface Professional {
   id: string
-  nome: string
-  especialidade: string
-  descricao?: string     // breve explicação da especialidade (lista de profissionais)
-  nota?: number          // nota média de atendimento (0–5)
-  registro: string       // conselho + número (CRM, CRO, CREFITO…)
+  clinicId: string
+  /** Referência humana sequencial por clínica (PRO-000001). */
+  code: string
+  name: string
+  specialty: string
+  description?: string     // breve explicação da especialidade (lista de profissionais)
+  rating?: number          // nota média de atendimento (0–5)
+  license: string       // conselho + número (CRM, CRO, CREFITO…)
   status: ActiveStatus
   // Dados pessoais (mesmo cadastro do paciente).
-  sexo?: Gender
-  nascimento?: string    // dd/mm/aaaa
+  sex?: Gender
+  birthDate?: string    // dd/mm/aaaa
   email?: string
-  telefone?: string
+  phone?: string
   whatsapp?: string
   // Endereço.
   cep?: string
-  estado?: string        // UF
-  cidade?: string
-  bairro?: string
-  numero?: string
+  state?: string        // UF
+  city?: string
+  neighborhood?: string
+  number?: string
   // Currículo (padrão dos perfis de saúde: Doctoralia e afins).
-  especializacoes?: string[]      // áreas de atuação (chips)
-  formacao?: EducationItem[]       // formação acadêmica
-  experiencias?: ExperienceItem[]
-  cursos?: string[]               // cursos e certificações
-  idiomas?: string[]
+  specializations?: string[]      // áreas de atuação (chips)
+  education?: EducationItem[]       // formação acadêmica
+  experiences?: ExperienceItem[]
+  courses?: string[]               // cursos e certificações
+  languages?: string[]
 }
 
 // ── Convênios aceitos pela clínica (aba do Administrativo) ───────────────────
 export interface Insurance {
   id: string
-  nome: string
+  clinicId: string
+  name: string
   ans?: string             // registro na ANS
-  telefone?: string
+  phone?: string
   email?: string
-  prazoRepasseDias?: number  // em quantos dias o convênio repassa
-  observacao?: string
+  payoutDays?: number  // em quantos dias o convênio repassa
+  notes?: string
   status: ActiveStatus
 }
 
 // ── Orçamentos do paciente (aba do perfil) ───────────────────────────────────
-export type QuoteStatus = 'aguardando' | 'aprovado'
+export type QuoteStatus = 'pending' | 'approved'
 
 /** Um tratamento dentro do orçamento (linha adicionada no editor). */
 export interface QuoteItem {
-  tratamento: string
-  profissional?: string
-  convenio?: string
-  dentes?: string[]        // FDI (permanentes e decíduos)
+  treatment: string
+  professionalId?: string
+  insurance?: string
+  teeth?: string[]        // FDI (permanentes e decíduos)
   faces?: string[]         // M · O/I · D · V/L · P
-  valorUnitario: number    // R$ por tratamento (ou por dente, se multiplicado)
-  multiplicaPorDente?: boolean
-  valor: number            // valor final da linha
+  unitPrice: number    // R$ por tratamento (ou por dente, se multiplicado)
+  multiplyPerTooth?: boolean
+  amount: number            // valor final da linha
 }
 
 export interface Quote {
   id: string
-  pacienteId: string
-  nome: string             // "Plano de tratamento de ..."
-  data: string             // dd/mm/aaaa
+  clinicId: string
+  /** Referência humana sequencial por clínica (ORC-000001). */
+  code: string
+  patientId: string
+  name: string             // "Plano de tratamento de ..."
+  date: string             // dd/mm/aaaa
   status: QuoteStatus
-  itens: QuoteItem[]
-  desconto?: number        // R$ abatidos do subtotal
-  parcelas?: number        // 1 = à vista
-  observacao?: string
+  items: QuoteItem[]
+  discount?: number        // R$ abatidos do subtotal
+  installments?: number        // 1 = à vista
+  notes?: string
 }
 
 // ── Anamnese (aba do perfil do paciente) ─────────────────────────────────────
 // Questionário de saúde no modelo sugerido pelos Conselhos Regionais de
 // Odontologia: respostas fechadas + campos de detalhe quando a resposta pede.
-export type SimNao = 'sim' | 'nao'
-export type SimNaoNaoSei = 'sim' | 'nao' | 'nao_sei'
-export type PressaoArterial = 'normal' | 'alta' | 'baixa' | 'controlada'
-export type NivelSangramento = 'normal' | 'excessivo'
-export type NivelCicatrizacao = 'normal' | 'complicada'
-export type SangramentoGengival = 'nao' | 'sim' | 'durante_higiene' | 'as_vezes'
-export type UsoFioDental = 'diariamente' | 'as_vezes' | 'nao'
+export type YesNo = 'yes' | 'no'
+export type YesNoUnknown = 'yes' | 'no' | 'unknown'
+export type BloodPressure = 'normal' | 'high' | 'low' | 'controlled'
+export type BleedingLevel = 'normal' | 'excessive'
+export type HealingLevel = 'normal' | 'complicated'
+export type GumBleeding = 'no' | 'yes' | 'during_brushing' | 'sometimes'
+export type FlossUse = 'daily' | 'sometimes' | 'no'
 
 export interface Anamnesis {
-  pacienteId: string
+  clinicId: string
+  patientId: string
   /** Última atualização — a ficha é revisada a cada retorno. */
-  atualizadaEm: string   // dd/mm/aaaa
+  updatedAt: string   // dd/mm/aaaa
 
   // Saúde geral
-  medicamentos: SimNao
-  medicamentosQuais?: string      // posologia e dose
-  alergia: SimNaoNaoSei
-  alergiaQual?: string
-  pressao: PressaoArterial
-  problemaCoracao: SimNao
-  problemaCoracaoQual?: string
-  faltaDeAr: SimNao
-  diabetes: SimNaoNaoSei
-  sangramento: NivelSangramento
-  cicatrizacao: NivelCicatrizacao
-  cirurgia: SimNao
-  gestante: SimNaoNaoSei
-  gestanteSemanas?: string
-  problemasSaude?: string         // texto livre
+  medications: YesNo
+  medicationsDetails?: string      // posologia e dose
+  allergy: YesNoUnknown
+  allergyDetails?: string
+  bloodPressure: BloodPressure
+  heartCondition: YesNo
+  heartConditionDetails?: string
+  shortnessOfBreath: YesNo
+  diabetes: YesNoUnknown
+  bleeding: BleedingLevel
+  healing: HealingLevel
+  surgery: YesNo
+  pregnant: YesNoUnknown
+  pregnancyWeeks?: string
+  healthIssues?: string         // texto livre
 
   // Saúde bucal
-  queixaPrincipal?: string
-  reacaoAnestesia: SimNao
-  reacaoAnestesiaQual?: string
-  ultimoTratamento?: string
-  dorDentesGengiva: SimNao
-  gengivaSangra: SangramentoGengival
-  gostoRuimBocaSeca: SimNao
-  escovacoesPorDia?: string
-  fioDental: UsoFioDental
-  dorEstalosMaxilar: SimNao
-  rangeDentes: SimNao
-  feridaBolhaFace: SimNao
-  fuma: SimNao
-  fumaQuantidade?: string
+  chiefComplaint?: string
+  anesthesiaReaction: YesNo
+  anesthesiaReactionDetails?: string
+  lastTreatment?: string
+  toothGumPain: YesNo
+  gumBleeding: GumBleeding
+  badTasteDryMouth: YesNo
+  brushingsPerDay?: string
+  flossing: FlossUse
+  jawPainClicking: YesNo
+  grindsTeeth: YesNo
+  faceSores: YesNo
+  smokes: YesNo
+  smokingAmount?: string
 }
 
 // ── Assinatura do SaaS (Configurações) ───────────────────────────────────────
 // O que a CLÍNICA paga para usar o Neo Saúde — não confundir com o Financeiro,
 // que é o caixa da clínica.
-export type SubscriptionStatus = 'ativa' | 'inadimplente' | 'cancelada'
-export type BillingCycle = 'mensal' | 'anual'
+export type SubscriptionStatus = 'active' | 'past_due' | 'canceled'
+export type BillingCycle = 'monthly' | 'yearly'
 
 export interface Subscription {
-  plano: string                  // "Profissional"
-  valor: number                  // R$ por ciclo
-  ciclo: BillingCycle
+  plan: string                  // "Profissional"
+  amount: number                  // R$ por ciclo
+  cycle: BillingCycle
   status: SubscriptionStatus
-  desde: string                  // dd/mm/aaaa
-  proximaCobranca: string        // dd/mm/aaaa
+  since: string                  // dd/mm/aaaa
+  nextBilling: string        // dd/mm/aaaa
   /** Forma cadastrada para a cobrança recorrente. */
-  formaPagamento?: string        // "Cartão Visa •••• 4242"
+  paymentMethod?: string        // "Cartão Visa •••• 4242"
   /** Limites do plano contratado (o que o preço cobre). */
-  profissionaisIncluidos?: number
-  profissionaisEmUso?: number
+  includedProfessionals?: number
+  professionalsInUse?: number
 }
 
 /** Uma fatura da assinatura (histórico de pagamentos ao SaaS). */
 export interface SubscriptionInvoice {
   id: string
-  competencia: string            // "Julho de 2026"
-  vencimento: string             // dd/mm/aaaa
-  pagamento?: string             // dd/mm/aaaa — vazio enquanto em aberto
-  valor: number
+  clinicId: string
+  /** Referência humana sequencial por clínica (FAT-000001). */
+  code: string
+  referenceMonth: string            // "Julho de 2026"
+  dueDate: string             // dd/mm/aaaa
+  paidAt?: string             // dd/mm/aaaa — vazio enquanto em aberto
+  amount: number
   status: PaymentStatus          // reaproveita pago | pendente | vencido | cancelado
-  formaPagamento?: string
+  paymentMethod?: string
 }
 
 // ── WhatsApp: conexão e automações (Configurações) ───────────────────────────
-export type WhatsAppStatus = 'conectado' | 'desconectado' | 'conectando'
+export type WhatsAppStatus = 'connected' | 'disconnected' | 'connecting'
 
 export interface WhatsAppConnection {
   status: WhatsAppStatus
-  numero?: string        // (79) 99999-0000 — preenchido quando conectado
-  conectadoEm?: string   // dd/mm/aaaa HH:mm
+  phoneNumber?: string        // (79) 99999-0000 — preenchido quando conectado
+  connectedAt?: string   // dd/mm/aaaa HH:mm
   /** Conteúdo do QR de pareamento (mock: string qualquer que vira o desenho). */
   qrCode?: string
 }
 
 /** Momento que dispara a mensagem automática. */
 export type AutomationTrigger =
-  | 'apos_agendamento'
-  | 'dia_da_consulta'
-  | 'falta'
-  | 'aniversario'
-  | 'cobranca'
+  | 'after_booking'
+  | 'appointment_day'
+  | 'no_show'
+  | 'birthday'
+  | 'billing'
 
 export interface WhatsAppAutomation {
-  gatilho: AutomationTrigger
+  trigger: AutomationTrigger
   status: ActiveStatus
-  mensagem: string
+  message: string
   /** Horário de disparo dos gatilhos por data (dia da consulta, aniversário…). */
-  horario?: string       // HH:mm
+  sendTime?: string       // HH:mm
 }
 
 // ── Prescrições e documentos do paciente (aba do perfil) ─────────────────────
-export type PrescriptionType = 'receituario' | 'prontuario' | 'atestado' | 'documento'
+export type PrescriptionType = 'prescription' | 'clinical_record' | 'certificate' | 'document'
 
 export interface PrescribedMedication {
-  nome: string           // "Amoxicilina 500 mg"
-  posologia: string      // "1 cápsula a cada 8h por 7 dias"
-  quantidade?: string    // "1 caixa"
+  name: string           // "Amoxicilina 500 mg"
+  dosage: string      // "1 cápsula a cada 8h por 7 dias"
+  quantity?: string    // "1 caixa"
 }
 
 export interface Prescription {
   id: string
-  pacienteId: string
-  tipo: PrescriptionType
-  titulo: string         // "Receituário", "Atestado — 2 dias", livre no documento
-  data: string           // dd/mm/aaaa
-  profissional?: string
-  medicamentos?: PrescribedMedication[]  // só receituário
-  texto?: string         // prontuário / atestado / documento
-  observacao?: string
+  clinicId: string
+  /** Referência humana sequencial por clínica (REC-000001). */
+  code: string
+  patientId: string
+  type: PrescriptionType
+  title: string         // "Receituário", "Atestado — 2 dias", livre no documento
+  date: string           // dd/mm/aaaa
+  professionalId?: string
+  medications?: PrescribedMedication[]  // só receituário
+  text?: string         // prontuário / atestado / documento
+  notes?: string
 }
 
 // ── Cargos e acesso às páginas (aba do Administrativo) ───────────────────────
 export type AppPage =
-  | 'dashboard' | 'agenda' | 'pacientes' | 'profissionais'
-  | 'financeiro' | 'administrativo' | 'configuracoes'
+  | 'dashboard' | 'schedule' | 'patients' | 'professionals'
+  | 'finance' | 'admin' | 'settings'
 
 export interface Role {
   id: string
-  nome: string
+  clinicId: string
+  name: string
   /** Páginas que o cargo pode acessar (switches da aba Cargos). */
-  paginas: AppPage[]
+  pages: AppPage[]
 }
 
 // ── Comissões dos profissionais (aba do Administrativo) ──────────────────────
-export type CommissionType = 'percentual' | 'valor_fixo'
+export type CommissionType = 'percentage' | 'fixed'
 /** Base do percentual: sobre o que o paciente PAGOU (recebido — protege o
  *  fluxo de caixa) ou sobre a produção (realizado, mesmo sem recebimento). */
-export type CommissionBase = 'recebido' | 'realizado'
-export type CommissionPayout = 'dia_fixo' | 'no_atendimento'
+export type CommissionBase = 'received' | 'performed'
+export type CommissionPayout = 'fixed_day' | 'per_visit'
 
 export interface ProfessionalCommission {
-  profissionalId: string
-  tipo: CommissionType
-  valor: number             // percentual (0–100) ou R$ por procedimento
+  clinicId: string
+  professionalId: string
+  type: CommissionType
+  amount: number             // percentual (0–100) ou R$ por procedimento
   base: CommissionBase
-  repasse: CommissionPayout
-  diaRepasse?: number       // 1–28 (quando repasse = dia_fixo)
+  payout: CommissionPayout
+  payoutDay?: number       // 1–28 (quando repasse = dia_fixo)
   status: ActiveStatus
-  observacao?: string
+  notes?: string
 }
 
 /** Endereço padrão dos cadastros (consultório, responsável…). */
 export interface Address {
   cep: string
-  estado: string         // UF
-  cidade: string
-  bairro: string
-  rua: string
-  numero: string
+  state: string         // UF
+  city: string
+  neighborhood: string
+  street: string
+  number: string
 }
 
 /** Dados do consultório (Administrativo → Inicial, coluna esquerda). */
 export interface ClinicData extends Address {
-  logo?: string          // URL da imagem (upload local no modo mock)
-  nome: string
+  /** O TENANT: é este id que aparece como `clinicId` em todas as outras entidades. */
+  id: string
+  /** Ramo de atuação — define as telas específicas do prontuário. */
+  specialty: ClinicSpecialty
+  photo?: string          // URL da imagem (upload local no modo mock)
+  name: string
   cnpj: string
   email: string
-  telefone: string
+  phone: string
 }
 
 /** Responsável técnico do consultório (Administrativo → Inicial). */
 export interface TechnicalManager extends Address {
-  foto?: string
-  nome: string
-  sobrenome: string
-  sexo?: Gender
-  nascimento?: string    // dd/mm/aaaa
-  telefone: string
+  photo?: string
+  firstName: string
+  lastName: string
+  sex?: Gender
+  birthDate?: string    // dd/mm/aaaa
+  phone: string
   email: string
 }
 
 /** Sala de atendimento (Administrativo → Salas). */
 export interface Room {
   id: string
-  nome: string
-  foto?: string          // URL da imagem (upload local no modo mock)
+  clinicId: string
+  name: string
+  photo?: string          // URL da imagem (upload local no modo mock)
 }
 
 /** Material/insumo de estoque (Administrativo → Materiais). */
 export interface Material {
   id: string
-  nome: string           // ex.: Resina Fotopolimerizável A2
-  foto?: string          // URL da imagem (upload local no modo mock)
-  emEstoque: number
-  qtdMinima: number
-  validade?: string      // dd/mm/aaaa
-  observacao?: string    // ex.: Lote 123
+  clinicId: string
+  name: string           // ex.: Resina Fotopolimerizável A2
+  photo?: string          // URL da imagem (upload local no modo mock)
+  inStock: number
+  minQuantity: number
+  expiryDate?: string      // dd/mm/aaaa
+  notes?: string    // ex.: Lote 123
 }
 
 /** Perfil do usuário logado (exibido no ResumeProfile do Dashboard). */
 export interface UserProfile {
-  id: string             // código de exibição (ex.: NS-00016)
+  id: string
+  clinicId: string
+  code: string         // referência humana exibida (ex.: NS-000016)
   /** Profissional correspondente — liga o usuário logado ao próprio perfil. */
-  profissionalId?: string
-  foto?: string          // URL do avatar (cai nas iniciais quando não houver)
-  nome: string
-  especialidade: string
-  registro: string       // conselho + número (CRM, CRO, CREFITO…)
+  professionalId?: string
+  photo?: string          // URL do avatar (cai nas iniciais quando não houver)
+  name: string
+  specialty: string
+  license: string       // conselho + número (CRM, CRO, CREFITO…)
   email: string
-  telefone: string
-  endereco: string       // logradouro + número/complemento
-  cidade: string         // cidade/UF
+  phone: string
+  address: string       // logradouro + número/complemento
+  city: string         // cidade/UF
   cep: string
-  membroDesde: string    // dd/mm/aaaa
+  memberSince: string    // dd/mm/aaaa
 }
 
 // ── Grade semanal de horários (agenda) ───────────────────────────────────────
-export type ScheduleSlotStatus = 'ativa' | 'cancelada'
+export type ScheduleSlotStatus = 'active' | 'canceled'
 
 export interface ScheduleSlot {
   id: string
-  paciente: string       // nome exibido no card
-  atividade: string      // tipo de atendimento/etiqueta (define a cor; vai no tooltip)
-  diaSemana: number      // 0 = Dom … 6 = Sáb (Date.getDay)
-  horaInicio: string     // '07:00'
-  horaFim: string        // '08:00'
-  profissional: string
-  sala?: string
-  cor?: string           // cor da atividade (hex)
+  clinicId: string
+  patientId: string
+  activity: string      // tipo de atendimento/etiqueta (define a cor; vai no tooltip)
+  weekday: number      // 0 = Dom … 6 = Sáb (Date.getDay)
+  startTime: string     // '07:00'
+  endTime: string        // '08:00'
+  professionalId: string
+  room?: string
+  color?: string           // cor da atividade (hex)
   status: ScheduleSlotStatus
-  observacao?: string
+  notes?: string
   /** Enviar mensagem de confirmação ao paciente. */
-  enviarConfirmacao?: boolean
+  sendConfirmation?: boolean
 }
 
 // ── Documentos do paciente (aba do perfil) ───────────────────────────────────
 export interface PatientDocument {
   id: string
-  pacienteId: string
-  nome: string           // título dado pelo usuário
-  descricao?: string
-  arquivo: string        // nome do arquivo original
-  tipo: string           // extensão (PDF, JPG…)
-  tamanho: string        // "1,2 MB"
-  enviadoEm: string      // dd/mm/aaaa
+  clinicId: string
+  patientId: string
+  name: string           // título dado pelo usuário
+  description?: string
+  fileName: string        // nome do arquivo original
+  type: string           // extensão (PDF, JPG…)
+  size: string        // "1,2 MB"
+  uploadedAt: string      // dd/mm/aaaa
   /** URL de visualização (object URL na sessão; no Supabase, URL do storage). */
   url?: string
 }
 
 // ── Histórico de consultas (timeline do perfil do paciente) ──────────────────
 export interface UsedMaterial {
-  nome: string
-  quantidade: string     // "2 un", "5 ml"…
+  name: string
+  quantity: string     // "2 un", "5 ml"…
 }
 
 export interface AppointmentHistory {
   id: string
-  pacienteId: string
-  data: string           // dd/mm/aaaa
-  hora: string           // HH:mm
-  atendimento: string    // tipo (Consulta clínica, Retorno…)
-  profissional: string
-  procedimentos: string[]          // o que foi feito na consulta
-  materiais?: UsedMaterial[]  // exibidos ao expandir
-  observacao?: string
-  duracao?: string       // "40 min"
+  clinicId: string
+  patientId: string
+  date: string           // dd/mm/aaaa
+  time: string           // HH:mm
+  service: string    // tipo (Consulta clínica, Retorno…)
+  professionalId: string
+  procedures: string[]          // o que foi feito na consulta
+  materials?: UsedMaterial[]  // exibidos ao expandir
+  notes?: string
+  duration?: string       // "40 min"
 }
 
 // ── Tratamentos / odontograma (aba do perfil do paciente) ────────────────────
 /** Situação do tratamento no dente (colore o odontograma). */
-export type ToothStatus = 'em_aberto' | 'finalizado' | 'extraido'
+export type ToothStatus = 'open' | 'finished' | 'extracted'
 
 /** Um PROCEDIMENTO (sessão) de um tratamento — o que foi feito num dia. */
 export interface TreatmentSession {
   id: string
-  descricao?: string     // nome do procedimento (ex.: "Abertura e instrumentação")
-  data: string           // dd/mm/aaaa
-  profissional?: string
-  dentes?: string[]      // dentes trabalhados (FDI)
-  acoes: string[]        // etapas/sinalizações realizadas nesta sessão
-  materiais?: UsedMaterial[]
-  observacao?: string
+  description?: string     // nome do procedimento (ex.: "Abertura e instrumentação")
+  date: string           // dd/mm/aaaa
+  professionalId?: string
+  teeth?: string[]      // dentes trabalhados (FDI)
+  actions: string[]        // etapas/sinalizações realizadas nesta sessão
+  materials?: UsedMaterial[]
+  notes?: string
   /** Valor cobrado por este procedimento — o tratamento soma os valores. */
-  valor?: number
+  amount?: number
   /** Snapshot do odontograma no fim do procedimento — reabre a ficha marcada. */
-  odontograma?: Record<string, unknown>
+  odontogram?: Record<string, unknown>
 }
 
 /**
@@ -422,189 +480,226 @@ export interface TreatmentSession {
  */
 export interface Treatment {
   id: string
-  pacienteId: string
+  clinicId: string
+  patientId: string
   /** Dentes envolvidos (mesclados dos procedimentos; vazio até o 1º). */
-  dente?: string
-  procedimento: string   // nome do tratamento (ex.: "Tratamento de canal")
+  tooth?: string
+  procedure: string   // nome do tratamento (ex.: "Tratamento de canal")
   status: ToothStatus    // em_aberto ("In Process") | finalizado | extraido
-  iniciadoEm: string     // dd/mm/aaaa — criação do tratamento
-  concluidoEm?: string   // dd/mm/aaaa — quando finalizado/extraído
-  observacao?: string
-  sessoes: TreatmentSession[]
+  startedAt: string     // dd/mm/aaaa — criação do tratamento
+  completedAt?: string   // dd/mm/aaaa — quando finalizado/extraído
+  notes?: string
+  sessions: TreatmentSession[]
 }
 
 // ── Pagamentos (aba do perfil do paciente) ───────────────────────────────────
-export type PaymentStatus = 'pago' | 'pendente' | 'vencido' | 'cancelado'
-export type PaymentMethod = 'dinheiro' | 'credito' | 'debito' | 'boleto' | 'cheque' | 'pix' | 'ted'
+export type PaymentStatus = 'paid' | 'pending' | 'overdue' | 'canceled'
+export type PaymentMethod = 'cash' | 'credit' | 'debit' | 'boleto' | 'check' | 'pix' | 'wire'
 
 /** Uma forma de pagamento dentro de um recebimento (pode haver mais de uma). */
 export interface PaymentEntry {
-  tipo: PaymentMethod
-  valor: number          // R$
-  data?: string          // dd/mm/aaaa do recebimento
-  bandeira?: string      // Visa, Mastercard… (cartões)
-  autorizacao?: string   // código de autorização da operadora
+  method: PaymentMethod
+  amount: number          // R$
+  date?: string          // dd/mm/aaaa do recebimento
+  cardBrand?: string      // Visa, Mastercard… (cartões)
+  authorizationCode?: string   // código de autorização da operadora
   nsu?: string           // NSU da transação
-  parcelas?: number      // crédito parcelado
+  installments?: number      // crédito parcelado
 }
 
 /** Item de tratamento cobrado dentro de um pagamento. */
 export interface BilledTreatment {
-  nome: string
-  profissional: string
-  valor: number          // R$
+  name: string
+  professionalId: string
+  amount: number          // R$
 }
 
 export interface Payment {
   id: string
-  pacienteId: string
-  data: string           // dd/mm/aaaa
-  descricao: string      // serviço cobrado
-  valor: number          // total (R$)
+  clinicId: string
+  /** Referência humana sequencial por clínica (PAG-000001). */
+  code: string
+  patientId: string
+  date: string           // dd/mm/aaaa
+  description: string      // serviço cobrado
+  amount: number          // total (R$)
   status: PaymentStatus
-  formas: PaymentEntry[]
+  entries: PaymentEntry[]
   /** Detalhamento dos tratamentos (exibido no modal de pagamento). */
-  tratamentos?: BilledTreatment[]
+  treatments?: BilledTreatment[]
 }
 
 // ── Tarefas (card do Dashboard + kanban) ─────────────────────────────────────
-export type TaskStatus = 'a_fazer' | 'em_andamento' | 'concluida'
-export type TaskPriority = 'alta' | 'media' | 'baixa'
+export type TaskStatus = 'todo' | 'in_progress' | 'done'
+export type TaskPriority = 'high' | 'medium' | 'low'
 
 export interface Task {
   id: string
-  titulo: string
-  prioridade: TaskPriority
-  prazo?: string         // dd/mm
+  clinicId: string
+  title: string
+  priority: TaskPriority
+  dueDate?: string         // dd/mm
   status: TaskStatus
 }
 
 // ── Leads / funil de contatos (kanban) ───────────────────────────────────────
-export type LeadStatus = 'novo_contato' | 'em_negociacao' | 'agendamento' | 'converteu' | 'perdeu'
+export type LeadStatus = 'new' | 'negotiating' | 'scheduling' | 'converted' | 'lost'
 
 export interface Lead {
   id: string
-  nome: string
-  telefone: string
-  origem: string         // Instagram, Google, Indicação, WhatsApp…
-  interesse: string      // serviço de interesse
-  criadoEm: string       // dd/mm
+  clinicId: string
+  name: string
+  phone: string
+  source: string         // Instagram, Google, Indicação, WhatsApp…
+  interest: string      // serviço de interesse
+  createdAt: string       // dd/mm
   status: LeadStatus
 }
 
 // ── Gráfico de consultas (Dashboard) ─────────────────────────────────────────
-export type ChartPeriod = 'semana' | 'mes' | 'ano'
+export type ChartPeriod = 'week' | 'month' | 'year'
 
 /** Um ponto da série do gráfico: rótulo do eixo X + total de consultas. */
 export interface SeriesPoint {
-  rotulo: string
-  valor: number
+  label: string
+  value: number
 }
 
 /** Um ponto da série financeira: ganhos e gastos (R$) no rótulo do eixo X. */
 export interface FinancePoint {
-  rotulo: string
-  ganhos: number
-  gastos: number
+  label: string
+  income: number
+  expenses: number
 }
 
 export interface DashboardStats {
-  consultasHoje: number
-  pacientesAtivos: number
-  confirmacoesPendentes: number
-  receitaMes: string
+  appointmentsToday: number
+  activePatients: number
+  pendingConfirmations: number
+  monthlyRevenue: string
 }
 
 // ── Página Financeiro (caixa, fluxo, contas, bancos e adquirentes) ───────────
 export interface CashMovement {
   id: string
-  nome: string             // pagador/recebedor
-  formaPagamento?: string
-  descricao: string
-  lancamento: string       // dd/mm/aaaa HH:mm
-  tipo: 'entrada' | 'saida'
-  valor: number            // R$ (sempre positivo; o tipo dá o sinal)
+  clinicId: string
+  name: string             // pagador/recebedor
+  paymentMethod?: string
+  description: string
+  postedAt: string       // dd/mm/aaaa HH:mm
+  type: 'inflow' | 'outflow'
+  amount: number            // R$ (sempre positivo; o tipo dá o sinal)
 }
 
 export interface CashFlowDay {
   id: string               // aaaa-mm-dd (ordenável)
-  data: string             // dd/mm/aaaa
-  lancamentos: number
-  entradas: number
-  saidas: number
+  date: string             // dd/mm/aaaa
+  entryCount: number
+  inflows: number
+  outflows: number
 }
 
 export interface Payable {
   id: string
-  descricao: string
-  categoria: string
-  vencimento: string       // dd/mm/aaaa
-  pagamento?: string       // dd/mm/aaaa (quando baixada)
-  fornecedor: string
-  valor: number
+  clinicId: string
+  /** Referência humana sequencial por clínica (CTP-000001). */
+  code: string
+  description: string
+  category: string
+  dueDate: string       // dd/mm/aaaa
+  paidAt?: string       // dd/mm/aaaa (quando baixada)
+  supplier: string
+  amount: number
   status: PaymentStatus
   // Dados da baixa (modal "Confirmar Pagamento").
-  formaPagamento?: PaymentMethod
-  contaBancariaId?: string
-  valorPago?: number
-  observacao?: string
+  paymentMethod?: PaymentMethod
+  bankAccountId?: string
+  paidAmount?: number
+  notes?: string
 }
 
 export interface Receivable {
   id: string
-  descricao: string
-  vencimento: string
-  recebimento?: string     // dd/mm/aaaa (quando quitada)
-  forma?: PaymentMethod
-  origem: string           // Consultas, Convênio, Vendas…
-  valorBruto: number
-  taxa: number             // R$ retido pela adquirente
+  clinicId: string
+  /** Referência humana sequencial por clínica (CTR-000001). */
+  code: string
+  description: string
+  dueDate: string
+  receivedAt?: string     // dd/mm/aaaa (quando quitada)
+  method?: PaymentMethod
+  source: string           // Consultas, Convênio, Vendas, Orçamentos…
+  grossAmount: number
+  fee: number             // R$ retido pela adquirente
   status: PaymentStatus
+  // Origem comercial (parcelas nascidas de um orçamento aprovado).
+  patientId?: string
+  quoteId?: string
+  installmentNumber?: number   // parcela k…
+  installmentCount?: number    // …de N
+  /** Adquirente que processa (cartões) — habilita a conciliação de repasse. */
+  acquirerId?: string
   // Dados da baixa (aceita recebimento PARCIAL: acumula até quitar o líquido).
-  contaBancariaId?: string
-  valorRecebido?: number
-  observacao?: string
+  bankAccountId?: string
+  receivedAmount?: number
+  notes?: string
 }
 
-export type BankAccountType = 'corrente' | 'poupanca' | 'caixa'
+// ── Cobrança de inadimplentes (aba Inadimplência do Financeiro) ──────────────
+export type CollectionChannel = 'whatsapp' | 'phone' | 'email'
+
+/** Uma tentativa de cobrança registrada — a trilha do "já cobramos?". */
+export interface CollectionAttempt {
+  id: string
+  clinicId: string
+  patientId: string
+  date: string             // dd/mm/aaaa
+  channel: CollectionChannel
+  /** Total em aberto no momento da cobrança (congela o contexto histórico). */
+  amountCharged: number
+  notes?: string
+}
+
+export type BankAccountType = 'checking' | 'savings' | 'cash'
 
 export interface BankAccount {
   id: string
-  nome: string             // nome de exibição (ex.: "Inter — Conta PJ")
-  tipo: BankAccountType
-  banco?: string           // vazios quando tipo = caixa (conta interna)
-  agencia?: string
-  conta?: string
-  titular?: string
-  saldo: number            // saldo inicial (R$)
+  clinicId: string
+  name: string             // nome de exibição (ex.: "Inter — Conta PJ")
+  type: BankAccountType
+  bank?: string           // vazios quando tipo = caixa (conta interna)
+  branch?: string
+  accountNumber?: string
+  holder?: string
+  balance: number            // saldo inicial (R$)
   status: ActiveStatus
-  padrao?: boolean         // conta principal de recebimento
-  observacao?: string
+  isDefault?: boolean         // conta principal de recebimento
+  notes?: string
 }
 
 /** Taxa de crédito parcelado da adquirente (% por nº de parcelas). */
 export interface InstallmentRate {
-  parcelas: number
-  taxa: number             // % sobre a venda
+  installments: number
+  fee: number             // % sobre a venda
 }
 
 export interface Acquirer {
   id: string
-  nome: string             // Stone, Cielo…
-  bandeiras: string[]
-  taxaCredito: number      // % por venda no crédito à vista
-  taxaDebito: number       // % por venda no débito
-  taxasParcelas?: InstallmentRate[]   // crédito parcelado (2×, 3×…)
-  prazoRecebimento: number // D+N dias
-  contaRepasseId?: string  // BankAccount que recebe os repasses
+  clinicId: string
+  name: string             // Stone, Cielo…
+  cardBrands: string[]
+  creditFee: number      // % por venda no crédito à vista
+  debitFee: number       // % por venda no débito
+  installmentFees?: InstallmentRate[]   // crédito parcelado (2×, 3×…)
+  settlementDays: number // D+N dias
+  payoutAccountId?: string  // BankAccount que recebe os repasses
   status: ActiveStatus
-  observacao?: string
+  notes?: string
 }
 
 /** Sessão do caixa do dia (aberto/fechado + dados da abertura). */
 export interface CashSession {
-  aberto: boolean
-  operador?: string
-  abertoEm?: string        // dd/mm/aaaa HH:mm
-  valorAbertura: number    // fundo de troco inicial (R$)
+  isOpen: boolean
+  operator?: string
+  openedAt?: string        // dd/mm/aaaa HH:mm
+  openingAmount: number    // fundo de troco inicial (R$)
 }

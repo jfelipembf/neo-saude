@@ -1,5 +1,5 @@
 import {
-  MOCK_WHATSAPP_AUTOMACOES, MOCK_WHATSAPP_CONEXAO, MOCK_WHATSAPP_NUMERO,
+  MOCK_WHATSAPP_AUTOMATIONS, MOCK_WHATSAPP_CONNECTION, MOCK_WHATSAPP_NUMBER,
 } from '@/mocks/whatsapp'
 import type { AutomationTrigger, WhatsAppAutomation, WhatsAppConnection } from '@/types/domain'
 
@@ -9,43 +9,43 @@ import type { AutomationTrigger, WhatsAppAutomation, WhatsAppConnection } from '
 // Cópias ({ ...mock }) para o cache do TanStack Query não apontar para o objeto
 // mutável (senão salvar não re-renderiza quem assina a query).
 
-export async function getConexaoWhatsApp(): Promise<WhatsAppConnection> {
-  return { ...MOCK_WHATSAPP_CONEXAO }
+export async function getWhatsAppConnection(): Promise<WhatsAppConnection> {
+  return { ...MOCK_WHATSAPP_CONNECTION }
 }
 
 /** Simula o pareamento pelo QR: o aparelho "leu" e a sessão subiu. */
-export async function conectarWhatsApp(): Promise<void> {
-  MOCK_WHATSAPP_CONEXAO.status = 'conectado'
-  MOCK_WHATSAPP_CONEXAO.numero = MOCK_WHATSAPP_NUMERO
-  MOCK_WHATSAPP_CONEXAO.conectadoEm = new Date().toLocaleString('pt-BR', {
+export async function connectWhatsApp(): Promise<void> {
+  MOCK_WHATSAPP_CONNECTION.status = 'connected'
+  MOCK_WHATSAPP_CONNECTION.phoneNumber = MOCK_WHATSAPP_NUMBER
+  MOCK_WHATSAPP_CONNECTION.connectedAt = new Date().toLocaleString('pt-BR', {
     dateStyle: 'short', timeStyle: 'short',
   })
 }
 
 /** Encerra a sessão e gera um QR novo para o próximo pareamento. */
-export async function desconectarWhatsApp(): Promise<void> {
-  MOCK_WHATSAPP_CONEXAO.status = 'desconectado'
-  MOCK_WHATSAPP_CONEXAO.numero = undefined
-  MOCK_WHATSAPP_CONEXAO.conectadoEm = undefined
-  MOCK_WHATSAPP_CONEXAO.qrCode = `neo-saude-pareamento-${Date.now()}`
+export async function disconnectWhatsApp(): Promise<void> {
+  MOCK_WHATSAPP_CONNECTION.status = 'disconnected'
+  MOCK_WHATSAPP_CONNECTION.phoneNumber = undefined
+  MOCK_WHATSAPP_CONNECTION.connectedAt = undefined
+  MOCK_WHATSAPP_CONNECTION.qrCode = `neo-saude-pareamento-${Date.now()}`
 }
 
 /** Gera um QR novo sem derrubar a sessão (o anterior expirou). */
-export async function renovarQrWhatsApp(): Promise<void> {
-  MOCK_WHATSAPP_CONEXAO.qrCode = `neo-saude-pareamento-${Date.now()}`
+export async function refreshWhatsAppQr(): Promise<void> {
+  MOCK_WHATSAPP_CONNECTION.qrCode = `neo-saude-pareamento-${Date.now()}`
 }
 
-export async function listAutomacoes(): Promise<WhatsAppAutomation[]> {
-  return MOCK_WHATSAPP_AUTOMACOES.map(a => ({ ...a }))
+export async function listAutomations(): Promise<WhatsAppAutomation[]> {
+  return MOCK_WHATSAPP_AUTOMATIONS.map(a => ({ ...a }))
 }
 
 /** Campos editáveis de uma automação (o gatilho é a chave, não muda). */
-export type EditAutomation = Omit<WhatsAppAutomation, 'gatilho'>
+export type EditAutomation = Omit<WhatsAppAutomation, 'trigger'>
 
-export async function salvarAutomacao(
-  gatilho: AutomationTrigger,
-  dados: EditAutomation,
+export async function saveAutomation(
+  trigger: AutomationTrigger,
+  payload: EditAutomation,
 ): Promise<void> {
-  const indice = MOCK_WHATSAPP_AUTOMACOES.findIndex(a => a.gatilho === gatilho)
-  if (indice >= 0) MOCK_WHATSAPP_AUTOMACOES[indice] = { gatilho, ...dados }
+  const index = MOCK_WHATSAPP_AUTOMATIONS.findIndex(a => a.trigger === trigger)
+  if (index >= 0) MOCK_WHATSAPP_AUTOMATIONS[index] = { trigger, ...payload }
 }

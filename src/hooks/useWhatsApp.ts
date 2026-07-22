@@ -1,51 +1,51 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import {
-  conectarWhatsApp, desconectarWhatsApp, getConexaoWhatsApp, listAutomacoes,
-  renovarQrWhatsApp, salvarAutomacao,
+  connectWhatsApp, disconnectWhatsApp, getWhatsAppConnection, listAutomations,
+  refreshWhatsAppQr, saveAutomation,
 } from '@/services/whatsappService'
 import type { EditAutomation } from '@/services/whatsappService'
 import type { AutomationTrigger } from '@/types/domain'
 
-export function useConexaoWhatsApp() {
-  return useQuery({ queryKey: queryKeys.whatsapp.conexao, queryFn: getConexaoWhatsApp })
+export function useWhatsAppConnection() {
+  return useQuery({ queryKey: queryKeys.whatsapp.connection, queryFn: getWhatsAppConnection })
 }
 
 /** Parear (mock), encerrar a sessão e renovar o QR — todas recarregam a conexão. */
-export function useConectarWhatsApp() {
+export function useConnectWhatsApp() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: conectarWhatsApp,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.conexao }),
+    mutationFn: connectWhatsApp,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.connection }),
   })
 }
 
-export function useDesconectarWhatsApp() {
+export function useDisconnectWhatsApp() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: desconectarWhatsApp,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.conexao }),
+    mutationFn: disconnectWhatsApp,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.connection }),
   })
 }
 
-export function useRenovarQrWhatsApp() {
+export function useRefreshWhatsAppQr() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: renovarQrWhatsApp,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.conexao }),
+    mutationFn: refreshWhatsAppQr,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.connection }),
   })
 }
 
-export function useAutomacoes() {
-  return useQuery({ queryKey: queryKeys.whatsapp.automacoes, queryFn: listAutomacoes })
+export function useAutomations() {
+  return useQuery({ queryKey: queryKeys.whatsapp.automations, queryFn: listAutomations })
 }
 
 /** Salva uma automação (liga/desliga, texto, horário) e recarrega a lista. */
-export function useSalvarAutomacao() {
+export function useSaveAutomation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ gatilho, dados }: { gatilho: AutomationTrigger; dados: EditAutomation }) =>
-      salvarAutomacao(gatilho, dados),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.automacoes }),
+    mutationFn: ({ trigger, payload }: { trigger: AutomationTrigger; payload: EditAutomation }) =>
+      saveAutomation(trigger, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.automations }),
   })
 }

@@ -1,4 +1,4 @@
-import { IconChevronEsquerda, IconChevronDireita } from '@/components/icons'
+import { IconChevronLeft, IconChevronRight } from '@/components/icons'
 import { DAY_OF_WEEK_SHORT } from '@/constants'
 import { toShortDate } from '@/utils/date'
 import styles from './WeekNavigator.module.scss'
@@ -31,20 +31,20 @@ export function WeekNavigator({ date, view, onChange }: WeekNavigatorProps) {
   if (view === 'day') {
     label = `${DAY_OF_WEEK_SHORT[date.getDay()]}, ${toShortDate(date)}`
   } else {
-    const inicio = startOfWeek(date)
-    const fim = new Date(inicio)
-    fim.setDate(inicio.getDate() + 6)
-    label = `${toShortDate(inicio)} – ${toShortDate(fim)}`
+    const start = startOfWeek(date)
+    const end = new Date(start)
+    end.setDate(start.getDate() + 6)
+    label = `${toShortDate(start)} – ${toShortDate(end)}`
   }
 
   return (
     <div className={styles.nav}>
       <button type="button" className={styles.btn} onClick={() => shift(-1)} aria-label="Anterior">
-        <IconChevronEsquerda />
+        <IconChevronLeft />
       </button>
       <span className={styles.label}>{label}</span>
       <button type="button" className={styles.btn} onClick={() => shift(1)} aria-label="Próximo">
-        <IconChevronDireita />
+        <IconChevronRight />
       </button>
     </div>
   )

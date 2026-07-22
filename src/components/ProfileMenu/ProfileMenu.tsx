@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useSession } from '@/context/SessionProvider'
-import { useUsuarioLogado } from '@/hooks/useUsuario'
+import { useCurrentUser } from '@/hooks/useUser'
 import { useOutsideClick } from '@/hooks/useOutsideClick'
 import { APP_ROUTES, buildRoute } from '@/constants'
 import { initials } from '@/utils/text'
-import { IconUsuario, IconConfiguracoes, IconSair, IconChevronBaixo } from '@/components/icons'
+import { IconUser, IconSettings, IconLogout, IconChevronDown } from '@/components/icons'
 import styles from './ProfileMenu.module.scss'
 
 /** Identidade do usuário logado no canto direito: foto, nome e e-mail, com o
@@ -13,23 +13,23 @@ import styles from './ProfileMenu.module.scss'
 export function ProfileMenu() {
   const navigate = useNavigate()
   const { signOut } = useSession()
-  const { data: usuario } = useUsuarioLogado()
+  const { data: user } = useCurrentUser()
 
-  const [aberto, setAberto] = useState(false)
-  const ref = useOutsideClick<HTMLDivElement>(() => setAberto(false), aberto)
+  const [open, setOpen] = useState(false)
+  const ref = useOutsideClick<HTMLDivElement>(() => setOpen(false), open)
 
-  if (!usuario) return null
+  if (!user) return null
 
-  const avatar = usuario.foto
-    ? <img src={usuario.foto} alt="" className={styles.avatarImg} />
-    : <span className={styles.avatarIniciais}>{initials(usuario.nome)}</span>
+  const avatar = user.photo
+    ? <img src={user.photo} alt="" className={styles.avatarImg} />
+    : <span className={styles.avatarIniciais}>{initials(user.name)}</span>
 
   /** Perfil do profissional correspondente; sem vínculo, cai nas configurações. */
-  function irParaPerfil() {
-    setAberto(false)
-    navigate(usuario!.profissionalId
-      ? buildRoute.profissionalPerfil(usuario!.profissionalId)
-      : APP_ROUTES.CONFIGURACOES)
+  function goToProfile() {
+    setOpen(false)
+    navigate(user!.professionalId
+      ? buildRoute.professionalProfile(user!.professionalId)
+      : APP_ROUTES.SETTINGS)
   }
 
   return (
@@ -37,46 +37,46 @@ export function ProfileMenu() {
       <button
         type="button"
         className={styles.gatilho}
-        onClick={() => setAberto(a => !a)}
+        onClick={() => setOpen(o => !o)}
         aria-haspopup="menu"
-        aria-expanded={aberto}
-        aria-label={`Menu de ${usuario.nome}`}
+        aria-expanded={open}
+        aria-label={`Menu de ${user.name}`}
       >
         <span className={styles.avatar}>{avatar}</span>
         {/* Nome e e-mail somem no mobile — sobra só a foto. */}
         <span className={styles.identidade}>
-          <span className={styles.nome}>{usuario.nome}</span>
-          <span className={styles.email}>{usuario.email}</span>
+          <span className={styles.nome}>{user.name}</span>
+          <span className={styles.email}>{user.email}</span>
         </span>
-        <span className={`${styles.chevron} ${aberto ? styles['chevron--aberto'] : ''}`}>
-          <IconChevronBaixo />
+        <span className={`${styles.chevron} ${open ? styles['chevron--aberto'] : ''}`}>
+          <IconChevronDown />
         </span>
       </button>
 
-      {aberto && (
+      {open && (
         <div className={styles.menu} role="menu">
           {/* Repete a identidade: no mobile o gatilho mostra só a foto. */}
           <div className={styles.menuHead}>
             <span className={styles.avatarGrande}>{avatar}</span>
             <span className={styles.menuIdentidade}>
-              <span className={styles.nome}>{usuario.nome}</span>
-              <span className={styles.email}>{usuario.email}</span>
+              <span className={styles.nome}>{user.name}</span>
+              <span className={styles.email}>{user.email}</span>
             </span>
           </div>
 
           <div className={styles.menuLista}>
-            <button type="button" className={styles.item} role="menuitem" onClick={irParaPerfil}>
-              <IconUsuario />
+            <button type="button" className={styles.item} role="menuitem" onClick={goToProfile}>
+              <IconUser />
               Meu perfil
             </button>
 
             <NavLink
-              to={APP_ROUTES.CONFIGURACOES}
+              to={APP_ROUTES.SETTINGS}
               className={styles.item}
               role="menuitem"
-              onClick={() => setAberto(false)}
+              onClick={() => setOpen(false)}
             >
-              <IconConfiguracoes />
+              <IconSettings />
               Configurações
             </NavLink>
 
@@ -84,9 +84,9 @@ export function ProfileMenu() {
               type="button"
               className={`${styles.item} ${styles['item--sair']}`}
               role="menuitem"
-              onClick={() => { setAberto(false); void signOut() }}
+              onClick={() => { setOpen(false); void signOut() }}
             >
-              <IconSair />
+              <IconLogout />
               Sair
             </button>
           </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { IconChevronEsquerda, IconChevronDireita } from '@/components/icons'
+import { IconChevronLeft, IconChevronRight } from '@/components/icons'
 import { toIsoDate } from '@/utils/date'
 import styles from './Calendar.module.scss'
 
@@ -40,11 +40,11 @@ export function Calendar({ markedDates = [], selected, onSelect, size = 'md' }: 
     <div className={`${styles.calendar} ${size === 'lg' ? styles['calendar--lg'] : ''}`}>
       <header className={styles.header}>
         <button type="button" className={styles.navBtn} onClick={() => changeMonth(-1)} aria-label="Mês anterior">
-          <IconChevronEsquerda />
+          <IconChevronLeft />
         </button>
         <span className={styles.month}>{monthLabel}</span>
         <button type="button" className={styles.navBtn} onClick={() => changeMonth(1)} aria-label="Próximo mês">
-          <IconChevronDireita />
+          <IconChevronRight />
         </button>
       </header>
 

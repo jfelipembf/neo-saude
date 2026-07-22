@@ -4,7 +4,7 @@ import { STATUS_MAP } from './statusMap'
 export type { BadgeVariant } from './statusMap'
 
 interface BadgeProps {
-  /** Status do domínio (ex.: 'agendada', 'pago') — resolvido via STATUS_MAP. */
+  /** Status do domínio (ex.: 'scheduled', 'paid') — resolvido via STATUS_MAP. */
   status: string
   /** Rótulo custom (senão usa o do STATUS_MAP ou o próprio status). */
   label?: string

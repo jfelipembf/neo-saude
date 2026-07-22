@@ -6,37 +6,37 @@ import { Modal } from '@/components/Modal/Modal'
 import { PhotoInput } from '@/components/PhotoInput/PhotoInput'
 import { Select } from '@/components/Select/Select'
 import { useToast } from '@/components/Toast/useToast'
-import { useSalvarResponsavel } from '@/hooks/useConsultorio'
-import { OPCOES_SEXO } from '@/constants'
+import { useSaveTechnicalManager } from '@/hooks/useClinic'
+import { SEX_OPTIONS } from '@/constants'
 import type { Address, Gender, TechnicalManager } from '@/types/domain'
 import { AddressFields } from './AddressFields'
 import styles from './AccountTab.module.scss'
 
 interface ResponsibleFormModalProps {
-  responsavel: TechnicalManager
+  manager: TechnicalManager
   onClose: () => void
 }
 
 /** Modal de edição do responsável técnico: foto, dados pessoais e endereço. */
-export function ResponsibleFormModal({ responsavel, onClose }: ResponsibleFormModalProps) {
+export function ResponsibleFormModal({ manager, onClose }: ResponsibleFormModalProps) {
   const toast = useToast()
-  const { mutate: salvar, isPending: salvando } = useSalvarResponsavel()
+  const { mutate: save, isPending: saving } = useSaveTechnicalManager()
 
-  const [form, setForm] = useState<TechnicalManager>(responsavel)
-  const [erroNome, setErroNome] = useState('')
+  const [form, setForm] = useState<TechnicalManager>(manager)
+  const [nameError, setNameError] = useState('')
 
-  const set = (campo: keyof TechnicalManager) => (valor: string | undefined) => {
-    setForm(atual => ({ ...atual, [campo]: valor }))
-    if (campo === 'nome') setErroNome('')
+  const set = (field: keyof TechnicalManager) => (value: string | undefined) => {
+    setForm(current => ({ ...current, [field]: value }))
+    if (field === 'firstName') setNameError('')
   }
 
-  function aoSalvar(e: FormEvent) {
+  function handleSave(e: FormEvent) {
     e.preventDefault()
-    if (!form.nome.trim()) {
-      setErroNome('Informe o nome do responsável.')
+    if (!form.firstName.trim()) {
+      setNameError('Informe o nome do responsável.')
       return
     }
-    salvar(form, {
+    save(form, {
       onSuccess: () => {
         toast.success('Responsável técnico salvo!')
         onClose()
@@ -51,52 +51,52 @@ export function ResponsibleFormModal({ responsavel, onClose }: ResponsibleFormMo
       title="Responsável técnico"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={salvando}>Cancelar</Button>
-          <Button type="submit" form="form-responsavel" loading={salvando}>Salvar</Button>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button type="submit" form="form-responsavel" loading={saving}>Salvar</Button>
         </>
       }
     >
-      <form id="form-responsavel" className={styles.form} onSubmit={aoSalvar}>
+      <form id="form-responsavel" className={styles.form} onSubmit={handleSave}>
         <PhotoInput
           label="Foto"
-          value={form.foto}
-          onChange={url => setForm(atual => ({ ...atual, foto: url }))}
+          value={form.photo}
+          onChange={url => setForm(current => ({ ...current, photo: url }))}
         />
 
         <div className={styles.grid2}>
           <Input
             label="Nome"
-            value={form.nome}
-            onChange={e => set('nome')(e.target.value)}
-            error={erroNome}
+            value={form.firstName}
+            onChange={e => set('firstName')(e.target.value)}
+            error={nameError}
           />
-          <Input label="Sobrenome" value={form.sobrenome} onChange={e => set('sobrenome')(e.target.value)} />
+          <Input label="Sobrenome" value={form.lastName} onChange={e => set('lastName')(e.target.value)} />
         </div>
 
         <div className={styles.grid2}>
           <Select
             label="Sexo"
-            options={OPCOES_SEXO}
+            options={SEX_OPTIONS}
             placeholder="Selecione..."
-            value={form.sexo ?? ''}
-            onChange={e => set('sexo')(e.target.value as Gender)}
+            value={form.sex ?? ''}
+            onChange={e => set('sex')(e.target.value as Gender)}
           />
           <Input
             label="Nascimento"
             placeholder="dd/mm/aaaa"
-            value={form.nascimento ?? ''}
-            onChange={e => set('nascimento')(e.target.value)}
+            value={form.birthDate ?? ''}
+            onChange={e => set('birthDate')(e.target.value)}
           />
         </div>
 
         <div className={styles.grid2}>
-          <Input label="Telefone" type="tel" value={form.telefone} onChange={e => set('telefone')(e.target.value)} />
+          <Input label="Telefone" type="tel" value={form.phone} onChange={e => set('phone')(e.target.value)} />
           <Input label="E-mail" type="email" value={form.email} onChange={e => set('email')(e.target.value)} />
         </div>
 
         <AddressFields
           value={form}
-          onChange={(campo: keyof Address, valor) => set(campo)(valor)}
+          onChange={(field: keyof Address, value) => set(field)(value)}
         />
       </form>
     </Modal>

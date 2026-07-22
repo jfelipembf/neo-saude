@@ -7,34 +7,34 @@ import { useEffect, useRef } from 'react'
  * const ref = useOutsideClick<HTMLDivElement>(() => setAberto(false), aberto)
  * <div ref={ref}>…</div>
  */
-export function useOutsideClick<T extends HTMLElement>(aoFechar: () => void, ativo = true) {
+export function useOutsideClick<T extends HTMLElement>(onClose: () => void, active = true) {
   const ref = useRef<T>(null)
   // Guarda o callback numa ref: trocar de função a cada render não deve
   // reassinar os listeners. A escrita vai num efeito — mexer em ref durante
   // o render quebra as regras dos hooks.
-  const callback = useRef(aoFechar)
+  const callback = useRef(onClose)
   useEffect(() => {
-    callback.current = aoFechar
+    callback.current = onClose
   })
 
   useEffect(() => {
-    if (!ativo) return
+    if (!active) return
 
-    function aoClicar(e: MouseEvent) {
+    function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) callback.current()
     }
-    function aoTeclar(e: KeyboardEvent) {
+    function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') callback.current()
     }
 
     // `mousedown` (e não `click`): fecha antes de o clique virar outra ação.
-    document.addEventListener('mousedown', aoClicar)
-    document.addEventListener('keydown', aoTeclar)
+    document.addEventListener('mousedown', handleClick)
+    document.addEventListener('keydown', handleKeyDown)
     return () => {
-      document.removeEventListener('mousedown', aoClicar)
-      document.removeEventListener('keydown', aoTeclar)
+      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [ativo])
+  }, [active])
 
   return ref
 }

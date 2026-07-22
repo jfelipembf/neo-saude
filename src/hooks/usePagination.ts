@@ -5,18 +5,18 @@ import { useState } from 'react'
  * A lista pode encolher (busca, filtro, exclusão) — a página atual é sempre
  * ajustada para nunca cair numa página que não existe mais.
  */
-export function usePagination<T>(itens: T[], porPaginaInicial = 5) {
-  const [pagina, setPagina] = useState(1)
-  const [porPagina, setPorPagina] = useState(porPaginaInicial)
+export function usePagination<T>(items: T[], initialPerPage = 5) {
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPageState] = useState(initialPerPage)
 
-  const totalPaginas = Math.max(1, Math.ceil(itens.length / porPagina))
-  const paginaAtual = Math.min(pagina, totalPaginas)
-  const visiveis = itens.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina)
+  const totalPages = Math.max(1, Math.ceil(items.length / perPage))
+  const currentPage = Math.min(page, totalPages)
+  const visible = items.slice((currentPage - 1) * perPage, currentPage * perPage)
 
-  function mudarPorPagina(n: number) {
-    setPorPagina(n)
-    setPagina(1)
+  function setPerPage(n: number) {
+    setPerPageState(n)
+    setPage(1)
   }
 
-  return { visiveis, paginaAtual, totalPaginas, porPagina, total: itens.length, setPagina, mudarPorPagina }
+  return { visible, currentPage, totalPages, perPage, total: items.length, setPage, setPerPage }
 }

@@ -10,164 +10,164 @@ import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { useToast } from '@/components/Toast/useToast'
-import { IconDocumento, IconUpload, IconOlho, IconX, IconEditar, IconLixeira } from '@/components/icons'
+import { IconDocument, IconUpload, IconEye, IconX, IconEdit, IconTrash } from '@/components/icons'
 import {
-  useDocumentosDoPaciente, useEnviarDocumento, useAtualizarDocumento, useExcluirDocumento,
-} from '@/hooks/useDocumentos'
+  usePatientDocuments, useUploadDocument, useUpdateDocument, useDeleteDocument,
+} from '@/hooks/useDocuments'
 import type { PatientDocument } from '@/types/domain'
 import styles from './DocumentsUpload.module.scss'
 
-const EXTENSOES_IMAGEM = ['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP']
+const IMAGE_EXTENSIONS = ['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP']
 
 /** 1234567 → "1,2 MB" */
-function formatarTamanho(bytes: number) {
+function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
   return `${(bytes / (1024 * 1024)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`
 }
 
 /** 'exames-jun.pdf' → 'PDF' */
-function extensao(nomeArquivo: string) {
-  const partes = nomeArquivo.split('.')
-  return partes.length > 1 ? partes[partes.length - 1].toUpperCase() : 'ARQ'
+function fileExtension(fileName: string) {
+  const parts = fileName.split('.')
+  return parts.length > 1 ? parts[parts.length - 1].toUpperCase() : 'ARQ'
 }
 
 interface DocumentsUploadProps {
-  pacienteId: string
+  patientId: string
 }
 
 /** Upload de documentos do paciente (nome + descrição) e lista dos já enviados. */
-export function DocumentsUpload({ pacienteId }: DocumentsUploadProps) {
+export function DocumentsUpload({ patientId }: DocumentsUploadProps) {
   const toast = useToast()
   const inputRef = useRef<HTMLInputElement>(null)
-  const { data: documentos, isLoading } = useDocumentosDoPaciente(pacienteId)
-  const { mutate: enviar, isPending: enviando } = useEnviarDocumento()
-  const { mutate: atualizar, isPending: salvando } = useAtualizarDocumento()
-  const { mutate: excluir } = useExcluirDocumento()
+  const { data: documents, isLoading } = usePatientDocuments(patientId)
+  const { mutate: upload, isPending: uploading } = useUploadDocument()
+  const { mutate: update, isPending: saving } = useUpdateDocument()
+  const { mutate: remove } = useDeleteDocument()
 
-  const [arquivo, setArquivo] = useState<File | null>(null)
-  const [nome, setNome] = useState('')
-  const [descricao, setDescricao] = useState('')
-  const [erro, setErro] = useState('')
-  const [arrastando, setArrastando] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [error, setError] = useState('')
+  const [dragging, setDragging] = useState(false)
 
   // Ações da lista: ver, editar e excluir.
-  const [vendo, setVendo] = useState<PatientDocument | null>(null)
-  const [editando, setEditando] = useState<PatientDocument | null>(null)
-  const [nomeEdicao, setNomeEdicao] = useState('')
-  const [descricaoEdicao, setDescricaoEdicao] = useState('')
-  const [erroEdicao, setErroEdicao] = useState('')
-  const [excluindo, setExcluindo] = useState<PatientDocument | null>(null)
-  const [pagina, setPagina] = useState(1)
-  const [porPagina, setPorPagina] = useState(5)
+  const [viewing, setViewing] = useState<PatientDocument | null>(null)
+  const [editing, setEditing] = useState<PatientDocument | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editError, setEditError] = useState('')
+  const [deleting, setDeleting] = useState<PatientDocument | null>(null)
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(5)
 
-  function selecionar(file: File) {
-    setArquivo(file)
-    setErro('')
+  function selectFile(file: File) {
+    setFile(file)
+    setError('')
     // O nome do arquivo vira sugestão de título (editável).
-    if (!nome.trim()) setNome(file.name.replace(/\.[^.]+$/, ''))
+    if (!name.trim()) setName(file.name.replace(/\.[^.]+$/, ''))
   }
 
-  function aoSoltar(e: DragEvent) {
+  function handleDrop(e: DragEvent) {
     e.preventDefault()
-    setArrastando(false)
+    setDragging(false)
     const file = e.dataTransfer.files[0]
-    if (file) selecionar(file)
+    if (file) selectFile(file)
   }
 
-  function limpar() {
-    setArquivo(null)
-    setNome('')
-    setDescricao('')
-    setErro('')
+  function clearForm() {
+    setFile(null)
+    setName('')
+    setDescription('')
+    setError('')
     if (inputRef.current) inputRef.current.value = ''
   }
 
-  function aoEnviar(e: FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!arquivo) {
-      setErro('Escolha um arquivo para enviar.')
+    if (!file) {
+      setError('Escolha um arquivo para enviar.')
       return
     }
-    if (!nome.trim()) {
-      setErro('Dê um nome ao documento.')
+    if (!name.trim()) {
+      setError('Dê um nome ao documento.')
       return
     }
-    enviar(
+    upload(
       {
-        pacienteId,
-        nome: nome.trim(),
-        descricao: descricao.trim() || undefined,
-        arquivo: arquivo.name,
-        tipo: extensao(arquivo.name),
-        tamanho: formatarTamanho(arquivo.size),
-        url: URL.createObjectURL(arquivo),
+        patientId,
+        name: name.trim(),
+        description: description.trim() || undefined,
+        fileName: file.name,
+        type: fileExtension(file.name),
+        size: formatSize(file.size),
+        url: URL.createObjectURL(file),
       },
       {
         onSuccess: () => {
           toast.success('Documento enviado!')
-          limpar()
-          setPagina(1)   // o documento novo entra no topo da primeira página
+          clearForm()
+          setPage(1)   // o documento novo entra no topo da primeira página
         },
       },
     )
   }
 
-  function abrirEdicao(doc: PatientDocument) {
-    setEditando(doc)
-    setNomeEdicao(doc.nome)
-    setDescricaoEdicao(doc.descricao ?? '')
-    setErroEdicao('')
+  function openEdit(doc: PatientDocument) {
+    setEditing(doc)
+    setEditName(doc.name)
+    setEditDescription(doc.description ?? '')
+    setEditError('')
   }
 
-  function salvarEdicao(e: FormEvent) {
+  function saveEdit(e: FormEvent) {
     e.preventDefault()
-    if (!editando) return
-    if (!nomeEdicao.trim()) {
-      setErroEdicao('Dê um nome ao documento.')
+    if (!editing) return
+    if (!editName.trim()) {
+      setEditError('Dê um nome ao documento.')
       return
     }
-    atualizar(
-      { id: editando.id, dados: { nome: nomeEdicao.trim(), descricao: descricaoEdicao.trim() || undefined } },
+    update(
+      { id: editing.id, payload: { name: editName.trim(), description: editDescription.trim() || undefined } },
       {
         onSuccess: () => {
           toast.success('Documento atualizado!')
-          setEditando(null)
+          setEditing(null)
         },
       },
     )
   }
 
-  function confirmarExclusao() {
-    if (!excluindo) return
-    excluir(excluindo.id, { onSuccess: () => toast.success('Documento excluído.') })
+  function confirmDelete() {
+    if (!deleting) return
+    remove(deleting.id, { onSuccess: () => toast.success('Documento excluído.') })
   }
 
-  const lista = documentos ?? []
-  const vendoEhImagem = vendo?.url && EXTENSOES_IMAGEM.includes(vendo.tipo)
+  const list = documents ?? []
+  const isViewingImage = viewing?.url && IMAGE_EXTENSIONS.includes(viewing.type)
 
-  const totalPaginas = Math.max(1, Math.ceil(lista.length / porPagina))
+  const totalPages = Math.max(1, Math.ceil(list.length / perPage))
   // Excluir pode encolher a lista: nunca fica numa página que não existe mais.
-  const paginaAtual = Math.min(pagina, totalPaginas)
-  const visiveis = lista.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina)
+  const currentPage = Math.min(page, totalPages)
+  const visible = list.slice((currentPage - 1) * perPage, currentPage * perPage)
 
   return (
     <div className={styles.root}>
       {/* ── Formulário de envio ── */}
-      <form className={styles.form} onSubmit={aoEnviar}>
+      <form className={styles.form} onSubmit={handleSubmit}>
         <button
           type="button"
-          className={`${styles.zona} ${arrastando ? styles['zona--ativa'] : ''}`}
+          className={`${styles.zona} ${dragging ? styles['zona--ativa'] : ''}`}
           onClick={() => inputRef.current?.click()}
-          onDragOver={e => { e.preventDefault(); setArrastando(true) }}
-          onDragLeave={() => setArrastando(false)}
-          onDrop={aoSoltar}
+          onDragOver={e => { e.preventDefault(); setDragging(true) }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
           aria-label="Escolher arquivo para enviar"
         >
           <IconUpload />
-          {arquivo ? (
+          {file ? (
             <span className={styles.zonaArquivo}>
-              {arquivo.name} <em>({formatarTamanho(arquivo.size)})</em>
+              {file.name} <em>({formatSize(file.size)})</em>
             </span>
           ) : (
             <span className={styles.zonaTexto}>
@@ -179,7 +179,7 @@ export function DocumentsUpload({ pacienteId }: DocumentsUploadProps) {
           ref={inputRef}
           type="file"
           className={styles.inputArquivo}
-          onChange={e => { const f = e.target.files?.[0]; if (f) selecionar(f) }}
+          onChange={e => { const f = e.target.files?.[0]; if (f) selectFile(f) }}
           tabIndex={-1}
           aria-hidden="true"
         />
@@ -187,25 +187,25 @@ export function DocumentsUpload({ pacienteId }: DocumentsUploadProps) {
         <Input
           label="Nome do documento"
           placeholder="Ex.: Resultado de exames"
-          value={nome}
-          onChange={e => { setNome(e.target.value); setErro('') }}
-          error={erro}
+          value={name}
+          onChange={e => { setName(e.target.value); setError('') }}
+          error={error}
         />
         <Textarea
           label="Descrição"
           rows={3}
           placeholder="Contexto do documento (opcional)."
-          value={descricao}
-          onChange={e => setDescricao(e.target.value)}
+          value={description}
+          onChange={e => setDescription(e.target.value)}
         />
 
         <div className={styles.acoes}>
-          {arquivo && (
-            <Button variant="ghost" iconLeft={<IconX />} onClick={limpar} disabled={enviando}>
+          {file && (
+            <Button variant="ghost" iconLeft={<IconX />} onClick={clearForm} disabled={uploading}>
               Limpar
             </Button>
           )}
-          <Button type="submit" iconLeft={<IconUpload />} loading={enviando}>
+          <Button type="submit" iconLeft={<IconUpload />} loading={uploading}>
             Enviar documento
           </Button>
         </div>
@@ -214,7 +214,7 @@ export function DocumentsUpload({ pacienteId }: DocumentsUploadProps) {
       {/* ── Documentos enviados ── */}
       {isLoading ? (
         <div className={styles.loading}><Spinner /></div>
-      ) : lista.length === 0 ? (
+      ) : list.length === 0 ? (
         <EmptyState
           title="Nenhum documento"
           description="Exames, atestados e anexos enviados aparecerão aqui."
@@ -223,41 +223,41 @@ export function DocumentsUpload({ pacienteId }: DocumentsUploadProps) {
         <div className={styles.listaCard}>
           <div className={styles.listaToolbar}>
             <PerPageSelect
-              porPagina={porPagina}
-              onChange={n => { setPorPagina(n); setPagina(1) }}
+              perPage={perPage}
+              onChange={n => { setPerPage(n); setPage(1) }}
               ariaLabel="Documentos por página"
             />
           </div>
 
           <ul className={styles.lista}>
-          {visiveis.map(doc => (
+          {visible.map(doc => (
             <li key={doc.id} className={styles.documento}>
-              <span className={styles.docIcone}><IconDocumento /></span>
+              <span className={styles.docIcone}><IconDocument /></span>
 
               <div className={styles.docInfo}>
-                <span className={styles.docNome}>{doc.nome}</span>
-                {doc.descricao && <span className={styles.docDescricao}>{doc.descricao}</span>}
+                <span className={styles.docNome}>{doc.name}</span>
+                {doc.description && <span className={styles.docDescricao}>{doc.description}</span>}
                 <span className={styles.docMeta}>
-                  {doc.tipo} · {doc.tamanho} · enviado em {doc.enviadoEm}
+                  {doc.type} · {doc.size} · enviado em {doc.uploadedAt}
                 </span>
               </div>
 
               <span className={styles.docAcoes}>
                 <Button
-                  variant="ghost" size="sm" iconLeft={<IconOlho />}
-                  title="Ver documento" aria-label={`Ver ${doc.nome}`}
-                  onClick={() => setVendo(doc)}
+                  variant="ghost" size="sm" iconLeft={<IconEye />}
+                  title="Ver documento" aria-label={`Ver ${doc.name}`}
+                  onClick={() => setViewing(doc)}
                 />
                 <Button
-                  variant="ghost" size="sm" iconLeft={<IconEditar />}
-                  title="Editar documento" aria-label={`Editar ${doc.nome}`}
-                  onClick={() => abrirEdicao(doc)}
+                  variant="ghost" size="sm" iconLeft={<IconEdit />}
+                  title="Editar documento" aria-label={`Editar ${doc.name}`}
+                  onClick={() => openEdit(doc)}
                 />
                 <Button
-                  variant="ghost" size="sm" iconLeft={<IconLixeira />}
+                  variant="ghost" size="sm" iconLeft={<IconTrash />}
                   className={styles.excluirBtn}
-                  title="Excluir documento" aria-label={`Excluir ${doc.nome}`}
-                  onClick={() => setExcluindo(doc)}
+                  title="Excluir documento" aria-label={`Excluir ${doc.name}`}
+                  onClick={() => setDeleting(doc)}
                 />
               </span>
             </li>
@@ -266,11 +266,11 @@ export function DocumentsUpload({ pacienteId }: DocumentsUploadProps) {
 
           <div className={styles.rodape}>
             <Pagination
-              page={paginaAtual}
-              totalPages={totalPaginas}
-              onChange={setPagina}
-              totalItems={lista.length}
-              itemsPerPage={porPagina}
+              page={currentPage}
+              totalPages={totalPages}
+              onChange={setPage}
+              totalItems={list.length}
+              itemsPerPage={perPage}
             />
           </div>
         </div>
@@ -278,40 +278,40 @@ export function DocumentsUpload({ pacienteId }: DocumentsUploadProps) {
 
       {/* ── Ver: pré-visualização com a descrição abaixo ── */}
       <Modal
-        open={vendo !== null}
-        onClose={() => setVendo(null)}
-        title={vendo?.nome}
+        open={viewing !== null}
+        onClose={() => setViewing(null)}
+        title={viewing?.name}
         footer={
           <>
-            {vendo?.url && (
-              <Button variant="outline" onClick={() => window.open(vendo.url, '_blank', 'noopener')}>
+            {viewing?.url && (
+              <Button variant="outline" onClick={() => window.open(viewing.url, '_blank', 'noopener')}>
                 Abrir em nova aba
               </Button>
             )}
-            <Button variant="ghost" onClick={() => setVendo(null)}>Fechar</Button>
+            <Button variant="ghost" onClick={() => setViewing(null)}>Fechar</Button>
           </>
         }
       >
-        {vendo && (
+        {viewing && (
           <div className={styles.visualizacao}>
-            {vendoEhImagem ? (
-              <img className={styles.preview} src={vendo.url} alt={vendo.nome} />
-            ) : vendo.url ? (
-              <iframe className={styles.previewFrame} src={vendo.url} title={vendo.nome} />
+            {isViewingImage ? (
+              <img className={styles.preview} src={viewing.url} alt={viewing.name} />
+            ) : viewing.url ? (
+              <iframe className={styles.previewFrame} src={viewing.url} title={viewing.name} />
             ) : (
               <div className={styles.previewVazio}>
-                <IconDocumento />
-                <span>{vendo.arquivo}</span>
+                <IconDocument />
+                <span>{viewing.fileName}</span>
               </div>
             )}
 
             <div className={styles.visualizacaoBloco}>
               <h4>Descrição</h4>
-              <p>{vendo.descricao || 'Sem descrição.'}</p>
+              <p>{viewing.description || 'Sem descrição.'}</p>
             </div>
 
             <span className={styles.visualizacaoMeta}>
-              {vendo.tipo} · {vendo.tamanho} · enviado em {vendo.enviadoEm}
+              {viewing.type} · {viewing.size} · enviado em {viewing.uploadedAt}
             </span>
           </div>
         )}
@@ -319,42 +319,42 @@ export function DocumentsUpload({ pacienteId }: DocumentsUploadProps) {
 
       {/* ── Editar: nome e descrição ── */}
       <Modal
-        open={editando !== null}
-        onClose={() => setEditando(null)}
+        open={editing !== null}
+        onClose={() => setEditing(null)}
         title="Editar documento"
         size="sm"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setEditando(null)} disabled={salvando}>Cancelar</Button>
-            <Button type="submit" form="form-editar-documento" loading={salvando}>Salvar</Button>
+            <Button variant="ghost" onClick={() => setEditing(null)} disabled={saving}>Cancelar</Button>
+            <Button type="submit" form="form-edit-document" loading={saving}>Salvar</Button>
           </>
         }
       >
-        <form id="form-editar-documento" className={styles.formEdicao} onSubmit={salvarEdicao}>
+        <form id="form-edit-document" className={styles.formEdicao} onSubmit={saveEdit}>
           <Input
             label="Nome do documento"
-            value={nomeEdicao}
-            onChange={e => { setNomeEdicao(e.target.value); setErroEdicao('') }}
-            error={erroEdicao}
+            value={editName}
+            onChange={e => { setEditName(e.target.value); setEditError('') }}
+            error={editError}
             autoFocus
           />
           <Textarea
             label="Descrição"
             rows={3}
-            value={descricaoEdicao}
-            onChange={e => setDescricaoEdicao(e.target.value)}
+            value={editDescription}
+            onChange={e => setEditDescription(e.target.value)}
           />
         </form>
       </Modal>
 
       {/* ── Excluir: confirmação reutilizável ── */}
       <ConfirmDialog
-        open={excluindo !== null}
-        onClose={() => setExcluindo(null)}
-        onConfirm={confirmarExclusao}
+        open={deleting !== null}
+        onClose={() => setDeleting(null)}
+        onConfirm={confirmDelete}
         variant="danger"
         title="Excluir documento?"
-        message={`"${excluindo?.nome}" será removido do cadastro do paciente. Essa ação não pode ser desfeita.`}
+        message={`"${deleting?.name}" será removido do cadastro do paciente. Essa ação não pode ser desfeita.`}
         confirmLabel="Excluir"
       />
     </div>

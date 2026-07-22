@@ -5,90 +5,91 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const queryKeys = {
-  pacientes: {
-    all:    ['pacientes'] as const,
-    detail: (id: string) => ['pacientes', id] as const,
+  patients: {
+    all:    ['patients'] as const,
+    detail: (id: string) => ['patients', id] as const,
   },
-  anamneses: {
-    byPaciente: (pacienteId: string) => ['anamneses', pacienteId] as const,
+  anamnesis: {
+    byPatient: (patientId: string) => ['anamnesis', patientId] as const,
   },
   whatsapp: {
-    conexao:    ['whatsapp', 'conexao'] as const,
-    automacoes: ['whatsapp', 'automacoes'] as const,
+    connection:    ['whatsapp', 'connection'] as const,
+    automations: ['whatsapp', 'automations'] as const,
   },
-  assinatura: {
-    plano:   ['assinatura', 'plano'] as const,
-    faturas: ['assinatura', 'faturas'] as const,
+  subscription: {
+    plan:     ['subscription', 'plan'] as const,
+    invoices: ['subscription', 'invoices'] as const,
   },
-  consultas: {
-    all:    ['consultas'] as const,
-    byDay:  (isoDate: string) => ['consultas', 'dia', isoDate] as const,
-    detail: (id: string) => ['consultas', id] as const,
-    serie:  (periodo: string, mesIso: string) => ['consultas', 'serie', periodo, mesIso] as const,
-    historico: (pacienteId: string) => ['consultas', 'historico', pacienteId] as const,
+  appointments: {
+    all:    ['appointments'] as const,
+    byDay:  (isoDate: string) => ['appointments', 'day', isoDate] as const,
+    detail: (id: string) => ['appointments', id] as const,
+    series:  (period: string, isoMonth: string) => ['appointments', 'series', period, isoMonth] as const,
+    history: (patientId: string) => ['appointments', 'history', patientId] as const,
   },
-  profissionais: {
-    all:    ['profissionais'] as const,
-    detail: (id: string) => ['profissionais', id] as const,
+  professionals: {
+    all:    ['professionals'] as const,
+    detail: (id: string) => ['professionals', id] as const,
   },
-  usuario: {
-    me: ['usuario', 'me'] as const,
+  user: {
+    me: ['user', 'me'] as const,
   },
-  financeiro: {
-    serie: (periodo: string, mesIso: string) => ['financeiro', 'serie', periodo, mesIso] as const,
-    caixa:       ['financeiro', 'caixa'] as const,
-    caixaSessao: ['financeiro', 'caixa', 'sessao'] as const,
-    fluxo:       ['financeiro', 'fluxo'] as const,
-    pagar:       ['financeiro', 'pagar'] as const,
-    receber:     ['financeiro', 'receber'] as const,
-    bancos:      ['financeiro', 'bancos'] as const,
-    adquirentes: ['financeiro', 'adquirentes'] as const,
+  finance: {
+    series: (period: string, isoMonth: string) => ['finance', 'series', period, isoMonth] as const,
+    cash:       ['finance', 'cash'] as const,
+    cashSession: ['finance', 'cash', 'session'] as const,
+    cashFlow:       ['finance', 'cashFlow'] as const,
+    payables:    ['finance', 'payables'] as const,
+    receivables: ['finance', 'receivables'] as const,
+    banks:      ['finance', 'banks'] as const,
+    acquirers: ['finance', 'acquirers'] as const,
+    collections: ['finance', 'collections'] as const,
   },
-  tarefas: {
-    all: ['tarefas'] as const,
+  tasks: {
+    all: ['tasks'] as const,
   },
   leads: {
     all: ['leads'] as const,
   },
-  pagamentos: {
-    all: ['pagamentos'] as const,
-    byPaciente: (pacienteId: string) => ['pagamentos', 'paciente', pacienteId] as const,
+  payments: {
+    all: ['payments'] as const,
+    byPatient: (patientId: string) => ['payments', 'patient', patientId] as const,
   },
-  tratamentos: {
-    byPaciente: (pacienteId: string) => ['tratamentos', 'paciente', pacienteId] as const,
+  treatments: {
+    byPatient: (patientId: string) => ['treatments', 'patient', patientId] as const,
   },
-  cargos: {
-    all: ['cargos'] as const,
+  roles: {
+    all: ['roles'] as const,
   },
-  orcamentos: {
-    all: ['orcamentos'] as const,
-    byPaciente: (pacienteId: string) => ['orcamentos', 'paciente', pacienteId] as const,
+  quotes: {
+    all: ['quotes'] as const,
+    byPatient: (patientId: string) => ['quotes', 'patient', patientId] as const,
   },
-  prescricoes: {
-    all: ['prescricoes'] as const,
-    byPaciente: (pacienteId: string) => ['prescricoes', 'paciente', pacienteId] as const,
+  prescriptions: {
+    all: ['prescriptions'] as const,
+    byPatient: (patientId: string) => ['prescriptions', 'patient', patientId] as const,
   },
-  comissoes: {
-    all: ['comissoes'] as const,
+  commissions: {
+    all: ['commissions'] as const,
   },
-  convenios: {
-    all: ['convenios'] as const,
+  insurances: {
+    all: ['insurances'] as const,
   },
-  grade: {
-    all: ['grade'] as const,
+  schedule: {
+    all: ['schedule'] as const,
   },
-  documentos: {
-    all: ['documentos'] as const,
-    byPaciente: (pacienteId: string) => ['documentos', 'paciente', pacienteId] as const,
+  documents: {
+    all: ['documents'] as const,
+    byPatient: (patientId: string) => ['documents', 'patient', patientId] as const,
   },
-  salas: {
-    all: ['salas'] as const,
+  rooms: {
+    all: ['rooms'] as const,
   },
-  consultorio: {
-    dados:       ['consultorio', 'dados'] as const,
-    responsavel: ['consultorio', 'responsavel'] as const,
+  clinic: {
+    data:    ['clinic', 'data'] as const,
+    manager: ['clinic', 'manager'] as const,
   },
-  materiais: {
-    all: ['materiais'] as const,
+  materials: {
+    all: ['materials'] as const,
   },
 }

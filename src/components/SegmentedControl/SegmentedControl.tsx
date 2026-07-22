@@ -9,7 +9,7 @@ export interface SegmentOption<T extends string> {
 }
 
 interface SegmentedControlProps<T extends string> {
-  options: SegmentOption<T>[]
+  options: readonly SegmentOption<T>[]
   value: T
   // NoInfer: T é inferido só de `options`/`value` (a união estreita), nunca do onChange —
   // evita que passar `setState` (Dispatch<SetStateAction<T>>) faça T cair no constraint `string`.

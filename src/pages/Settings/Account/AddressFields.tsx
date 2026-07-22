@@ -5,26 +5,26 @@ import styles from './AccountTab.module.scss'
 
 interface AddressFieldsProps {
   value: Address
-  onChange: (campo: keyof Address, valor: string) => void
+  onChange: (field: keyof Address, value: string) => void
 }
 
 /** Bloco de endereço dos cadastros. Ao completar o CEP, estado/cidade/bairro/rua
  *  se preenchem sozinhos (ViaCEP). */
 export function AddressFields({ value, onChange }: AddressFieldsProps) {
-  const { buscarCep, buscando, erro } = useCep()
+  const { searchCep, searching, error } = useCep()
 
   /** Guarda o CEP digitado e, quando completo, traz o endereço. */
-  async function aoMudarCep(cep: string) {
+  async function handleCepChange(cep: string) {
     onChange('cep', cep)
 
-    const endereco = await buscarCep(cep)
-    if (!endereco) return   // incompleto, inexistente ou serviço fora do ar
+    const address = await searchCep(cep)
+    if (!address) return   // incompleto, inexistente ou serviço fora do ar
 
     // O `set` do formulário usa update funcional — pode encadear em sequência.
-    onChange('estado', endereco.estado)
-    onChange('cidade', endereco.cidade)
-    onChange('bairro', endereco.bairro)
-    onChange('rua', endereco.rua)
+    onChange('state', address.state)
+    onChange('city', address.city)
+    onChange('neighborhood', address.neighborhood)
+    onChange('street', address.street)
     // O número não vem do CEP: continua com o usuário.
   }
 
@@ -36,44 +36,44 @@ export function AddressFields({ value, onChange }: AddressFieldsProps) {
           placeholder="00000-000"
           inputMode="numeric"
           value={value.cep}
-          onChange={e => aoMudarCep(e.target.value)}
-          hint={buscando ? 'Buscando endereço...' : undefined}
-          error={erro}
+          onChange={e => handleCepChange(e.target.value)}
+          hint={searching ? 'Buscando endereço...' : undefined}
+          error={error}
         />
         <Input
           label="Estado"
           placeholder="UF"
           maxLength={2}
-          value={value.estado}
-          onChange={e => onChange('estado', e.target.value.toUpperCase())}
+          value={value.state}
+          onChange={e => onChange('state', e.target.value.toUpperCase())}
         />
       </div>
       <div className={styles.grid2}>
         <Input
           label="Cidade"
           placeholder="Aracaju"
-          value={value.cidade}
-          onChange={e => onChange('cidade', e.target.value)}
+          value={value.city}
+          onChange={e => onChange('city', e.target.value)}
         />
         <Input
           label="Bairro"
           placeholder="Centro"
-          value={value.bairro}
-          onChange={e => onChange('bairro', e.target.value)}
+          value={value.neighborhood}
+          onChange={e => onChange('neighborhood', e.target.value)}
         />
       </div>
       <div className={styles.grid2}>
         <Input
           label="Rua"
           placeholder="Av. Beira Mar"
-          value={value.rua}
-          onChange={e => onChange('rua', e.target.value)}
+          value={value.street}
+          onChange={e => onChange('street', e.target.value)}
         />
         <Input
           label="Número"
           placeholder="1234"
-          value={value.numero}
-          onChange={e => onChange('numero', e.target.value)}
+          value={value.number}
+          onChange={e => onChange('number', e.target.value)}
         />
       </div>
     </>

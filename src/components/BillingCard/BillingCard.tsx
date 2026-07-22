@@ -2,17 +2,17 @@ import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
 import { Spinner } from '@/components/Spinner/Spinner'
-import { usePagamentos } from '@/hooks/usePagamentos'
-import { usePacientes } from '@/hooks/usePacientes'
+import { usePayments } from '@/hooks/usePayments'
+import { usePatients } from '@/hooks/usePatients'
 import { APP_ROUTES, buildRoute } from '@/constants'
-import { formatarReais } from '@/utils/format'
-import { IconRelogio, IconOlho } from '@/components/icons'
+import { formatBRL } from '@/utils/format'
+import { IconClock, IconEye } from '@/components/icons'
 import styles from './BillingCard.module.scss'
 
 /** dd/mm/aaaa → número ordenável (aaaammdd). */
-function ordemDaData(data: string) {
-  const [dia, mes, ano] = data.split('/').map(Number)
-  return ano * 10000 + mes * 100 + dia
+function dateSortKey(date: string) {
+  const [day, month, year] = date.split('/').map(Number)
+  return year * 10000 + month * 100 + day
 }
 
 /**
@@ -21,33 +21,33 @@ function ordemDaData(data: string) {
  */
 export function BillingCard() {
   const navigate = useNavigate()
-  const { data: pagamentos, isLoading } = usePagamentos()
-  const { data: pacientes } = usePacientes()
+  const { data: payments, isLoading } = usePayments()
+  const { data: patients } = usePatients()
 
-  const nomePorId = new Map((pacientes ?? []).map(p => [p.id, p.nome]))
+  const nameById = new Map((patients ?? []).map(p => [p.id, p.name]))
 
   // Em aberto = o que ainda entra no caixa (cancelado e pago ficam de fora).
-  const emAberto = (pagamentos ?? []).filter(p => p.status === 'vencido' || p.status === 'pendente')
-  const lista = [...emAberto].sort((a, b) => {
+  const openPayments = (payments ?? []).filter(p => p.status === 'overdue' || p.status === 'pending')
+  const list = [...openPayments].sort((a, b) => {
     // Vencidos primeiro; dentro de cada grupo, o mais antigo cobra primeiro.
-    const atrasoA = Number(a.status === 'vencido')
-    const atrasoB = Number(b.status === 'vencido')
-    if (atrasoA !== atrasoB) return atrasoB - atrasoA
-    return ordemDaData(a.data) - ordemDaData(b.data)
+    const overdueA = Number(a.status === 'overdue')
+    const overdueB = Number(b.status === 'overdue')
+    if (overdueA !== overdueB) return overdueB - overdueA
+    return dateSortKey(a.date) - dateSortKey(b.date)
   })
 
-  const total = lista.reduce((soma, p) => soma + p.valor, 0)
-  const vencidos = lista.filter(p => p.status === 'vencido').length
+  const total = list.reduce((sum, p) => sum + p.amount, 0)
+  const overdueCount = list.filter(p => p.status === 'overdue').length
 
   return (
     <section className={styles.card}>
       <header className={styles.header}>
         <h2 className={styles.title}>Cobranças</h2>
         <div className={styles.headerDireita}>
-          {vencidos > 0 && (
-            <span className={styles.contagem}>{vencidos} vencida{vencidos > 1 ? 's' : ''}</span>
+          {overdueCount > 0 && (
+            <span className={styles.contagem}>{overdueCount} vencida{overdueCount > 1 ? 's' : ''}</span>
           )}
-          <Button variant="ghost" size="sm" onClick={() => navigate(APP_ROUTES.FINANCEIRO)}>
+          <Button variant="ghost" size="sm" onClick={() => navigate(APP_ROUTES.FINANCE)}>
             Ver todas
           </Button>
         </div>
@@ -58,39 +58,39 @@ export function BillingCard() {
       ) : (
         <>
           <ul className={styles.lista}>
-            {lista.length === 0 && (
+            {list.length === 0 && (
               <li className={styles.vazio}>Nenhuma cobrança em aberto.</li>
             )}
-            {lista.map(p => (
+            {list.map(p => (
               <li key={p.id} className={styles.item}>
                 <div className={styles.itemInfo}>
-                  <span className={styles.itemPaciente}>{nomePorId.get(p.pacienteId) ?? 'Paciente'}</span>
-                  <span className={styles.itemDescricao}>{p.descricao}</span>
-                  <span className={styles.itemData}><IconRelogio /> {p.data}</span>
+                  <span className={styles.itemPaciente}>{nameById.get(p.patientId) ?? 'Paciente'}</span>
+                  <span className={styles.itemDescricao}>{p.description}</span>
+                  <span className={styles.itemData}><IconClock /> {p.date}</span>
                 </div>
 
                 <span className={styles.itemDireita}>
-                  <span className={styles.valor}>{formatarReais(p.valor)}</span>
+                  <span className={styles.valor}>{formatBRL(p.amount)}</span>
                   <Badge status={p.status} />
                 </span>
 
                 <button
                   type="button"
                   className={styles.verBtn}
-                  onClick={() => navigate(buildRoute.pacientePerfil(p.pacienteId))}
+                  onClick={() => navigate(buildRoute.patientProfile(p.patientId))}
                   title="Abrir perfil do paciente"
-                  aria-label={`Abrir perfil de ${nomePorId.get(p.pacienteId) ?? 'paciente'}`}
+                  aria-label={`Abrir perfil de ${nameById.get(p.patientId) ?? 'paciente'}`}
                 >
-                  <IconOlho />
+                  <IconEye />
                 </button>
               </li>
             ))}
           </ul>
 
-          {lista.length > 0 && (
+          {list.length > 0 && (
             <footer className={styles.rodape}>
               <span className={styles.rodapeLabel}>Total em aberto</span>
-              <strong className={styles.rodapeValor}>{formatarReais(total)}</strong>
+              <strong className={styles.rodapeValor}>{formatBRL(total)}</strong>
             </footer>
           )}
         </>

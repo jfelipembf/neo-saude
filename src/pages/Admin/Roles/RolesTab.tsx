@@ -7,21 +7,21 @@ import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { SideList } from '@/components/SideList/SideList'
 import { Toggle } from '@/components/Toggle/Toggle'
 import { useToast } from '@/components/Toast/useToast'
-import { PAGINAS_APP } from '@/constants'
-import { useCargos, useSalvarCargo } from '@/hooks/useCargos'
+import { APP_PAGES } from '@/constants'
+import { useRoles, useSaveRole } from '@/hooks/useRoles'
 import type { Role, AppPage } from '@/types/domain'
 import styles from './RolesTab.module.scss'
 
-interface CargoFormState {
-  nome: string
-  paginas: AppPage[]
+interface RoleFormState {
+  name: string
+  pages: AppPage[]
 }
 
-const FORM_VAZIO: CargoFormState = { nome: '', paginas: ['dashboard'] }
+const EMPTY_FORM: RoleFormState = { name: '', pages: ['dashboard'] }
 
 /** Resumo do acesso para o sublabel da lista (ex.: "Acesso a 3 páginas"). */
-function resumoCargo(c: Role) {
-  const n = c.paginas.length
+function roleSummary(role: Role) {
+  const n = role.pages.length
   return n === 0 ? 'Sem acesso a nenhuma página' : `Acesso a ${n} página${n === 1 ? '' : 's'}`
 }
 
@@ -31,64 +31,64 @@ function resumoCargo(c: Role) {
  */
 export function RolesTab() {
   const toast = useToast()
-  const { data: cargos, isLoading } = useCargos()
-  const { mutate: salvar, isPending: salvando } = useSalvarCargo()
+  const { data: roles, isLoading } = useRoles()
+  const { mutate: save, isPending: saving } = useSaveRole()
 
-  const [selecionado, setSelecionado] = useState<string | null>(null)
-  const [novo, setNovo] = useState(false)
-  const [form, setForm] = useState<CargoFormState>(FORM_VAZIO)
-  const [erroNome, setErroNome] = useState('')
+  const [selected, setSelected] = useState<string | null>(null)
+  const [isNew, setIsNew] = useState(false)
+  const [form, setForm] = useState<RoleFormState>(EMPTY_FORM)
+  const [nameError, setNameError] = useState('')
 
   if (isLoading) return <PageLoader />
 
-  const lista = cargos ?? []
-  const formVisivel = selecionado !== null || novo
+  const list = roles ?? []
+  const formVisible = selected !== null || isNew
 
-  const items = lista.map(c => ({ id: c.id, label: c.nome, sublabel: resumoCargo(c) }))
+  const items = list.map(c => ({ id: c.id, label: c.name, sublabel: roleSummary(c) }))
 
-  function selecionar(id: string) {
-    const cargo = lista.find(c => c.id === id)
-    if (!cargo) return
-    setForm({ nome: cargo.nome, paginas: [...cargo.paginas] })
-    setErroNome('')
-    setNovo(false)
-    setSelecionado(id)
+  function selectRole(id: string) {
+    const role = list.find(c => c.id === id)
+    if (!role) return
+    setForm({ name: role.name, pages: [...role.pages] })
+    setNameError('')
+    setIsNew(false)
+    setSelected(id)
   }
 
-  function aoNovo() {
-    setForm(FORM_VAZIO)
-    setErroNome('')
-    setSelecionado(null)
-    setNovo(true)
+  function handleNew() {
+    setForm(EMPTY_FORM)
+    setNameError('')
+    setSelected(null)
+    setIsNew(true)
   }
 
-  function aoCancelar() {
-    setSelecionado(null)
-    setNovo(false)
-    setForm(FORM_VAZIO)
-    setErroNome('')
+  function handleCancel() {
+    setSelected(null)
+    setIsNew(false)
+    setForm(EMPTY_FORM)
+    setNameError('')
   }
 
-  function alternarPagina(pagina: AppPage, ligada: boolean) {
-    setForm(atual => ({
-      ...atual,
-      paginas: ligada
-        ? [...atual.paginas, pagina]
-        : atual.paginas.filter(p => p !== pagina),
+  function togglePage(page: AppPage, enabled: boolean) {
+    setForm(current => ({
+      ...current,
+      pages: enabled
+        ? [...current.pages, page]
+        : current.pages.filter(p => p !== page),
     }))
   }
 
-  function aoSalvar() {
-    if (!form.nome.trim()) {
-      setErroNome('Dê um nome ao cargo.')
+  function handleSave() {
+    if (!form.name.trim()) {
+      setNameError('Dê um nome ao cargo.')
       return
     }
-    salvar(
-      { id: selecionado, dados: { nome: form.nome.trim(), paginas: form.paginas } },
+    save(
+      { id: selected, payload: { name: form.name.trim(), pages: form.pages } },
       {
         onSuccess: () => {
           toast.success('Cargo salvo!')
-          aoCancelar()
+          handleCancel()
         },
       },
     )
@@ -100,15 +100,15 @@ export function RolesTab() {
         title="Cargos"
         size="lg"
         items={items}
-        selectedId={selecionado}
-        onSelect={id => selecionar(String(id))}
-        onAdd={aoNovo}
+        selectedId={selected}
+        onSelect={id => selectRole(String(id))}
+        onAdd={handleNew}
         searchPlaceholder="Buscar cargo..."
         emptyText="Nenhum cargo cadastrado"
       />
 
       <div className={styles.formArea}>
-        {!formVisivel ? (
+        {!formVisible ? (
           <EmptyState
             title="Nenhum cargo selecionado"
             description="Selecione um cargo na lista ao lado ou crie um novo clicando em + para definir o acesso às páginas."
@@ -116,14 +116,14 @@ export function RolesTab() {
         ) : (
           <>
             <div className={styles.formRoot}>
-              <FormSection title={novo ? 'Novo cargo' : 'Dados do cargo'}>
+              <FormSection title={isNew ? 'Novo cargo' : 'Dados do cargo'}>
                 <Input
                   label="Nome do cargo"
                   placeholder="Ex: Recepcionista"
-                  value={form.nome}
-                  onChange={e => { setForm(atual => ({ ...atual, nome: e.target.value })); setErroNome('') }}
-                  error={erroNome}
-                  autoFocus={novo}
+                  value={form.name}
+                  onChange={e => { setForm(current => ({ ...current, name: e.target.value })); setNameError('') }}
+                  error={nameError}
+                  autoFocus={isNew}
                 />
               </FormSection>
 
@@ -133,12 +133,12 @@ export function RolesTab() {
                   e ficam bloqueadas para quem tiver o cargo.
                 </p>
                 <div className={styles.permissoes}>
-                  {PAGINAS_APP.map(p => (
+                  {APP_PAGES.map(p => (
                     <div key={p.value} className={styles.permissao}>
                       <Toggle
                         label={p.label}
-                        checked={form.paginas.includes(p.value)}
-                        onChange={ligada => alternarPagina(p.value, ligada)}
+                        checked={form.pages.includes(p.value)}
+                        onChange={enabled => togglePage(p.value, enabled)}
                       />
                     </div>
                   ))}
@@ -147,8 +147,8 @@ export function RolesTab() {
             </div>
 
             <div className={styles.acoesBar}>
-              <Button variant="ghost" onClick={aoCancelar} disabled={salvando}>Cancelar</Button>
-              <Button loading={salvando} onClick={aoSalvar}>Salvar</Button>
+              <Button variant="ghost" onClick={handleCancel} disabled={saving}>Cancelar</Button>
+              <Button loading={saving} onClick={handleSave}>Salvar</Button>
             </div>
           </>
         )}

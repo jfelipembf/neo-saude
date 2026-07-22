@@ -1,4 +1,4 @@
-import { IconChevronEsquerda, IconChevronDireita } from '@/components/icons'
+import { IconChevronLeft, IconChevronRight } from '@/components/icons'
 import styles from './Pagination.module.scss'
 
 interface PaginationProps {
@@ -47,7 +47,7 @@ export function Pagination({ page, totalPages, onChange, totalItems, itemsPerPag
           disabled={page <= 1}
           aria-label="Página anterior"
         >
-          <IconChevronEsquerda />
+          <IconChevronLeft />
         </button>
 
         {pages.map((p, i) =>
@@ -73,7 +73,7 @@ export function Pagination({ page, totalPages, onChange, totalItems, itemsPerPag
           disabled={page >= totalPages}
           aria-label="Próxima página"
         >
-          <IconChevronDireita />
+          <IconChevronRight />
         </button>
       </div>
     </div>

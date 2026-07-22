@@ -1,34 +1,34 @@
 import { useState } from 'react'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { Button } from '@/components/Button/Button'
-import { GradeBoard } from '@/components/GradeBoard/GradeBoard'
+import { ScheduleBoard } from '@/components/ScheduleBoard/ScheduleBoard'
 import { AppointmentModal } from '@/components/AppointmentModal/AppointmentModal'
-import { IconAgenda, IconMais } from '@/components/icons'
+import { IconSchedule, IconPlus } from '@/components/icons'
 import type { ScheduleSlot } from '@/types/domain'
 
 export function AgendaPage() {
-  // Modal de agendamento: null = fechado; { sessao } = edição; {} = novo.
-  const [modal, setModal] = useState<{ sessao?: ScheduleSlot } | null>(null)
+  // Modal de agendamento: null = fechado; { slot } = edição; {} = novo.
+  const [modal, setModal] = useState<{ slot?: ScheduleSlot } | null>(null)
 
   return (
     <>
       <PageHeader
         title="Agenda"
-        icon={<IconAgenda />}
+        icon={<IconSchedule />}
         actions={
-          <Button iconLeft={<IconMais />} onClick={() => setModal({})}>
+          <Button iconLeft={<IconPlus />} onClick={() => setModal({})}>
             Nova consulta
           </Button>
         }
       />
 
       {/* Grade semanal de horários — clicar num card abre a edição. */}
-      <GradeBoard onSelect={sessao => setModal({ sessao })} />
+      <ScheduleBoard onSelect={slot => setModal({ slot })} />
 
       <AppointmentModal
         open={modal !== null}
         onClose={() => setModal(null)}
-        sessao={modal?.sessao ?? null}
+        slot={modal?.slot ?? null}
       />
     </>
   )

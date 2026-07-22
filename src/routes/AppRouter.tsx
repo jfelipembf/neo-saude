@@ -34,15 +34,15 @@ export function AppRouter() {
           <Route element={<AuthGuard />}>
             <Route element={<AppLayout />}>
               <Route path={APP_ROUTES.DASHBOARD}       element={<DashboardPage />} />
-              <Route path={APP_ROUTES.AGENDA}          element={<AgendaPage />} />
-              <Route path={APP_ROUTES.PACIENTES}       element={<PatientsPage />} />
-              <Route path={APP_ROUTES.PACIENTE_PERFIL} element={<PatientProfilePage />} />
-              <Route path={APP_ROUTES.PROFISSIONAIS}   element={<ProfessionalsPage />} />
-              <Route path={APP_ROUTES.PROFISSIONAL_PERFIL} element={<ProfessionalProfilePage />} />
-              <Route path={APP_ROUTES.FINANCEIRO}      element={<FinancePage />} />
+              <Route path={APP_ROUTES.SCHEDULE}          element={<AgendaPage />} />
+              <Route path={APP_ROUTES.PATIENTS}       element={<PatientsPage />} />
+              <Route path={APP_ROUTES.PATIENT_PROFILE} element={<PatientProfilePage />} />
+              <Route path={APP_ROUTES.PROFESSIONALS}   element={<ProfessionalsPage />} />
+              <Route path={APP_ROUTES.PROFESSIONAL_PROFILE} element={<ProfessionalProfilePage />} />
+              <Route path={APP_ROUTES.FINANCE}      element={<FinancePage />} />
               {/* Administrativo: página única com abas (consultório · salas · materiais). */}
-              <Route path={APP_ROUTES.ADMINISTRATIVO}  element={<AdminPage />} />
-              <Route path={APP_ROUTES.CONFIGURACOES}   element={<SettingsPage />} />
+              <Route path={APP_ROUTES.ADMIN}  element={<AdminPage />} />
+              <Route path={APP_ROUTES.SETTINGS}   element={<SettingsPage />} />
             </Route>
           </Route>
 

@@ -13,7 +13,7 @@ export function ForgotPasswordPage() {
   const { resetPassword } = useSession()
 
   const [email, setEmail]     = useState('')
-  const [enviado, setEnviado] = useState(false)
+  const [sent, setSent]       = useState(false)
   const [error, setError]     = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -29,7 +29,7 @@ export function ForgotPasswordPage() {
       setError(resetError)
       return
     }
-    setEnviado(true)
+    setSent(true)
   }
 
   return (
@@ -37,7 +37,7 @@ export function ForgotPasswordPage() {
       title="Esqueceu a senha?"
       subtitle="Informe seu e-mail e enviaremos um link para redefini-la"
     >
-      {enviado ? (
+      {sent ? (
         <div className={styles.sucesso}>
           <span className={styles.sucessoIcone}><IconCheck /></span>
           <p className={styles.sucessoTexto}>

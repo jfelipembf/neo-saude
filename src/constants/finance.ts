@@ -3,14 +3,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import type { BankAccountType } from '@/types/domain'
 
-export const TIPO_CONTA_LABEL: Record<BankAccountType, string> = {
-  corrente: 'Conta corrente',
-  poupanca: 'Poupança',
-  caixa:    'Caixa interno',
+export const ACCOUNT_TYPE_LABEL: Record<BankAccountType, string> = {
+  checking: 'Conta corrente',
+  savings: 'Poupança',
+  cash:    'Caixa interno',
 }
 
-export const OPCOES_TIPO_CONTA = (Object.keys(TIPO_CONTA_LABEL) as BankAccountType[])
-  .map(tipo => ({ value: tipo, label: TIPO_CONTA_LABEL[tipo] }))
+export const ACCOUNT_TYPE_OPTIONS = (Object.keys(ACCOUNT_TYPE_LABEL) as BankAccountType[])
+  .map(tipo => ({ value: tipo, label: ACCOUNT_TYPE_LABEL[tipo] }))
 
 /** Bandeiras sugeridas nos chips da adquirente (o usuário pode cadastrar outras). */
-export const BANDEIRAS_DISPONIVEIS = ['Visa', 'Mastercard', 'Elo', 'Amex', 'Hipercard', 'Diners']
+export const AVAILABLE_CARD_BRANDS = ['Visa', 'Mastercard', 'Elo', 'Amex', 'Hipercard', 'Diners']

@@ -1,69 +1,69 @@
 import { useState } from 'react'
 import { Spinner } from '@/components/Spinner/Spinner'
-import { IconChevronEsquerda, IconChevronDireita } from '@/components/icons'
-import { useSerieFinanceira } from '@/hooks/useFinanceiro'
+import { IconChevronLeft, IconChevronRight } from '@/components/icons'
+import { useFinanceSeries } from '@/hooks/useFinance'
 import type { ChartPeriod } from '@/types/domain'
 import styles from './FinanceChart.module.scss'
 
-const PERIODOS: { id: ChartPeriod; label: string }[] = [
-  { id: 'semana', label: 'Semana' },
-  { id: 'mes',    label: 'Mês' },
-  { id: 'ano',    label: 'Ano' },
+const PERIODS: { id: ChartPeriod; label: string }[] = [
+  { id: 'week', label: 'Semana' },
+  { id: 'month',    label: 'Mês' },
+  { id: 'year',    label: 'Ano' },
 ]
 
 /** Teto "limpo" do eixo Y em R$: múltiplo de 400 → tick do meio sempre redondo. */
-function tetoEixo(max: number) {
+function axisCeiling(max: number) {
   return Math.max(400, Math.ceil(max / 400) * 400)
 }
 
-function formatarReais(v: number) {
+function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 }
 
 /** Tick compacto do eixo: 12000 → "12k", 2400 → "2,4k". */
-function tickCompacto(v: number) {
+function compactTick(v: number) {
   if (v < 1000) return String(v)
   return `${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}k`
 }
 
-function toMesIso(d: Date) {
+function toIsoMonth(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
 /** Gráfico de linhas de ganhos × gastos, com filtro semana/mês/ano e seletor de mês. */
 export function FinanceChart() {
-  const [periodo, setPeriodo] = useState<ChartPeriod>('semana')
-  const [mesRef, setMesRef] = useState(() => {
-    const hoje = new Date()
-    return new Date(hoje.getFullYear(), hoje.getMonth(), 1)
+  const [period, setPeriod] = useState<ChartPeriod>('week')
+  const [refMonth, setRefMonth] = useState(() => {
+    const today = new Date()
+    return new Date(today.getFullYear(), today.getMonth(), 1)
   })
-  const [ativo, setAtivo] = useState<number | null>(null)
+  const [active, setActive] = useState<number | null>(null)
 
-  const { data: serie, isLoading, isPlaceholderData } = useSerieFinanceira(periodo, toMesIso(mesRef))
+  const { data: series, isLoading, isPlaceholderData } = useFinanceSeries(period, toIsoMonth(refMonth))
 
-  const pontos = serie ?? []
-  const n = pontos.length
-  const teto = tetoEixo(Math.max(...pontos.flatMap(p => [p.ganhos, p.gastos]), 0))
-  const saldo = pontos.reduce((soma, p) => soma + p.ganhos - p.gastos, 0)
+  const points = series ?? []
+  const n = points.length
+  const ceiling = axisCeiling(Math.max(...points.flatMap(p => [p.income, p.expenses]), 0))
+  const balance = points.reduce((sum, p) => sum + p.income - p.expenses, 0)
 
   // Slots centrados como no gráfico de barras: rótulos e pontos na mesma malha.
   const xPct = (i: number) => ((i + 0.5) / n) * 100
-  const yPct = (v: number) => 100 - (v / teto) * 100
+  const yPct = (v: number) => 100 - (v / ceiling) * 100
 
-  function mudarMes(delta: number) {
-    setMesRef(d => periodo === 'ano'
+  function changeMonth(delta: number) {
+    setRefMonth(d => period === 'year'
       ? new Date(d.getFullYear() + delta, d.getMonth(), 1)
       : new Date(d.getFullYear(), d.getMonth() + delta, 1))
   }
 
-  const rotuloMes = periodo === 'ano'
-    ? String(mesRef.getFullYear())
-    : mesRef.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+  const monthLabel = period === 'year'
+    ? String(refMonth.getFullYear())
+    : refMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
   // Tooltip não estoura o card: encosta na borda nos primeiros/últimos slots.
-  const tooltipShift = ativo === null ? '-50%'
-    : ativo / n < 0.25 ? '0%'
-    : ativo / n > 0.75 ? '-100%'
+  const tooltipShift = active === null ? '-50%'
+    : active / n < 0.25 ? '0%'
+    : active / n > 0.75 ? '-100%'
     : '-50%'
 
   return (
@@ -71,17 +71,17 @@ export function FinanceChart() {
       <header className={styles.header}>
         <div>
           <h2 className={styles.title}>Financeiro</h2>
-          <p className={styles.subtitle}>Saldo de {formatarReais(saldo)} no período</p>
+          <p className={styles.subtitle}>Saldo de {formatBRL(balance)} no período</p>
         </div>
 
         <div className={styles.filtro} role="group" aria-label="Período do gráfico">
-          {PERIODOS.map(p => (
+          {PERIODS.map(p => (
             <button
               key={p.id}
               type="button"
-              className={`${styles.filtroBtn} ${periodo === p.id ? styles['filtroBtn--active'] : ''}`}
-              aria-pressed={periodo === p.id}
-              onClick={() => setPeriodo(p.id)}
+              className={`${styles.filtroBtn} ${period === p.id ? styles['filtroBtn--active'] : ''}`}
+              aria-pressed={period === p.id}
+              onClick={() => setPeriod(p.id)}
             >
               {p.label}
             </button>
@@ -93,19 +93,19 @@ export function FinanceChart() {
         <button
           type="button"
           className={styles.navBtn}
-          onClick={() => mudarMes(-1)}
-          aria-label={periodo === 'ano' ? 'Ano anterior' : 'Mês anterior'}
+          onClick={() => changeMonth(-1)}
+          aria-label={period === 'year' ? 'Ano anterior' : 'Mês anterior'}
         >
-          <IconChevronEsquerda />
+          <IconChevronLeft />
         </button>
-        <span className={styles.navLabel}>{rotuloMes}</span>
+        <span className={styles.navLabel}>{monthLabel}</span>
         <button
           type="button"
           className={styles.navBtn}
-          onClick={() => mudarMes(1)}
-          aria-label={periodo === 'ano' ? 'Próximo ano' : 'Próximo mês'}
+          onClick={() => changeMonth(1)}
+          aria-label={period === 'year' ? 'Próximo ano' : 'Próximo mês'}
         >
-          <IconChevronDireita />
+          <IconChevronRight />
         </button>
 
         <div className={styles.legenda}>
@@ -122,10 +122,10 @@ export function FinanceChart() {
         <div className={styles.loading}><Spinner /></div>
       ) : (
         <div className={`${styles.chart} ${isPlaceholderData ? styles['chart--stale'] : ''}`}>
-          <div className={styles.plot} onPointerLeave={() => setAtivo(null)}>
+          <div className={styles.plot} onPointerLeave={() => setActive(null)}>
             {[100, 50].map(pct => (
               <div key={pct} className={styles.gridline} style={{ bottom: `${pct}%` }}>
-                <span className={styles.tick}>{tickCompacto((teto * pct) / 100)}</span>
+                <span className={styles.tick}>{compactTick((ceiling * pct) / 100)}</span>
               </div>
             ))}
             <span className={`${styles.tick} ${styles['tick--zero']}`}>0</span>
@@ -133,69 +133,69 @@ export function FinanceChart() {
             <svg className={styles.linhas} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
               <polyline
                 className={styles['linha--ganhos']}
-                points={pontos.map((p, i) => `${xPct(i)},${yPct(p.ganhos)}`).join(' ')}
+                points={points.map((p, i) => `${xPct(i)},${yPct(p.income)}`).join(' ')}
               />
               <polyline
                 className={styles['linha--gastos']}
-                points={pontos.map((p, i) => `${xPct(i)},${yPct(p.gastos)}`).join(' ')}
+                points={points.map((p, i) => `${xPct(i)},${yPct(p.expenses)}`).join(' ')}
               />
             </svg>
 
-            {pontos.map((p, i) => (
+            {points.map((p, i) => (
               <span
-                key={`g-${p.rotulo}`}
-                className={`${styles.dot} ${styles['dot--ganhos']} ${ativo === i ? styles['dot--ativo'] : ''}`}
-                style={{ left: `${xPct(i)}%`, top: `${yPct(p.ganhos)}%` }}
+                key={`g-${p.label}`}
+                className={`${styles.dot} ${styles['dot--ganhos']} ${active === i ? styles['dot--ativo'] : ''}`}
+                style={{ left: `${xPct(i)}%`, top: `${yPct(p.income)}%` }}
               />
             ))}
-            {pontos.map((p, i) => (
+            {points.map((p, i) => (
               <span
-                key={`d-${p.rotulo}`}
-                className={`${styles.dot} ${styles['dot--gastos']} ${ativo === i ? styles['dot--ativo'] : ''}`}
-                style={{ left: `${xPct(i)}%`, top: `${yPct(p.gastos)}%` }}
+                key={`d-${p.label}`}
+                className={`${styles.dot} ${styles['dot--gastos']} ${active === i ? styles['dot--ativo'] : ''}`}
+                style={{ left: `${xPct(i)}%`, top: `${yPct(p.expenses)}%` }}
               />
             ))}
 
-            {ativo !== null && (
-              <div className={styles.crosshair} style={{ left: `${xPct(ativo)}%` }} />
+            {active !== null && (
+              <div className={styles.crosshair} style={{ left: `${xPct(active)}%` }} />
             )}
 
             {/* Alvos de interação: um por posição do eixo X (hover e foco por teclado). */}
             <div className={styles.hits}>
-              {pontos.map((p, i) => (
+              {points.map((p, i) => (
                 <button
-                  key={p.rotulo}
+                  key={p.label}
                   type="button"
                   className={styles.hit}
-                  onPointerEnter={() => setAtivo(i)}
-                  onFocus={() => setAtivo(i)}
-                  onBlur={() => setAtivo(null)}
-                  aria-label={`${p.rotulo}: ganhos ${formatarReais(p.ganhos)}, gastos ${formatarReais(p.gastos)}`}
+                  onPointerEnter={() => setActive(i)}
+                  onFocus={() => setActive(i)}
+                  onBlur={() => setActive(null)}
+                  aria-label={`${p.label}: ganhos ${formatBRL(p.income)}, gastos ${formatBRL(p.expenses)}`}
                 />
               ))}
             </div>
 
-            {ativo !== null && (
+            {active !== null && (
               <div
                 className={styles.tooltip}
-                style={{ left: `${xPct(ativo)}%`, transform: `translateX(${tooltipShift})` }}
+                style={{ left: `${xPct(active)}%`, transform: `translateX(${tooltipShift})` }}
               >
-                <span className={styles.tooltipTitulo}>{pontos[ativo].rotulo}</span>
+                <span className={styles.tooltipTitulo}>{points[active].label}</span>
                 <span className={styles.tooltipRow}>
                   <span className={`${styles.chave} ${styles['chave--ganhos']}`} />
-                  <strong>{formatarReais(pontos[ativo].ganhos)}</strong> Ganhos
+                  <strong>{formatBRL(points[active].income)}</strong> Ganhos
                 </span>
                 <span className={styles.tooltipRow}>
                   <span className={`${styles.chave} ${styles['chave--gastos']}`} />
-                  <strong>{formatarReais(pontos[ativo].gastos)}</strong> Gastos
+                  <strong>{formatBRL(points[active].expenses)}</strong> Gastos
                 </span>
               </div>
             )}
           </div>
 
           <div className={styles.xAxis}>
-            {pontos.map(p => (
-              <span key={p.rotulo} className={styles.xLabel}>{p.rotulo}</span>
+            {points.map(p => (
+              <span key={p.label} className={styles.xLabel}>{p.label}</span>
             ))}
           </div>
         </div>

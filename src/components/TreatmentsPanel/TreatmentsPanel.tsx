@@ -11,54 +11,55 @@ import { Spinner } from '@/components/Spinner/Spinner'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { Toggle } from '@/components/Toggle/Toggle'
 import { useToast } from '@/components/Toast/useToast'
-import { useTratamentosDoPaciente, useCriarTratamento, useAdicionarSessao } from '@/hooks/useTratamentos'
+import { usePatientTreatments, useCreateTreatment, useAddTreatmentSession } from '@/hooks/useTreatments'
 import { useTheme } from '@/context/ThemeProvider'
 import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { esc } from '@/utils/printDocument'
 import { toIsoDate } from '@/utils/date'
-import { formatarReais, parseReais } from '@/utils/format'
-import { IconMais, IconImprimir, IconTarefas, IconChevronDireita, IconX } from '@/components/icons'
+import { useProfessionalName } from '@/hooks/useDisplayNames'
+import { formatBRL, parseBRL } from '@/utils/format'
+import { IconPlus, IconPrint, IconTasks, IconChevronRight, IconX } from '@/components/icons'
 import type { OdontogramThemeConfig } from '@/lib/odontogramShell/odontogram-shell'
 import type { UsedMaterial, TreatmentSession, Treatment } from '@/types/domain'
 import styles from './TreatmentsPanel.module.scss'
 
 interface TreatmentsPanelProps {
-  pacienteId: string
+  patientId: string
   /** Nome exibido no relatório impresso. */
-  pacienteNome?: string
+  patientName?: string
 }
 
 /** Linha do relatório ao vivo: o que foi sinalizado num dente do odontograma. */
-interface LinhaRelatorio {
-  dente: string
-  texto: string
+interface ReportRow {
+  tooth: string
+  text: string
 }
 
 /** CSS específico do relatório — o resto vem da base de impressão. */
-const ESTILOS_PROCEDIMENTO = `
+const PROCEDURE_STYLES = `
   h2 { font-size: 14px; margin: 16px 0 6px; }
   ul { margin: 0 0 0 18px; padding: 0; font-size: 13px; } li { margin: 3px 0; }
 `
 
 /** Miolo do relatório do PROCEDIMENTO em edição — cabeçalho da clínica vem da base. */
-function corpoProcedimento(
-  tratamento: string, procedimento: string, dataBr: string,
-  relatorio: LinhaRelatorio[], materiais: UsedMaterial[], observacao: string,
-  pacienteNome?: string, valor?: number,
+function procedureBody(
+  treatment: string, procedure: string, dateBr: string,
+  report: ReportRow[], materials: UsedMaterial[], notes: string,
+  patientName?: string, amount?: number,
 ) {
-  const linhas = relatorio
-    .map(l => `<li><strong>Dente ${esc(l.dente)}</strong> — ${esc(l.texto)}</li>`)
+  const lines = report
+    .map(l => `<li><strong>Dente ${esc(l.tooth)}</strong> — ${esc(l.text)}</li>`)
     .join('')
 
   return `
-    ${pacienteNome ? `<p><strong>Patient:</strong> ${esc(pacienteNome)}</p>` : ''}
-    <p><strong>Tratamento:</strong> ${esc(tratamento)}<br>
-       <strong>Procedimento:</strong> ${esc(procedimento) || '—'}<br>
-       <strong>Data:</strong> ${esc(dataBr)}${valor != null ? `<br><strong>Valor:</strong> ${formatarReais(valor)}` : ''}</p>
+    ${patientName ? `<p><strong>Patient:</strong> ${esc(patientName)}</p>` : ''}
+    <p><strong>Tratamento:</strong> ${esc(treatment)}<br>
+       <strong>Procedimento:</strong> ${esc(procedure) || '—'}<br>
+       <strong>Data:</strong> ${esc(dateBr)}${amount != null ? `<br><strong>Valor:</strong> ${formatBRL(amount)}` : ''}</p>
     <h2>O que foi feito</h2>
-    ${linhas ? `<ul>${linhas}</ul>` : '<p>Nada sinalizado no odontograma.</p>'}
-    ${materiais.length ? `<h2>Materiais utilizados</h2><ul>${materiais.map(m => `<li>${esc(m.nome)}${m.quantidade ? ` — ${esc(m.quantidade)}` : ''}</li>`).join('')}</ul>` : ''}
-    ${observacao ? `<p class="clausula"><strong>Observações:</strong> ${esc(observacao)}</p>` : ''}
+    ${lines ? `<ul>${lines}</ul>` : '<p>Nada sinalizado no odontograma.</p>'}
+    ${materials.length ? `<h2>Materiais utilizados</h2><ul>${materials.map(m => `<li>${esc(m.name)}${m.quantity ? ` — ${esc(m.quantity)}` : ''}</li>`).join('')}</ul>` : ''}
+    ${notes ? `<p class="clausula"><strong>Observações:</strong> ${esc(notes)}</p>` : ''}
     <p class="clausula">Sem valor de prontuário oficial.</p>`
 }
 
@@ -68,19 +69,19 @@ function corpoProcedimento(
  * Reaplica até o motor confirmar (resumo do dente marcado escrito no `title`
  * do tile) ou até o timeout; devolve o cleanup.
  */
-function carregarFicha(
-  raiz: HTMLElement | null,
+function loadChart(
+  root: HTMLElement | null,
   payload: Record<string, unknown> | null,
 ): (() => void) | undefined {
-  if (!raiz) return undefined
-  const dentes = Object.keys((payload?.teeth as Record<string, unknown> | undefined) ?? {})
-  const inicio = Date.now()
+  if (!root) return undefined
+  const teeth = Object.keys((payload?.teeth as Record<string, unknown> | undefined) ?? {})
+  const start = Date.now()
   const timer = setInterval(() => {
     loadOdontogramState(payload)
-    const confirmado =
-      dentes.length === 0 ||
-      dentes.some(d => raiz.querySelector(`.tooth-tile[data-tooth="${d}"]`)?.getAttribute('title'))
-    if (confirmado || Date.now() - inicio > 3000) clearInterval(timer)
+    const confirmed =
+      teeth.length === 0 ||
+      teeth.some(d => root.querySelector(`.tooth-tile[data-tooth="${d}"]`)?.getAttribute('title'))
+    if (confirmed || Date.now() - start > 3000) clearInterval(timer)
   }, 150)
   return () => clearInterval(timer)
 }
@@ -89,29 +90,29 @@ function carregarFicha(
  * Desliga por padrão as camadas de osso e polpa (os botões seguem disponíveis
  * para religar). Retry até o motor montar os botões; devolve o cleanup.
  */
-function ocultarCamadasPadrao(raiz: HTMLElement): () => void {
-  const ocultarPorPadrao = ['btnBoneVisible', 'btnPulpVisible']
-  const inicio = Date.now()
+function hideDefaultLayers(root: HTMLElement): () => void {
+  const hiddenByDefault = ['btnBoneVisible', 'btnPulpVisible']
+  const start = Date.now()
   const timer = setInterval(() => {
-    const pendentes = ocultarPorPadrao.filter(id => {
-      const btn = raiz.querySelector<HTMLButtonElement>(`#${id}`)
+    const pending = hiddenByDefault.filter(id => {
+      const btn = root.querySelector<HTMLButtonElement>(`#${id}`)
       if (!btn) return true
       if (btn.getAttribute('aria-pressed') === 'true') btn.click()
       return btn.getAttribute('aria-pressed') === 'true'
     })
-    if (pendentes.length === 0 || Date.now() - inicio > 3000) clearInterval(timer)
+    if (pending.length === 0 || Date.now() - start > 3000) clearInterval(timer)
   }, 120)
   return () => clearInterval(timer)
 }
 
 // Paleta do odontograma = tokens do app (styles/_themes.scss), por tema.
-const TEMA_CLARO: OdontogramThemeConfig = {
+const LIGHT_THEME: OdontogramThemeConfig = {
   background: '#F3F7F5', panel: '#FFFFFF', card: '#FFFFFF',
   text: '#12211C', muted: '#5E6E68', line: '#D8E2DE',
   accent: '#10B981', accent2: '#8B5CF6',
 }
 
-const TEMA_ESCURO: OdontogramThemeConfig = {
+const DARK_THEME: OdontogramThemeConfig = {
   background: '#0D1512', panel: '#121D18', card: '#121D18',
   text: '#EDF7F2', muted: '#95A69F', line: '#26332D',
   accent: '#34D399', accent2: '#A78BFA',
@@ -122,138 +123,139 @@ const TEMA_ESCURO: OdontogramThemeConfig = {
  * e vira um nó da TIMELINE; cada "Novo procedimento" abre o editor com
  * odontograma e entra conectado como sub-rota do tratamento.
  */
-export function TreatmentsPanel({ pacienteId, pacienteNome }: TreatmentsPanelProps) {
+export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps) {
   const toast = useToast()
-  const { data: tratamentos, isLoading } = useTratamentosDoPaciente(pacienteId)
-  const { mutate: criar, isPending: criando } = useCriarTratamento()
-  const { mutate: adicionarSessao, isPending: adicionando } = useAdicionarSessao()
-  const imprimir = usePrintDocument()
+  const professionalName = useProfessionalName()
+  const { data: treatments, isLoading } = usePatientTreatments(patientId)
+  const { mutate: create, isPending: creating } = useCreateTreatment()
+  const { mutate: addSession, isPending: adding } = useAddTreatmentSession()
+  const print = usePrintDocument()
   const { theme } = useTheme()
-  const escuro = theme === 'dark'
+  const dark = theme === 'dark'
 
-  const [modo, setModo] = useState<'lista' | 'procedimento'>('lista')
-  const [tratamentoAtivo, setTratamentoAtivo] = useState<Treatment | null>(null)
+  const [mode, setMode] = useState<'list' | 'procedure'>('list')
+  const [activeTreatment, setActiveTreatment] = useState<Treatment | null>(null)
 
   // Modal "Novo tratamento" (leve: descrição + data — sem odontograma).
-  const [modalTratamento, setModalTratamento] = useState(false)
-  const [nomeTratamento, setNomeTratamento] = useState('')
-  const [dataTratamentoIso, setDataTratamentoIso] = useState(() => toIsoDate(new Date()))
-  const [erroNomeTratamento, setErroNomeTratamento] = useState('')
+  const [treatmentModal, setTreatmentModal] = useState(false)
+  const [treatmentName, setTreatmentName] = useState('')
+  const [treatmentDateIso, setTreatmentDateIso] = useState(() => toIsoDate(new Date()))
+  const [treatmentNameError, setTreatmentNameError] = useState('')
 
   // Editor de procedimento.
-  const [descricao, setDescricao] = useState('')
-  const [dataIso, setDataIso] = useState(() => toIsoDate(new Date()))
-  const [valorTexto, setValorTexto] = useState('')
-  const [erroValor, setErroValor] = useState('')
-  const [materiais, setMateriais] = useState<UsedMaterial[]>([])
-  const [observacao, setObservacao] = useState('')
-  const [relatorio, setRelatorio] = useState<LinhaRelatorio[]>([])
-  const [erroDescricao, setErroDescricao] = useState('')
-  const [confirmando, setConfirmando] = useState(false)
-  const [finalizado, setFinalizado] = useState(false)
+  const [description, setDescription] = useState('')
+  const [dateIso, setDateIso] = useState(() => toIsoDate(new Date()))
+  const [amountText, setAmountText] = useState('')
+  const [amountError, setAmountError] = useState('')
+  const [materials, setMaterials] = useState<UsedMaterial[]>([])
+  const [notes, setNotes] = useState('')
+  const [report, setReport] = useState<ReportRow[]>([])
+  const [descriptionError, setDescriptionError] = useState('')
+  const [confirming, setConfirming] = useState(false)
+  const [finished, setFinished] = useState(false)
 
   // Procedimento expandido na timeline (um por vez: o motor do odontograma é
   // global de módulo — dois shells montados disputariam o mesmo DOM).
-  const [procAberto, setProcAberto] = useState<string | null>(null)
+  const [expandedProcedure, setExpandedProcedure] = useState<string | null>(null)
 
   const shellRef = useRef<HTMLDivElement>(null)
-  const leituraRef = useRef<HTMLDivElement>(null)
+  const readOnlyRef = useRef<HTMLDivElement>(null)
 
   // Visões padrão da ficha no EDITOR: osso e polpa ocultos.
   useEffect(() => {
-    if (modo !== 'procedimento') return
-    const raiz = shellRef.current
-    if (!raiz) return
-    return ocultarCamadasPadrao(raiz)
-  }, [modo])
+    if (mode !== 'procedure') return
+    const root = shellRef.current
+    if (!root) return
+    return hideDefaultLayers(root)
+  }, [mode])
 
   // Mesmas visões padrão no shell de LEITURA (procedimento expandido).
   useEffect(() => {
-    if (!procAberto) return
-    const raiz = leituraRef.current
-    if (!raiz) return
-    return ocultarCamadasPadrao(raiz)
-  }, [procAberto])
+    if (!expandedProcedure) return
+    const root = readOnlyRef.current
+    if (!root) return
+    return hideDefaultLayers(root)
+  }, [expandedProcedure])
 
   // Ficha inicial do EDITOR — carregada APÓS o mount do shell (o destroy do
   // shell anterior limpa o estado do motor): continua do snapshot do último
   // procedimento, ou limpa a ficha no primeiro.
   useEffect(() => {
-    if (modo !== 'procedimento' || !tratamentoAtivo) return
-    const ultimo = [...tratamentoAtivo.sessoes].reverse().find(s => s.odontograma)
-    return carregarFicha(shellRef.current, ultimo?.odontograma ?? null)
-  }, [modo, tratamentoAtivo])
+    if (mode !== 'procedure' || !activeTreatment) return
+    const last = [...activeTreatment.sessions].reverse().find(s => s.odontogram)
+    return loadChart(shellRef.current, last?.odontogram ?? null)
+  }, [mode, activeTreatment])
 
   // Snapshot do procedimento expandido na timeline — idem, após o mount do
   // shell de leitura, que então mostra os dentes como ficaram naquele dia.
   useEffect(() => {
-    if (!procAberto) return
-    const sessao = (tratamentos ?? []).flatMap(t => t.sessoes).find(s => s.id === procAberto)
-    if (!sessao?.odontograma) return
-    return carregarFicha(leituraRef.current, sessao.odontograma)
-  }, [procAberto, tratamentos])
+    if (!expandedProcedure) return
+    const session = (treatments ?? []).flatMap(t => t.sessions).find(s => s.id === expandedProcedure)
+    if (!session?.odontogram) return
+    return loadChart(readOnlyRef.current, session.odontogram)
+  }, [expandedProcedure, treatments])
 
   // Relatório AO VIVO: o motor grava o resumo de cada dente no `title` do tile
   // (data-tooth) a cada mudança — um MutationObserver colhe e vira texto.
   useEffect(() => {
-    if (modo !== 'procedimento') return
-    const raiz = shellRef.current
-    if (!raiz) return
+    if (mode !== 'procedure') return
+    const root = shellRef.current
+    if (!root) return
 
-    let agendado = 0
-    function coletar() {
-      agendado = 0
-      const porDente = new Map<number, string>()
-      raiz!.querySelectorAll<HTMLElement>('.tooth-tile[data-tooth][title]').forEach(tile => {
-        const numero = Number(tile.dataset.tooth)
-        const texto = (tile.getAttribute('title') ?? '').replace(/\n/g, ' · ').trim()
-        if (numero && texto && !porDente.has(numero)) porDente.set(numero, texto)
+    let scheduled = 0
+    function collect() {
+      scheduled = 0
+      const byTooth = new Map<number, string>()
+      root!.querySelectorAll<HTMLElement>('.tooth-tile[data-tooth][title]').forEach(tile => {
+        const num = Number(tile.dataset.tooth)
+        const text = (tile.getAttribute('title') ?? '').replace(/\n/g, ' · ').trim()
+        if (num && text && !byTooth.has(num)) byTooth.set(num, text)
       })
-      setRelatorio(
-        [...porDente.entries()]
+      setReport(
+        [...byTooth.entries()]
           .sort((a, b) => a[0] - b[0])
-          .map(([dente, texto]) => ({ dente: String(dente), texto })),
+          .map(([tooth, text]) => ({ tooth: String(tooth), text })),
       )
     }
 
-    const observador = new MutationObserver(() => {
-      if (agendado) return
-      agendado = window.setTimeout(coletar, 300)   // debounce das rajadas do motor
+    const observer = new MutationObserver(() => {
+      if (scheduled) return
+      scheduled = window.setTimeout(collect, 300)   // debounce das rajadas do motor
     })
-    observador.observe(raiz, { subtree: true, childList: true, attributes: true, attributeFilter: ['title'] })
-    coletar()
+    observer.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ['title'] })
+    collect()
 
     return () => {
-      observador.disconnect()
-      if (agendado) window.clearTimeout(agendado)
+      observer.disconnect()
+      if (scheduled) window.clearTimeout(scheduled)
     }
-  }, [modo])
+  }, [mode])
 
-  const lista = tratamentos ?? []
+  const list = treatments ?? []
 
   // ── Novo tratamento (modal leve) ───────────────────────────────────────────
-  function abrirModalTratamento() {
-    setNomeTratamento('')
-    setDataTratamentoIso(toIsoDate(new Date()))
-    setErroNomeTratamento('')
-    setModalTratamento(true)
+  function openTreatmentModal() {
+    setTreatmentName('')
+    setTreatmentDateIso(toIsoDate(new Date()))
+    setTreatmentNameError('')
+    setTreatmentModal(true)
   }
 
-  function criarTratamento() {
-    if (!nomeTratamento.trim()) {
-      setErroNomeTratamento('Descreva o tratamento.')
+  function createTreatment() {
+    if (!treatmentName.trim()) {
+      setTreatmentNameError('Descreva o tratamento.')
       return
     }
-    criar(
+    create(
       {
-        pacienteId,
-        procedimento: nomeTratamento.trim(),
-        data: dataTratamentoIso.split('-').reverse().join('/'),
+        patientId,
+        procedure: treatmentName.trim(),
+        date: treatmentDateIso.split('-').reverse().join('/'),
       },
       {
         onSuccess: () => {
           toast.success('Tratamento criado! Adicione o primeiro procedimento.')
-          setModalTratamento(false)
+          setTreatmentModal(false)
         },
       },
     )
@@ -261,85 +263,85 @@ export function TreatmentsPanel({ pacienteId, pacienteNome }: TreatmentsPanelPro
 
   // Expande/recolhe um procedimento da timeline — o snapshot é carregado pelo
   // efeito acima, depois que o shell de leitura monta.
-  function alternarProcedimento(sessao: TreatmentSession) {
-    setProcAberto(atual => (atual === sessao.id ? null : sessao.id))
+  function toggleProcedure(session: TreatmentSession) {
+    setExpandedProcedure(current => (current === session.id ? null : session.id))
   }
 
   // ── Novo procedimento (editor com odontograma) ─────────────────────────────
-  function abrirProcedimento(tratamento: Treatment) {
-    setProcAberto(null)
-    setTratamentoAtivo(tratamento)
-    setDescricao('')
-    setDataIso(toIsoDate(new Date()))
-    setValorTexto('')
-    setErroValor('')
-    setMateriais([])
-    setObservacao('')
-    setRelatorio([])
-    setErroDescricao('')
-    setFinalizado(false)
-    setModo('procedimento')
+  function openProcedure(treatment: Treatment) {
+    setExpandedProcedure(null)
+    setActiveTreatment(treatment)
+    setDescription('')
+    setDateIso(toIsoDate(new Date()))
+    setAmountText('')
+    setAmountError('')
+    setMaterials([])
+    setNotes('')
+    setReport([])
+    setDescriptionError('')
+    setFinished(false)
+    setMode('procedure')
   }
 
   // Materiais utilizados — lista dinâmica opcional (nenhum, um ou vários).
-  function adicionarMaterial() {
-    setMateriais(atual => [...atual, { nome: '', quantidade: '' }])
+  function addMaterial() {
+    setMaterials(current => [...current, { name: '', quantity: '' }])
   }
 
-  function mudarMaterial(indice: number, campo: keyof UsedMaterial, valor: string) {
-    setMateriais(atual => atual.map((m, i) => (i === indice ? { ...m, [campo]: valor } : m)))
+  function changeMaterial(index: number, field: keyof UsedMaterial, value: string) {
+    setMaterials(current => current.map((m, i) => (i === index ? { ...m, [field]: value } : m)))
   }
 
-  function removerMaterial(indice: number) {
-    setMateriais(atual => atual.filter((_, i) => i !== indice))
+  function removeMaterial(index: number) {
+    setMaterials(current => current.filter((_, i) => i !== index))
   }
 
   /** Linhas preenchidas (nome obrigatório) — o que vai para o registro. */
-  function materiaisPreenchidos() {
-    return materiais
-      .map(m => ({ nome: m.nome.trim(), quantidade: m.quantidade.trim() }))
-      .filter(m => m.nome)
+  function filledMaterials() {
+    return materials
+      .map(m => ({ name: m.name.trim(), quantity: m.quantity.trim() }))
+      .filter(m => m.name)
   }
 
-  function fecharEditor() {
-    setModo('lista')
-    setTratamentoAtivo(null)
-    setConfirmando(false)
+  function closeEditor() {
+    setMode('list')
+    setActiveTreatment(null)
+    setConfirming(false)
   }
 
-  function pedirConfirmacao() {
-    if (!descricao.trim()) {
-      setErroDescricao('Descreva o procedimento.')
+  function requestConfirmation() {
+    if (!description.trim()) {
+      setDescriptionError('Descreva o procedimento.')
       return
     }
-    if (valorTexto.trim() && Number.isNaN(parseReais(valorTexto))) {
-      setErroValor('Valor inválido.')
+    if (amountText.trim() && Number.isNaN(parseBRL(amountText))) {
+      setAmountError('Valor inválido.')
       return
     }
-    setConfirmando(true)
+    setConfirming(true)
   }
 
-  function salvarProcedimento() {
-    if (!tratamentoAtivo) return
-    const dataBr = dataIso.split('-').reverse().join('/')
-    const materiaisUsados = materiaisPreenchidos()
-    adicionarSessao(
+  function saveProcedure() {
+    if (!activeTreatment) return
+    const dateBr = dateIso.split('-').reverse().join('/')
+    const usedMaterials = filledMaterials()
+    addSession(
       {
-        tratamentoId: tratamentoAtivo.id,
-        pacienteId,
-        sessao: {
-          descricao: descricao.trim(),
-          data: dataBr,
-          acoes: relatorio.map(l => `Dente ${l.dente}: ${l.texto}`),
-          dentes: relatorio.map(l => l.dente),
-          materiais: materiaisUsados.length ? materiaisUsados : undefined,
-          observacao: observacao.trim() || undefined,
-          valor: valorTexto.trim() ? parseReais(valorTexto) : undefined,
-          odontograma: getOdontogramState(),
-          statusApos: finalizado ? 'finalizado' : 'em_aberto',
+        treatmentId: activeTreatment.id,
+        patientId,
+        slot: {
+          description: description.trim(),
+          date: dateBr,
+          actions: report.map(l => `Dente ${l.tooth}: ${l.text}`),
+          teeth: report.map(l => l.tooth),
+          materials: usedMaterials.length ? usedMaterials : undefined,
+          notes: notes.trim() || undefined,
+          amount: amountText.trim() ? parseBRL(amountText) : undefined,
+          odontogram: getOdontogramState(),
+          statusAfter: finished ? 'finished' : 'open',
         },
       },
-      { onSuccess: () => { toast.success('Procedimento registrado!'); fecharEditor() } },
+      { onSuccess: () => { toast.success('Procedimento registrado!'); closeEditor() } },
     )
   }
 
@@ -348,7 +350,7 @@ export function TreatmentsPanel({ pacienteId, pacienteNome }: TreatmentsPanelPro
   }
 
   // ── Modo LISTA: timeline de tratamentos com procedimentos conectados ───────
-  if (modo === 'lista') {
+  if (mode === 'list') {
     return (
       <div className={styles.painel}>
         <header className={styles.chartHeader}>
@@ -356,50 +358,50 @@ export function TreatmentsPanel({ pacienteId, pacienteNome }: TreatmentsPanelPro
             <h2 className={styles.chartTitle}>Tratamentos</h2>
             <p className={styles.chartHint}>Cada tratamento agrupa os procedimentos feitos ao longo dos dias.</p>
           </div>
-          <Button iconLeft={<IconMais />} onClick={abrirModalTratamento}>
+          <Button iconLeft={<IconPlus />} onClick={openTreatmentModal}>
             Novo tratamento
           </Button>
         </header>
 
-        {lista.length === 0 ? (
+        {list.length === 0 ? (
           <EmptyState
-            icon={<IconTarefas />}
+            icon={<IconTasks />}
             title="Nenhum tratamento registrado"
             description="Crie um tratamento e adicione os procedimentos de cada dia — o odontograma abre na hora do procedimento."
             action={
-              <Button iconLeft={<IconMais />} onClick={abrirModalTratamento}>
+              <Button iconLeft={<IconPlus />} onClick={openTreatmentModal}>
                 Novo tratamento
               </Button>
             }
           />
         ) : (
           <div className={styles.tratamentos}>
-            {lista.map(t => (
+            {list.map(t => (
               <section key={t.id} className={styles.trat}>
                 <header className={styles.tratCabecalho}>
                   <div className={styles.tratInfo}>
-                    <span className={styles.tratTitulo}>{t.procedimento}</span>
+                    <span className={styles.tratTitulo}>{t.procedure}</span>
                     <span className={styles.tratMeta}>
-                      {t.dente ? `Dente ${t.dente} · ` : ''}iniciado em {t.iniciadoEm}
-                      {t.concluidoEm ? ` · concluído em ${t.concluidoEm}` : ''}
+                      {t.tooth ? `Dente ${t.tooth} · ` : ''}iniciado em {t.startedAt}
+                      {t.completedAt ? ` · concluído em ${t.completedAt}` : ''}
                     </span>
                   </div>
                   <div className={styles.tratAcoes}>
-                    {t.sessoes.some(s => s.valor != null) && (
+                    {t.sessions.some(s => s.amount != null) && (
                       <div className={styles.tratTotal}>
                         <span className={styles.tratTotalRotulo}>Total</span>
                         <span className={styles.tratTotalValor}>
-                          {formatarReais(t.sessoes.reduce((soma, s) => soma + (s.valor ?? 0), 0))}
+                          {formatBRL(t.sessions.reduce((sum, s) => sum + (s.amount ?? 0), 0))}
                         </span>
                       </div>
                     )}
                     <Badge status={t.status} />
-                    {t.status === 'em_aberto' && (
+                    {t.status === 'open' && (
                       <Button
                         variant="outline"
                         size="sm"
-                        iconLeft={<IconMais />}
-                        onClick={() => abrirProcedimento(t)}
+                        iconLeft={<IconPlus />}
+                        onClick={() => openProcedure(t)}
                       >
                         Novo procedimento
                       </Button>
@@ -408,50 +410,50 @@ export function TreatmentsPanel({ pacienteId, pacienteNome }: TreatmentsPanelPro
                 </header>
 
                 {/* Sub-rotas: os procedimentos conectados pelo trilho. */}
-                {t.sessoes.length === 0 ? (
+                {t.sessions.length === 0 ? (
                   <p className={styles.tratVazio}>
                     Nenhum procedimento ainda — clique em “Novo procedimento” para abrir o odontograma.
                   </p>
                 ) : (
                   <ol className={styles.procedimentos}>
-                    {t.sessoes.map(s => (
+                    {t.sessions.map(s => (
                       <li key={s.id} className={styles.procItem}>
                         <span className={styles.procPonto} aria-hidden="true" />
                         <div className={styles.procCorpo}>
                           <button
                             type="button"
                             className={styles.procExpandir}
-                            aria-expanded={procAberto === s.id}
-                            onClick={() => alternarProcedimento(s)}
+                            aria-expanded={expandedProcedure === s.id}
+                            onClick={() => toggleProcedure(s)}
                           >
                             <span
-                              className={`${styles.procSeta} ${procAberto === s.id ? styles.procSetaAberta : ''}`}
+                              className={`${styles.procSeta} ${expandedProcedure === s.id ? styles.procSetaAberta : ''}`}
                               aria-hidden="true"
                             >
-                              <IconChevronDireita />
+                              <IconChevronRight />
                             </span>
-                            <span className={styles.procTitulo}>{s.descricao ?? 'Procedimento'}</span>
+                            <span className={styles.procTitulo}>{s.description ?? 'Procedimento'}</span>
                             <span className={styles.procMeta}>
-                              {s.data}{s.profissional ? ` · ${s.profissional}` : ''}
+                              {s.date}{s.professionalId ? ` · ${professionalName(s.professionalId)}` : ''}
                             </span>
-                            {s.valor != null && (
-                              <span className={styles.procValor}>{formatarReais(s.valor)}</span>
+                            {s.amount != null && (
+                              <span className={styles.procValor}>{formatBRL(s.amount)}</span>
                             )}
                           </button>
 
-                          {procAberto === s.id && (
+                          {expandedProcedure === s.id && (
                             <div className={styles.procDetalhes}>
                               {/* Odontograma daquele dia, marcado como ficou. */}
-                              {s.odontograma ? (
+                              {s.odontogram ? (
                                 <div
-                                  ref={leituraRef}
-                                  className={`${styles.shell} ${styles.shellLeitura} ${escuro ? 'dark' : ''}`}
+                                  ref={readOnlyRef}
+                                  className={`${styles.shell} ${styles.shellLeitura} ${dark ? 'dark' : ''}`}
                                 >
                                   <OdontogramShell
                                     language="pt-br"
-                                    darkMode={escuro}
+                                    darkMode={dark}
                                     readOnly
-                                    themeConfig={escuro ? TEMA_ESCURO : TEMA_CLARO}
+                                    themeConfig={dark ? DARK_THEME : LIGHT_THEME}
                                   />
                                 </div>
                               ) : (
@@ -459,17 +461,17 @@ export function TreatmentsPanel({ pacienteId, pacienteNome }: TreatmentsPanelPro
                                   Procedimento sem registro do odontograma.
                                 </p>
                               )}
-                              {s.acoes.length > 0 && (
+                              {s.actions.length > 0 && (
                                 <ul className={styles.procAcoes}>
-                                  {s.acoes.map((a, i) => <li key={`${a}-${i}`}>{a}</li>)}
+                                  {s.actions.map((a, i) => <li key={`${a}-${i}`}>{a}</li>)}
                                 </ul>
                               )}
-                              {s.materiais && s.materiais.length > 0 && (
+                              {s.materials && s.materials.length > 0 && (
                                 <p className={styles.procMateriais}>
-                                  Materiais: {s.materiais.map(m => `${m.nome} (${m.quantidade})`).join(' · ')}
+                                  Materiais: {s.materials.map(m => `${m.name} (${m.quantity})`).join(' · ')}
                                 </p>
                               )}
-                              {s.observacao && <p className={styles.procObs}>{s.observacao}</p>}
+                              {s.notes && <p className={styles.procObs}>{s.notes}</p>}
                             </div>
                           )}
                         </div>
@@ -484,14 +486,14 @@ export function TreatmentsPanel({ pacienteId, pacienteNome }: TreatmentsPanelPro
 
         {/* ── Modal: novo tratamento (leve, sem odontograma) ── */}
         <Modal
-          open={modalTratamento}
-          onClose={() => setModalTratamento(false)}
+          open={treatmentModal}
+          onClose={() => setTreatmentModal(false)}
           title="Novo tratamento"
           size="sm"
           footer={
             <>
-              <Button variant="ghost" onClick={() => setModalTratamento(false)} disabled={criando}>Cancelar</Button>
-              <Button loading={criando} onClick={criarTratamento}>Criar tratamento</Button>
+              <Button variant="ghost" onClick={() => setTreatmentModal(false)} disabled={creating}>Cancelar</Button>
+              <Button loading={creating} onClick={createTreatment}>Criar tratamento</Button>
             </>
           }
         >
@@ -499,16 +501,16 @@ export function TreatmentsPanel({ pacienteId, pacienteNome }: TreatmentsPanelPro
             <Input
               label="Descrição do tratamento"
               placeholder="Ex: Tratamento de canal"
-              value={nomeTratamento}
-              onChange={e => { setNomeTratamento(e.target.value); setErroNomeTratamento('') }}
-              error={erroNomeTratamento}
+              value={treatmentName}
+              onChange={e => { setTreatmentName(e.target.value); setTreatmentNameError('') }}
+              error={treatmentNameError}
               autoFocus
             />
             <Input
               label="Data de início"
               type="date"
-              value={dataTratamentoIso}
-              onChange={e => setDataTratamentoIso(e.target.value)}
+              value={treatmentDateIso}
+              onChange={e => setTreatmentDateIso(e.target.value)}
             />
           </div>
         </Modal>
@@ -517,7 +519,7 @@ export function TreatmentsPanel({ pacienteId, pacienteNome }: TreatmentsPanelPro
   }
 
   // ── Modo PROCEDIMENTO: descrição + data → odontograma → relatório ao vivo ──
-  const dataBr = dataIso.split('-').reverse().join('/')
+  const dateBr = dateIso.split('-').reverse().join('/')
 
   return (
     <div className={styles.painel}>
@@ -525,16 +527,16 @@ export function TreatmentsPanel({ pacienteId, pacienteNome }: TreatmentsPanelPro
       <section className={styles.editorCard}>
         <header className={styles.chartHeader}>
           <div>
-            <h2 className={styles.chartTitle}>Novo procedimento — {tratamentoAtivo?.procedimento}</h2>
+            <h2 className={styles.chartTitle}>Novo procedimento — {activeTreatment?.procedure}</h2>
             <p className={styles.chartHint}>
-              {tratamentoAtivo?.sessoes.length
-                ? `${tratamentoAtivo.sessoes.length} procedimento(s) já registrados neste tratamento.`
+              {activeTreatment?.sessions.length
+                ? `${activeTreatment.sessions.length} procedimento(s) já registrados neste tratamento.`
                 : 'Primeiro procedimento deste tratamento.'}
             </p>
           </div>
           <div className={styles.editorAcoes}>
-            <Button variant="ghost" onClick={fecharEditor} disabled={adicionando}>Cancelar</Button>
-            <Button onClick={pedirConfirmacao} loading={adicionando}>Salvar</Button>
+            <Button variant="ghost" onClick={closeEditor} disabled={adding}>Cancelar</Button>
+            <Button onClick={requestConfirmation} loading={adding}>Salvar</Button>
           </div>
         </header>
 
@@ -542,37 +544,37 @@ export function TreatmentsPanel({ pacienteId, pacienteNome }: TreatmentsPanelPro
           <Input
             label="Descrição do procedimento"
             placeholder="Ex: Abertura e instrumentação"
-            value={descricao}
-            onChange={e => { setDescricao(e.target.value); setErroDescricao('') }}
-            error={erroDescricao}
+            value={description}
+            onChange={e => { setDescription(e.target.value); setDescriptionError('') }}
+            error={descriptionError}
             autoFocus
           />
           <Input
             label="Data"
             type="date"
-            value={dataIso}
-            onChange={e => setDataIso(e.target.value)}
+            value={dateIso}
+            onChange={e => setDateIso(e.target.value)}
           />
           <Input
             label="Valor"
             iconLeft={<span className={styles.prefixo}>R$</span>}
             inputMode="decimal"
             placeholder="0,00"
-            value={valorTexto}
-            onChange={e => { setValorTexto(e.target.value); setErroValor('') }}
-            error={erroValor}
+            value={amountText}
+            onChange={e => { setAmountText(e.target.value); setAmountError('') }}
+            error={amountError}
           />
         </div>
       </section>
 
       {/* Odontograma interativo. */}
       <section className={styles.chartCard}>
-        <div ref={shellRef} className={`${styles.shell} ${escuro ? 'dark' : ''}`}>
+        <div ref={shellRef} className={`${styles.shell} ${dark ? 'dark' : ''}`}>
           <OdontogramShell
             language="pt-br"
-            darkMode={escuro}
+            darkMode={dark}
             enableNotes
-            themeConfig={escuro ? TEMA_ESCURO : TEMA_CLARO}
+            themeConfig={dark ? DARK_THEME : LIGHT_THEME}
           />
         </div>
       </section>
@@ -587,31 +589,31 @@ export function TreatmentsPanel({ pacienteId, pacienteNome }: TreatmentsPanelPro
           <Button
             variant="outline"
             size="sm"
-            iconLeft={<IconImprimir />}
-            onClick={() => imprimir({
-              titulo: 'Relatório de procedimento',
-              subtitulo: tratamentoAtivo?.procedimento ?? undefined,
-              corpo: corpoProcedimento(
-                tratamentoAtivo?.procedimento ?? '—', descricao, dataBr,
-                relatorio, materiaisPreenchidos(), observacao.trim(), pacienteNome,
-                valorTexto.trim() && !Number.isNaN(parseReais(valorTexto)) ? parseReais(valorTexto) : undefined,
+            iconLeft={<IconPrint />}
+            onClick={() => print({
+              title: 'Relatório de procedimento',
+              subtitle: activeTreatment?.procedure ?? undefined,
+              body: procedureBody(
+                activeTreatment?.procedure ?? '—', description, dateBr,
+                report, filledMaterials(), notes.trim(), patientName,
+                amountText.trim() && !Number.isNaN(parseBRL(amountText)) ? parseBRL(amountText) : undefined,
               ),
-              estilos: ESTILOS_PROCEDIMENTO,
-              largura: 640,
+              styles: PROCEDURE_STYLES,
+              width: 640,
             })}
           >
             Imprimir
           </Button>
         </header>
 
-        {relatorio.length === 0 ? (
+        {report.length === 0 ? (
           <p className={styles.relatorioVazio}>Nada sinalizado ainda — marque os dentes no odontograma acima.</p>
         ) : (
           <ul className={styles.relatorioLista}>
-            {relatorio.map(l => (
-              <li key={l.dente} className={styles.relatorioLinha}>
-                <span className={styles.dentePill}>Dente {l.dente}</span>
-                <span className={styles.relatorioTexto}>{l.texto}</span>
+            {report.map(l => (
+              <li key={l.tooth} className={styles.relatorioLinha}>
+                <span className={styles.dentePill}>Dente {l.tooth}</span>
+                <span className={styles.relatorioTexto}>{l.text}</span>
               </li>
             ))}
           </ul>
@@ -621,33 +623,33 @@ export function TreatmentsPanel({ pacienteId, pacienteNome }: TreatmentsPanelPro
         <div className={styles.materiais}>
           <div className={styles.materiaisCabecalho}>
             <span className={styles.materiaisTitulo}>Materiais utilizados</span>
-            <Button variant="outline" size="sm" iconLeft={<IconMais />} onClick={adicionarMaterial}>
+            <Button variant="outline" size="sm" iconLeft={<IconPlus />} onClick={addMaterial}>
               Adicionar material
             </Button>
           </div>
 
-          {materiais.length === 0 ? (
+          {materials.length === 0 ? (
             <p className={styles.materiaisVazio}>Nenhum material lançado (opcional).</p>
           ) : (
-            materiais.map((m, i) => (
+            materials.map((m, i) => (
               <div key={i} className={styles.materialLinha}>
                 <Input
                   placeholder="Material — ex: Resina fotopolimerizável A2"
-                  value={m.nome}
-                  onChange={e => mudarMaterial(i, 'nome', e.target.value)}
+                  value={m.name}
+                  onChange={e => changeMaterial(i, 'name', e.target.value)}
                   aria-label={`Nome do material ${i + 1}`}
                 />
                 <Input
                   placeholder="Qtd — ex: 2 tubetes"
-                  value={m.quantidade}
-                  onChange={e => mudarMaterial(i, 'quantidade', e.target.value)}
+                  value={m.quantity}
+                  onChange={e => changeMaterial(i, 'quantity', e.target.value)}
                   aria-label={`Quantidade do material ${i + 1}`}
                 />
                 <Button
                   variant="ghost"
                   size="sm"
                   iconLeft={<IconX />}
-                  onClick={() => removerMaterial(i)}
+                  onClick={() => removeMaterial(i)}
                   title="Remover material"
                   aria-label={`Remover material ${i + 1}`}
                 />
@@ -660,25 +662,25 @@ export function TreatmentsPanel({ pacienteId, pacienteNome }: TreatmentsPanelPro
           label="Observações"
           placeholder="Anotações do procedimento — também entram no relatório impresso."
           rows={3}
-          value={observacao}
-          onChange={e => setObservacao(e.target.value)}
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
         />
       </section>
 
       {/* Confirmação de salvamento: finalizado agora ou continua depois. */}
       <ConfirmDialog
-        open={confirmando}
-        onClose={() => setConfirmando(false)}
-        onConfirm={salvarProcedimento}
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        onConfirm={saveProcedure}
         title="Salvar procedimento?"
         message={
-          finalizado
+          finished
             ? 'O tratamento será marcado como finalizado.'
             : 'O tratamento fica em aberto — dá para adicionar novos procedimentos depois.'
         }
         confirmLabel="Salvar"
       >
-        <Toggle label="Tratamento finalizado" checked={finalizado} onChange={setFinalizado} />
+        <Toggle label="Tratamento finalizado" checked={finished} onChange={setFinished} />
       </ConfirmDialog>
     </div>
   )

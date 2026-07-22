@@ -6,59 +6,59 @@ import { Input } from '@/components/Input/Input'
 import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Pagination } from '@/components/Pagination/Pagination'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
-import { useSalas } from '@/hooks/useSalas'
+import { useRooms } from '@/hooks/useRooms'
 import { useDebounce } from '@/hooks/useDebounce'
-import { combinaBusca } from '@/utils/search'
-import { IconSala, IconMais, IconBuscar, IconEditar } from '@/components/icons'
+import { matchesSearch } from '@/utils/search'
+import { IconRoom, IconPlus, IconSearch, IconEdit } from '@/components/icons'
 import type { Room } from '@/types/domain'
 import { RoomFormModal } from './RoomFormModal'
 import styles from './RoomsTab.module.scss'
 
 /** Aba "Salas": tabela no padrão do projeto (por página + busca + paginação). */
 export function RoomsTab() {
-  const { data: salas, isLoading } = useSalas()
+  const { data: rooms, isLoading } = useRooms()
 
-  // Modal de sala: null = fechado; { sala } = edição; {} = cadastro novo.
-  const [modalSala, setModalSala] = useState<{ sala?: Room } | null>(null)
+  // Modal de sala: null = fechado; { room } = edição; {} = cadastro novo.
+  const [roomModal, setRoomModal] = useState<{ room?: Room } | null>(null)
 
   // Paginação + busca (mesmo desenho das listas de pacientes e materiais).
-  const [pagina, setPagina] = useState(1)
-  const [porPagina, setPorPagina] = useState(10)
-  const [busca, setBusca] = useState('')
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
+  const [search, setSearch] = useState('')
 
-  const termo = useDebounce(busca)
-  const filtradas = (salas ?? []).filter(s => combinaBusca(s.nome, termo))
+  const term = useDebounce(search)
+  const filtered = (rooms ?? []).filter(s => matchesSearch(s.name, term))
 
-  const totalPaginas = Math.max(1, Math.ceil(filtradas.length / porPagina))
-  const paginaAtual = Math.min(pagina, totalPaginas)
-  const visiveis = filtradas.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina)
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage))
+  const currentPage = Math.min(page, totalPages)
+  const visible = filtered.slice((currentPage - 1) * perPage, currentPage * perPage)
 
   const columns: TableColumn<Room>[] = [
     {
-      key: 'nome',
+      key: 'name',
       label: 'Sala',
       render: s => (
         <span className={styles.salaCell}>
-          {s.foto ? (
-            <img src={s.foto} alt={`Foto da sala ${s.nome}`} className={styles.thumb} />
+          {s.photo ? (
+            <img src={s.photo} alt={`Foto da sala ${s.name}`} className={styles.thumb} />
           ) : (
-            <span className={styles.semThumb}><IconSala /></span>
+            <span className={styles.semThumb}><IconRoom /></span>
           )}
-          {s.nome}
+          {s.name}
         </span>
       ),
     },
     {
-      key: 'acoes',
+      key: 'actions',
       label: 'Ação',
       render: s => (
         <Button
           variant="ghost"
           size="sm"
-          iconLeft={<IconEditar />}
+          iconLeft={<IconEdit />}
           title="Editar sala"
-          aria-label={`Editar ${s.nome}`}
-          onClick={() => setModalSala({ sala: s })}
+          aria-label={`Editar ${s.name}`}
+          onClick={() => setRoomModal({ room: s })}
         />
       ),
     },
@@ -70,23 +70,23 @@ export function RoomsTab() {
     <>
       <Table
         columns={columns}
-        data={visiveis}
+        data={visible}
         rowKey={s => s.id}
-        emptyMessage={termo ? 'Nenhuma sala encontrada para a busca.' : 'Nenhuma sala cadastrada.'}
+        emptyMessage={term ? 'Nenhuma sala encontrada para a busca.' : 'Nenhuma sala cadastrada.'}
         toolbar={
           <>
-            <PerPageSelect porPagina={porPagina} onChange={n => { setPorPagina(n); setPagina(1) }} />
+            <PerPageSelect perPage={perPage} onChange={n => { setPerPage(n); setPage(1) }} />
             <div className={styles.toolbarDireita}>
               <Input
                 size="sm"
-                iconLeft={<IconBuscar />}
+                iconLeft={<IconSearch />}
                 placeholder="Buscar sala..."
-                value={busca}
-                onChange={e => { setBusca(e.target.value); setPagina(1) }}
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPage(1) }}
                 aria-label="Buscar sala"
                 className={styles.busca}
               />
-              <Button size="sm" iconLeft={<IconMais />} onClick={() => setModalSala({})}>
+              <Button size="sm" iconLeft={<IconPlus />} onClick={() => setRoomModal({})}>
                 Nova sala
               </Button>
             </div>
@@ -94,17 +94,17 @@ export function RoomsTab() {
         }
         footer={
           <Pagination
-            page={paginaAtual}
-            totalPages={totalPaginas}
-            onChange={setPagina}
-            totalItems={filtradas.length}
-            itemsPerPage={porPagina}
+            page={currentPage}
+            totalPages={totalPages}
+            onChange={setPage}
+            totalItems={filtered.length}
+            itemsPerPage={perPage}
           />
         }
       />
 
       {/* Monta só quando aberto — o formulário nasce com os dados atuais. */}
-      {modalSala && <RoomFormModal sala={modalSala.sala} onClose={() => setModalSala(null)} />}
+      {roomModal && <RoomFormModal room={roomModal.room} onClose={() => setRoomModal(null)} />}
     </>
   )
 }

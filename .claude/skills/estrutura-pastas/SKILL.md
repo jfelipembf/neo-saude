@@ -161,7 +161,16 @@ página → hook (useQuery) → service → supabase (lib/supabase.ts)
 
 ## Idioma
 
-- UI, rotas (`/pacientes`), comentários e mensagens: **português**.
-- Nomes de arquivos, componentes e variáveis: **inglês** (`PatientsPage`);
-  funções de service podem usar o nome da entidade em pt para casar com a
-  tabela do banco (`listPacientes`).
+Regra única: **código em inglês, produto em português.**
+
+- **Inglês** — TODO identificador: arquivos, componentes, funções, variáveis,
+  campos de tipo (`name`, `amount`, `patientId`), literais de union
+  ARMAZENADOS (`'active'`, `'paid'`, `'todo'`), query keys, ids de tab e
+  tabelas/colunas do Supabase (`patients`, `schedule_slots`).
+- **Português** — o que o usuário vê ou lê: texto de UI, rótulos
+  (via `STATUS_MAP`/options: chave en → `label` pt), mensagens, rotas
+  (`/pacientes`) e comentários.
+- Exceções de nome próprio: `cpf`, `cnpj`, `cep`, `nsu`, `ans`, `boleto`,
+  `pix` — termos brasileiros sem tradução útil, ficam como estão.
+- Um valor novo de status entra em inglês no domínio e ganha rótulo pt no
+  `STATUS_MAP` — nunca aparece cru na tela.

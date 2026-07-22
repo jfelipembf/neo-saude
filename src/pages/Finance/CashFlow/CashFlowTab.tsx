@@ -3,62 +3,62 @@ import { Pagination } from '@/components/Pagination/Pagination'
 import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
-import { useFluxoCaixa } from '@/hooks/useFinanceiro'
+import { useCashFlow } from '@/hooks/useFinance'
 import { usePagination } from '@/hooks/usePagination'
-import { formatarReais } from '@/utils/format'
+import { formatBRL } from '@/utils/format'
 import type { CashFlowDay } from '@/types/domain'
 import shared from '../shared/finance.module.scss'
 
 /** Linha da tabela: o dia do serviço + os acumulados calculados aqui. */
-type LinhaFluxo = CashFlowDay & { liquido: number; projetado: number }
+type CashFlowRow = CashFlowDay & { net: number; projected: number }
 
 /** Aba "Fluxo de caixa": projeção diária cumulativa a partir do saldo atual. */
 export function CashFlowTab() {
-  const { data, isLoading } = useFluxoCaixa()
+  const { data, isLoading } = useCashFlow()
 
-  const saldoBase = data?.saldoBase ?? 0
-  const dias = data?.dias ?? []
+  const baseBalance = data?.baseBalance ?? 0
+  const days = data?.dias ?? []
 
   // Saldo projetado cumulativo a partir do saldo base.
-  const linhas: LinhaFluxo[] = []
-  let acumulado = saldoBase
-  for (const d of dias) {
-    const liquido = d.entradas - d.saidas
-    acumulado += liquido
-    linhas.push({ ...d, liquido, projetado: acumulado })
+  const rows: CashFlowRow[] = []
+  let accumulated = baseBalance
+  for (const d of days) {
+    const net = d.inflows - d.outflows
+    accumulated += net
+    rows.push({ ...d, net, projected: accumulated })
   }
 
-  const pag = usePagination(linhas)
+  const pagination = usePagination(rows)
 
   if (isLoading) return <PageLoader />
 
-  const totalEntradas = dias.reduce((s, d) => s + d.entradas, 0)
-  const totalSaidas   = dias.reduce((s, d) => s + d.saidas, 0)
-  const projetado     = linhas.length ? linhas[linhas.length - 1].projetado : saldoBase
+  const totalInflows  = days.reduce((s, d) => s + d.inflows, 0)
+  const totalOutflows = days.reduce((s, d) => s + d.outflows, 0)
+  const projected     = rows.length ? rows[rows.length - 1].projected : baseBalance
 
-  const columns: TableColumn<LinhaFluxo>[] = [
+  const columns: TableColumn<CashFlowRow>[] = [
     {
       key: 'data', label: 'Data',
       render: d => (
         <span className={shared.celulaForte}>
-          {d.data} <span className={shared.contagem}>({d.lancamentos})</span>
+          {d.date} <span className={shared.contagem}>({d.entryCount})</span>
         </span>
       ),
     },
-    { key: 'entradas', label: 'Entradas', render: d => d.entradas > 0 ? <span className={shared.pos}>{formatarReais(d.entradas)}</span> : <span className={shared.traco}>—</span> },
-    { key: 'saidas',   label: 'Saídas',   render: d => d.saidas > 0 ? <span className={shared.neg}>{formatarReais(d.saidas)}</span> : <span className={shared.traco}>—</span> },
+    { key: 'entradas', label: 'Entradas', render: d => d.inflows > 0 ? <span className={shared.pos}>{formatBRL(d.inflows)}</span> : <span className={shared.traco}>—</span> },
+    { key: 'saidas',   label: 'Saídas',   render: d => d.outflows > 0 ? <span className={shared.neg}>{formatBRL(d.outflows)}</span> : <span className={shared.traco}>—</span> },
     {
       key: 'liquido', label: 'Líquido',
       render: d => (
-        <span className={`${shared.valor} ${d.liquido >= 0 ? shared.pos : shared.neg}`}>
-          {d.liquido >= 0 ? '+' : ''}{formatarReais(d.liquido)}
+        <span className={`${shared.valor} ${d.net >= 0 ? shared.pos : shared.neg}`}>
+          {d.net >= 0 ? '+' : ''}{formatBRL(d.net)}
         </span>
       ),
     },
     {
       key: 'projetado', label: 'Saldo projetado',
       render: d => (
-        <span className={`${shared.valor} ${d.projetado < 0 ? shared.neg : ''}`}>{formatarReais(d.projetado)}</span>
+        <span className={`${shared.valor} ${d.projected < 0 ? shared.neg : ''}`}>{formatBRL(d.projected)}</span>
       ),
     },
   ]
@@ -66,25 +66,25 @@ export function CashFlowTab() {
   return (
     <Table
       columns={columns}
-      data={pag.visiveis}
+      data={pagination.visible}
       rowKey={d => d.id}
       emptyMessage="Sem projeção no período."
-      toolbar={<PerPageSelect porPagina={pag.porPagina} onChange={pag.mudarPorPagina} />}
+      toolbar={<PerPageSelect perPage={pagination.perPage} onChange={pagination.setPerPage} />}
       footer={
         <div className={shared.rodapeTabela}>
           <div className={shared.resumo}>
-            <span className={shared.resumoItem}>Saldo atual <strong>{formatarReais(saldoBase)}</strong></span>
-            <span className={shared.resumoItem}>Entradas <strong className={shared.pos}>{formatarReais(totalEntradas)}</strong></span>
-            <span className={shared.resumoItem}>Saídas <strong className={shared.neg}>{formatarReais(totalSaidas)}</strong></span>
-            <span className={`${shared.resumoItem} ${shared.resumoDireita}`}>Projetado <strong>{formatarReais(projetado)}</strong></span>
+            <span className={shared.resumoItem}>Saldo atual <strong>{formatBRL(baseBalance)}</strong></span>
+            <span className={shared.resumoItem}>Entradas <strong className={shared.pos}>{formatBRL(totalInflows)}</strong></span>
+            <span className={shared.resumoItem}>Saídas <strong className={shared.neg}>{formatBRL(totalOutflows)}</strong></span>
+            <span className={`${shared.resumoItem} ${shared.resumoDireita}`}>Projetado <strong>{formatBRL(projected)}</strong></span>
           </div>
           <div className={shared.rodapePaginacao}>
             <Pagination
-              page={pag.paginaAtual}
-              totalPages={pag.totalPaginas}
-              onChange={pag.setPagina}
-              totalItems={pag.total}
-              itemsPerPage={pag.porPagina}
+              page={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onChange={pagination.setPage}
+              totalItems={pagination.total}
+              itemsPerPage={pagination.perPage}
             />
           </div>
         </div>

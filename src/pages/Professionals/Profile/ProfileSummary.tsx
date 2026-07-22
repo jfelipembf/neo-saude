@@ -1,29 +1,29 @@
 import { Button } from '@/components/Button/Button'
-import { IconEditar, IconEstrela, IconTelefone, IconMensagem, IconEmail } from '@/components/icons'
+import { IconEdit, IconStar, IconPhone, IconMessage, IconEmail } from '@/components/icons'
 import { initials } from '@/utils/text'
 import type { Professional } from '@/types/domain'
 import shared from './shared/profile.module.scss'
 import styles from './ProfileSummary.module.scss'
 
 interface ProfileSummaryProps {
-  profissional: Professional
-  onEditar: () => void
+  professional: Professional
+  onEdit: () => void
 }
 
 /** Card-resumo da lateral esquerda: identidade, contato, dados profissionais,
  *  especializações e "sobre" — visível em todas as abas. */
-export function ProfileSummary({ profissional, onEditar }: ProfileSummaryProps) {
-  const contatos = [
-    { label: 'Telefone', valor: profissional.telefone, icone: <IconTelefone /> },
-    { label: 'WhatsApp', valor: profissional.whatsapp, icone: <IconMensagem /> },
-    { label: 'E-mail',   valor: profissional.email,    icone: <IconEmail /> },
+export function ProfileSummary({ professional, onEdit }: ProfileSummaryProps) {
+  const contacts = [
+    { label: 'Telefone', value: professional.phone, icon: <IconPhone /> },
+    { label: 'WhatsApp', value: professional.whatsapp, icon: <IconMessage /> },
+    { label: 'E-mail',   value: professional.email,    icon: <IconEmail /> },
   ]
 
-  const pares: { label: string; valor?: string }[] = [
-    { label: 'Especialidade', valor: profissional.especialidade },
-    { label: 'Registro',      valor: profissional.registro },
-    { label: 'Nota média',    valor: profissional.nota?.toLocaleString('pt-BR') },
-    { label: 'Situação',      valor: profissional.status === 'ativo' ? 'Ativo' : 'Inativo' },
+  const pairs: { label: string; amount?: string }[] = [
+    { label: 'Especialidade', amount: professional.specialty },
+    { label: 'Registro',      amount: professional.license },
+    { label: 'Nota média',    amount: professional.rating?.toLocaleString('pt-BR') },
+    { label: 'Situação',      amount: professional.status === 'active' ? 'Ativo' : 'Inativo' },
   ]
 
   return (
@@ -31,23 +31,23 @@ export function ProfileSummary({ profissional, onEditar }: ProfileSummaryProps) 
       <Button
         variant="ghost"
         size="sm"
-        iconLeft={<IconEditar />}
+        iconLeft={<IconEdit />}
         className={styles.editBtn}
-        onClick={onEditar}
+        onClick={onEdit}
         title="Editar cadastro"
         aria-label="Editar cadastro do profissional"
       />
 
       <div className={styles.identidade}>
-        <span className={styles.avatar}>{initials(profissional.nome)}</span>
-        <h2 className={styles.nome}>{profissional.nome}</h2>
+        <span className={styles.avatar}>{initials(professional.name)}</span>
+        <h2 className={styles.nome}>{professional.name}</h2>
         <p className={styles.subtitulo}>
-          {[profissional.especialidade, profissional.registro].filter(Boolean).join(' · ')}
+          {[professional.specialty, professional.license].filter(Boolean).join(' · ')}
         </p>
-        {profissional.nota != null && (
+        {professional.rating != null && (
           <span className={styles.nota}>
-            <IconEstrela />
-            {profissional.nota.toLocaleString('pt-BR')}
+            <IconStar />
+            {professional.rating.toLocaleString('pt-BR')}
           </span>
         )}
       </div>
@@ -55,12 +55,12 @@ export function ProfileSummary({ profissional, onEditar }: ProfileSummaryProps) 
       <div className={styles.bloco}>
         <h3 className={styles.blocoTitulo}>Contato</h3>
         <ul className={styles.contatos}>
-          {contatos.map(c => (
+          {contacts.map(c => (
             <li key={c.label} className={styles.contato}>
-              <span className={styles.contatoIcone}>{c.icone}</span>
+              <span className={styles.contatoIcone}>{c.icon}</span>
               <span className={styles.contatoTexto}>
                 <span className={styles.contatoLabel}>{c.label}</span>
-                <span className={styles.contatoValor}>{c.valor || '—'}</span>
+                <span className={styles.contatoValor}>{c.value || '—'}</span>
               </span>
             </li>
           ))}
@@ -70,30 +70,30 @@ export function ProfileSummary({ profissional, onEditar }: ProfileSummaryProps) 
       <div className={styles.bloco}>
         <h3 className={styles.blocoTitulo}>Dados profissionais</h3>
         <dl className={styles.pares}>
-          {pares.map(d => (
+          {pairs.map(d => (
             <div key={d.label} className={shared.par}>
               <dt>{d.label}</dt>
-              <dd>{d.valor || '—'}</dd>
+              <dd>{d.amount || '—'}</dd>
             </div>
           ))}
         </dl>
       </div>
 
-      {(profissional.especializacoes?.length ?? 0) > 0 && (
+      {(professional.specializations?.length ?? 0) > 0 && (
         <div className={styles.bloco}>
           <h3 className={styles.blocoTitulo}>Especializações</h3>
           <div className={shared.chips}>
-            {profissional.especializacoes!.map(e => (
+            {professional.specializations!.map(e => (
               <span key={e} className={shared.chip}>{e}</span>
             ))}
           </div>
         </div>
       )}
 
-      {profissional.descricao && (
+      {professional.description && (
         <div className={styles.bloco}>
           <h3 className={styles.blocoTitulo}>Sobre</h3>
-          <p className={shared.sobre}>{profissional.descricao}</p>
+          <p className={shared.sobre}>{professional.description}</p>
         </div>
       )}
     </section>

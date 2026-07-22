@@ -6,78 +6,78 @@ import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
 import { usePagination } from '@/hooks/usePagination'
-import { useAssinatura, useFaturas } from '@/hooks/useAssinatura'
-import { formatarReais } from '@/utils/format'
+import { useSubscription, useInvoices } from '@/hooks/useSubscription'
+import { formatBRL } from '@/utils/format'
 import type { SubscriptionInvoice } from '@/types/domain'
 import styles from './SubscriptionTab.module.scss'
 
-const CICLO_LABEL = { mensal: 'por mês', anual: 'por ano' } as const
+const CYCLE_LABEL = { monthly: 'por mês', yearly: 'por ano' } as const
 
 /**
  * Aba "Assinatura": o que a CLÍNICA paga para usar o Neo Saúde.
  * Não confundir com a página Financeiro, que é o caixa da clínica.
  */
 export function SubscriptionTab() {
-  const { data: assinatura, isLoading: carregandoPlano } = useAssinatura()
-  const { data: faturas, isLoading: carregandoFaturas } = useFaturas()
+  const { data: subscription, isLoading: loadingPlan } = useSubscription()
+  const { data: invoices, isLoading: loadingInvoices } = useInvoices()
 
-  const pag = usePagination(faturas ?? [])
+  const pagination = usePagination(invoices ?? [])
 
-  if (carregandoPlano || carregandoFaturas || !assinatura) return <PageLoader />
+  if (loadingPlan || loadingInvoices || !subscription) return <PageLoader />
 
-  const colunas: TableColumn<SubscriptionInvoice>[] = [
+  const columns: TableColumn<SubscriptionInvoice>[] = [
     {
       key: 'competencia', label: 'Competência',
-      render: f => <span className={styles.competencia}>{f.competencia}</span>,
+      render: f => <span className={styles.competencia}>{f.referenceMonth}</span>,
     },
-    { key: 'vencimento', label: 'Vencimento' },
-    { key: 'pagamento',  label: 'Pagamento', render: f => f.pagamento ?? '—' },
-    { key: 'forma',      label: 'Forma', render: f => f.formaPagamento ?? '—' },
+    { key: 'dueDate', label: 'Vencimento' },
+    { key: 'pagamento',  label: 'Pagamento', render: f => f.paidAt ?? '—' },
+    { key: 'forma',      label: 'Forma', render: f => f.paymentMethod ?? '—' },
     {
       key: 'valor', label: 'Valor',
-      render: f => <span className={styles.valor}>{formatarReais(f.valor)}</span>,
+      render: f => <span className={styles.valor}>{formatBRL(f.amount)}</span>,
     },
     { key: 'status', label: 'Status', render: f => <Badge status={f.status} /> },
   ]
 
-  const totalPago = (faturas ?? [])
-    .filter(f => f.status === 'pago')
-    .reduce((soma, f) => soma + f.valor, 0)
+  const totalPaid = (invoices ?? [])
+    .filter(f => f.status === 'paid')
+    .reduce((sum, f) => sum + f.amount, 0)
 
   return (
     <div className={styles.coluna}>
       <FormSection
         title="Plano atual"
         description="Cobrança recorrente pelo acesso ao sistema."
-        actions={<Badge status={assinatura.status} />}
+        actions={<Badge status={subscription.status} />}
       >
         <div className={styles.plano}>
           <div className={styles.preco}>
-            <span className={styles.precoNome}>{assinatura.plano}</span>
+            <span className={styles.precoNome}>{subscription.plan}</span>
             <span className={styles.precoValor}>
-              {formatarReais(assinatura.valor)}
-              <small>{CICLO_LABEL[assinatura.ciclo]}</small>
+              {formatBRL(subscription.amount)}
+              <small>{CYCLE_LABEL[subscription.cycle]}</small>
             </span>
           </div>
 
           <dl className={styles.pares}>
             <div className={styles.par}>
               <dt>Próxima cobrança</dt>
-              <dd>{assinatura.proximaCobranca}</dd>
+              <dd>{subscription.nextBilling}</dd>
             </div>
             <div className={styles.par}>
               <dt>Cliente desde</dt>
-              <dd>{assinatura.desde}</dd>
+              <dd>{subscription.since}</dd>
             </div>
             <div className={styles.par}>
               <dt>Forma de pagamento</dt>
-              <dd>{assinatura.formaPagamento ?? '—'}</dd>
+              <dd>{subscription.paymentMethod ?? '—'}</dd>
             </div>
-            {assinatura.profissionaisIncluidos != null && (
+            {subscription.includedProfessionals != null && (
               <div className={styles.par}>
                 <dt>Profissionais</dt>
                 <dd>
-                  {assinatura.profissionaisEmUso ?? 0} de {assinatura.profissionaisIncluidos}
+                  {subscription.professionalsInUse ?? 0} de {subscription.includedProfessionals}
                   <span className={styles.parDica}> incluídos no plano</span>
                 </dd>
               </div>
@@ -91,22 +91,22 @@ export function SubscriptionTab() {
         description="Pagamentos feitos pela clínica para manter o acesso ao app."
       >
         <Table
-          columns={colunas}
-          data={pag.visiveis}
+          columns={columns}
+          data={pagination.visible}
           rowKey={f => f.id}
           emptyMessage="Nenhuma fatura emitida."
-          toolbar={<PerPageSelect porPagina={pag.porPagina} onChange={pag.mudarPorPagina} ariaLabel="Faturas por página" />}
+          toolbar={<PerPageSelect perPage={pagination.perPage} onChange={pagination.setPerPage} ariaLabel="Faturas por página" />}
           footer={
             <div className={styles.rodape}>
               <span className={styles.resumo}>
-                Total pago <strong>{formatarReais(totalPago)}</strong>
+                Total pago <strong>{formatBRL(totalPaid)}</strong>
               </span>
               <Pagination
-                page={pag.paginaAtual}
-                totalPages={pag.totalPaginas}
-                onChange={pag.setPagina}
-                totalItems={pag.total}
-                itemsPerPage={pag.porPagina}
+                page={pagination.currentPage}
+                totalPages={pagination.totalPages}
+                onChange={pagination.setPage}
+                totalItems={pagination.total}
+                itemsPerPage={pagination.perPage}
               />
             </div>
           }

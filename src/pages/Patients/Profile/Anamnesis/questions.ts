@@ -1,4 +1,4 @@
-import type { Anamnesis } from '@/types/domain'
+import type { EditAnamnesis } from '@/services/anamnesisService'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Perguntas da anamnese — FONTE ÚNICA. A leitura, o formulário de edição e o
@@ -9,140 +9,142 @@ import type { Anamnesis } from '@/types/domain'
 // Regionais de Odontologia (CRO).
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Campos de RESPOSTA — fora a chave do paciente e o carimbo de data, que não
- *  são perguntas. Todos guardam string (opção escolhida ou texto digitado). */
-export type CampoAnamnese = Exclude<keyof Anamnesis, 'pacienteId' | 'atualizadaEm'>
+/** Campos de RESPOSTA: exatamente o que o formulário envia — logo, sem a chave
+ *  do paciente, o carimbo de data nem o tenant, que não são perguntas.
+ *  Derivar de `EditAnamnesis` mantém isto correto sozinho quando o domínio muda.
+ *  Todos guardam string (opção escolhida ou texto digitado). */
+export type AnamnesisField = keyof EditAnamnesis
 
-export interface PerguntaAnamnese {
-  campo: CampoAnamnese
-  pergunta: string
+export interface AnamnesisQuestion {
+  field: AnamnesisField
+  question: string
   /** Resposta fechada (botões) ou campo aberto. */
-  tipo: 'opcoes' | 'texto' | 'textoLongo'
-  opcoes?: { value: string; label: string }[]
-  /** Campo de detalhe que só aparece quando a resposta estiver em `quando`. */
-  detalhe?: { campo: CampoAnamnese; label: string; quando: string[] }
+  type: 'options' | 'text' | 'longText'
+  options?: { value: string; label: string }[]
+  /** Campo de detalhe que só aparece quando a resposta estiver em `when`. */
+  detail?: { field: AnamnesisField; label: string; when: string[] }
 }
 
-const SIM_NAO = [
-  { value: 'sim', label: 'Sim' },
-  { value: 'nao', label: 'Não' },
+const YES_NO = [
+  { value: 'yes', label: 'Sim' },
+  { value: 'no', label: 'Não' },
 ]
 
-const SIM_NAO_NAO_SEI = [
-  ...SIM_NAO,
-  { value: 'nao_sei', label: 'Não sei' },
+const YES_NO_UNKNOWN = [
+  ...YES_NO,
+  { value: 'unknown', label: 'Não sei' },
 ]
 
-export interface SecaoAnamnese {
-  titulo: string
-  descricao?: string
-  perguntas: PerguntaAnamnese[]
+export interface AnamnesisSection {
+  title: string
+  description?: string
+  questions: AnamnesisQuestion[]
 }
 
-export const SECOES_ANAMNESE: SecaoAnamnese[] = [
+export const ANAMNESIS_SECTIONS: AnamnesisSection[] = [
   {
-    titulo: 'Saúde geral',
-    descricao: 'Condições que interferem no atendimento, na anestesia e na cicatrização.',
-    perguntas: [
+    title: 'Saúde geral',
+    description: 'Condições que interferem no atendimento, na anestesia e na cicatrização.',
+    questions: [
       {
-        campo: 'medicamentos', pergunta: 'Está tomando algum medicamento?', tipo: 'opcoes', opcoes: SIM_NAO,
-        detalhe: { campo: 'medicamentosQuais', label: 'Quais (posologia e dose)', quando: ['sim'] },
+        field: 'medications', question: 'Está tomando algum medicamento?', type: 'options', options: YES_NO,
+        detail: { field: 'medicationsDetails', label: 'Quais (posologia e dose)', when: ['yes'] },
       },
       {
-        campo: 'alergia', pergunta: 'Tem algum tipo de alergia?', tipo: 'opcoes', opcoes: SIM_NAO_NAO_SEI,
-        detalhe: { campo: 'alergiaQual', label: 'Qual', quando: ['sim'] },
+        field: 'allergy', question: 'Tem algum tipo de alergia?', type: 'options', options: YES_NO_UNKNOWN,
+        detail: { field: 'allergyDetails', label: 'Qual', when: ['yes'] },
       },
       {
-        campo: 'pressao', pergunta: 'Sua pressão é:', tipo: 'opcoes',
-        opcoes: [
+        field: 'bloodPressure', question: 'Sua pressão é:', type: 'options',
+        options: [
           { value: 'normal',     label: 'Normal' },
-          { value: 'alta',       label: 'Alta' },
-          { value: 'baixa',      label: 'Baixa' },
-          { value: 'controlada', label: 'Controlada com medicamento' },
+          { value: 'high',       label: 'Alta' },
+          { value: 'low',        label: 'Baixa' },
+          { value: 'controlled', label: 'Controlada com medicamento' },
         ],
       },
       {
-        campo: 'problemaCoracao', pergunta: 'Tem ou teve algum problema de coração?', tipo: 'opcoes', opcoes: SIM_NAO,
-        detalhe: { campo: 'problemaCoracaoQual', label: 'Qual', quando: ['sim'] },
+        field: 'heartCondition', question: 'Tem ou teve algum problema de coração?', type: 'options', options: YES_NO,
+        detail: { field: 'heartConditionDetails', label: 'Qual', when: ['yes'] },
       },
-      { campo: 'faltaDeAr', pergunta: 'Sente falta de ar com frequência?', tipo: 'opcoes', opcoes: SIM_NAO },
-      { campo: 'diabetes',  pergunta: 'Tem diabetes?', tipo: 'opcoes', opcoes: SIM_NAO_NAO_SEI },
+      { field: 'shortnessOfBreath', question: 'Sente falta de ar com frequência?', type: 'options', options: YES_NO },
+      { field: 'diabetes',  question: 'Tem diabetes?', type: 'options', options: YES_NO_UNKNOWN },
       {
-        campo: 'sangramento', pergunta: 'Quando se corta, o sangramento é:', tipo: 'opcoes',
-        opcoes: [{ value: 'normal', label: 'Normal' }, { value: 'excessivo', label: 'Excessivo' }],
+        field: 'bleeding', question: 'Quando se corta, o sangramento é:', type: 'options',
+        options: [{ value: 'normal', label: 'Normal' }, { value: 'excessive', label: 'Excessivo' }],
       },
       {
-        campo: 'cicatrizacao', pergunta: 'Sua cicatrização é:', tipo: 'opcoes',
-        opcoes: [{ value: 'normal', label: 'Normal' }, { value: 'complicada', label: 'Complicada' }],
+        field: 'healing', question: 'Sua cicatrização é:', type: 'options',
+        options: [{ value: 'normal', label: 'Normal' }, { value: 'complicated', label: 'Complicada' }],
       },
-      { campo: 'cirurgia', pergunta: 'Já fez alguma cirurgia?', tipo: 'opcoes', opcoes: SIM_NAO },
+      { field: 'surgery', question: 'Já fez alguma cirurgia?', type: 'options', options: YES_NO },
       {
-        campo: 'gestante', pergunta: 'Gestante?', tipo: 'opcoes', opcoes: SIM_NAO_NAO_SEI,
-        detalhe: { campo: 'gestanteSemanas', label: 'Semanas', quando: ['sim'] },
+        field: 'pregnant', question: 'Gestante?', type: 'options', options: YES_NO_UNKNOWN,
+        detail: { field: 'pregnancyWeeks', label: 'Semanas', when: ['yes'] },
       },
-      { campo: 'problemasSaude', pergunta: 'Problemas de saúde que já teve', tipo: 'textoLongo' },
+      { field: 'healthIssues', question: 'Problemas de saúde que já teve', type: 'longText' },
     ],
   },
   {
-    titulo: 'Saúde bucal',
-    descricao: 'Queixa, histórico odontológico e hábitos de higiene.',
-    perguntas: [
-      { campo: 'queixaPrincipal', pergunta: 'Queixa principal', tipo: 'textoLongo' },
+    title: 'Saúde bucal',
+    description: 'Queixa, histórico odontológico e hábitos de higiene.',
+    questions: [
+      { field: 'chiefComplaint', question: 'Queixa principal', type: 'longText' },
       {
-        campo: 'reacaoAnestesia', pergunta: 'Já teve alguma reação com anestesia dental?', tipo: 'opcoes', opcoes: SIM_NAO,
-        detalhe: { campo: 'reacaoAnestesiaQual', label: 'Qual', quando: ['sim'] },
+        field: 'anesthesiaReaction', question: 'Já teve alguma reação com anestesia dental?', type: 'options', options: YES_NO,
+        detail: { field: 'anesthesiaReactionDetails', label: 'Qual', when: ['yes'] },
       },
-      { campo: 'ultimoTratamento',  pergunta: 'Quando foi seu último tratamento dentário?', tipo: 'texto' },
-      { campo: 'dorDentesGengiva',  pergunta: 'Tem sentido dor nos dentes ou na gengiva?', tipo: 'opcoes', opcoes: SIM_NAO },
+      { field: 'lastTreatment',  question: 'Quando foi seu último tratamento dentário?', type: 'text' },
+      { field: 'toothGumPain',  question: 'Tem sentido dor nos dentes ou na gengiva?', type: 'options', options: YES_NO },
       {
-        campo: 'gengivaSangra', pergunta: 'Sua gengiva sangra?', tipo: 'opcoes',
-        opcoes: [
-          { value: 'nao',              label: 'Não' },
-          { value: 'sim',              label: 'Sim' },
-          { value: 'durante_higiene',  label: 'Durante a higiene' },
-          { value: 'as_vezes',         label: 'Às vezes' },
+        field: 'gumBleeding', question: 'Sua gengiva sangra?', type: 'options',
+        options: [
+          { value: 'no',               label: 'Não' },
+          { value: 'yes',              label: 'Sim' },
+          { value: 'during_brushing',  label: 'Durante a higiene' },
+          { value: 'sometimes',        label: 'Às vezes' },
         ],
       },
-      { campo: 'gostoRuimBocaSeca', pergunta: 'Tem sentido gosto ruim na boca ou boca seca?', tipo: 'opcoes', opcoes: SIM_NAO },
-      { campo: 'escovacoesPorDia',  pergunta: 'Quantas vezes escova os dentes por dia?', tipo: 'texto' },
+      { field: 'badTasteDryMouth', question: 'Tem sentido gosto ruim na boca ou boca seca?', type: 'options', options: YES_NO },
+      { field: 'brushingsPerDay',  question: 'Quantas vezes escova os dentes por dia?', type: 'text' },
       {
-        campo: 'fioDental', pergunta: 'Usa fio dental?', tipo: 'opcoes',
-        opcoes: [
-          { value: 'diariamente', label: 'Diariamente' },
-          { value: 'as_vezes',    label: 'Às vezes' },
-          { value: 'nao',         label: 'Não usa' },
+        field: 'flossing', question: 'Usa fio dental?', type: 'options',
+        options: [
+          { value: 'daily',     label: 'Diariamente' },
+          { value: 'sometimes', label: 'Às vezes' },
+          { value: 'no',        label: 'Não usa' },
         ],
       },
-      { campo: 'dorEstalosMaxilar', pergunta: 'Sente dores ou estalos no maxilar ou no ouvido?', tipo: 'opcoes', opcoes: SIM_NAO },
-      { campo: 'rangeDentes',       pergunta: 'Range os dentes de dia ou de noite?', tipo: 'opcoes', opcoes: SIM_NAO },
-      { campo: 'feridaBolhaFace',   pergunta: 'Já teve alguma ferida ou bolha na face ou nos lábios?', tipo: 'opcoes', opcoes: SIM_NAO },
+      { field: 'jawPainClicking', question: 'Sente dores ou estalos no maxilar ou no ouvido?', type: 'options', options: YES_NO },
+      { field: 'grindsTeeth',       question: 'Range os dentes de dia ou de noite?', type: 'options', options: YES_NO },
+      { field: 'faceSores',   question: 'Já teve alguma ferida ou bolha na face ou nos lábios?', type: 'options', options: YES_NO },
       {
-        campo: 'fuma', pergunta: 'Fuma?', tipo: 'opcoes', opcoes: SIM_NAO,
-        detalhe: { campo: 'fumaQuantidade', label: 'Quantidade por dia', quando: ['sim'] },
+        field: 'smokes', question: 'Fuma?', type: 'options', options: YES_NO,
+        detail: { field: 'smokingAmount', label: 'Quantidade por dia', when: ['yes'] },
       },
     ],
   },
 ]
 
 /** Rótulo legível de uma resposta fechada (leitura e impressão). */
-export function rotuloDaResposta(p: PerguntaAnamnese, valor?: string) {
-  if (!valor) return '—'
-  return p.opcoes?.find(o => o.value === valor)?.label ?? valor
+export function answerLabel(question: AnamnesisQuestion, value?: string) {
+  if (!value) return '—'
+  return question.options?.find(o => o.value === value)?.label ?? value
 }
 
 /** Respostas que merecem destaque clínico — o que muda a conduta do atendimento. */
-export function ehAlerta(campo: CampoAnamnese, valor?: string) {
-  if (!valor) return false
-  const alertas: Partial<Record<CampoAnamnese, string[]>> = {
-    alergia:         ['sim'],
-    problemaCoracao: ['sim'],
-    diabetes:        ['sim'],
-    gestante:        ['sim'],
-    pressao:         ['alta', 'baixa'],
-    sangramento:     ['excessivo'],
-    cicatrizacao:    ['complicada'],
-    reacaoAnestesia: ['sim'],
-    medicamentos:    ['sim'],
+export function isAlert(field: AnamnesisField, value?: string) {
+  if (!value) return false
+  const alerts: Partial<Record<AnamnesisField, string[]>> = {
+    allergy:            ['yes'],
+    heartCondition:     ['yes'],
+    diabetes:           ['yes'],
+    pregnant:           ['yes'],
+    bloodPressure:      ['high', 'low'],
+    bleeding:           ['excessive'],
+    healing:            ['complicated'],
+    anesthesiaReaction: ['yes'],
+    medications:        ['yes'],
   }
-  return alertas[campo]?.includes(valor) ?? false
+  return alerts[field]?.includes(value) ?? false
 }

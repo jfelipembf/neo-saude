@@ -3,16 +3,16 @@
  * ("Maria de Souza", "João dos Santos") e que a busca ignora — quem digita
  * "Maria Souza" precisa achar "Maria de Souza".
  */
-export const PARTICULAS_NOME = new Set([
+export const NAME_PARTICLES = new Set([
   'de', 'da', 'do', 'das', 'dos', 'e',
   'di', 'du', 'del', 'della', 'van', 'von', 'y', 'la', 'le',
 ])
 
 /** 'ana' → 'Ana' (respeita hífen: 'ana-maria' → 'Ana-Maria'). */
-function capitalizarPalavra(palavra: string) {
-  return palavra
+function capitalizeWord(word: string) {
+  return word
     .split('-')
-    .map(parte => parte ? parte[0].toUpperCase() + parte.slice(1) : parte)
+    .map(part => part ? part[0].toUpperCase() + part.slice(1) : part)
     .join('-')
 }
 
@@ -25,21 +25,37 @@ function capitalizarPalavra(palavra: string) {
  * 'dra. camila duarte'                → 'Dra. Camila Duarte'
  * "joão d'ávila"                      → "João d'Ávila"
  */
-export function capitalizarNome(nome: string) {
-  return nome
+export function capitalizeName(name: string) {
+  return name
     .trim()
     .replace(/\s+/g, ' ')
     .toLowerCase()
     .split(' ')
-    .map((palavra, i) => {
+    .map((word, i) => {
       // Partícula no meio do nome fica minúscula ("Maria de Souza").
-      if (i > 0 && PARTICULAS_NOME.has(palavra)) return palavra
+      if (i > 0 && NAME_PARTICLES.has(word)) return word
       // Prefixos com apóstrofo: d'Ávila, o'Brien — capitaliza depois do apóstrofo.
-      const apostrofo = palavra.match(/^([dlo])'(.+)$/)
-      if (apostrofo) return `${apostrofo[1]}'${capitalizarPalavra(apostrofo[2])}`
-      return capitalizarPalavra(palavra)
+      const apostrophe = word.match(/^([dlo])'(.+)$/)
+      if (apostrophe) return `${apostrophe[1]}'${capitalizeWord(apostrophe[2])}`
+      return capitalizeWord(word)
     })
     .join(' ')
+}
+
+/**
+ * Nome sem o título profissional — 'Dra. Camila Duarte' → 'Camila Duarte'.
+ * No-op em nomes que não o têm.
+ *
+ * O título faz parte do nome cadastrado; quem EXIBE decide se escreve "Dr(a)"
+ * por conta própria. Sem tirar antes, sai "Dr(a) Dra. Camila Duarte".
+ */
+export function stripTitle(name: string) {
+  return name.replace(/^Dra?\.\s*/i, '').trim()
+}
+
+/** Primeiro nome, sem o título — 'Dra. Camila Duarte' → 'Camila'. */
+export function firstName(name: string) {
+  return stripTitle(name).split(' ')[0] ?? ''
 }
 
 /**
@@ -47,14 +63,14 @@ export function capitalizarNome(nome: string) {
  * prefixo "Dr./Dra." (no-op em nomes que não o têm).
  * 'Dra. Ana Paula Souza' → 'AS' · 'João Silva' → 'JS'
  */
-export function initials(nome: string) {
-  const partes = nome.replace(/^Dra?\.\s*/i, '').split(' ').filter(Boolean)
-  const primeira = partes[0]?.[0] ?? ''
-  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : ''
-  return (primeira + ultima).toUpperCase()
+export function initials(name: string) {
+  const parts = stripTitle(name).split(' ').filter(Boolean)
+  const first = parts[0]?.[0] ?? ''
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : ''
+  return (first + last).toUpperCase()
 }
 
 /** '(79) 99811-4501' → '79998114501' (para links tel:/wa.me e comparações). */
-export function somenteDigitos(texto: string) {
-  return texto.replace(/\D/g, '')
+export function digitsOnly(text: string) {
+  return text.replace(/\D/g, '')
 }

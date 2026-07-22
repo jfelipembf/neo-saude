@@ -10,73 +10,73 @@ import { SideList } from '@/components/SideList/SideList'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { Toggle } from '@/components/Toggle/Toggle'
 import { useToast } from '@/components/Toast/useToast'
-import { useComissoes, useSalvarComissao } from '@/hooks/useComissoes'
-import { useProfissionais } from '@/hooks/useProfissionais'
-import { formatarReais, parseReais } from '@/utils/format'
+import { useCommissions, useSaveCommission } from '@/hooks/useCommissions'
+import { useProfessionals } from '@/hooks/useProfessionals'
+import { formatBRL, parseBRL } from '@/utils/format'
 import type { CommissionBase, ProfessionalCommission, CommissionPayout, CommissionType } from '@/types/domain'
 import styles from './CommissionsTab.module.scss'
 
-const OPCOES_TIPO: { value: CommissionType; label: string }[] = [
-  { value: 'percentual', label: 'Percentual' },
-  { value: 'valor_fixo', label: 'Valor fixo' },
+const TYPE_OPTIONS: { value: CommissionType; label: string }[] = [
+  { value: 'percentage', label: 'Percentual' },
+  { value: 'fixed', label: 'Valor fixo' },
 ]
 
-const OPCOES_REPASSE: { value: CommissionPayout; label: string }[] = [
-  { value: 'dia_fixo',       label: 'Dia fixo do mês' },
-  { value: 'no_atendimento', label: 'No dia do atendimento' },
+const PAYOUT_OPTIONS: { value: CommissionPayout; label: string }[] = [
+  { value: 'fixed_day',       label: 'Dia fixo do mês' },
+  { value: 'per_visit', label: 'No dia do atendimento' },
 ]
 
-const OPCOES_BASE = [
-  { value: 'recebido',  label: 'Sobre o recebido (o que o paciente pagou)' },
-  { value: 'realizado', label: 'Sobre o realizado (produção, mesmo sem receber)' },
+const BASE_OPTIONS = [
+  { value: 'received',  label: 'Sobre o recebido (o que o paciente pagou)' },
+  { value: 'performed', label: 'Sobre o realizado (produção, mesmo sem receber)' },
 ]
 
 // Até o dia 28: um dia de repasse que existe em todos os meses.
-const OPCOES_DIA = Array.from({ length: 28 }, (_, i) => ({
+const DAY_OPTIONS = Array.from({ length: 28 }, (_, i) => ({
   value: String(i + 1),
   label: `Dia ${i + 1}`,
 }))
 
-interface ComissaoFormState {
-  tipo: CommissionType
-  valorTexto: string
+interface CommissionFormState {
+  type: CommissionType
+  amountText: string
   base: CommissionBase
-  repasse: CommissionPayout
-  diaRepasse: string
-  ativa: boolean
-  observacao: string
+  payout: CommissionPayout
+  payoutDay: string
+  active: boolean
+  notes: string
 }
 
-const FORM_PADRAO: ComissaoFormState = {
-  tipo: 'percentual',
-  valorTexto: '',
-  base: 'recebido',
-  repasse: 'dia_fixo',
-  diaRepasse: '5',
-  ativa: true,
-  observacao: '',
+const DEFAULT_FORM: CommissionFormState = {
+  type: 'percentage',
+  amountText: '',
+  base: 'received',
+  payout: 'fixed_day',
+  payoutDay: '5',
+  active: true,
+  notes: '',
 }
 
-function formDaComissao(c: ProfessionalCommission): ComissaoFormState {
+function formFromCommission(c: ProfessionalCommission): CommissionFormState {
   return {
-    tipo: c.tipo,
-    valorTexto: String(c.valor).replace('.', ','),
+    type: c.type,
+    amountText: String(c.amount).replace('.', ','),
     base: c.base,
-    repasse: c.repasse,
-    diaRepasse: String(c.diaRepasse ?? 5),
-    ativa: c.status === 'ativo',
-    observacao: c.observacao ?? '',
+    payout: c.payout,
+    payoutDay: String(c.payoutDay ?? 5),
+    active: c.status === 'active',
+    notes: c.notes ?? '',
   }
 }
 
 /** Resumo da regra para o sublabel da lista (ex.: "40% sobre o recebido · dia 5"). */
-function resumoComissao(c: ProfessionalCommission) {
-  const valor = c.tipo === 'percentual'
-    ? `${String(c.valor).replace('.', ',')}%`
-    : `${formatarReais(c.valor)}/procedimento`
-  const base = c.tipo === 'percentual' ? (c.base === 'recebido' ? ' sobre o recebido' : ' sobre o realizado') : ''
-  const quando = c.repasse === 'dia_fixo' ? ` · dia ${c.diaRepasse}` : ' · no atendimento'
-  return `${valor}${base}${quando}${c.status === 'ativo' ? '' : ' · Inativa'}`
+function commissionSummary(c: ProfessionalCommission) {
+  const amount = c.type === 'percentage'
+    ? `${String(c.amount).replace('.', ',')}%`
+    : `${formatBRL(c.amount)}/procedimento`
+  const base = c.type === 'percentage' ? (c.base === 'received' ? ' sobre o recebido' : ' sobre o realizado') : ''
+  const when = c.payout === 'fixed_day' ? ` · dia ${c.payoutDay}` : ' · no atendimento'
+  return `${amount}${base}${when}${c.status === 'active' ? '' : ' · Inativa'}`
 }
 
 /**
@@ -86,75 +86,75 @@ function resumoComissao(c: ProfessionalCommission) {
  */
 export function CommissionsTab() {
   const toast = useToast()
-  const { data: profissionais, isLoading: carregandoProfissionais } = useProfissionais()
-  const { data: comissoes, isLoading: carregandoComissoes } = useComissoes()
-  const { mutate: salvar, isPending: salvando } = useSalvarComissao()
+  const { data: professionals, isLoading: loadingProfessionals } = useProfessionals()
+  const { data: commissions, isLoading: loadingCommissions } = useCommissions()
+  const { mutate: save, isPending: saving } = useSaveCommission()
 
-  const [selecionado, setSelecionado] = useState<string | null>(null)
-  const [form, setForm] = useState<ComissaoFormState>(FORM_PADRAO)
-  const [erroValor, setErroValor] = useState('')
+  const [selected, setSelected] = useState<string | null>(null)
+  const [form, setForm] = useState<CommissionFormState>(DEFAULT_FORM)
+  const [valueError, setValueError] = useState('')
 
-  if (carregandoProfissionais || carregandoComissoes) return <PageLoader />
+  if (loadingProfessionals || loadingCommissions) return <PageLoader />
 
-  const lista = profissionais ?? []
-  const regraDe = new Map((comissoes ?? []).map(c => [c.profissionalId, c]))
+  const list = professionals ?? []
+  const ruleById = new Map((commissions ?? []).map(c => [c.professionalId, c]))
 
-  const items = lista.map(p => {
-    const regra = regraDe.get(p.id)
+  const items = list.map(p => {
+    const rule = ruleById.get(p.id)
     return {
       id: p.id,
-      label: p.nome,
-      sublabel: regra ? resumoComissao(regra) : `${p.especialidade} · Sem comissão configurada`,
+      label: p.name,
+      sublabel: rule ? commissionSummary(rule) : `${p.specialty} · Sem comissão configurada`,
     }
   })
 
-  function set<K extends keyof ComissaoFormState>(campo: K, valor: ComissaoFormState[K]) {
-    setForm(atual => ({ ...atual, [campo]: valor }))
-    if (campo === 'valorTexto' || campo === 'tipo') setErroValor('')
+  function set<K extends keyof CommissionFormState>(field: K, value: CommissionFormState[K]) {
+    setForm(current => ({ ...current, [field]: value }))
+    if (field === 'amountText' || field === 'type') setValueError('')
   }
 
-  function selecionar(id: string) {
-    const regra = regraDe.get(id)
-    setForm(regra ? formDaComissao(regra) : FORM_PADRAO)
-    setErroValor('')
-    setSelecionado(id)
+  function selectProfessional(id: string) {
+    const rule = ruleById.get(id)
+    setForm(rule ? formFromCommission(rule) : DEFAULT_FORM)
+    setValueError('')
+    setSelected(id)
   }
 
-  function aoCancelar() {
-    setSelecionado(null)
-    setForm(FORM_PADRAO)
-    setErroValor('')
+  function handleCancel() {
+    setSelected(null)
+    setForm(DEFAULT_FORM)
+    setValueError('')
   }
 
-  function aoSalvar() {
-    const valor = parseReais(form.valorTexto || '')
-    if (!form.valorTexto.trim() || Number.isNaN(valor) || valor <= 0) {
-      setErroValor(form.tipo === 'percentual' ? 'Informe o percentual.' : 'Informe o valor.')
+  function handleSave() {
+    const value = parseBRL(form.amountText || '')
+    if (!form.amountText.trim() || Number.isNaN(value) || value <= 0) {
+      setValueError(form.type === 'percentage' ? 'Informe o percentual.' : 'Informe o valor.')
       return
     }
-    if (form.tipo === 'percentual' && valor > 100) {
-      setErroValor('Percentual não pode passar de 100%.')
+    if (form.type === 'percentage' && value > 100) {
+      setValueError('Percentual não pode passar de 100%.')
       return
     }
-    salvar(
+    save(
       {
-        profissionalId: selecionado!,
-        dados: {
-          tipo: form.tipo,
-          valor,
+        professionalId: selected!,
+        payload: {
+          type: form.type,
+          amount: value,
           base: form.base,
-          repasse: form.repasse,
-          diaRepasse: form.repasse === 'dia_fixo' ? Number(form.diaRepasse) : undefined,
-          status: form.ativa ? 'ativo' : 'inativo',
-          observacao: form.observacao.trim() || undefined,
+          payout: form.payout,
+          payoutDay: form.payout === 'fixed_day' ? Number(form.payoutDay) : undefined,
+          status: form.active ? 'active' : 'inactive',
+          notes: form.notes.trim() || undefined,
         },
       },
       { onSuccess: () => toast.success('Comissão salva!') },
     )
   }
 
-  const ehPercentual = form.tipo === 'percentual'
-  const profissional = lista.find(p => p.id === selecionado)
+  const isPercentage = form.type === 'percentage'
+  const professional = list.find(p => p.id === selected)
 
   return (
     <div className={styles.layout}>
@@ -162,14 +162,14 @@ export function CommissionsTab() {
         title="Profissionais"
         size="lg"
         items={items}
-        selectedId={selecionado}
-        onSelect={id => selecionar(String(id))}
+        selectedId={selected}
+        onSelect={id => selectProfessional(String(id))}
         searchPlaceholder="Buscar profissional..."
         emptyText="Nenhum profissional cadastrado"
       />
 
       <div className={styles.formArea}>
-        {!selecionado ? (
+        {!selected ? (
           <EmptyState
             title="Nenhum profissional selecionado"
             description="Selecione um profissional na lista ao lado para configurar como e quando ele recebe a comissão."
@@ -178,41 +178,41 @@ export function CommissionsTab() {
           <>
             <div className={styles.formRoot}>
               <FormSection
-                title={`Regra de comissão — ${profissional?.nome ?? ''}`}
-                actions={<Toggle label="Comissão ativa" checked={form.ativa} onChange={v => set('ativa', v)} />}
+                title={`Regra de comissão — ${professional?.name ?? ''}`}
+                actions={<Toggle label="Comissão ativa" checked={form.active} onChange={v => set('active', v)} />}
               >
                 <div className={styles.fields}>
                   <div className={styles.fieldFull}>
                     <span className={styles.subLabel}>Tipo de comissão</span>
                     <SegmentedControl
-                      options={OPCOES_TIPO}
-                      value={form.tipo}
-                      onChange={v => set('tipo', v)}
+                      options={TYPE_OPTIONS}
+                      value={form.type}
+                      onChange={v => set('type', v)}
                     />
                   </div>
 
                   <Input
-                    label={ehPercentual ? 'Percentual (%)' : 'Valor por procedimento'}
-                    iconLeft={ehPercentual ? undefined : <span className={styles.prefixo}>R$</span>}
+                    label={isPercentage ? 'Percentual (%)' : 'Valor por procedimento'}
+                    iconLeft={isPercentage ? undefined : <span className={styles.prefixo}>R$</span>}
                     inputMode="decimal"
-                    placeholder={ehPercentual ? 'Ex: 40' : 'Ex: 80,00'}
-                    value={form.valorTexto}
-                    onChange={e => set('valorTexto', e.target.value)}
-                    error={erroValor}
+                    placeholder={isPercentage ? 'Ex: 40' : 'Ex: 80,00'}
+                    value={form.amountText}
+                    onChange={e => set('amountText', e.target.value)}
+                    error={valueError}
                   />
 
-                  {ehPercentual && (
+                  {isPercentage && (
                     <Select
                       label="Base de cálculo"
-                      options={OPCOES_BASE}
+                      options={BASE_OPTIONS}
                       value={form.base}
                       onChange={e => set('base', e.target.value as CommissionBase)}
                     />
                   )}
 
                   <p className={`${styles.dica} ${styles.fieldFull}`}>
-                    {ehPercentual
-                      ? form.base === 'recebido'
+                    {isPercentage
+                      ? form.base === 'received'
                         ? 'Sobre o recebido: a comissão só é gerada quando o paciente paga — protege o fluxo de caixa em tratamentos parcelados.'
                         : 'Sobre o realizado: a comissão é gerada pela produção, mesmo que o paciente ainda não tenha pago.'
                       : 'Valor fixo: o profissional recebe o mesmo valor por procedimento realizado, independente do preço cobrado.'}
@@ -224,23 +224,23 @@ export function CommissionsTab() {
                 <div className={styles.fields}>
                   <div className={styles.fieldFull}>
                     <SegmentedControl
-                      options={OPCOES_REPASSE}
-                      value={form.repasse}
-                      onChange={v => set('repasse', v)}
+                      options={PAYOUT_OPTIONS}
+                      value={form.payout}
+                      onChange={v => set('payout', v)}
                     />
                   </div>
 
-                  {form.repasse === 'dia_fixo' && (
+                  {form.payout === 'fixed_day' && (
                     <Select
                       label="Dia do repasse"
-                      options={OPCOES_DIA}
-                      value={form.diaRepasse}
-                      onChange={e => set('diaRepasse', e.target.value)}
+                      options={DAY_OPTIONS}
+                      value={form.payoutDay}
+                      onChange={e => set('payoutDay', e.target.value)}
                     />
                   )}
 
                   <p className={`${styles.dica} ${styles.fieldFull}`}>
-                    {form.repasse === 'dia_fixo'
+                    {form.payout === 'fixed_day'
                       ? 'As comissões do período acumulam e são pagas todo mês nesse dia (até o dia 28, que existe em todos os meses).'
                       : 'A comissão entra a pagar no dia de cada atendimento — repasse imediato, sem acúmulo mensal.'}
                   </p>
@@ -251,15 +251,15 @@ export function CommissionsTab() {
                 <Textarea
                   placeholder="Regras combinadas, exceções por procedimento, descontos de materiais..."
                   rows={3}
-                  value={form.observacao}
-                  onChange={e => set('observacao', e.target.value)}
+                  value={form.notes}
+                  onChange={e => set('notes', e.target.value)}
                 />
               </FormSection>
             </div>
 
             <div className={styles.acoesBar}>
-              <Button variant="ghost" onClick={aoCancelar} disabled={salvando}>Cancelar</Button>
-              <Button loading={salvando} onClick={aoSalvar}>Salvar</Button>
+              <Button variant="ghost" onClick={handleCancel} disabled={saving}>Cancelar</Button>
+              <Button loading={saving} onClick={handleSave}>Salvar</Button>
             </div>
           </>
         )}

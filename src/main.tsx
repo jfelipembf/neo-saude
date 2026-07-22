@@ -16,7 +16,7 @@ if (import.meta.env.DEV && 'serviceWorker' in navigator) {
     .then(regs => regs.forEach(reg => reg.unregister()))
     .catch(() => {})
   globalThis.caches?.keys()
-    .then(nomes => nomes.forEach(nome => caches.delete(nome)))
+    .then(names => names.forEach(name => caches.delete(name)))
     .catch(() => {})
 }
 

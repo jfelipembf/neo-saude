@@ -1,16 +1,16 @@
 import type { PaymentMethod } from '@/types/domain'
 
 // Fonte única dos rótulos das formas de pagamento (tabela, modal, recibo).
-export const TIPO_PAGAMENTO_LABEL: Record<PaymentMethod, string> = {
-  dinheiro: 'Dinheiro',
-  credito:  'Crédito',
-  debito:   'Débito',
+export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  cash: 'Dinheiro',
+  credit:  'Crédito',
+  debit:   'Débito',
   boleto:   'Boleto',
-  cheque:   'Cheque',
+  check:   'Cheque',
   pix:      'Pix',
-  ted:      'TED',
+  wire:      'TED',
 }
 
 /** Opções do Select "Forma de pagamento" (derivadas dos rótulos acima). */
-export const OPCOES_FORMA_PAGAMENTO = (Object.keys(TIPO_PAGAMENTO_LABEL) as PaymentMethod[])
-  .map(tipo => ({ value: tipo, label: TIPO_PAGAMENTO_LABEL[tipo] }))
+export const PAYMENT_METHOD_OPTIONS = (Object.keys(PAYMENT_METHOD_LABEL) as PaymentMethod[])
+  .map(tipo => ({ value: tipo, label: PAYMENT_METHOD_LABEL[tipo] }))

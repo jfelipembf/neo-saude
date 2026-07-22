@@ -2,74 +2,74 @@ import { useState } from 'react'
 import { Button } from '@/components/Button/Button'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
-import { IconEditar, IconImprimir, IconDocumento } from '@/components/icons'
-import { useAnamneseDoPaciente } from '@/hooks/useAnamneses'
+import { IconEdit, IconPrint, IconDocument } from '@/components/icons'
+import { usePatientAnamnesis } from '@/hooks/useAnamnesis'
 import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { esc } from '@/utils/printDocument'
 import type { Anamnesis } from '@/types/domain'
 import { AnamnesisForm } from './AnamnesisForm'
-import { SECOES_ANAMNESE, rotuloDaResposta, ehAlerta } from './questions'
+import { ANAMNESIS_SECTIONS, answerLabel, isAlert } from './questions'
 import styles from './Anamnesis.module.scss'
 
 /** Miolo impresso da ficha — mesma ordem das perguntas da tela. */
-function corpoAnamnese(ficha: Anamnesis, pacienteNome?: string) {
-  const secoes = SECOES_ANAMNESE.map(secao => {
-    const linhas = secao.perguntas.map(p => {
-      const valor = ficha[p.campo]
-      const resposta = p.tipo === 'opcoes' ? rotuloDaResposta(p, valor) : (valor || '—')
-      const detalhe = p.detalhe ? ficha[p.detalhe.campo] : undefined
-      return `<tr><td>${esc(p.pergunta)}</td><td><strong>${esc(resposta)}</strong>${
-        detalhe ? `<br><small>${esc(p.detalhe!.label)}: ${esc(detalhe)}</small>` : ''
+function anamnesisBody(record: Anamnesis, patientName?: string) {
+  const sections = ANAMNESIS_SECTIONS.map(section => {
+    const rows = section.questions.map(p => {
+      const value = record[p.field]
+      const answer = p.type === 'options' ? answerLabel(p, value) : (value || '—')
+      const detail = p.detail ? record[p.detail.field] : undefined
+      return `<tr><td>${esc(p.question)}</td><td><strong>${esc(answer)}</strong>${
+        detail ? `<br><small>${esc(p.detail!.label)}: ${esc(detail)}</small>` : ''
       }</td></tr>`
     }).join('')
-    return `<h2 class="secao">${esc(secao.titulo)}</h2><table>${linhas}</table>`
+    return `<h2 class="secao">${esc(section.title)}</h2><table>${rows}</table>`
   }).join('')
 
   return `
-    ${pacienteNome ? `<p><strong>Paciente:</strong> ${esc(pacienteNome)}</p>` : ''}
-    <p><strong>Atualizada em:</strong> ${esc(ficha.atualizadaEm)}</p>
-    ${secoes}
+    ${patientName ? `<p><strong>Paciente:</strong> ${esc(patientName)}</p>` : ''}
+    <p><strong>Atualizada em:</strong> ${esc(record.updatedAt)}</p>
+    ${sections}
     <p class="clausula">Declaro para os devidos fins que as informações acima prestadas são verdadeiras.</p>
     <div class="assinaturas"><span>Paciente ou responsável legal</span><span>Cirurgião-dentista</span></div>`
 }
 
-const ESTILOS_ANAMNESE = `
+const ANAMNESIS_STYLES = `
   .secao { font-size: 13px; margin: 18px 0 4px; text-transform: uppercase;
            letter-spacing: 0.05em; color: #334; }
   td:first-child { width: 58%; }
 `
 
 interface AnamnesisTabProps {
-  pacienteId: string
-  pacienteNome?: string
+  patientId: string
+  patientName?: string
 }
 
 /** Aba "Anamnese": questionário de saúde do paciente (modelo do CRO). */
-export function AnamnesisTab({ pacienteId, pacienteNome }: AnamnesisTabProps) {
-  const { data: ficha, isLoading } = useAnamneseDoPaciente(pacienteId)
-  const imprimir = usePrintDocument()
-  const [editando, setEditando] = useState(false)
+export function AnamnesisTab({ patientId, patientName }: AnamnesisTabProps) {
+  const { data: record, isLoading } = usePatientAnamnesis(patientId)
+  const printDocument = usePrintDocument()
+  const [editing, setEditing] = useState(false)
 
   if (isLoading) return <PageLoader />
 
-  if (editando) {
+  if (editing) {
     return (
       <AnamnesisForm
-        pacienteId={pacienteId}
-        ficha={ficha ?? null}
-        onFechar={() => setEditando(false)}
+        patientId={patientId}
+        record={record ?? null}
+        onClose={() => setEditing(false)}
       />
     )
   }
 
-  if (!ficha) {
+  if (!record) {
     return (
       <EmptyState
-        icon={<IconDocumento />}
+        icon={<IconDocument />}
         title="Anamnese ainda não preenchida"
         description="Registre o questionário de saúde antes do primeiro atendimento — alergias, medicamentos e condições que mudam a conduta clínica."
         action={
-          <Button iconLeft={<IconEditar />} onClick={() => setEditando(true)}>
+          <Button iconLeft={<IconEdit />} onClick={() => setEditing(true)}>
             Preencher anamnese
           </Button>
         }
@@ -82,45 +82,45 @@ export function AnamnesisTab({ pacienteId, pacienteNome }: AnamnesisTabProps) {
       <div className={styles.head}>
         <div>
           <h2 className={styles.titulo}>Anamnese</h2>
-          <span className={styles.atualizada}>Atualizada em {ficha.atualizadaEm}</span>
+          <span className={styles.atualizada}>Atualizada em {record.updatedAt}</span>
         </div>
         <div className={styles.acoes}>
           <Button
             variant="ghost"
             size="sm"
-            iconLeft={<IconImprimir />}
-            onClick={() => imprimir({
-              titulo: 'Ficha de anamnese',
-              subtitulo: pacienteNome,
-              corpo: corpoAnamnese(ficha, pacienteNome),
-              estilos: ESTILOS_ANAMNESE,
+            iconLeft={<IconPrint />}
+            onClick={() => printDocument({
+              title: 'Ficha de anamnese',
+              subtitle: patientName,
+              body: anamnesisBody(record, patientName),
+              styles: ANAMNESIS_STYLES,
             })}
           >
             Imprimir
           </Button>
-          <Button variant="outline" size="sm" iconLeft={<IconEditar />} onClick={() => setEditando(true)}>
+          <Button variant="outline" size="sm" iconLeft={<IconEdit />} onClick={() => setEditing(true)}>
             Editar
           </Button>
         </div>
       </div>
 
-      {SECOES_ANAMNESE.map(secao => (
-        <section key={secao.titulo} className={styles.secao}>
-          <h3 className={styles.secaoTitulo}>{secao.titulo}</h3>
+      {ANAMNESIS_SECTIONS.map(section => (
+        <section key={section.title} className={styles.secao}>
+          <h3 className={styles.secaoTitulo}>{section.title}</h3>
 
           <dl className={styles.respostas}>
-            {secao.perguntas.map(p => {
-              const valor = ficha[p.campo]
-              const detalhe = p.detalhe ? ficha[p.detalhe.campo] : undefined
-              const alerta = p.tipo === 'opcoes' && ehAlerta(p.campo, valor)
-              const aberta = p.tipo !== 'opcoes'
+            {section.questions.map(p => {
+              const value = record[p.field]
+              const detail = p.detail ? record[p.detail.field] : undefined
+              const alert = p.type === 'options' && isAlert(p.field, value)
+              const open = p.type !== 'options'
 
               return (
-                <div key={p.campo} className={`${styles.resposta} ${aberta ? styles['resposta--aberta'] : ''}`}>
-                  <dt>{p.pergunta}</dt>
-                  <dd className={alerta ? styles.alerta : undefined}>
-                    {p.tipo === 'opcoes' ? rotuloDaResposta(p, valor) : (valor || '—')}
-                    {detalhe && <span className={styles.detalhe}>{p.detalhe!.label}: {detalhe}</span>}
+                <div key={p.field} className={`${styles.resposta} ${open ? styles['resposta--aberta'] : ''}`}>
+                  <dt>{p.question}</dt>
+                  <dd className={alert ? styles.alerta : undefined}>
+                    {p.type === 'options' ? answerLabel(p, value) : (value || '—')}
+                    {detail && <span className={styles.detalhe}>{p.detail!.label}: {detail}</span>}
                   </dd>
                 </div>
               )

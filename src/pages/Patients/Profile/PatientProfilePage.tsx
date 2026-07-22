@@ -20,61 +20,61 @@ import { AnamnesisTab } from './Anamnesis/AnamnesisTab'
 import { BudgetsPanel } from '@/components/BudgetsPanel/BudgetsPanel'
 import { PrescriptionsPanel } from '@/components/PrescriptionsPanel/PrescriptionsPanel'
 import { useToast } from '@/components/Toast/useToast'
-import { OPCOES_SEXO, SEXO_LABEL } from '@/constants'
-import { useOpcoesConvenio } from '@/hooks/useConvenios'
+import { SEX_OPTIONS, SEX_LABEL } from '@/constants'
+import { useInsuranceOptions } from '@/hooks/useInsurances'
 import { queryKeys } from '@/lib/queryKeys'
-import { getPaciente } from '@/services/pacientesService'
-import { useAtualizarPaciente } from '@/hooks/usePacientes'
-import { IconUsuario, IconEditar, IconTelefone, IconMensagem, IconEmail } from '@/components/icons'
-import { initials, somenteDigitos } from '@/utils/text'
+import { getPatient } from '@/services/patientsService'
+import { useUpdatePatient } from '@/hooks/usePatients'
+import { IconUser, IconEdit, IconPhone, IconMessage, IconEmail } from '@/components/icons'
+import { initials, digitsOnly } from '@/utils/text'
 import type { Patient, Gender } from '@/types/domain'
 import styles from './PatientProfilePage.module.scss'
 
-type TabKey = 'dados' | 'anamnese' | 'tratamento' | 'orcamentos' | 'prescricoes' | 'pagamentos' | 'documentos'
+type TabKey = 'personal' | 'anamnesis' | 'treatment' | 'quotes' | 'prescriptions' | 'payments' | 'documents'
 
 const TABS = [
-  { key: 'dados',       label: 'Dados pessoais' },
-  { key: 'anamnese',    label: 'Anamnese' },
-  { key: 'tratamento',  label: 'Tratamento' },
-  { key: 'orcamentos',  label: 'Orçamentos' },
-  { key: 'prescricoes', label: 'Prescrições' },
-  { key: 'pagamentos',  label: 'Pagamentos' },
-  { key: 'documentos',  label: 'Documentos' },
+  { key: 'personal',       label: 'Dados pessoais' },
+  { key: 'anamnesis',    label: 'Anamnese' },
+  { key: 'treatment',  label: 'Tratamento' },
+  { key: 'quotes',  label: 'Orçamentos' },
+  { key: 'prescriptions', label: 'Prescrições' },
+  { key: 'payments',  label: 'Pagamentos' },
+  { key: 'documents',  label: 'Documentos' },
 ]
 
-interface FormPaciente {
-  nome: string
-  sobrenome: string
-  sexo: Gender | ''
-  nascimentoIso: string   // aaaa-mm-dd (input date)
+interface PatientFormState {
+  firstName: string
+  lastName: string
+  sex: Gender | ''
+  birthDateIso: string   // aaaa-mm-dd (input date)
   email: string
-  telefone: string
+  phone: string
   whatsapp: string
-  convenio: string
+  insurance: string
   cep: string
-  estado: string
-  cidade: string
-  bairro: string
-  numero: string
+  state: string
+  city: string
+  neighborhood: string
+  number: string
 }
 
 /** Monta o formulário a partir do cadastro atual (nome completo → nome + sobrenome). */
-function formDoPaciente(p: Patient): FormPaciente {
-  const [nome, ...sobrenome] = p.nome.split(' ')
+function formFromPatient(p: Patient): PatientFormState {
+  const [firstName, ...lastNameParts] = p.name.split(' ')
   return {
-    nome,
-    sobrenome: sobrenome.join(' '),
-    sexo: p.sexo ?? '',
-    nascimentoIso: p.nascimento ? p.nascimento.split('/').reverse().join('-') : '',
+    firstName,
+    lastName: lastNameParts.join(' '),
+    sex: p.sex ?? '',
+    birthDateIso: p.birthDate ? p.birthDate.split('/').reverse().join('-') : '',
     email: p.email ?? '',
-    telefone: p.telefone,
+    phone: p.phone,
     whatsapp: p.whatsapp ?? '',
-    convenio: p.convenio,
+    insurance: p.insurance,
     cep: p.cep ?? '',
-    estado: p.estado ?? '',
-    cidade: p.cidade ?? '',
-    bairro: p.bairro ?? '',
-    numero: p.numero ?? '',
+    state: p.state ?? '',
+    city: p.city ?? '',
+    neighborhood: p.neighborhood ?? '',
+    number: p.number ?? '',
   }
 }
 
@@ -82,150 +82,150 @@ export function PatientProfilePage() {
   const { id } = useParams<{ id: string }>()
   const toast = useToast()
 
-  const { data: paciente, isLoading } = useQuery({
-    queryKey: queryKeys.pacientes.detail(id ?? ''),
-    queryFn: () => getPaciente(id ?? ''),
+  const { data: patient, isLoading } = useQuery({
+    queryKey: queryKeys.patients.detail(id ?? ''),
+    queryFn: () => getPatient(id ?? ''),
     enabled: Boolean(id),
   })
-  const { mutate: salvar, isPending: salvando } = useAtualizarPaciente()
-  const opcoesConvenio = useOpcoesConvenio()
+  const { mutate: save, isPending: saving } = useUpdatePatient()
+  const insuranceOptions = useInsuranceOptions()
 
-  const [tab, setTab] = useState<TabKey>('dados')
-  const [editando, setEditando] = useState(false)
-  const [form, setForm] = useState<FormPaciente | null>(null)
-  const [erroNome, setErroNome] = useState('')
+  const [tab, setTab] = useState<TabKey>('personal')
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState<PatientFormState | null>(null)
+  const [nameError, setNameError] = useState('')
 
   // Zona de cabeçalho compartilhada: fica no lugar em QUALQUER estado da página
   // (carregando, não encontrado, conteúdo) — o breadcrumb nunca pula.
-  const cabecalho = (
+  const header = (
     <header className={styles.topo}>
-      <PageHeader title="Perfil do paciente" icon={<IconUsuario />} />
-      <Tabs tabs={TABS} active={tab} onChange={mudarTab} />
+      <PageHeader title="Perfil do paciente" icon={<IconUser />} />
+      <Tabs tabs={TABS} active={tab} onChange={changeTab} />
     </header>
   )
 
   if (isLoading) {
-    return <>{cabecalho}<PageLoader /></>
+    return <>{header}<PageLoader /></>
   }
 
-  if (!paciente) {
+  if (!patient) {
     return (
       <>
-        {cabecalho}
+        {header}
         <EmptyState title="Paciente não encontrado" description="Verifique se o link está correto." />
       </>
     )
   }
 
-  const set = (campo: keyof FormPaciente) => (valor: string) => {
-    setForm(atual => (atual ? { ...atual, [campo]: valor } : atual))
-    if (campo === 'nome') setErroNome('')
+  const set = (field: keyof PatientFormState) => (value: string) => {
+    setForm(current => (current ? { ...current, [field]: value } : current))
+    if (field === 'firstName') setNameError('')
   }
 
-  function abrirEdicao() {
-    setForm(formDoPaciente(paciente!))
-    setErroNome('')
-    setEditando(true)
-    setTab('dados')   // a edição vive na aba de dados pessoais
+  function openEdit() {
+    setForm(formFromPatient(patient!))
+    setNameError('')
+    setEditing(true)
+    setTab('personal')   // a edição vive na aba de dados pessoais
   }
 
-  function fecharEdicao() {
-    setEditando(false)
+  function closeEdit() {
+    setEditing(false)
     setForm(null)
-    setErroNome('')
+    setNameError('')
   }
 
   // Trocar de aba no meio de uma edição descarta o rascunho.
-  function mudarTab(key: string) {
+  function changeTab(key: string) {
     setTab(key as TabKey)
-    if (key !== 'dados') fecharEdicao()
+    if (key !== 'personal') closeEdit()
   }
 
-  function aoSalvar(e: FormEvent) {
+  function handleSave(e: FormEvent) {
     e.preventDefault()
     if (!form) return
-    if (!form.nome.trim()) {
-      setErroNome('Informe o nome do paciente.')
+    if (!form.firstName.trim()) {
+      setNameError('Informe o nome do paciente.')
       return
     }
-    salvar(
+    save(
       {
-        id: paciente!.id,
-        dados: {
-          nome: form.nome.trim(),
-          sobrenome: form.sobrenome.trim(),
-          sexo: form.sexo || undefined,
-          nascimento: form.nascimentoIso ? form.nascimentoIso.split('-').reverse().join('/') : undefined,
+        id: patient!.id,
+        payload: {
+          firstName: form.firstName.trim(),
+          lastName: form.lastName.trim(),
+          sex: form.sex || undefined,
+          birthDate: form.birthDateIso ? form.birthDateIso.split('-').reverse().join('/') : undefined,
           email: form.email.trim() || undefined,
-          telefone: form.telefone.trim(),
+          phone: form.phone.trim(),
           whatsapp: form.whatsapp.trim() || undefined,
-          convenio: form.convenio,
+          insurance: form.insurance,
           cep: form.cep.trim() || undefined,
-          estado: form.estado.trim().toUpperCase() || undefined,
-          cidade: form.cidade.trim() || undefined,
-          bairro: form.bairro.trim() || undefined,
-          numero: form.numero.trim() || undefined,
+          state: form.state.trim().toUpperCase() || undefined,
+          city: form.city.trim() || undefined,
+          neighborhood: form.neighborhood.trim() || undefined,
+          number: form.number.trim() || undefined,
         },
       },
       {
         onSuccess: () => {
           toast.success('Dados atualizados!')
-          fecharEdicao()
+          closeEdit()
         },
       },
     )
   }
 
-  const endereco = [paciente.cidade, paciente.estado].filter(Boolean).join('/')
+  const address = [patient.city, patient.state].filter(Boolean).join('/')
 
-  const contatos = [
-    { label: 'Telefone', valor: paciente.telefone, icone: <IconTelefone /> },
-    { label: 'WhatsApp', valor: paciente.whatsapp, icone: <IconMensagem /> },
-    { label: 'E-mail',   valor: paciente.email,    icone: <IconEmail /> },
+  const contacts = [
+    { label: 'Telefone', value: patient.phone, icon: <IconPhone /> },
+    { label: 'WhatsApp', value: patient.whatsapp, icon: <IconMessage /> },
+    { label: 'E-mail',   value: patient.email,    icon: <IconEmail /> },
   ]
 
-  const pares: { label: string; valor?: string }[] = [
-    { label: 'Sexo',          valor: paciente.sexo ? SEXO_LABEL[paciente.sexo] : undefined },
-    { label: 'Nascimento',    valor: paciente.nascimento },
-    { label: 'Última visita', valor: paciente.ultimaVisita },
-    { label: 'CEP',           valor: paciente.cep },
+  const pairs: { label: string; amount?: string }[] = [
+    { label: 'Sexo',          amount: patient.sex ? SEX_LABEL[patient.sex] : undefined },
+    { label: 'Nascimento',    amount: patient.birthDate },
+    { label: 'Última visita', amount: patient.lastVisit },
+    { label: 'CEP',           amount: patient.cep },
   ]
 
   // Cadastro completo, exibido na aba "Dados pessoais" (modo leitura).
-  const secoesDetalhe = [
+  const detailSections = [
     {
-      titulo: 'Identificação',
-      itens: [
-        { label: 'Nome completo', valor: paciente.nome },
-        { label: 'Sexo',          valor: paciente.sexo ? SEXO_LABEL[paciente.sexo] : undefined },
-        { label: 'Nascimento',    valor: paciente.nascimento },
-        { label: 'Convênio',      valor: paciente.convenio },
-        { label: 'Última visita', valor: paciente.ultimaVisita },
+      title: 'Identificação',
+      items: [
+        { label: 'Nome completo', value: patient.name },
+        { label: 'Sexo',          value: patient.sex ? SEX_LABEL[patient.sex] : undefined },
+        { label: 'Nascimento',    value: patient.birthDate },
+        { label: 'Convênio',      value: patient.insurance },
+        { label: 'Última visita', value: patient.lastVisit },
       ],
     },
     {
-      titulo: 'Contato',
-      itens: [
-        { label: 'Telefone', valor: paciente.telefone },
-        { label: 'WhatsApp', valor: paciente.whatsapp },
-        { label: 'E-mail',   valor: paciente.email },
+      title: 'Contato',
+      items: [
+        { label: 'Telefone', value: patient.phone },
+        { label: 'WhatsApp', value: patient.whatsapp },
+        { label: 'E-mail',   value: patient.email },
       ],
     },
     {
-      titulo: 'Endereço',
-      itens: [
-        { label: 'CEP',    valor: paciente.cep },
-        { label: 'Estado', valor: paciente.estado },
-        { label: 'Cidade', valor: paciente.cidade },
-        { label: 'Bairro', valor: paciente.bairro },
-        { label: 'Número', valor: paciente.numero },
+      title: 'Endereço',
+      items: [
+        { label: 'CEP',    value: patient.cep },
+        { label: 'Estado', value: patient.state },
+        { label: 'Cidade', value: patient.city },
+        { label: 'Bairro', value: patient.neighborhood },
+        { label: 'Número', value: patient.number },
       ],
     },
   ]
 
   return (
     <>
-      {cabecalho}
+      {header}
 
       <div className={styles.grid}>
         {/* ── Card-resumo (lateral esquerda) ── */}
@@ -233,18 +233,18 @@ export function PatientProfilePage() {
           <Button
             variant="ghost"
             size="sm"
-            iconLeft={<IconEditar />}
+            iconLeft={<IconEdit />}
             className={styles.editBtn}
-            onClick={abrirEdicao}
+            onClick={openEdit}
             title="Editar cadastro"
             aria-label="Editar cadastro do paciente"
           />
 
           <div className={styles.identidade}>
-            <span className={styles.avatar}>{initials(paciente.nome)}</span>
-            <h2 className={styles.nome}>{paciente.nome}</h2>
+            <span className={styles.avatar}>{initials(patient.name)}</span>
+            <h2 className={styles.nome}>{patient.name}</h2>
             <p className={styles.subtitulo}>
-              {[paciente.convenio, endereco].filter(Boolean).join(' · ')}
+              {[patient.insurance, address].filter(Boolean).join(' · ')}
             </p>
           </div>
 
@@ -252,18 +252,18 @@ export function PatientProfilePage() {
           <div className={styles.acoesContato}>
             <Button
               variant="outline"
-              iconLeft={<IconTelefone />}
-              disabled={!paciente.telefone}
-              onClick={() => { window.location.href = `tel:+55${somenteDigitos(paciente.telefone)}` }}
+              iconLeft={<IconPhone />}
+              disabled={!patient.phone}
+              onClick={() => { window.location.href = `tel:+55${digitsOnly(patient.phone)}` }}
             >
               Ligar
             </Button>
             <Button
-              iconLeft={<IconMensagem />}
-              disabled={!(paciente.whatsapp ?? paciente.telefone)}
+              iconLeft={<IconMessage />}
+              disabled={!(patient.whatsapp ?? patient.phone)}
               onClick={() =>
                 // WhatsApp cadastrado ou o próprio celular.
-                window.open(`https://wa.me/55${somenteDigitos(paciente.whatsapp ?? paciente.telefone)}`, '_blank')
+                window.open(`https://wa.me/55${digitsOnly(patient.whatsapp ?? patient.phone)}`, '_blank')
               }
             >
               WhatsApp
@@ -273,12 +273,12 @@ export function PatientProfilePage() {
           <div className={styles.bloco}>
             <h3 className={styles.blocoTitulo}>Contato</h3>
             <ul className={styles.contatos}>
-              {contatos.map(c => (
+              {contacts.map(c => (
                 <li key={c.label} className={styles.contato}>
-                  <span className={styles.contatoIcone}>{c.icone}</span>
+                  <span className={styles.contatoIcone}>{c.icon}</span>
                   <span className={styles.contatoTexto}>
                     <span className={styles.contatoLabel}>{c.label}</span>
-                    <span className={styles.contatoValor}>{c.valor || '—'}</span>
+                    <span className={styles.contatoValor}>{c.value || '—'}</span>
                   </span>
                 </li>
               ))}
@@ -288,10 +288,10 @@ export function PatientProfilePage() {
           <div className={styles.bloco}>
             <h3 className={styles.blocoTitulo}>Dados pessoais</h3>
             <dl className={styles.pares}>
-              {pares.map(d => (
+              {pairs.map(d => (
                 <div key={d.label} className={styles.par}>
                   <dt>{d.label}</dt>
-                  <dd>{d.valor || '—'}</dd>
+                  <dd>{d.amount || '—'}</dd>
                 </div>
               ))}
             </dl>
@@ -300,37 +300,37 @@ export function PatientProfilePage() {
 
         {/* ── Painel da direita: conteúdo da aba ativa ── */}
         <div className={styles.painel}>
-          {tab === 'dados' && (editando && form ? (
+          {tab === 'personal' && (editing && form ? (
           <section className={styles.formCard} aria-label="Editar cadastro">
             <h2 className={styles.formTitulo}>Editar cadastro</h2>
 
-            <form className={styles.form} onSubmit={aoSalvar}>
+            <form className={styles.form} onSubmit={handleSave}>
               <section className={styles.formSection}>
                 <h3>Dados pessoais</h3>
                 <div className={styles.grid2}>
-                  <Input label="Nome" value={form.nome} onChange={e => set('nome')(e.target.value)} error={erroNome} autoFocus />
-                  <Input label="Sobrenome" value={form.sobrenome} onChange={e => set('sobrenome')(e.target.value)} />
+                  <Input label="Nome" value={form.firstName} onChange={e => set('firstName')(e.target.value)} error={nameError} autoFocus />
+                  <Input label="Sobrenome" value={form.lastName} onChange={e => set('lastName')(e.target.value)} />
                 </div>
                 <div className={styles.grid2}>
                   <Select
                     label="Sexo"
-                    options={OPCOES_SEXO}
+                    options={SEX_OPTIONS}
                     placeholder="Selecione..."
-                    value={form.sexo}
-                    onChange={e => set('sexo')(e.target.value)}
+                    value={form.sex}
+                    onChange={e => set('sex')(e.target.value)}
                   />
                   <Input
                     label="Data de nascimento"
                     type="date"
-                    value={form.nascimentoIso}
-                    onChange={e => set('nascimentoIso')(e.target.value)}
+                    value={form.birthDateIso}
+                    onChange={e => set('birthDateIso')(e.target.value)}
                   />
                 </div>
                 <Select
                   label="Convênio"
-                  options={opcoesConvenio}
-                  value={form.convenio}
-                  onChange={e => set('convenio')(e.target.value)}
+                  options={insuranceOptions}
+                  value={form.insurance}
+                  onChange={e => set('insurance')(e.target.value)}
                 />
               </section>
 
@@ -338,7 +338,7 @@ export function PatientProfilePage() {
                 <h3>Contato</h3>
                 <Input label="E-mail" type="email" value={form.email} onChange={e => set('email')(e.target.value)} />
                 <div className={styles.grid2}>
-                  <Input label="Telefone" type="tel" value={form.telefone} onChange={e => set('telefone')(e.target.value)} />
+                  <Input label="Telefone" type="tel" value={form.phone} onChange={e => set('phone')(e.target.value)} />
                   <Input label="WhatsApp" type="tel" value={form.whatsapp} onChange={e => set('whatsapp')(e.target.value)} />
                 </div>
               </section>
@@ -347,20 +347,20 @@ export function PatientProfilePage() {
                 <h3>Endereço</h3>
                 <div className={styles.grid2}>
                   <Input label="CEP" value={form.cep} onChange={e => set('cep')(e.target.value)} />
-                  <Input label="Estado" maxLength={2} value={form.estado} onChange={e => set('estado')(e.target.value)} />
+                  <Input label="Estado" maxLength={2} value={form.state} onChange={e => set('state')(e.target.value)} />
                 </div>
                 <div className={styles.grid2}>
-                  <Input label="Cidade" value={form.cidade} onChange={e => set('cidade')(e.target.value)} />
-                  <Input label="Bairro" value={form.bairro} onChange={e => set('bairro')(e.target.value)} />
+                  <Input label="Cidade" value={form.city} onChange={e => set('city')(e.target.value)} />
+                  <Input label="Bairro" value={form.neighborhood} onChange={e => set('neighborhood')(e.target.value)} />
                 </div>
                 <div className={styles.grid2}>
-                  <Input label="Número" value={form.numero} onChange={e => set('numero')(e.target.value)} />
+                  <Input label="Número" value={form.number} onChange={e => set('number')(e.target.value)} />
                 </div>
               </section>
 
               <div className={styles.formAcoes}>
-                <Button variant="ghost" onClick={fecharEdicao} disabled={salvando}>Cancelar</Button>
-                <Button type="submit" loading={salvando}>Salvar alterações</Button>
+                <Button variant="ghost" onClick={closeEdit} disabled={saving}>Cancelar</Button>
+                <Button type="submit" loading={saving}>Salvar alterações</Button>
               </div>
             </form>
           </section>
@@ -368,19 +368,19 @@ export function PatientProfilePage() {
           <section className={styles.formCard} aria-label="Dados do paciente">
             <div className={styles.detalheHead}>
               <h2 className={styles.formTitulo}>Dados do paciente</h2>
-              <Button variant="outline" size="sm" iconLeft={<IconEditar />} onClick={abrirEdicao}>
+              <Button variant="outline" size="sm" iconLeft={<IconEdit />} onClick={openEdit}>
                 Editar
               </Button>
             </div>
 
-            {secoesDetalhe.map(secao => (
-              <section key={secao.titulo} className={styles.formSection}>
-                <h3>{secao.titulo}</h3>
+            {detailSections.map(section => (
+              <section key={section.title} className={styles.formSection}>
+                <h3>{section.title}</h3>
                 <dl className={styles.paresLargos}>
-                  {secao.itens.map(item => (
+                  {section.items.map(item => (
                     <div key={item.label} className={styles.par}>
                       <dt>{item.label}</dt>
-                      <dd>{item.valor || '—'}</dd>
+                      <dd>{item.value || '—'}</dd>
                     </div>
                   ))}
                 </dl>
@@ -389,25 +389,25 @@ export function PatientProfilePage() {
           </section>
           ))}
 
-          {tab === 'anamnese' && (
-            <AnamnesisTab pacienteId={paciente.id} pacienteNome={paciente.nome} />
+          {tab === 'anamnesis' && (
+            <AnamnesisTab patientId={patient.id} patientName={patient.name} />
           )}
 
-          {tab === 'tratamento' && (
+          {tab === 'treatment' && (
             <Suspense fallback={<PageLoader />}>
-              <TreatmentsPanel pacienteId={paciente.id} pacienteNome={paciente.nome} />
+              <TreatmentsPanel patientId={patient.id} patientName={patient.name} />
             </Suspense>
           )}
-          {tab === 'orcamentos' && (
-            <BudgetsPanel pacienteId={paciente.id} pacienteNome={paciente.nome} />
+          {tab === 'quotes' && (
+            <BudgetsPanel patientId={patient.id} patientName={patient.name} />
           )}
-          {tab === 'prescricoes' && (
-            <PrescriptionsPanel pacienteId={paciente.id} pacienteNome={paciente.nome} />
+          {tab === 'prescriptions' && (
+            <PrescriptionsPanel patientId={patient.id} patientName={patient.name} />
           )}
-          {tab === 'pagamentos' && (
-            <PaymentsTable pacienteId={paciente.id} pacienteNome={paciente.nome} pacienteCpf={paciente.cpf} />
+          {tab === 'payments' && (
+            <PaymentsTable patientId={patient.id} patientName={patient.name} patientCpf={patient.cpf} />
           )}
-          {tab === 'documentos' && <DocumentsUpload pacienteId={paciente.id} />}
+          {tab === 'documents' && <DocumentsUpload patientId={patient.id} />}
         </div>
       </div>
     </>

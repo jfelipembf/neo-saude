@@ -1,5 +1,5 @@
 import type { SelectHTMLAttributes } from 'react'
-import { IconChevronBaixo } from '@/components/icons'
+import { IconChevronDown } from '@/components/icons'
 import styles from './Select.module.scss'
 
 export interface SelectOption {
@@ -36,7 +36,7 @@ export function Select({ label, error, hint, options, placeholder, size = 'md', 
           ))}
         </select>
         <span className={styles.chevron} aria-hidden="true">
-          <IconChevronBaixo />
+          <IconChevronDown />
         </span>
       </div>
 

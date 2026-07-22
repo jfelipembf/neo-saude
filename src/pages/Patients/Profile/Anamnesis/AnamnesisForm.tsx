@@ -5,68 +5,68 @@ import { Input } from '@/components/Input/Input'
 import { SegmentedControl } from '@/components/SegmentedControl/SegmentedControl'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { useToast } from '@/components/Toast/useToast'
-import { useSalvarAnamnese } from '@/hooks/useAnamneses'
-import type { EditAnamnesis } from '@/services/anamnesesService'
+import { useSaveAnamnesis } from '@/hooks/useAnamnesis'
+import type { EditAnamnesis } from '@/services/anamnesisService'
 import type { Anamnesis } from '@/types/domain'
-import { SECOES_ANAMNESE } from './questions'
+import { ANAMNESIS_SECTIONS } from './questions'
 import styles from './Anamnesis.module.scss'
 
 /** Ficha em branco: as respostas fechadas começam na opção mais comum. */
-const FICHA_VAZIA: EditAnamnesis = {
-  medicamentos: 'nao',
-  alergia: 'nao',
-  pressao: 'normal',
-  problemaCoracao: 'nao',
-  faltaDeAr: 'nao',
-  diabetes: 'nao',
-  sangramento: 'normal',
-  cicatrizacao: 'normal',
-  cirurgia: 'nao',
-  gestante: 'nao',
-  reacaoAnestesia: 'nao',
-  dorDentesGengiva: 'nao',
-  gengivaSangra: 'nao',
-  gostoRuimBocaSeca: 'nao',
-  fioDental: 'diariamente',
-  dorEstalosMaxilar: 'nao',
-  rangeDentes: 'nao',
-  feridaBolhaFace: 'nao',
-  fuma: 'nao',
+const EMPTY_FORM: EditAnamnesis = {
+  medications: 'no',
+  allergy: 'no',
+  bloodPressure: 'normal',
+  heartCondition: 'no',
+  shortnessOfBreath: 'no',
+  diabetes: 'no',
+  bleeding: 'normal',
+  healing: 'normal',
+  surgery: 'no',
+  pregnant: 'no',
+  anesthesiaReaction: 'no',
+  toothGumPain: 'no',
+  gumBleeding: 'no',
+  badTasteDryMouth: 'no',
+  flossing: 'daily',
+  jawPainClicking: 'no',
+  grindsTeeth: 'no',
+  faceSores: 'no',
+  smokes: 'no',
 }
 
 /** Tira a chave e a data (carimbada no service) — o resto é o rascunho editável. */
-function rascunhoDaFicha(ficha: Anamnesis | null): EditAnamnesis {
-  if (!ficha) return { ...FICHA_VAZIA }
-  const rascunho: Record<string, unknown> = { ...ficha }
-  delete rascunho.pacienteId
-  delete rascunho.atualizadaEm
-  return rascunho as EditAnamnesis
+function draftFromRecord(record: Anamnesis | null): EditAnamnesis {
+  if (!record) return { ...EMPTY_FORM }
+  const draft: Record<string, unknown> = { ...record }
+  delete draft.patientId
+  delete draft.updatedAt
+  return draft as EditAnamnesis
 }
 
 interface AnamnesisFormProps {
-  pacienteId: string
-  ficha: Anamnesis | null
-  onFechar: () => void
+  patientId: string
+  record: Anamnesis | null
+  onClose: () => void
 }
 
 /** Formulário da anamnese — as perguntas vêm de `questions.ts`, então incluir
  *  uma pergunta nova não exige mexer aqui. */
-export function AnamnesisForm({ pacienteId, ficha, onFechar }: AnamnesisFormProps) {
+export function AnamnesisForm({ patientId, record, onClose }: AnamnesisFormProps) {
   const toast = useToast()
-  const { mutate: salvar, isPending: salvando } = useSalvarAnamnese(pacienteId)
+  const { mutate: save, isPending: saving } = useSaveAnamnesis(patientId)
 
-  const [form, setForm] = useState<EditAnamnesis>(() => rascunhoDaFicha(ficha))
+  const [form, setForm] = useState<EditAnamnesis>(() => draftFromRecord(record))
 
-  function set(campo: keyof EditAnamnesis, valor: string) {
-    setForm(atual => ({ ...atual, [campo]: valor }))
+  function set(field: keyof EditAnamnesis, value: string) {
+    setForm(current => ({ ...current, [field]: value }))
   }
 
-  function aoSalvar(e: FormEvent) {
+  function handleSave(e: FormEvent) {
     e.preventDefault()
-    salvar(form, {
+    save(form, {
       onSuccess: () => {
         toast.success('Anamnese salva!')
-        onFechar()
+        onClose()
       },
     })
   }
@@ -74,52 +74,52 @@ export function AnamnesisForm({ pacienteId, ficha, onFechar }: AnamnesisFormProp
   return (
     <section className={styles.card} aria-label="Editar anamnese">
       <div className={styles.head}>
-        <h2 className={styles.titulo}>{ficha ? 'Editar anamnese' : 'Preencher anamnese'}</h2>
+        <h2 className={styles.titulo}>{record ? 'Editar anamnese' : 'Preencher anamnese'}</h2>
       </div>
 
-      <form className={styles.form} onSubmit={aoSalvar}>
-        {SECOES_ANAMNESE.map(secao => (
-          <section key={secao.titulo} className={styles.secao}>
-            <h3 className={styles.secaoTitulo}>{secao.titulo}</h3>
-            {secao.descricao && <p className={styles.secaoDica}>{secao.descricao}</p>}
+      <form className={styles.form} onSubmit={handleSave}>
+        {ANAMNESIS_SECTIONS.map(section => (
+          <section key={section.title} className={styles.secao}>
+            <h3 className={styles.secaoTitulo}>{section.title}</h3>
+            {section.description && <p className={styles.secaoDica}>{section.description}</p>}
 
-            {secao.perguntas.map(p => {
-              const valor = form[p.campo] ?? ''
-              const mostraDetalhe = p.detalhe && p.detalhe.quando.includes(String(valor))
+            {section.questions.map(q => {
+              const value = form[q.field] ?? ''
+              const showDetail = q.detail && q.detail.when.includes(String(value))
 
               return (
-                <div key={p.campo} className={styles.campo}>
-                  {p.tipo === 'opcoes' ? (
+                <div key={q.field} className={styles.campo}>
+                  {q.type === 'options' ? (
                     <>
-                      <span className={styles.pergunta}>{p.pergunta}</span>
+                      <span className={styles.pergunta}>{q.question}</span>
                       <SegmentedControl
-                        options={p.opcoes!}
-                        value={String(valor)}
-                        onChange={v => set(p.campo, v)}
+                        options={q.options!}
+                        value={String(value)}
+                        onChange={v => set(q.field, v)}
                       />
                     </>
-                  ) : p.tipo === 'textoLongo' ? (
+                  ) : q.type === 'longText' ? (
                     <Textarea
-                      label={p.pergunta}
+                      label={q.question}
                       rows={2}
-                      value={String(valor)}
-                      onChange={e => set(p.campo, e.target.value)}
+                      value={String(value)}
+                      onChange={e => set(q.field, e.target.value)}
                     />
                   ) : (
                     <Input
-                      label={p.pergunta}
-                      value={String(valor)}
-                      onChange={e => set(p.campo, e.target.value)}
+                      label={q.question}
+                      value={String(value)}
+                      onChange={e => set(q.field, e.target.value)}
                     />
                   )}
 
                   {/* Detalhe só aparece quando a resposta pede (ex.: "Qual?"). */}
-                  {mostraDetalhe && (
+                  {showDetail && (
                     <div className={styles.detalheCampo}>
                       <Input
-                        label={p.detalhe!.label}
-                        value={String(form[p.detalhe!.campo] ?? '')}
-                        onChange={e => set(p.detalhe!.campo, e.target.value)}
+                        label={q.detail!.label}
+                        value={String(form[q.detail!.field] ?? '')}
+                        onChange={e => set(q.detail!.field, e.target.value)}
                       />
                     </div>
                   )}
@@ -130,8 +130,8 @@ export function AnamnesisForm({ pacienteId, ficha, onFechar }: AnamnesisFormProp
         ))}
 
         <div className={styles.formAcoes}>
-          <Button variant="ghost" onClick={onFechar} disabled={salvando}>Cancelar</Button>
-          <Button type="submit" loading={salvando}>Salvar anamnese</Button>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button type="submit" loading={saving}>Salvar anamnese</Button>
         </div>
       </form>
     </section>

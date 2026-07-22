@@ -1,20 +1,21 @@
 import { NavLink } from 'react-router-dom'
 import { APP_ROUTES } from '@/constants'
 import { useTheme } from '@/context/ThemeProvider'
+import { HeaderSearch } from '@/components/HeaderSearch/HeaderSearch'
 import { ProfileMenu } from '@/components/ProfileMenu/ProfileMenu'
 import {
-  IconLogo, IconDashboard, IconAgenda, IconPacientes, IconProfissionais, IconFinanceiro,
-  IconAdministrativo, IconTema,
+  IconLogo, IconDashboard, IconSchedule, IconPatients, IconProfessionals, IconFinance,
+  IconAdmin, IconTheme,
 } from '@/components/icons'
 import styles from './Header.module.scss'
 
 const NAV_ITEMS = [
   { to: APP_ROUTES.DASHBOARD,      label: 'Dashboard',      icon: <IconDashboard />, end: true },
-  { to: APP_ROUTES.AGENDA,         label: 'Agenda',         icon: <IconAgenda /> },
-  { to: APP_ROUTES.PACIENTES,      label: 'Pacientes',      icon: <IconPacientes /> },
-  { to: APP_ROUTES.PROFISSIONAIS,  label: 'Profissionais',  icon: <IconProfissionais /> },
-  { to: APP_ROUTES.FINANCEIRO,     label: 'Financeiro',     icon: <IconFinanceiro /> },
-  { to: APP_ROUTES.ADMINISTRATIVO, label: 'Administrativo', icon: <IconAdministrativo /> },
+  { to: APP_ROUTES.SCHEDULE,         label: 'Agenda',         icon: <IconSchedule /> },
+  { to: APP_ROUTES.PATIENTS,      label: 'Pacientes',      icon: <IconPatients /> },
+  { to: APP_ROUTES.PROFESSIONALS,  label: 'Profissionais',  icon: <IconProfessionals /> },
+  { to: APP_ROUTES.FINANCE,     label: 'Financeiro',     icon: <IconFinance /> },
+  { to: APP_ROUTES.ADMIN, label: 'Administrativo', icon: <IconAdmin /> },
 ]
 
 /** Barra horizontal do topo: marca à esquerda, navegação no centro, ações à direita. */
@@ -42,8 +43,10 @@ export function Header() {
       </nav>
 
       <div className={styles.actions}>
+        {/* Busca global de pacientes — antes do seletor de tema (lua). */}
+        <HeaderSearch />
         <button type="button" className={styles.iconBtn} onClick={toggleTheme} title="Alternar tema" aria-label="Alternar tema">
-          <IconTema />
+          <IconTheme />
         </button>
         {/* Identidade + menu (perfil · configurações · sair). */}
         <ProfileMenu />

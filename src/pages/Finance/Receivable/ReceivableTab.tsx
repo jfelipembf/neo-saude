@@ -1,86 +1,145 @@
 import { useState } from 'react'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { Badge } from '@/components/Badge/Badge'
+import { Button } from '@/components/Button/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { Pagination } from '@/components/Pagination/Pagination'
 import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
 import { useToast } from '@/components/Toast/useToast'
-import { IconCheck, IconX } from '@/components/icons'
+import { IconCheck, IconUndo, IconX } from '@/components/icons'
 import {
-  useContasReceber, useBaixarContaReceber, useCancelarContaReceber, useContasBancarias,
-} from '@/hooks/useFinanceiro'
+  useReceivables, useSettleReceivable, useCancelReceivable, useReverseReceivable,
+  useSettleReceivablesBatch, useBankAccounts,
+} from '@/hooks/useFinance'
 import { usePagination } from '@/hooks/usePagination'
-import { TIPO_PAGAMENTO_LABEL } from '@/constants'
-import { formatarReais } from '@/utils/format'
+import { PAYMENT_METHOD_LABEL } from '@/constants'
+import { formatBRL } from '@/utils/format'
 import type { Receivable } from '@/types/domain'
 import { PaymentModal } from '@/components/PaymentModal/PaymentModal'
+import { SettleModal } from '../shared/SettleModal'
 import shared from '../shared/finance.module.scss'
 
 /** Restante a receber = líquido − o que já entrou (baixas parciais). */
-function restanteDe(c: Receivable) {
-  return c.valorBruto - c.taxa - (c.valorRecebido ?? 0)
+function remainingOf(c: Receivable) {
+  return c.grossAmount - c.fee - (c.receivedAmount ?? 0)
 }
 
-/** Aba "Contas a Receber": listagem, baixa (inclusive parcial) e cancelamento. */
+/** Aba "Contas a Receber": listagem, settlement (inclusive parcial), baixa em
+ *  lote, estorno e cancelamento. */
 export function ReceivableTab() {
   const toast = useToast()
-  const { data: contas, isLoading } = useContasReceber()
-  const { mutate: baixar, isPending: baixando } = useBaixarContaReceber()
-  const { mutate: cancelar } = useCancelarContaReceber()
+  const { data: receivables, isLoading } = useReceivables()
+  const { mutate: settle, isPending: settling } = useSettleReceivable()
+  const { mutate: cancel } = useCancelReceivable()
+  const { mutate: reverse } = useReverseReceivable()
+  const { mutate: settleBatch, isPending: settlingBatch } = useSettleReceivablesBatch()
   // Contas BANCÁRIAS (onde o dinheiro entra) — não confundir com as a receber.
-  const { data: contasBancarias } = useContasBancarias()
-  const opcoesConta = (contasBancarias ?? []).map(c => ({ value: c.id, label: c.nome }))
+  const { data: bankAccounts } = useBankAccounts()
+  const accountOptions = (bankAccounts ?? []).map(c => ({ value: c.id, label: c.name }))
 
-  const lista = contas ?? []
-  const pag = usePagination(lista)
+  const list = receivables ?? []
+  const pagination = usePagination(list)
 
-  const [aBaixar, setABaixar] = useState<Receivable | null>(null)
-  const [aCancelar, setACancelar] = useState<Receivable | null>(null)
+  const [toSettle, setToSettle] = useState<Receivable | null>(null)
+  const [toCancel, setToCancel] = useState<Receivable | null>(null)
+  const [toReverse, setToReverse] = useState<Receivable | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [batchOpen, setBatchOpen] = useState(false)
 
   if (isLoading) return <PageLoader />
 
-  const emAberto = (c: Receivable) => c.status === 'pendente' || c.status === 'vencido'
-  const aReceber = lista.filter(emAberto).reduce((s, c) => s + restanteDe(c), 0)
-  const recebido = lista.reduce((s, c) => s + (c.valorRecebido ?? (c.status === 'pago' ? c.valorBruto - c.taxa : 0)), 0)
+  const isOpen = (c: Receivable) => c.status === 'pending' || c.status === 'overdue'
+  const toReceive = list.filter(isOpen).reduce((s, c) => s + remainingOf(c), 0)
+  const received = list.reduce((s, c) => s + (c.receivedAmount ?? (c.status === 'paid' ? c.grossAmount - c.fee : 0)), 0)
+
+  const openInPage = pagination.visible.filter(isOpen)
+  const allSelected = openInPage.length > 0 && openInPage.every(c => selected.has(c.id))
+  const selectedList = list.filter(c => selected.has(c.id))
+  const selectedTotal = selectedList.reduce((s, c) => s + Math.max(remainingOf(c), 0), 0)
+
+  function toggleOne(id: string) {
+    setSelected(current => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleAllInPage() {
+    setSelected(current => {
+      const next = new Set(current)
+      if (allSelected) openInPage.forEach(c => next.delete(c.id))
+      else openInPage.forEach(c => next.add(c.id))
+      return next
+    })
+  }
 
   const columns: TableColumn<Receivable>[] = [
-    { key: 'descricao',   label: 'Descrição', render: c => <span className={shared.celulaForte}>{c.descricao}</span> },
-    { key: 'vencimento',  label: 'Vencimento' },
-    { key: 'recebimento', label: 'Recebimento', render: c => c.recebimento ?? '—' },
-    { key: 'forma',       label: 'Forma', render: c => c.forma ? TIPO_PAGAMENTO_LABEL[c.forma] : '—' },
-    { key: 'origem',      label: 'Origem' },
-    { key: 'bruto',       label: 'Bruto', render: c => <span className={shared.valor}>{formatarReais(c.valorBruto)}</span> },
-    { key: 'taxa',        label: 'Taxa', render: c => c.taxa > 0 ? <span className={shared.neg}>{formatarReais(c.taxa)}</span> : <span className={shared.traco}>—</span> },
     {
-      key: 'liquido', label: 'Líquido',
+      key: 'select', label: '',
+      render: c => isOpen(c) && (
+        <input
+          type="checkbox"
+          className={shared.checkbox}
+          checked={selected.has(c.id)}
+          onChange={() => toggleOne(c.id)}
+          aria-label={`Selecionar ${c.description}`}
+        />
+      ),
+    },
+    { key: 'description', label: 'Descrição', render: c => <span className={shared.celulaForte}>{c.description}</span> },
+    { key: 'dueDate',  label: 'Vencimento' },
+    { key: 'receivedAt', label: 'Recebimento', render: c => c.receivedAt ?? '—' },
+    { key: 'method',      label: 'Forma', render: c => c.method ? PAYMENT_METHOD_LABEL[c.method] : '—' },
+    { key: 'source',      label: 'Origem' },
+    { key: 'grossAmount', label: 'Bruto', render: c => <span className={shared.valor}>{formatBRL(c.grossAmount)}</span> },
+    { key: 'fee',        label: 'Taxa', render: c => c.fee > 0 ? <span className={shared.neg}>{formatBRL(c.fee)}</span> : <span className={shared.traco}>—</span> },
+    {
+      key: 'net', label: 'Líquido',
       // A coluna mostra o RESTANTE a receber (líquido − parciais).
-      render: c => <span className={`${shared.valor} ${shared.pos}`}>{formatarReais(Math.max(restanteDe(c), 0))}</span>,
+      render: c => <span className={`${shared.valor} ${shared.pos}`}>{formatBRL(Math.max(remainingOf(c), 0))}</span>,
     },
     { key: 'status',      label: 'Status', render: c => <Badge status={c.status} /> },
     {
-      key: 'acoes', label: 'Ação',
-      render: c => emAberto(c) && (
+      key: 'actions', label: 'Ação',
+      render: c => (
         <span className={shared.acoes}>
-          <button
-            type="button"
-            className={`${shared.acaoBtn} ${shared['acaoBtn--confirmar']}`}
-            title="Dar baixa"
-            aria-label={`Dar baixa em ${c.descricao}`}
-            onClick={() => setABaixar(c)}
-          >
-            <IconCheck />
-          </button>
-          <button
-            type="button"
-            className={`${shared.acaoBtn} ${shared['acaoBtn--cancelar']}`}
-            title="Cancelar"
-            aria-label={`Cancelar ${c.descricao}`}
-            onClick={() => setACancelar(c)}
-          >
-            <IconX />
-          </button>
+          {isOpen(c) && (
+            <>
+              <button
+                type="button"
+                className={`${shared.acaoBtn} ${shared['acaoBtn--confirmar']}`}
+                title="Dar settlement"
+                aria-label={`Dar settlement em ${c.description}`}
+                onClick={() => setToSettle(c)}
+              >
+                <IconCheck />
+              </button>
+              <button
+                type="button"
+                className={`${shared.acaoBtn} ${shared['acaoBtn--cancelar']}`}
+                title="Cancelar"
+                aria-label={`Cancelar ${c.description}`}
+                onClick={() => setToCancel(c)}
+              >
+                <IconX />
+              </button>
+            </>
+          )}
+          {c.status === 'paid' && (
+            <button
+              type="button"
+              className={`${shared.acaoBtn} ${shared['acaoBtn--estornar']}`}
+              title="Estornar recebimento"
+              aria-label={`Estornar recebimento de ${c.description}`}
+              onClick={() => setToReverse(c)}
+            >
+              <IconUndo />
+            </button>
+          )}
         </span>
       ),
     },
@@ -90,24 +149,50 @@ export function ReceivableTab() {
     <>
       <Table
         columns={columns}
-        data={pag.visiveis}
+        data={pagination.visible}
         rowKey={c => c.id}
         emptyMessage="Nenhuma conta a receber."
-        toolbar={<PerPageSelect porPagina={pag.porPagina} onChange={pag.mudarPorPagina} />}
+        toolbar={
+          <>
+            <label className={shared.barraLote}>
+              <input
+                type="checkbox"
+                className={shared.checkbox}
+                checked={allSelected}
+                onChange={toggleAllInPage}
+                disabled={openInPage.length === 0}
+                aria-label="Selecionar todas as contas em aberto desta página"
+              />
+              {selected.size > 0 ? (
+                <span className={shared.barraLoteTexto}>
+                  <strong>{selected.size}</strong> selecionada{selected.size > 1 ? 's' : ''} · {formatBRL(selectedTotal)}
+                </span>
+              ) : (
+                <span className={shared.barraLoteTexto}>Selecionar em aberto</span>
+              )}
+            </label>
+            {selected.size > 0 && (
+              <Button size="sm" iconLeft={<IconCheck />} onClick={() => setBatchOpen(true)}>
+                Dar baixa em lote
+              </Button>
+            )}
+            <PerPageSelect perPage={pagination.perPage} onChange={pagination.setPerPage} />
+          </>
+        }
         footer={
           <div className={shared.rodapeTabela}>
             <div className={shared.resumo}>
-              <span className={shared.resumoItem}>A receber <strong className={shared.pos}>{formatarReais(aReceber)}</strong></span>
-              <span className={shared.resumoItem}>Recebido <strong>{formatarReais(recebido)}</strong></span>
-              <span className={`${shared.resumoItem} ${shared.resumoDireita}`}>Registros <strong>{lista.length}</strong></span>
+              <span className={shared.resumoItem}>A receber <strong className={shared.pos}>{formatBRL(toReceive)}</strong></span>
+              <span className={shared.resumoItem}>Recebido <strong>{formatBRL(received)}</strong></span>
+              <span className={`${shared.resumoItem} ${shared.resumoDireita}`}>Registros <strong>{list.length}</strong></span>
             </div>
             <div className={shared.rodapePaginacao}>
               <Pagination
-                page={pag.paginaAtual}
-                totalPages={pag.totalPaginas}
-                onChange={pag.setPagina}
-                totalItems={pag.total}
-                itemsPerPage={pag.porPagina}
+                page={pagination.currentPage}
+                totalPages={pagination.totalPages}
+                onChange={pagination.setPage}
+                totalItems={pagination.total}
+                itemsPerPage={pagination.perPage}
               />
             </div>
           </div>
@@ -117,38 +202,88 @@ export function ReceivableTab() {
       {/* ── Modal de pagamento (o mesmo do perfil do paciente) ──
           Recebimento parcial mantém a conta em aberto com o restante. */}
       <PaymentModal
-        cobranca={aBaixar && {
-          id: aBaixar.id,
-          descricao: aBaixar.descricao,
-          valor: Math.max(restanteDe(aBaixar), 0),
+        charge={toSettle && {
+          id: toSettle.id,
+          description: toSettle.description,
+          amount: Math.max(remainingOf(toSettle), 0),
         }}
-        contas={opcoesConta}
-        confirmando={baixando}
-        onConfirm={dados => {
-          if (!aBaixar) return
-          baixar(
+        contas={accountOptions}
+        confirmando={settling}
+        onConfirm={payload => {
+          if (!toSettle) return
+          settle(
             {
-              id: aBaixar.id,
-              // O modal fala em "tipo"; a baixa do financeiro chama de "forma".
-              baixa: { ...dados, forma: dados.tipo },
+              id: toSettle.id,
+              // O modal fala em "tipo"; a settlement do financeiro chama de "forma".
+              settlement: { ...payload, method: payload.method },
             },
-            { onSuccess: () => { toast.success('Recebimento registrado!'); setABaixar(null) } },
+            { onSuccess: () => { toast.success('Recebimento registrado!'); setToSettle(null) } },
           )
         }}
-        onClose={() => setABaixar(null)}
+        onClose={() => setToSettle(null)}
       />
 
       {/* ── Cancelar recebimento ── */}
       <ConfirmDialog
-        open={aCancelar !== null}
-        onClose={() => setACancelar(null)}
+        open={toCancel !== null}
+        onClose={() => setToCancel(null)}
         onConfirm={() => {
-          if (aCancelar) cancelar(aCancelar.id, { onSuccess: () => toast.success('Recebimento cancelado.') })
+          if (toCancel) cancel(toCancel.id, { onSuccess: () => toast.success('Recebimento cancelado.') })
         }}
         title="Cancelar Recebimento"
-        message={aCancelar ? `Deseja cancelar "${aCancelar.descricao}"?` : ''}
+        message={toCancel ? `Deseja cancelar "${toCancel.description}"?` : ''}
         variant="danger"
       />
+
+      {/* ── Estornar recebimento (recepção deu baixa errada) ── */}
+      <ConfirmDialog
+        open={toReverse !== null}
+        onClose={() => setToReverse(null)}
+        onConfirm={() => {
+          if (toReverse) {
+            reverse(toReverse.id, { onSuccess: () => { toast.success('Recebimento estornado.'); setToReverse(null) } })
+          }
+        }}
+        title="Estornar Recebimento"
+        message={toReverse ? `"${toReverse.description}" volta para aberto. Confirma o estorno?` : ''}
+        variant="danger"
+      />
+
+      {/* ── Baixa em lote: uma data/forma/conta para todas as selecionadas ──
+          Sempre baixa o valor CHEIO — quem precisa de parcial usa a linha. */}
+      {batchOpen && (
+        <SettleModal
+          title="Dar Baixa em Lote"
+          confirmLabel={`Confirmar ${selected.size} recebimento${selected.size > 1 ? 's' : ''}`}
+          dataLabel="Data do recebimento"
+          amountLabel="Total selecionado"
+          amountHint="Cada conta quita pelo próprio valor líquido — este total é só referência."
+          initialAmount={selectedTotal}
+          amountReadOnly
+          confirmando={settlingBatch}
+          onClose={() => setBatchOpen(false)}
+          onConfirm={settlement =>
+            settleBatch(
+              {
+                ids: [...selected],
+                settlement: {
+                  date: settlement.date,
+                  method: settlement.method,
+                  bankAccountId: settlement.bankAccountId,
+                  notes: settlement.notes,
+                },
+              },
+              {
+                onSuccess: count => {
+                  toast.success(`${count} recebimento${count > 1 ? 's' : ''} confirmado${count > 1 ? 's' : ''}!`)
+                  setSelected(new Set())
+                  setBatchOpen(false)
+                },
+              },
+            )
+          }
+        />
+      )}
     </>
   )
 }

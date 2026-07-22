@@ -3,126 +3,129 @@ import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
 import { Modal } from '@/components/Modal/Modal'
 import { Select } from '@/components/Select/Select'
-import { TIPO_PAGAMENTO_LABEL } from '@/constants'
+import { PAYMENT_METHOD_LABEL } from '@/constants'
+import { useProfessionalName } from '@/hooks/useDisplayNames'
+import { stripTitle } from '@/utils/text'
 import type { BilledTreatment, PaymentMethod } from '@/types/domain'
 import styles from './PaymentModal.module.scss'
 
-const FORMAS = Object.keys(TIPO_PAGAMENTO_LABEL) as PaymentMethod[]
+const PAYMENT_METHODS = Object.keys(PAYMENT_METHOD_LABEL) as PaymentMethod[]
 
-const OPCOES_BANDEIRA = ['Visa', 'Mastercard', 'Elo', 'Amex', 'Hipercard'].map(b => ({ value: b, label: b }))
+const CARD_BRAND_OPTIONS = ['Visa', 'Mastercard', 'Elo', 'Amex', 'Hipercard'].map(b => ({ value: b, label: b }))
 
-function formatarReais(v: number) {
+function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
 /** '100,00' | '1.250,50' → número (NaN se inválido). */
-function parseValor(texto: string) {
-  return Number(texto.replace(/\./g, '').replace(',', '.'))
+function parseAmount(text: string) {
+  return Number(text.replace(/\./g, '').replace(',', '.'))
 }
 
 /** Date → 'aaaa-mm-dd' local, para o input de data. */
-function hojeIso() {
+function todayIso() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 /** O que o modal devolve ao confirmar — quem chama decide onde persistir. */
 export interface PaymentModalResult {
-  tipo: PaymentMethod
-  valor: number
-  data: string           // dd/mm/aaaa
-  bandeira?: string
-  autorizacao?: string
+  method: PaymentMethod
+  amount: number
+  date: string           // dd/mm/aaaa
+  cardBrand?: string
+  authorizationCode?: string
   nsu?: string
-  parcelas?: number      // só crédito
-  contaBancariaId?: string
+  installments?: number      // só crédito
+  bankAccountId?: string
 }
 
 export interface PaymentModalProps {
   /** Cobrança em aberto; null mantém o modal fechado. */
-  cobranca: {
+  charge: {
     /** Remonta o formulário a cada cobrança diferente. */
     id: string
-    descricao: string
-    valor: number
+    description: string
+    amount: number
     /** Detalhamento; sem ele a própria cobrança vira o único item. */
-    tratamentos?: BilledTreatment[]
+    treatments?: BilledTreatment[]
   } | null
-  paciente?: { nome: string; cpf?: string }
+  patient?: { name: string; cpf?: string }
   /** Contas bancárias para escolher onde o dinheiro entra (opcional). */
   contas?: { value: string; label: string }[]
   confirmando?: boolean
-  onConfirm: (dados: PaymentModalResult) => void
+  onConfirm: (payload: PaymentModalResult) => void
   onClose: () => void
 }
 
 /** Modal "Realizar pagamento": itens cobrados, forma, valor e data.
  *  É APRESENTACIONAL — não persiste nada; devolve os dados em `onConfirm`. */
-export function PaymentModal({ cobranca, ...resto }: PaymentModalProps) {
-  if (!cobranca) return null
+export function PaymentModal({ charge, ...rest }: PaymentModalProps) {
+  if (!charge) return null
   // key remonta o formulário a cada cobrança — o estado nasce pronto
   // (valor cheio + data de hoje) sem precisar de reset via efeito.
-  return <PaymentForm key={cobranca.id} cobranca={cobranca} {...resto} />
+  return <PaymentForm key={charge.id} charge={charge} {...rest} />
 }
 
-type PaymentFormProps = Omit<PaymentModalProps, 'cobranca'> & {
-  cobranca: NonNullable<PaymentModalProps['cobranca']>
+type PaymentFormProps = Omit<PaymentModalProps, 'charge'> & {
+  charge: NonNullable<PaymentModalProps['charge']>
 }
 
-function PaymentForm({ cobranca, paciente, contas, confirmando, onConfirm, onClose }: PaymentFormProps) {
+function PaymentForm({ charge, patient, contas: accounts, confirmando: confirming, onConfirm, onClose }: PaymentFormProps) {
 
-  const [forma, setForma] = useState<PaymentMethod>('dinheiro')
-  const [valorTexto, setValorTexto] = useState(() =>
-    cobranca.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+  const professionalName = useProfessionalName()
+  const [method, setMethod] = useState<PaymentMethod>('cash')
+  const [amountText, setAmountText] = useState(() =>
+    charge.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
   )
-  const [dataIso, setDataIso] = useState(hojeIso())
-  const [erroValor, setErroValor] = useState('')
-  const [contaId, setContaId] = useState('')
+  const [dateIso, setDateIso] = useState(todayIso())
+  const [amountError, setAmountError] = useState('')
+  const [accountId, setAccountId] = useState('')
   // Campos exclusivos de cartão (crédito/débito).
-  const [bandeira, setBandeira] = useState('')
-  const [parcelas, setParcelas] = useState(1)
-  const [autorizacao, setAutorizacao] = useState('')
+  const [brand, setBrand] = useState('')
+  const [installments, setInstallments] = useState(1)
+  const [authorization, setAuthorization] = useState('')
   const [nsu, setNsu] = useState('')
-  const [erroBandeira, setErroBandeira] = useState('')
+  const [brandError, setBrandError] = useState('')
 
-  const ehCartao = forma === 'credito' || forma === 'debito'
+  const isCard = method === 'credit' || method === 'debit'
 
   // "3× de R$ 50,00" calculado sobre o valor digitado.
-  const valorAtual = parseValor(valorTexto)
-  const opcoesParcelas = Array.from({ length: 12 }, (_, i) => {
+  const currentAmount = parseAmount(amountText)
+  const installmentOptions = Array.from({ length: 12 }, (_, i) => {
     const n = i + 1
-    const porParcela = Number.isFinite(valorAtual) && valorAtual > 0
-      ? ` de ${formatarReais(valorAtual / n)}`
+    const perInstallment = Number.isFinite(currentAmount) && currentAmount > 0
+      ? ` de ${formatBRL(currentAmount / n)}`
       : ''
-    return { value: String(n), label: n === 1 ? 'À vista' : `${n}×${porParcela}` }
+    return { value: String(n), label: n === 1 ? 'À vista' : `${n}×${perInstallment}` }
   })
 
   // Sem detalhamento cadastrado, a própria cobrança vira o único item da lista.
-  const tratamentos = cobranca.tratamentos?.length
-    ? cobranca.tratamentos
-    : [{ nome: cobranca.descricao, profissional: '', valor: cobranca.valor }]
+  const treatments = charge.treatments?.length
+    ? charge.treatments
+    : [{ name: charge.description, amount: charge.amount, professionalId: undefined }]
 
-  function confirmar() {
-    const valor = parseValor(valorTexto)
-    if (!Number.isFinite(valor) || valor <= 0) {
-      setErroValor('Informe um valor válido.')
+  function handleConfirm() {
+    const amount = parseAmount(amountText)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setAmountError('Informe um valor válido.')
       return
     }
-    if (ehCartao && !bandeira) {
-      setErroBandeira('Selecione a bandeira do cartão.')
+    if (isCard && !brand) {
+      setBrandError('Selecione a bandeira do cartão.')
       return
     }
     onConfirm({
-      tipo: forma,
-      valor,
-      data: dataIso.split('-').reverse().join('/'),
-      ...(ehCartao && {
-        bandeira,
-        autorizacao: autorizacao.trim() || undefined,
+      method,
+      amount,
+      date: dateIso.split('-').reverse().join('/'),
+      ...(isCard && {
+        cardBrand: brand,
+        authorizationCode: authorization.trim() || undefined,
         nsu: nsu.trim() || undefined,
       }),
-      ...(forma === 'credito' && { parcelas }),
-      ...(contaId && { contaBancariaId: contaId }),
+      ...(method === 'credit' && { installments }),
+      ...(accountId && { bankAccountId: accountId }),
     })
   }
 
@@ -133,34 +136,36 @@ function PaymentForm({ cobranca, paciente, contas, confirmando, onConfirm, onClo
       title="Realizar pagamento"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={confirmando}>Cancelar</Button>
-          <Button onClick={confirmar} loading={confirmando}>Confirmar pagamento</Button>
+          <Button variant="ghost" onClick={onClose} disabled={confirming}>Cancelar</Button>
+          <Button onClick={handleConfirm} loading={confirming}>Confirmar pagamento</Button>
         </>
       }
     >
       <div className={styles.corpo}>
-        {paciente && (
+        {patient && (
           <div className={styles.paciente}>
-            <strong>{paciente.nome}</strong>
-            {paciente.cpf && <span>{paciente.cpf}</span>}
+            <strong>{patient.name}</strong>
+            {patient.cpf && <span>{patient.cpf}</span>}
           </div>
         )}
 
         <section className={styles.secao}>
           <h3>Tratamentos</h3>
           <ul className={styles.tratamentos}>
-            {tratamentos.map((t, indice) => (
-              <li key={indice} className={styles.tratamento}>
+            {treatments.map((t, index) => (
+              <li key={index} className={styles.tratamento}>
                 <div className={styles.tratamentoInfo}>
-                  <span className={styles.tratamentoNome}>{t.nome}</span>
-                  {t.profissional && <span className={styles.tratamentoProf}>Dr(a) {t.profissional.replace(/^Dra?\.\s*/i, '')}</span>}
+                  <span className={styles.tratamentoNome}>{t.name}</span>
+                  {t.professionalId && (
+                    <span className={styles.tratamentoProf}>Dr(a) {stripTitle(professionalName(t.professionalId))}</span>
+                  )}
                 </div>
-                <span className={styles.tratamentoValor}>{formatarReais(t.valor)}</span>
+                <span className={styles.tratamentoValor}>{formatBRL(t.amount)}</span>
               </li>
             ))}
           </ul>
           <p className={styles.total}>
-            Total a ser pago <strong>{formatarReais(cobranca.valor)}</strong>
+            Total a ser pago <strong>{formatBRL(charge.amount)}</strong>
           </p>
         </section>
 
@@ -172,37 +177,37 @@ function PaymentForm({ cobranca, paciente, contas, confirmando, onConfirm, onClo
         <section className={styles.secao}>
           <h3>Forma de pagamento</h3>
           <div className={styles.formas} role="group" aria-label="Forma de pagamento">
-            {FORMAS.map(tipo => (
+            {PAYMENT_METHODS.map(type => (
               <button
-                key={tipo}
+                key={type}
                 type="button"
-                className={`${styles.formaBtn} ${forma === tipo ? styles['formaBtn--ativa'] : ''}`}
-                aria-pressed={forma === tipo}
-                onClick={() => { setForma(tipo); setErroBandeira('') }}
+                className={`${styles.formaBtn} ${method === type ? styles['formaBtn--ativa'] : ''}`}
+                aria-pressed={method === type}
+                onClick={() => { setMethod(type); setBrandError('') }}
               >
-                {TIPO_PAGAMENTO_LABEL[tipo]}
+                {PAYMENT_METHOD_LABEL[type]}
               </button>
             ))}
           </div>
 
           {/* Dados da maquininha — só para cartão de crédito/débito. */}
-          {ehCartao && (
+          {isCard && (
             <div className={styles.cartao}>
               <div className={styles.campos}>
                 <Select
                   label="Bandeira"
-                  options={OPCOES_BANDEIRA}
+                  options={CARD_BRAND_OPTIONS}
                   placeholder="Selecione..."
-                  value={bandeira}
-                  onChange={e => { setBandeira(e.target.value); setErroBandeira('') }}
-                  error={erroBandeira}
+                  value={brand}
+                  onChange={e => { setBrand(e.target.value); setBrandError('') }}
+                  error={brandError}
                 />
-                {forma === 'credito' && (
+                {method === 'credit' && (
                   <Select
                     label="Parcelas"
-                    options={opcoesParcelas}
-                    value={String(parcelas)}
-                    onChange={e => setParcelas(Number(e.target.value))}
+                    options={installmentOptions}
+                    value={String(installments)}
+                    onChange={e => setInstallments(Number(e.target.value))}
                   />
                 )}
               </div>
@@ -210,8 +215,8 @@ function PaymentForm({ cobranca, paciente, contas, confirmando, onConfirm, onClo
                 <Input
                   label="Código de autorização"
                   placeholder="Ex.: A73H21"
-                  value={autorizacao}
-                  onChange={e => setAutorizacao(e.target.value)}
+                  value={authorization}
+                  onChange={e => setAuthorization(e.target.value)}
                 />
                 <Input
                   label="NSU"
@@ -230,26 +235,26 @@ function PaymentForm({ cobranca, paciente, contas, confirmando, onConfirm, onClo
             label="Valor pago"
             iconLeft={<span className={styles.prefixo}>R$</span>}
             inputMode="decimal"
-            value={valorTexto}
-            onChange={e => { setValorTexto(e.target.value); setErroValor('') }}
-            error={erroValor}
+            value={amountText}
+            onChange={e => { setAmountText(e.target.value); setAmountError('') }}
+            error={amountError}
           />
           <Input
             label="Data do pagamento"
             type="date"
-            value={dataIso}
-            onChange={e => setDataIso(e.target.value)}
+            value={dateIso}
+            onChange={e => setDateIso(e.target.value)}
           />
         </div>
 
         {/* Só aparece quando o chamador informa as contas (baixa do financeiro). */}
-        {contas && contas.length > 0 && (
+        {accounts && accounts.length > 0 && (
           <Select
             label="Conta bancária"
             placeholder="Selecione a conta..."
-            options={contas}
-            value={contaId}
-            onChange={e => setContaId(e.target.value)}
+            options={accounts}
+            value={accountId}
+            onChange={e => setAccountId(e.target.value)}
           />
         )}
       </div>

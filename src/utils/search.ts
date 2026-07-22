@@ -1,11 +1,11 @@
-import { PARTICULAS_NOME } from './text'
+import { NAME_PARTICLES } from './text'
 
 /**
  * Texto comparável: sem acento e em minúsculas.
  * 'João D'Ávila' → 'joao d'avila' — assim "joao" acha "João".
  */
-export function normalizarTexto(texto: string) {
-  return texto
+export function normalizeText(text: string) {
+  return text
     .normalize('NFD')                  // separa a letra do acento
     .replace(/[\u0300-\u036f]/g, '')   // remove os acentos (marcas combinantes)
     .toLowerCase()
@@ -14,10 +14,10 @@ export function normalizarTexto(texto: string) {
 
 /** Palavras comparáveis de um texto, já sem acento e sem as partículas
  *  ("de", "da", "dos"…) — é o que faz "Maria Souza" achar "Maria de Souza". */
-function palavras(texto: string) {
-  return normalizarTexto(texto)
+function words(text: string) {
+  return normalizeText(text)
     .split(/[^a-z0-9]+/)
-    .filter(p => p && !PARTICULAS_NOME.has(p))
+    .filter(w => w && !NAME_PARTICLES.has(w))
 }
 
 /**
@@ -25,14 +25,14 @@ function palavras(texto: string) {
  * em alguma palavra do texto — sem depender de acento, de partícula nem da
  * ordem. Termo vazio combina com tudo (lista inteira).
  *
- * combinaBusca('Maria de Souza', 'maria souza')  → true
- * combinaBusca('João Santos',    'joao')         → true
- * combinaBusca('Maria de Souza', 'souza maria')  → true
+ * matchesSearch('Maria de Souza', 'maria souza')  → true
+ * matchesSearch('João Santos',    'joao')         → true
+ * matchesSearch('Maria de Souza', 'souza maria')  → true
  */
-export function combinaBusca(texto: string, termo: string) {
-  const buscadas = palavras(termo)
-  if (buscadas.length === 0) return true
+export function matchesSearch(text: string, term: string) {
+  const searched = words(term)
+  if (searched.length === 0) return true
 
-  const alvo = palavras(texto)
-  return buscadas.every(b => alvo.some(a => a.includes(b)))
+  const target = words(text)
+  return searched.every(s => target.some(t => t.includes(s)))
 }

@@ -2,9 +2,9 @@ import type { ClinicData } from '@/types/domain'
 
 /** Escapa texto que vai para dentro do HTML impresso (nome de paciente com
  *  "&", observação com "<"… não podem quebrar o documento). */
-export function esc(texto: string | number | undefined | null) {
-  if (texto == null) return ''
-  return String(texto)
+export function esc(text: string | number | undefined | null) {
+  if (text == null) return ''
+  return String(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -14,51 +14,51 @@ export function esc(texto: string | number | undefined | null) {
 export interface PrintDocumentInput {
   /** Tipo do documento: "Recibo de pagamento", "Orçamento"… Vai no <title>
    *  da janela e como título abaixo do cabeçalho da clínica. */
-  titulo: string
+  title: string
   /** Linha de contexto sob o título (ex.: nome do orçamento, do paciente). */
-  subtitulo?: string
+  subtitle?: string
   /** HTML do miolo — a parte que muda de página para página. */
-  corpo: string
+  body: string
   /** CSS extra do documento (o base já cobre tabelas, totais e assinaturas). */
-  estilos?: string
+  styles?: string
   /** Largura da janela de impressão (px). Padrão 680. */
-  largura?: number
+  width?: number
 }
 
 /** Cabeçalho comum: logo + nome da clínica + linha de identificação/contato,
  *  tudo vindo de Administrativo → Dados do consultório. */
-function cabecalho(clinica?: ClinicData) {
-  if (!clinica) return ''
+function clinicHeader(clinic?: ClinicData) {
+  if (!clinic) return ''
 
-  const identificacao = [
-    clinica.cnpj ? `CNPJ ${esc(clinica.cnpj)}` : '',
-    esc(clinica.telefone),
-    esc(clinica.email),
+  const identification = [
+    clinic.cnpj ? `CNPJ ${esc(clinic.cnpj)}` : '',
+    esc(clinic.phone),
+    esc(clinic.email),
   ].filter(Boolean).join(' · ')
 
-  const rua = [clinica.rua, clinica.numero].filter(Boolean).join(', ')
-  const cidade = [clinica.cidade, clinica.estado].filter(Boolean).join('/')
-  const endereco = [rua, clinica.bairro, cidade, clinica.cep ? `CEP ${clinica.cep}` : '']
+  const streetLine = [clinic.street, clinic.number].filter(Boolean).join(', ')
+  const cityState = [clinic.city, clinic.state].filter(Boolean).join('/')
+  const address = [streetLine, clinic.neighborhood, cityState, clinic.cep ? `CEP ${clinic.cep}` : '']
     .filter(Boolean).map(p => esc(p)).join(' · ')
 
   return `
     <header class="clinica">
-      ${clinica.logo ? `<img class="clinica-logo" src="${esc(clinica.logo)}" alt="">` : ''}
+      ${clinic.photo ? `<img class="clinica-logo" src="${esc(clinic.photo)}" alt="">` : ''}
       <div class="clinica-dados">
-        <h1>${esc(clinica.nome)}</h1>
-        ${identificacao ? `<p>${identificacao}</p>` : ''}
-        ${endereco ? `<p>${endereco}</p>` : ''}
+        <h1>${esc(clinic.name)}</h1>
+        ${identification ? `<p>${identification}</p>` : ''}
+        ${address ? `<p>${address}</p>` : ''}
       </div>
     </header>`
 }
 
 /** Estrutura base de TODO documento impresso do sistema: cabeçalho da clínica,
  *  título do documento, miolo específico da página e rodapé. */
-export function montarDocumento(clinica: ClinicData | undefined, doc: PrintDocumentInput) {
-  const nomeClinica = clinica?.nome ?? 'Neo Saúde'
+export function buildDocument(clinic: ClinicData | undefined, doc: PrintDocumentInput) {
+  const clinicName = clinic?.name ?? 'Neo Saúde'
 
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
-<title>${esc(doc.titulo)} — ${esc(nomeClinica)}</title>
+<title>${esc(doc.title)} — ${esc(clinicName)}</title>
 <style>
   /* Documento impresso é SEMPRE claro: sem isto, um navegador em modo escuro
      pinta o fundo de preto e o texto (escuro) some na pré-visualização. */
@@ -99,12 +99,12 @@ export function montarDocumento(clinica: ClinicData | undefined, doc: PrintDocum
     body { margin: 0; }
     .clinica { break-inside: avoid; }
   }
-  ${doc.estilos ?? ''}
+  ${doc.styles ?? ''}
 </style></head><body>
-${cabecalho(clinica)}
-<h2 class="doc-titulo">${esc(doc.titulo)}</h2>
-${doc.subtitulo ? `<p class="doc-sub">${esc(doc.subtitulo)}</p>` : ''}
-${doc.corpo}
-<p class="rodape">Documento gerado eletronicamente por ${esc(nomeClinica)}.</p>
+${clinicHeader(clinic)}
+<h2 class="doc-titulo">${esc(doc.title)}</h2>
+${doc.subtitle ? `<p class="doc-sub">${esc(doc.subtitle)}</p>` : ''}
+${doc.body}
+<p class="rodape">Documento gerado eletronicamente por ${esc(clinicName)}.</p>
 </body></html>`
 }

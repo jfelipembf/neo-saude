@@ -5,7 +5,7 @@ import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { useToast } from '@/components/Toast/useToast'
 import { IconCheck, IconX } from '@/components/icons'
 import {
-  useConexaoWhatsApp, useConectarWhatsApp, useDesconectarWhatsApp, useRenovarQrWhatsApp,
+  useWhatsAppConnection, useConnectWhatsApp, useDisconnectWhatsApp, useRefreshWhatsAppQr,
 } from '@/hooks/useWhatsApp'
 import { QrCodeMock } from './QrCodeMock'
 import styles from './WhatsAppTab.module.scss'
@@ -14,40 +14,40 @@ import styles from './WhatsAppTab.module.scss'
  *  DEMONSTRAÇÃO — nenhuma sessão real é aberta (ver whatsappService). */
 export function WhatsAppTab() {
   const toast = useToast()
-  const { data: conexao, isLoading } = useConexaoWhatsApp()
-  const { mutate: conectar, isPending: conectando } = useConectarWhatsApp()
-  const { mutate: desconectar, isPending: desconectando } = useDesconectarWhatsApp()
-  const { mutate: renovarQr, isPending: renovando } = useRenovarQrWhatsApp()
+  const { data: connection, isLoading } = useWhatsAppConnection()
+  const { mutate: connect, isPending: connecting } = useConnectWhatsApp()
+  const { mutate: disconnect, isPending: disconnecting } = useDisconnectWhatsApp()
+  const { mutate: refreshQr, isPending: refreshing } = useRefreshWhatsAppQr()
 
-  if (isLoading || !conexao) return <PageLoader />
+  if (isLoading || !connection) return <PageLoader />
 
-  const conectado = conexao.status === 'conectado'
+  const connected = connection.status === 'connected'
 
   return (
     <div className={styles.coluna}>
       <FormSection
         title="Conexão"
         description="O número conectado é o remetente das mensagens automáticas."
-        actions={<Badge status={conexao.status} />}
+        actions={<Badge status={connection.status} />}
       >
-        {conectado ? (
+        {connected ? (
           <div className={styles.conectado}>
             <div className={styles.dados}>
               <div className={styles.par}>
                 <dt>Número</dt>
-                <dd>{conexao.numero}</dd>
+                <dd>{connection.phoneNumber}</dd>
               </div>
               <div className={styles.par}>
                 <dt>Conectado em</dt>
-                <dd>{conexao.conectadoEm}</dd>
+                <dd>{connection.connectedAt}</dd>
               </div>
             </div>
 
             <Button
               variant="danger"
               iconLeft={<IconX />}
-              loading={desconectando}
-              onClick={() => desconectar(undefined, {
+              loading={disconnecting}
+              onClick={() => disconnect(undefined, {
                 onSuccess: () => toast.success('WhatsApp desconectado.'),
               })}
             >
@@ -56,7 +56,7 @@ export function WhatsAppTab() {
           </div>
         ) : (
           <div className={styles.pareamento}>
-            <QrCodeMock valor={conexao.qrCode ?? 'neo-saude'} />
+            <QrCodeMock value={connection.qrCode ?? 'neo-saude'} />
 
             <div className={styles.instrucoes}>
               <h4 className={styles.passosTitulo}>Como conectar</h4>
@@ -74,8 +74,8 @@ export function WhatsAppTab() {
               <div className={styles.acoes}>
                 <Button
                   iconLeft={<IconCheck />}
-                  loading={conectando}
-                  onClick={() => conectar(undefined, {
+                  loading={connecting}
+                  onClick={() => connect(undefined, {
                     onSuccess: () => toast.success('WhatsApp conectado!'),
                   })}
                 >
@@ -83,8 +83,8 @@ export function WhatsAppTab() {
                 </Button>
                 <Button
                   variant="outline"
-                  loading={renovando}
-                  onClick={() => renovarQr()}
+                  loading={refreshing}
+                  onClick={() => refreshQr()}
                 >
                   Gerar novo código
                 </Button>

@@ -8,117 +8,117 @@ import { Select } from '@/components/Select/Select'
 import { SideList } from '@/components/SideList/SideList'
 import { Toggle } from '@/components/Toggle/Toggle'
 import { useToast } from '@/components/Toast/useToast'
-import { useContasBancarias, useSalvarContaBancaria } from '@/hooks/useFinanceiro'
-import { OPCOES_TIPO_CONTA, TIPO_CONTA_LABEL } from '@/constants'
-import { parseReais } from '@/utils/format'
+import { useBankAccounts, useSaveBankAccount } from '@/hooks/useFinance'
+import { ACCOUNT_TYPE_OPTIONS, ACCOUNT_TYPE_LABEL } from '@/constants'
+import { parseBRL } from '@/utils/format'
 import type { BankAccountType } from '@/types/domain'
 import shared from '../shared/finance.module.scss'
 
-interface ContaFormState {
-  nome: string
-  tipo: BankAccountType
-  banco: string
-  agencia: string
-  conta: string
-  titular: string
-  saldoTexto: string
-  ativa: boolean
-  observacao: string
+interface AccountFormState {
+  name: string
+  type: BankAccountType
+  bank: string
+  branch: string
+  accountNumber: string
+  holder: string
+  balanceText: string
+  active: boolean
+  notes: string
 }
 
-const CONTA_FORM_VAZIO: ContaFormState = {
-  nome: '', tipo: 'corrente', banco: '', agencia: '', conta: '', titular: '',
-  saldoTexto: '', ativa: true, observacao: '',
+const EMPTY_ACCOUNT_FORM: AccountFormState = {
+  name: '', type: 'checking', bank: '', branch: '', accountNumber: '', holder: '',
+  balanceText: '', active: true, notes: '',
 }
 
 /** Aba "Contas bancárias": lista lateral + formulário de cadastro/edição. */
 export function BanksTab() {
   const toast = useToast()
-  const { data: contas, isLoading } = useContasBancarias()
-  const { mutate: salvar, isPending: salvando } = useSalvarContaBancaria()
+  const { data: accounts, isLoading } = useBankAccounts()
+  const { mutate: save, isPending: saving } = useSaveBankAccount()
 
-  const [selecionada, setSelecionada] = useState<string | null>(null)
-  const [nova, setNova] = useState(false)
-  const [form, setForm] = useState<ContaFormState>(CONTA_FORM_VAZIO)
-  const [erroNome, setErroNome] = useState('')
+  const [selected, setSelected] = useState<string | null>(null)
+  const [isNew, setIsNew] = useState(false)
+  const [form, setForm] = useState<AccountFormState>(EMPTY_ACCOUNT_FORM)
+  const [nameError, setNameError] = useState('')
 
   if (isLoading) return <PageLoader />
 
-  const lista = contas ?? []
-  const formVisivel = selecionada !== null || nova
-  const ehCaixaInterno = form.tipo === 'caixa'
+  const list = accounts ?? []
+  const formVisible = selected !== null || isNew
+  const isInternalCash = form.type === 'cash'
 
-  const items = lista.map(c => ({
+  const items = list.map(c => ({
     id: c.id,
-    label: c.nome,
-    sublabel: TIPO_CONTA_LABEL[c.tipo]
-      + (c.banco ? ` · ${c.banco}` : '')
-      + (c.status === 'ativo' ? '' : ' · Inativa'),
+    label: c.name,
+    sublabel: ACCOUNT_TYPE_LABEL[c.type]
+      + (c.bank ? ` · ${c.bank}` : '')
+      + (c.status === 'active' ? '' : ' · Inativa'),
   }))
 
-  function set<K extends keyof ContaFormState>(campo: K, valor: ContaFormState[K]) {
-    setForm(atual => ({ ...atual, [campo]: valor }))
-    if (campo === 'nome') setErroNome('')
+  function set<K extends keyof AccountFormState>(field: K, value: AccountFormState[K]) {
+    setForm(current => ({ ...current, [field]: value }))
+    if (field === 'name') setNameError('')
   }
 
-  function selecionar(id: string) {
-    const conta = lista.find(c => c.id === id)
-    if (!conta) return
-    setSelecionada(id)
-    setNova(false)
-    setErroNome('')
+  function handleSelect(id: string) {
+    const account = list.find(c => c.id === id)
+    if (!account) return
+    setSelected(id)
+    setIsNew(false)
+    setNameError('')
     setForm({
-      nome: conta.nome,
-      tipo: conta.tipo,
-      banco: conta.banco ?? '',
-      agencia: conta.agencia ?? '',
-      conta: conta.conta ?? '',
-      titular: conta.titular ?? '',
-      saldoTexto: conta.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
-      ativa: conta.status === 'ativo',
-      observacao: conta.observacao ?? '',
+      name: account.name,
+      type: account.type,
+      bank: account.bank ?? '',
+      branch: account.branch ?? '',
+      accountNumber: account.accountNumber ?? '',
+      holder: account.holder ?? '',
+      balanceText: account.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
+      active: account.status === 'active',
+      notes: account.notes ?? '',
     })
   }
 
-  function aoNova() {
-    setSelecionada(null)
-    setNova(true)
-    setForm(CONTA_FORM_VAZIO)
-    setErroNome('')
+  function handleNew() {
+    setSelected(null)
+    setIsNew(true)
+    setForm(EMPTY_ACCOUNT_FORM)
+    setNameError('')
   }
 
-  function aoCancelar() {
-    setSelecionada(null)
-    setNova(false)
-    setForm(CONTA_FORM_VAZIO)
-    setErroNome('')
+  function handleCancel() {
+    setSelected(null)
+    setIsNew(false)
+    setForm(EMPTY_ACCOUNT_FORM)
+    setNameError('')
   }
 
-  function aoSalvar() {
-    if (!form.nome.trim()) {
-      setErroNome('Dê um nome à conta.')
+  function handleSave() {
+    if (!form.name.trim()) {
+      setNameError('Dê um nome à conta.')
       return
     }
-    const saldo = parseReais(form.saldoTexto || '0')
-    salvar(
+    const balance = parseBRL(form.balanceText || '0')
+    save(
       {
-        id: selecionada,
-        dados: {
-          nome: form.nome.trim(),
-          tipo: form.tipo,
-          banco: ehCaixaInterno ? undefined : form.banco.trim() || undefined,
-          agencia: ehCaixaInterno ? undefined : form.agencia.trim() || undefined,
-          conta: ehCaixaInterno ? undefined : form.conta.trim() || undefined,
-          titular: ehCaixaInterno ? undefined : form.titular.trim() || undefined,
-          saldo: Number.isFinite(saldo) ? saldo : 0,
-          status: form.ativa ? 'ativo' : 'inativo',
-          observacao: form.observacao.trim() || undefined,
+        id: selected,
+        payload: {
+          name: form.name.trim(),
+          type: form.type,
+          bank: isInternalCash ? undefined : form.bank.trim() || undefined,
+          branch: isInternalCash ? undefined : form.branch.trim() || undefined,
+          accountNumber: isInternalCash ? undefined : form.accountNumber.trim() || undefined,
+          holder: isInternalCash ? undefined : form.holder.trim() || undefined,
+          balance: Number.isFinite(balance) ? balance : 0,
+          status: form.active ? 'active' : 'inactive',
+          notes: form.notes.trim() || undefined,
         },
       },
       {
         onSuccess: () => {
           toast.success('Conta salva!')
-          aoCancelar()
+          handleCancel()
         },
       },
     )
@@ -130,15 +130,15 @@ export function BanksTab() {
         title="Contas"
         size="lg"
         items={items}
-        selectedId={selecionada}
-        onSelect={id => selecionar(String(id))}
-        onAdd={aoNova}
+        selectedId={selected}
+        onSelect={id => handleSelect(String(id))}
+        onAdd={handleNew}
         searchPlaceholder="Buscar conta..."
         emptyText="Nenhuma conta cadastrada"
       />
 
       <div className={shared.formArea}>
-        {!formVisivel ? (
+        {!formVisible ? (
           <EmptyState
             title="Nenhuma conta selecionada"
             description="Selecione uma conta na lista ao lado ou crie uma nova clicando em +."
@@ -148,59 +148,59 @@ export function BanksTab() {
             <div className={shared.formRoot}>
               <FormSection
                 title="Dados da Conta"
-                actions={<Toggle label="Status" checked={form.ativa} onChange={v => set('ativa', v)} />}
+                actions={<Toggle label="Status" checked={form.active} onChange={v => set('active', v)} />}
               >
                 <div className={shared.fields}>
                   <div className={shared.fieldFull}>
                     <Input
                       label="Nome da conta"
                       placeholder="Ex.: Inter — Conta PJ, Caixa da recepção..."
-                      value={form.nome}
-                      onChange={e => set('nome', e.target.value)}
-                      error={erroNome}
+                      value={form.name}
+                      onChange={e => set('name', e.target.value)}
+                      error={nameError}
                     />
                   </div>
                   <Select
                     label="Tipo"
-                    options={OPCOES_TIPO_CONTA}
-                    value={form.tipo}
-                    onChange={e => set('tipo', e.target.value as BankAccountType)}
+                    options={ACCOUNT_TYPE_OPTIONS}
+                    value={form.type}
+                    onChange={e => set('type', e.target.value as BankAccountType)}
                   />
                   <Input
                     label="Saldo inicial"
                     iconLeft={<span className={shared.prefixo}>R$</span>}
                     inputMode="decimal"
                     placeholder="0,00"
-                    value={form.saldoTexto}
-                    onChange={e => set('saldoTexto', e.target.value)}
+                    value={form.balanceText}
+                    onChange={e => set('balanceText', e.target.value)}
                   />
                 </div>
               </FormSection>
 
-              {!ehCaixaInterno && (
+              {!isInternalCash && (
                 <FormSection title="Dados Bancários">
                   <div className={shared.fields}>
                     <div className={shared.fieldFull}>
-                      <Input label="Banco" placeholder="Ex.: Banco Inter, Itaú..." value={form.banco} onChange={e => set('banco', e.target.value)} />
+                      <Input label="Banco" placeholder="Ex.: Banco Inter, Itaú..." value={form.bank} onChange={e => set('bank', e.target.value)} />
                     </div>
-                    <Input label="Agência" placeholder="0000" value={form.agencia} onChange={e => set('agencia', e.target.value)} />
-                    <Input label="Conta" placeholder="00000-0" value={form.conta} onChange={e => set('conta', e.target.value)} />
+                    <Input label="Agência" placeholder="0000" value={form.branch} onChange={e => set('branch', e.target.value)} />
+                    <Input label="Conta" placeholder="00000-0" value={form.accountNumber} onChange={e => set('accountNumber', e.target.value)} />
                     <div className={shared.fieldFull}>
-                      <Input label="Titular" placeholder="Razão social" value={form.titular} onChange={e => set('titular', e.target.value)} />
+                      <Input label="Titular" placeholder="Razão social" value={form.holder} onChange={e => set('holder', e.target.value)} />
                     </div>
                   </div>
                 </FormSection>
               )}
 
               <FormSection title="Observações">
-                <Input label="Observações" placeholder="Opcional" value={form.observacao} onChange={e => set('observacao', e.target.value)} />
+                <Input label="Observações" placeholder="Opcional" value={form.notes} onChange={e => set('notes', e.target.value)} />
               </FormSection>
             </div>
 
             {/* Ações no rodapé do formulário. */}
             <div className={shared.acoesBar}>
-              <Button variant="ghost" onClick={aoCancelar} disabled={salvando}>Cancelar</Button>
-              <Button loading={salvando} onClick={aoSalvar}>Salvar</Button>
+              <Button variant="ghost" onClick={handleCancel} disabled={saving}>Cancelar</Button>
+              <Button loading={saving} onClick={handleSave}>Salvar</Button>
             </div>
           </>
         )}

@@ -1,5 +1,5 @@
-import { useConsultorio } from '@/hooks/useConsultorio'
-import { montarDocumento } from '@/utils/printDocument'
+import { useClinic } from '@/hooks/useClinic'
+import { buildDocument } from '@/utils/printDocument'
 import type { PrintDocumentInput } from '@/utils/printDocument'
 
 /**
@@ -11,13 +11,13 @@ import type { PrintDocumentInput } from '@/utils/printDocument'
  * `imprimir({ titulo: 'Recibo de pagamento', corpo: '<table>…</table>' })`.
  */
 export function usePrintDocument() {
-  const { data: clinica } = useConsultorio()
+  const { data: clinica } = useClinic()
 
   return function imprimir(doc: PrintDocumentInput) {
-    const janela = window.open('', '_blank', `width=${doc.largura ?? 680},height=820`)
+    const janela = window.open('', '_blank', `width=${doc.width ?? 680},height=820`)
     if (!janela) return   // pop-up bloqueado
 
-    janela.document.write(montarDocumento(clinica, doc))
+    janela.document.write(buildDocument(clinica, doc))
     janela.document.close()
 
     // A logo é uma imagem: chamar print() na hora imprimiria o documento antes
