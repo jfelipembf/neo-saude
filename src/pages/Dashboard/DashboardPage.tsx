@@ -8,6 +8,7 @@ import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { BillingCard } from '@/components/BillingCard/BillingCard'
+import { CommissionsCard } from '@/components/CommissionsCard/CommissionsCard'
 import { TasksCard } from '@/components/TasksCard/TasksCard'
 import { AppointmentsChart } from '@/components/AppointmentsChart/AppointmentsChart'
 import { FinanceChart } from '@/components/FinanceChart/FinanceChart'
@@ -213,6 +214,8 @@ export function DashboardPage() {
                 ))}
               </ul>
             </section>
+
+            <CommissionsCard />
           </div>
 
           <div className={styles.widgets}>

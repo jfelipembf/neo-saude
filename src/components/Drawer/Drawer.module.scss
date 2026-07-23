@@ -1,0 +1,93 @@
+@use '../../styles/mixins' as *;
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: flex-end;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.15s ease;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100dvh;
+  background: var(--modal-bg);
+  border-left: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(16px);
+  animation: slideInRight 0.2s ease;
+
+  @include mobile {
+    width: 100%;
+  }
+}
+
+.panel--sm { max-width: 360px; }
+.panel--md { max-width: 440px; }
+.panel--lg { max-width: 560px; }
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  padding: $sp-4 $sp-5;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: $radius-sm;
+  color: var(--text-muted);
+  transition: background 0.15s ease, color 0.15s ease;
+
+  svg { width: 16px; height: 16px; }
+
+  &:hover {
+    background: var(--glass-bg-hover);
+    color: var(--text-primary);
+  }
+}
+
+.body {
+  flex: 1;
+  padding: $sp-5;
+  overflow-y: auto;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-2;
+  padding: $sp-4 $sp-5;
+  border-top: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}

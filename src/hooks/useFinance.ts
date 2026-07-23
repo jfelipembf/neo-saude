@@ -7,12 +7,12 @@ import {
   getFinanceSeries, listAcquirers, listBankAccounts, listPayables,
   listReceivables, listPatientReceivables, updateAcquirer, updateBankAccount,
   reversePayable, reverseReceivable, settleReceivablesBatch,
-  listCollectionAttempts, addCollectionAttempt, addPayable,
+  listCollectionAttempts, addCollectionAttempt, addPayable, addPayableSeries,
   listUnbilledSessions, billTreatmentSession,
 } from '@/services/financeService'
 import type {
   BatchSettlementInput, BillSessionInput, CashFlowHorizon, EditAcquirer, EditBankAccount,
-  NewCollectionAttempt, NewPayable, SettlementInput,
+  NewCollectionAttempt, NewPayable, RecurringPayableInput, SettlementInput,
 } from '@/services/financeService'
 import type { ChartPeriod } from '@/types/domain'
 
@@ -118,6 +118,15 @@ export function useAddPayable() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (payload: NewPayable) => addPayable(payload),
+    onSuccess: () => invalidateFinance(queryClient),
+  })
+}
+
+/** Cadastra uma DESPESA RECORRENTE (mensal/semanal) — gera N contas a pagar. */
+export function useAddPayableSeries() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: RecurringPayableInput) => addPayableSeries(payload),
     onSuccess: () => invalidateFinance(queryClient),
   })
 }

@@ -274,3 +274,35 @@
   display: flex;
   margin-bottom: $sp-4;
 }
+
+// ── Recorrência (Nova conta a pagar: única × recorrente) ─────────────────────
+.recorrencia {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding: $sp-3;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+}
+
+.recorrenciaTopo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: $sp-2;
+}
+
+.recorrenciaRotulo {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dica {
+  margin: 0;
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

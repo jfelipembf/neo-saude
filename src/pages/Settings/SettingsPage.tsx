@@ -6,15 +6,17 @@ import { AccountTab } from './Account/AccountTab'
 import { SubscriptionTab } from './Subscription/SubscriptionTab'
 import { WhatsAppTab } from './WhatsApp/WhatsAppTab'
 import { AutomationTab } from './Automation/AutomationTab'
+import { ImportTab } from './Import/ImportTab'
 import styles from './SettingsPage.module.scss'
 
-type TabKey = 'account' | 'subscription' | 'whatsapp' | 'automation'
+type TabKey = 'account' | 'subscription' | 'whatsapp' | 'automation' | 'import'
 
 const TABS = [
   { key: 'account',      label: 'Conta' },
   { key: 'subscription', label: 'Assinatura' },
   { key: 'whatsapp',   label: 'WhatsApp' },
   { key: 'automation',  label: 'Automação' },
+  { key: 'import',     label: 'Importar pacientes' },
 ]
 
 /** Configurações: conta do usuário, conexão do WhatsApp e mensagens automáticas.
@@ -33,6 +35,7 @@ export function SettingsPage() {
       {tab === 'subscription' && <SubscriptionTab />}
       {tab === 'whatsapp'   && <WhatsAppTab />}
       {tab === 'automation'  && <AutomationTab />}
+      {tab === 'import'     && <ImportTab />}
     </>
   )
 }

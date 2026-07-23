@@ -38,6 +38,10 @@ export const queryKeys = {
     detail: (id: string) => ['professionals', id] as const,
     /** Produção do profissional (aba Ganhos) — prefixada, cai junto na invalidação. */
     earnings: (id: string) => ['professionals', id, 'earnings'] as const,
+    /** Orçado × convertido de TODOS os profissionais num mês (card Comissões
+     *  do Dashboard). O mês faz parte da key — julho e agosto são dados
+     *  diferentes, não a mesma lista com outro filtro. */
+    quoteConversion: (monthIso: string) => ['professionals', 'quoteConversion', monthIso] as const,
   },
   user: {
     me: ['user', 'me'] as const,
@@ -72,6 +76,7 @@ export const queryKeys = {
   },
   leads: {
     all: ['leads'] as const,
+    history: (id: string) => ['leads', id, 'history'] as const,
   },
   // 'payments' saiu daqui junto com o service: public.payment está CONGELADA
   // (zero linhas, nenhum escritor, sem GRANT de escrita) e o razão vigente é
@@ -104,6 +109,11 @@ export const queryKeys = {
   },
   staff: {
     all: ['staff'] as const,
+  },
+  audit: {
+    // Os filtros entram na key: mudar entidade/ação/período refaz a busca (e a
+    // paginação keyset recomeça do topo). Objeto estável via JSON no componente.
+    list: (filters: unknown) => ['audit', filters] as const,
   },
   quotes: {
     all: ['quotes'] as const,

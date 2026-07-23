@@ -5,6 +5,7 @@ import {
   getProfessional,
   linkProfessionalToUser,
   listProfessionalEarnings,
+  listProfessionalQuoteConversion,
   listProfessionals,
   updateProfessional,
 } from '@/services/professionalsService'
@@ -28,6 +29,14 @@ export function useProfessionalEarnings(professionalId: string) {
     queryKey: queryKeys.professionals.earnings(professionalId),
     queryFn: () => listProfessionalEarnings(professionalId),
     enabled: Boolean(professionalId),
+  })
+}
+
+/** Orçado × convertido de todos os profissionais num mês (card Comissões do Dashboard). */
+export function useProfessionalQuoteConversion(monthIso: string) {
+  return useQuery({
+    queryKey: queryKeys.professionals.quoteConversion(monthIso),
+    queryFn: () => listProfessionalQuoteConversion(monthIso),
   })
 }
 

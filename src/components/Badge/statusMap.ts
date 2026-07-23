@@ -29,6 +29,11 @@ export const STATUS_MAP: Record<string, StatusEntry> = {
   suspended: { variant: 'danger', label: 'Suspenso' },
   invited:   { variant: 'warning', label: 'Convidado' },
 
+  // ── Auditoria (ação registrada na trilha) ──
+  insert: { variant: 'success', label: 'Criou' },
+  update: { variant: 'info',    label: 'Alterou' },
+  delete: { variant: 'danger',  label: 'Excluiu' },
+
   // ── Assinatura do SaaS (Configurações) ──
   past_due: { variant: 'danger', label: 'Inadimplente' },
 

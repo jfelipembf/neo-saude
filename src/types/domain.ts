@@ -609,6 +609,17 @@ export interface ProfessionalEarning {
   receivedAmount: number
 }
 
+/** Orçado × convertido de UM profissional num mês (card "Comissões" do
+ *  Dashboard) — RPC professional_quote_conversion. `converted` é sempre
+ *  ≤ `quoted` (é a parte que já virou orçamento aprovado). */
+export interface ProfessionalQuoteConversion {
+  professionalId: string
+  name: string
+  photoUrl?: string
+  quoted: number
+  converted: number
+}
+
 /**
  * Tratamento = o GUARDA-CHUVA (1 por dente + procedimento), que pode atravessar
  * vários dias: cada dia é uma TreatmentSession (modelo Open Dental / evolução
@@ -686,11 +697,25 @@ export interface Lead {
   id: string
   clinicId: string
   name: string
+  email?: string
   phone: string
   source: string         // Instagram, Google, Indicação, WhatsApp…
   interest: string      // serviço de interesse
+  notes?: string
   createdAt: string       // dd/mm
   status: LeadStatus
+}
+
+/** Uma entrada do histórico de UM lead (RPC list_lead_history) — mudança de
+ *  status, observação editada, ou o cadastro em si. */
+export interface LeadHistoryEntry {
+  id: string
+  createdAt: string        // ISO — a tela formata
+  actorName?: string
+  action: AuditAction
+  changedFields: string[]
+  oldData?: Record<string, unknown>
+  newData?: Record<string, unknown>
 }
 
 // ── Gráfico de consultas (Dashboard) ─────────────────────────────────────────
@@ -901,3 +926,31 @@ export interface Acquirer {
   notes?: string
 }
 
+
+// ── Auditoria (trilha de ações — aba Administrativo → Auditoria) ─────────────
+export type AuditAction = 'insert' | 'update' | 'delete'
+
+/** Uma entrada da trilha de auditoria (uma escrita registrada por tg_audit). */
+export interface AuditEntry {
+  id: string
+  createdAt: string        // ISO (com timezone) — formatado na tela
+  actorId?: string
+  actorName?: string       // vazio = ação do sistema
+  action: AuditAction
+  tableName: string        // nome cru da tabela (mapeado p/ rótulo pt na UI)
+  recordId: string
+  recordLabel?: string     // rótulo humano do registro, derivado do snapshot
+  changedFields: string[]  // colunas alteradas (update)
+  oldData?: Record<string, unknown>
+  newData?: Record<string, unknown>
+}
+
+/** Filtros da página de Auditoria. */
+export interface AuditFilters {
+  table?: string
+  action?: AuditAction
+  actorId?: string
+  from?: string            // ISO date (aaaa-mm-dd)
+  to?: string
+  search?: string
+}

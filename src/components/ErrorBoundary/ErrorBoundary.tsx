@@ -41,13 +41,15 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <div className={styles.page} role="alert">
         <img src={errorImage} alt="" className={styles.image} />
-        <h1 className={styles.title}>Algo deu errado</h1>
-        <p className={styles.description}>
-          Encontramos um problema inesperado ao carregar esta tela. Você pode tentar novamente.
-        </p>
-        <Button variant="primary" onClick={this.handleRetry} className={styles.action}>
-          Tentar novamente
-        </Button>
+        <div className={styles.content}>
+          <h1 className={styles.title}>Algo deu errado</h1>
+          <p className={styles.description}>
+            Encontramos um problema inesperado ao carregar esta tela. Você pode tentar novamente.
+          </p>
+          <Button variant="primary" onClick={this.handleRetry} className={styles.action}>
+            Tentar novamente
+          </Button>
+        </div>
       </div>
     )
   }

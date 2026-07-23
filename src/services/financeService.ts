@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId, type ClientPayload } from '@/lib/tenant'
 import type { Insert, ClientInsert } from '@/lib/db'
-import { brToIsoDate, isoToBrDate, localDate } from '@/utils/date'
+import { brToIsoDate, isoToBrDate, localDate, toIsoDate, addMonths, addDays } from '@/utils/date'
 import type {
   Acquirer, BankAccount, Payable, Receivable, ReceivableDebtor,
   CashFlowDay, ChartPeriod, CollectionAttempt, FinancePoint, PaymentMethod, PaymentStatus, InstallmentRate,
@@ -109,6 +109,64 @@ export async function addPayable(p: NewPayable): Promise<void> {
   }
   const { error } = await supabase.from('payable').insert(row as Insert<'payable'>)
   if (error) throw error
+}
+
+// ── Contas a pagar RECORRENTES (aluguel, salários, assinaturas…) ─────────────
+export type RecurrenceFrequency = 'monthly' | 'weekly'
+
+/** Sem data final: quantas ocorrências gerar de uma vez. */
+const RECUR_NO_END_COUNT = 12
+/** Trava de segurança de um período longo (evita insert gigante por engano). */
+const RECUR_MAX = 120
+
+export interface RecurringPayableInput extends NewPayable {
+  /** `dueDate` (herdado) é a DATA DE INÍCIO da série. */
+  frequency: RecurrenceFrequency
+  /** dd/mm/aaaa — opcional. Sem data final, gera RECUR_NO_END_COUNT ocorrências. */
+  endDate?: string
+}
+
+/** Datas de vencimento (ISO) da série: do início até a data final, ou 12 vezes. */
+export function recurrenceDueDates(startBr: string, frequency: RecurrenceFrequency, endBr?: string): string[] {
+  const startIso = brToIsoDate(startBr)
+  if (!startIso) return []
+  const start = localDate(startIso)
+  const endIso = endBr ? brToIsoDate(endBr) : undefined
+  const end = endIso ? localDate(endIso) : undefined
+  const dates: string[] = []
+  for (let k = 0; k < RECUR_MAX; k++) {
+    const d = frequency === 'monthly' ? addMonths(start, k) : addDays(start, 7 * k)
+    if (end) {
+      if (d.getTime() > end.getTime()) break
+    } else if (k >= RECUR_NO_END_COUNT) {
+      break
+    }
+    dates.push(toIsoDate(d))
+  }
+  return dates
+}
+
+/**
+ * Cria uma conta a pagar RECORRENTE: uma linha por ocorrência (mensal ou
+ * semanal) a partir da data de início. Com data final, vai até ela; sem data
+ * final, gera as próximas RECUR_NO_END_COUNT. Cada conta é independente (baixa e
+ * cancelamento por linha), o mesmo modelo dos ERPs do ramo. Retorna quantas criou.
+ */
+export async function addPayableSeries(p: RecurringPayableInput): Promise<number> {
+  const dueDates = recurrenceDueDates(p.dueDate, p.frequency, p.endDate)
+  if (dueDates.length === 0) throw new Error('Período inválido: nenhuma cobrança seria gerada.')
+  const rows: ClientInsert<'payable'>[] = dueDates.map(due => ({
+    clinic_id: clinic(),
+    description: p.description,
+    category: p.category,
+    supplier: p.supplier,
+    due_date: due,
+    amount: p.amount,
+    notes: p.notes ?? null,
+  }))
+  const { error } = await supabase.from('payable').insert(rows as Insert<'payable'>[])
+  if (error) throw error
+  return rows.length
 }
 
 // ── Contas a receber ─────────────────────────────────────────────────────────
@@ -323,13 +381,17 @@ function methodPatch(s: { method?: PaymentMethod }, acquirerId: string | null): 
  * dentro da função (ver methodPatch, ainda usado na baixa em lote).
  */
 export async function settleReceivable(id: string, s: SettlementInput): Promise<void> {
+  // p_date não tem default na RPC — se viesse null (data mal formada), a baixa
+  // zeraria received_at em silêncio. É melhor falhar aqui, cedo e visível.
+  const date = brToIsoDate(s.date)
+  if (!date) throw new Error('Data de baixa inválida.')
   const { error } = await supabase.rpc('settle_receivable', {
     p_id: id,
     p_amount: s.amount,
-    p_date: brToIsoDate(s.date),
-    p_method: s.method ?? null,
-    p_bank: s.bankAccountId ?? null,
-    p_notes: s.notes ?? null,
+    p_date: date,
+    p_method: s.method,
+    p_bank: s.bankAccountId,
+    p_notes: s.notes,
   })
   if (error) throw error
 }

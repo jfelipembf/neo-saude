@@ -1,0 +1,114 @@
+@use '../../../styles/mixins' as *;
+
+.painel {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.cabecalho {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.titulo {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.hint {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 720px;
+}
+
+.passos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $sp-3;
+}
+
+// Input de arquivo fica escondido — o botão "Escolher planilha" o dispara.
+.inputFile {
+  display: none;
+}
+
+.arquivo {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.resultado {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.resumo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2;
+}
+
+.badgeOk,
+.badgeErro {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: $fs-sm;
+  font-weight: 600;
+}
+
+.badgeOk {
+  color: var(--success-fg);
+  background: color-mix(in srgb, var(--success-fg) 12%, transparent);
+}
+
+.badgeErro {
+  color: var(--danger-fg);
+  background: color-mix(in srgb, var(--danger-fg) 12%, transparent);
+}
+
+.maisLinhas {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}
+
+.problemas {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  padding: $sp-3;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--danger-fg) 30%, transparent);
+  background: color-mix(in srgb, var(--danger-fg) 7%, transparent);
+}
+
+.problemasTitulo {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--danger-fg);
+}
+
+.problemasLista {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: $sp-4;
+  font-size: $fs-sm;
+  color: var(--text-primary);
+}
+
+.acoes {
+  display: flex;
+  justify-content: flex-end;
+
+  @include mobile {
+    justify-content: stretch;
+  }
+}

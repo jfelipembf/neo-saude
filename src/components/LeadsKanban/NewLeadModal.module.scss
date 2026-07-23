@@ -1,0 +1,22 @@
+@use '../../styles/mixins' as *;
+
+.corpo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.linha2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.erro {
+  font-size: $fs-sm;
+  color: var(--danger-fg);
+}

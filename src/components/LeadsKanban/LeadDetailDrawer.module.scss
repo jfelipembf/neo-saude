@@ -1,0 +1,102 @@
+@use '../../styles/mixins' as *;
+
+.corpo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-5;
+}
+
+// ── Dados do lead (topo, não editáveis aqui) ────────────────────────────────
+.dados {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.nome {
+  font-size: $fs-lg;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.linhaDado {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+
+  svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-muted); }
+}
+
+.interesse {
+  align-self: flex-start;
+  padding: 3px 10px;
+  border-radius: $radius-pill;
+  background: var(--accent-bg);
+  color: var(--accent-fg);
+  font-size: $fs-xs;
+  font-weight: 700;
+}
+
+// ── Select + observação ──────────────────────────────────────────────────────
+.formSection {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding-top: $sp-3;
+  border-top: 1px solid var(--glass-border);
+}
+
+// ── Histórico ────────────────────────────────────────────────────────────────
+.historico {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding-top: $sp-3;
+  border-top: 1px solid var(--glass-border);
+}
+
+.historicoTitulo {
+  font-size: $fs-sm;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.historicoCarregando {
+  display: flex;
+  justify-content: center;
+  padding: $sp-4 0;
+}
+
+.historicoVazio {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}
+
+.historicoLista {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.historicoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: $sp-3;
+  border-left: 2px solid var(--glass-border);
+}
+
+.historicoData {
+  font-size: $fs-xs;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.historicoLinha {
+  font-size: $fs-sm;
+  color: var(--text-primary);
+}

@@ -13,9 +13,10 @@ import { GoalsTab } from './Goals/GoalsTab'
 // Financeiro): contas bancárias onde o dinheiro entra e adquirentes de cartão.
 import { BanksTab } from './Banks/BanksTab'
 import { AcquirersTab } from './Acquirers/AcquirersTab'
+import { AuditTab } from './Audit/AuditTab'
 import styles from './AdminPage.module.scss'
 
-type TabKey = 'rooms' | 'materials' | 'insurances' | 'commissions' | 'roles' | 'collaborators' | 'goals' | 'banks' | 'acquirers'
+type TabKey = 'rooms' | 'materials' | 'insurances' | 'commissions' | 'roles' | 'collaborators' | 'goals' | 'banks' | 'acquirers' | 'audit'
 
 const TABS = [
   { key: 'rooms',     label: 'Salas' },
@@ -27,6 +28,7 @@ const TABS = [
   { key: 'goals',    label: 'Metas' },
   { key: 'banks',    label: 'Contas bancárias' },
   { key: 'acquirers', label: 'Adquirentes' },
+  { key: 'audit',    label: 'Auditoria' },
 ]
 
 /** Página Administrativo: uma rota só, com o conteúdo organizado em abas. */
@@ -49,6 +51,7 @@ export function AdminPage() {
       {tab === 'goals'    && <GoalsTab />}
       {tab === 'banks'    && <BanksTab />}
       {tab === 'acquirers' && <AcquirersTab />}
+      {tab === 'audit'    && <AuditTab />}
     </>
   )
 }

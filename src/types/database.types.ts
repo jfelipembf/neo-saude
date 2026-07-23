@@ -1559,6 +1559,7 @@ export type Database = {
         Row: {
           clinic_id: string
           created_at: string
+          email: string | null
           id: string
           interest: string
           name: string
@@ -1572,6 +1573,7 @@ export type Database = {
         Insert: {
           clinic_id: string
           created_at?: string
+          email?: string | null
           id?: string
           interest: string
           name: string
@@ -1585,6 +1587,7 @@ export type Database = {
         Update: {
           clinic_id?: string
           created_at?: string
+          email?: string | null
           id?: string
           interest?: string
           name?: string
@@ -2729,6 +2732,7 @@ export type Database = {
           notes: string | null
           open_amount: number | null
           patient_id: string | null
+          plan_line: number | null
           quote_id: string | null
           received_amount: number
           received_at: string | null
@@ -2757,6 +2761,7 @@ export type Database = {
           notes?: string | null
           open_amount?: number | null
           patient_id?: string | null
+          plan_line?: number | null
           quote_id?: string | null
           received_amount?: number
           received_at?: string | null
@@ -2785,6 +2790,7 @@ export type Database = {
           notes?: string | null
           open_amount?: number | null
           patient_id?: string | null
+          plan_line?: number | null
           quote_id?: string | null
           received_amount?: number
           received_at?: string | null
@@ -3751,7 +3757,10 @@ export type Database = {
           value: number
         }[]
       }
-      approve_quote: { Args: { p_plan?: Json; p_quote: string }; Returns: number }
+      approve_quote: {
+        Args: { p_plan?: Json; p_quote: string }
+        Returns: number
+      }
       archive_anamnesis: { Args: { p_patient: string }; Returns: string }
       bill_treatment_session: {
         Args: {
@@ -3780,6 +3789,33 @@ export type Database = {
         Args: { p_professional: string; p_user: string }
         Returns: undefined
       }
+      list_audit_log: {
+        Args: {
+          p_action?: Database["public"]["Enums"]["audit_action"]
+          p_actor?: string
+          p_before_at?: string
+          p_before_id?: string
+          p_clinic: string
+          p_from?: string
+          p_limit?: number
+          p_search?: string
+          p_table?: string
+          p_to?: string
+        }
+        Returns: {
+          action: Database["public"]["Enums"]["audit_action"]
+          actor_id: string
+          actor_name: string
+          changed_fields: string[]
+          created_at: string
+          id: string
+          new_data: Json
+          old_data: Json
+          record_id: string
+          record_label: string
+          table_name: string
+        }[]
+      }
       list_clinic_staff: {
         Args: { p_clinic: string }
         Returns: {
@@ -3800,6 +3836,18 @@ export type Database = {
           status: Database["public"]["Enums"]["membership_status"]
           user_id: string
           whatsapp: string
+        }[]
+      }
+      list_lead_history: {
+        Args: { p_lead: string }
+        Returns: {
+          action: Database["public"]["Enums"]["audit_action"]
+          actor_name: string
+          changed_fields: string[]
+          created_at: string
+          id: string
+          new_data: Json
+          old_data: Json
         }[]
       }
       my_session: { Args: { p_clinic?: string }; Returns: Json }
@@ -3857,6 +3905,16 @@ export type Database = {
           performed_on: string
           received_amount: number
           session_id: string
+        }[]
+      }
+      professional_quote_conversion: {
+        Args: { p_month_iso: string }
+        Returns: {
+          converted: number
+          name: string
+          photo_url: string
+          professional_id: string
+          quoted: number
         }[]
       }
       professional_slot_conflicts: {
@@ -3925,11 +3983,11 @@ export type Database = {
       settle_receivable: {
         Args: {
           p_amount: number
-          p_bank?: string | null
-          p_date?: string | null
+          p_bank?: string
+          p_date: string
           p_id: string
-          p_method?: Database["public"]["Enums"]["payment_method"] | null
-          p_notes?: string | null
+          p_method?: Database["public"]["Enums"]["payment_method"]
+          p_notes?: string
         }
         Returns: undefined
       }

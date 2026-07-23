@@ -11,6 +11,12 @@
   min-height: 240px;
 }
 
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: $sp-3;
+}
+
 .board {
   display: flex;
   align-items: stretch;
@@ -21,9 +27,12 @@
 }
 
 .coluna {
-  flex: 0 0 300px;
+  // As 5 colunas são fixas (não é board configurável pelo usuário), então
+  // crescem em partes IGUAIS até preencher a largura inteira do card — sem
+  // teto de largura. Abaixo de 5×280px o flex-shrink cede e o `.board` rola
+  // na horizontal em vez de espremer os cards a ponto de ficarem ilegíveis.
+  flex: 1 1 280px;
   min-width: 280px;
-  max-width: 360px;
   display: flex;
   flex-direction: column;
   min-height: 520px;
@@ -36,7 +45,7 @@
   }
 
   @include phone {
-    flex-basis: 88vw;
+    flex: 0 0 88vw;
     min-width: 0;
   }
 }
@@ -197,39 +206,6 @@
   white-space: nowrap;
 
   svg { width: 14px; height: 14px; flex-shrink: 0; }
-}
-
-.setas {
-  display: flex;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.setaBtn {
-  @include focus-ring;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border: none;
-  border-radius: $radius-sm;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-
-  svg { width: 12px; height: 12px; }
-
-  &:hover:not(:disabled) {
-    background: var(--glass-bg-hover);
-    color: var(--text-primary);
-  }
-
-  &:disabled {
-    opacity: 0.3;
-    cursor: default;
-  }
 }
 
 .vazio {

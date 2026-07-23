@@ -1,0 +1,158 @@
+@use '../../../styles/mixins' as *;
+
+.painel {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.cabecalho {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.titulo {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.hint {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.carregando {
+  display: flex;
+  justify-content: center;
+  padding: $sp-8 0;
+}
+
+// ── Filtros (barra dentro do cartão da tabela) — UMA LINHA no desktop ─────────
+.filtros {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: $sp-2;
+  width: 100%;
+
+  // min-width:0 deixa os controles encolherem para caber todos na mesma linha.
+  > * { min-width: 0; }
+
+  @include mobile {
+    flex-wrap: wrap;   // no mobile podem quebrar/empilhar
+  }
+}
+
+// Larguras relativas dos filtros na linha (entidade maior; datas fixas; busca sobra).
+.fEntidade { flex: 1.4 1 0; min-width: 130px; }
+.fAcao     { flex: 1 1 0;   min-width: 104px; }
+.fData     { flex: 0 1 150px; }
+.busca     { flex: 2 1 0;   min-width: 150px; }
+
+@include mobile {
+  .fEntidade, .fAcao, .busca { flex: 1 1 100%; }
+  .fData { flex: 1 1 calc(50% - #{$sp-2} / 2); }   // De/Até lado a lado
+}
+
+// ── Células ──────────────────────────────────────────────────────────────────
+.quando { color: var(--text-secondary); white-space: nowrap; }
+.quem   { font-weight: 500; color: var(--text-primary); }
+
+.registro {
+  display: inline-block;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  color: var(--text-primary);
+}
+
+.semAlt { color: var(--text-muted); }
+
+.chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+}
+
+// ── Diff (detalhe expandido) ─────────────────────────────────────────────────
+.diffTitulo {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: $sp-2;
+}
+
+.diffVazio {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}
+
+.diffLista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.diffLinha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: $sp-2;
+  font-size: $fs-sm;
+}
+
+.campo {
+  min-width: 140px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.antigo {
+  color: var(--danger-fg);
+  text-decoration: line-through;
+  word-break: break-word;
+}
+
+.seta { color: var(--text-muted); }
+
+.novo {
+  color: var(--success-fg);
+  word-break: break-word;
+}
+
+// Rodapé da tabela: "por página" à esquerda, paginação à direita.
+.rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: $sp-2;
+  width: 100%;
+
+  @include mobile {
+    justify-content: center;
+  }
+}
+
+.aviso {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  text-align: center;
+  padding-top: $sp-2;
+}

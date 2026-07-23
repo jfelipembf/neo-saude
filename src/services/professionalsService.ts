@@ -4,7 +4,7 @@ import type { ClientPayload } from '@/lib/tenant'
 import type { ClientInsert, Insert, Update } from '@/lib/db'
 import { capitalizeName, cepToDb, phoneToDb, emailToDb, ufToDb } from '@/utils/text'
 import { brToIsoDate, isoToBrDate } from '@/utils/date'
-import type { Professional, EducationItem, ExperienceItem, ProfessionalEarning } from '@/types/domain'
+import type { Professional, EducationItem, ExperienceItem, ProfessionalEarning, ProfessionalQuoteConversion } from '@/types/domain'
 
 /** Núcleo do profissional (sem currículo). Exportado porque o responsável
  *  técnico é lido da MESMA tabela por outro recorte (ver clinicService). */
@@ -336,5 +336,22 @@ export async function listProfessionalEarnings(professionalId: string): Promise<
     amount: Number(r.amount),
     billingStatus: r.billing_status,
     receivedAmount: Number(r.received_amount),
+  }))
+}
+
+/**
+ * Orçado × convertido de cada profissional num mês (RPC
+ * professional_quote_conversion) — base do card "Comissões" do Dashboard.
+ * `monthIso` no formato aaaa-mm (mesmo formato de finance_series/series_buckets).
+ */
+export async function listProfessionalQuoteConversion(monthIso: string): Promise<ProfessionalQuoteConversion[]> {
+  const { data, error } = await supabase.rpc('professional_quote_conversion', { p_month_iso: monthIso })
+  if (error) throw error
+  return (data ?? []).map(r => ({
+    professionalId: r.professional_id,
+    name: r.name,
+    photoUrl: r.photo_url ?? undefined,
+    quoted: Number(r.quoted),
+    converted: Number(r.converted),
   }))
 }
