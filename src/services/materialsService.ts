@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
+import { signAssetUrls } from '@/lib/storage'
 import { brToIsoDate, isoToBrDate } from '@/utils/date'
 import type { Material } from '@/types/domain'
 
@@ -57,7 +58,14 @@ export async function listMaterials(): Promise<Material[]> {
     .eq('clinic_id', getCurrentClinicId())
     .order('name')
   if (error) throw error
-  return (data as MaterialRow[]).map(toMaterial)
+  const rows = data as MaterialRow[]
+  // photo_url guarda o PATH do bucket privado — assina o lote de uma vez.
+  const signed = await signAssetUrls(rows.map(r => r.photo_url))
+  return rows.map(row => {
+    const m = toMaterial(row)
+    m.photo = row.photo_url ? signed.get(row.photo_url) : undefined
+    return m
+  })
 }
 
 /** Cadastra um material novo. */

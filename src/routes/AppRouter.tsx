@@ -14,6 +14,7 @@ const DashboardPage      = lazy(() => import('@/pages/Dashboard/DashboardPage').
 const AgendaPage         = lazy(() => import('@/pages/Agenda/AgendaPage').then(m => ({ default: m.AgendaPage })))
 const PatientsPage       = lazy(() => import('@/pages/Patients/PatientsPage').then(m => ({ default: m.PatientsPage })))
 const PatientProfilePage = lazy(() => import('@/pages/Patients/Profile/PatientProfilePage').then(m => ({ default: m.PatientProfilePage })))
+const LeadProfilePage    = lazy(() => import('@/pages/Leads/LeadProfilePage').then(m => ({ default: m.LeadProfilePage })))
 const ProfessionalsPage  = lazy(() => import('@/pages/Professionals/ProfessionalsPage').then(m => ({ default: m.ProfessionalsPage })))
 const ProfessionalProfilePage = lazy(() => import('@/pages/Professionals/Profile/ProfessionalProfilePage').then(m => ({ default: m.ProfessionalProfilePage })))
 const FinancePage        = lazy(() => import('@/pages/Finance/FinancePage').then(m => ({ default: m.FinancePage })))
@@ -42,6 +43,7 @@ export function AppRouter() {
               <Route path={APP_ROUTES.SCHEDULE}          element={<FeatureGuard feature="schedule"><AgendaPage /></FeatureGuard>} />
               <Route path={APP_ROUTES.PATIENTS}       element={<FeatureGuard feature="patients"><PatientsPage /></FeatureGuard>} />
               <Route path={APP_ROUTES.PATIENT_PROFILE} element={<FeatureGuard feature="patients"><PatientProfilePage /></FeatureGuard>} />
+              <Route path={APP_ROUTES.LEAD_PROFILE} element={<FeatureGuard feature="patients"><LeadProfilePage /></FeatureGuard>} />
               <Route path={APP_ROUTES.PROFESSIONALS}   element={<FeatureGuard feature="professionals"><ProfessionalsPage /></FeatureGuard>} />
               <Route path={APP_ROUTES.PROFESSIONAL_PROFILE} element={<FeatureGuard feature="professionals"><ProfessionalProfilePage /></FeatureGuard>} />
               <Route path={APP_ROUTES.FINANCE}      element={<FeatureGuard feature="finance"><FinancePage /></FeatureGuard>} />

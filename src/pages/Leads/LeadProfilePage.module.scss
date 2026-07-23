@@ -1,0 +1,195 @@
+@use '../../styles/mixins' as *;
+
+.topo {
+  margin-bottom: $sp-4;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: $sp-4;
+  align-items: start;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ── Card-resumo lateral ──────────────────────────────────────────────────────
+.resumo {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  padding: $sp-4;
+}
+
+.identidade {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: $sp-2;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: #fff;
+  font-size: $fs-xl;
+  font-weight: 600;
+}
+
+.nome {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subtitulo {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.convertido {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: $fs-xs;
+  font-weight: 600;
+  color: var(--success-fg);
+  background: color-mix(in srgb, var(--success-fg) 12%, transparent);
+}
+
+.acoesContato {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $sp-2;
+}
+
+.converter {
+  width: 100%;
+}
+
+.bloco {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.blocoTitulo {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.contatos {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.contato {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+}
+
+.contatoIcone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--field-bg);
+  color: var(--text-muted);
+
+  svg { width: 16px; height: 16px; }
+}
+
+.contatoTexto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.contatoLabel { font-size: $fs-xs; color: var(--text-muted); }
+.contatoValor { font-size: $fs-sm; color: var(--text-primary); word-break: break-word; }
+
+// ── Conteúdo principal ───────────────────────────────────────────────────────
+.principal {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  min-width: 0;
+}
+
+.card {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding: $sp-4;
+}
+
+.cardTitulo {
+  font-size: $fs-md;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.acoesSalvar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+// ── Histórico ────────────────────────────────────────────────────────────────
+.historicoCarregando {
+  display: flex;
+  justify-content: center;
+  padding: $sp-4 0;
+}
+
+.historicoVazio {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}
+
+.historicoLista {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.historicoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: $sp-3;
+  border-left: 2px solid var(--glass-border);
+}
+
+.historicoData {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.historicoLinha {
+  font-size: $fs-sm;
+  color: var(--text-primary);
+}

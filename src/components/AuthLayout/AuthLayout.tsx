@@ -9,13 +9,11 @@ interface AuthLayoutProps {
   children: ReactNode
 }
 
-/** Casca das telas de autenticação: imagem à esquerda + painel com logo à direita. */
+/** Casca das telas de autenticação: a imagem cobre a página e o formulário
+ *  flutua por cima, à direita — a imagem começa ATRÁS do formulário. */
 export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
   return (
     <div className={styles.page}>
-      {/* Painel visual à esquerda: só a imagem (some no mobile). */}
-      <aside className={styles.hero} aria-hidden="true" />
-
       <main className={styles.painel}>
         <div className={styles.conteudo}>
           <div className={styles.brand}>

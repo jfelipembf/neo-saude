@@ -20,12 +20,13 @@ type LeadRow = {
   notes: string | null
   status: LeadStatus
   created_at: string
+  patient_id: string | null
 }
 
 export async function listLeads(): Promise<Lead[]> {
   const { data, error } = await supabase
     .from('lead')
-    .select('id, clinic_id, name, email, phone, source, interest, notes, status, created_at')
+    .select('id, clinic_id, name, email, phone, source, interest, notes, status, created_at, patient_id')
     .eq('clinic_id', getCurrentClinicId())
     .order('created_at', { ascending: false })
   if (error) throw error
@@ -40,7 +41,20 @@ export async function listLeads(): Promise<Lead[]> {
     notes: row.notes ?? undefined,
     createdAt: toShortDate(new Date(row.created_at)),
     status: row.status,
+    patientId: row.patient_id ?? undefined,
   }))
+}
+
+/**
+ * Converte o lead em paciente (RPC transacional): cria o paciente a partir do
+ * lead ou vincula ao existente de MESMO telefone, marca o lead como convertido
+ * e devolve o id do paciente e se foi criado (true) ou vinculado (false).
+ */
+export async function convertLeadToPatient(id: string): Promise<{ patientId: string; created: boolean }> {
+  const { data, error } = await supabase.rpc('convert_lead_to_patient', { p_lead: id })
+  if (error) throw error
+  const r = data as { patient_id: string; created: boolean }
+  return { patientId: r.patient_id, created: r.created }
 }
 
 /** Move o lead de etapa no funil (arrastar entre colunas do Kanban) — NUNCA

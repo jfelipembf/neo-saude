@@ -2,8 +2,10 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
+import { Tabs } from '@/components/Tabs/Tabs'
 import { Calendar } from '@/components/Calendar/Calendar'
 import { localDate, toIsoDate } from '@/utils/date'
+import { dashboardRange, type PeriodPreset } from '@/utils/period'
 import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
@@ -14,12 +16,13 @@ import { AppointmentsChart } from '@/components/AppointmentsChart/AppointmentsCh
 import { FinanceChart } from '@/components/FinanceChart/FinanceChart'
 import { StatsCard } from '@/components/StatsCard/StatsCard'
 import { LeadsKanban } from '@/components/LeadsKanban/LeadsKanban'
+import { PeriodFilter } from '@/components/PeriodFilter/PeriodFilter'
 import { useDashboardStats, useSetAppointmentStatus } from '@/hooks/useAppointments'
 import { useAgendaAppointments } from '@/hooks/useSchedule'
 import { usePatientName } from '@/hooks/useDisplayNames'
 import {
   IconDashboard, IconClock, IconCheck, IconX, IconBan,
-  IconSchedule, IconTrendUp, IconTrendDown, IconKanban,
+  IconSchedule, IconTrendUp, IconTrendDown,
 } from '@/components/icons'
 import {
   APP_ROUTES, GOAL_METRIC_LABEL, GOAL_METRIC_IS_MONEY, GOAL_METRIC_HIGHER_IS_BETTER,
@@ -45,6 +48,13 @@ export function DashboardPage() {
   const today = new Date()
   const todayIso = toIsoDate(today)
 
+  // Período do topo (Hoje/Ontem/Semana/Mês/Ano/Personalizado) que recorta os
+  // cartões de métrica. Padrão: mês (mantém o comportamento anterior).
+  const [preset, setPreset] = useState<PeriodPreset>('month')
+  const [customFrom, setCustomFrom] = useState(todayIso)
+  const [customTo, setCustomTo] = useState(todayIso)
+  const range = dashboardRange(preset, customFrom, customTo)
+
   // O card "Agenda do dia" é LIGADO à agenda: clicar num dia do calendário
   // mostra as consultas daquele dia com o status. Uma query de ±6 meses cobre a
   // navegação do calendário inteira (mesma janela da aba do profissional).
@@ -56,10 +66,17 @@ export function DashboardPage() {
   // Query própria: os cartões não seguram a agenda no loader (e vice-versa).
   // Enquanto não chega, cada cartão mostra '—' em vez de um zero que seria lido
   // como "o mês está zerado" (ver `metricCard`).
-  const { data: stats } = useDashboardStats()
+  const { data: stats } = useDashboardStats(range)
   const patientName = usePatientName()
   const { mutate: setStatus } = useSetAppointmentStatus()
-  const [view, setView] = useState<'dashboard' | 'kanban'>('dashboard')
+  // Duas visões da Dashboard: GERENCIAL (indicadores, agenda, financeiro) e
+  // OPERACIONAL (o kanban do funil de contatos). Antes eram alternadas por um
+  // botão de ícone no canto; viraram abas.
+  const [view, setView] = useState<'management' | 'operational'>('management')
+  const DASHBOARD_TABS = [
+    { key: 'management',  label: 'Gerencial' },
+    { key: 'operational', label: 'Operacional' },
+  ]
 
   const selectedLabel = localDate(selectedDate)
     .toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -69,7 +86,7 @@ export function DashboardPage() {
     .sort((a, b) => a.startTime.localeCompare(b.startTime))
   // Pontinho no calendário nos dias com consulta (canceladas não marcam).
   const markedDates = [...new Set((appointments ?? []).filter(a => a.status !== 'canceled').map(a => a.date))]
-  const isKanban = view === 'kanban'
+  const isOperational = view === 'operational'
 
   /**
    * Monta um cartão de métrica a partir de `metrics` da RPC.
@@ -103,7 +120,7 @@ export function DashboardPage() {
       progress: m ? (goalProgress(m.current, m.target) ?? undefined) : undefined,
       hint: change == null
         ? undefined
-        : `${change > 0 ? '+' : ''}${formatPercent(Math.round(change * 10) / 10)} vs. mês anterior`,
+        : `${change > 0 ? '+' : ''}${formatPercent(Math.round(change * 10) / 10)} vs. período anterior`,
       trend: isGood == null ? ('neutral' as const) : isGood ? ('up' as const) : ('down' as const),
     }
   }
@@ -117,24 +134,28 @@ export function DashboardPage() {
   return (
     <>
       <PageHeader
-        title={isKanban ? 'Kanban' : 'Dashboard'}
-        icon={isKanban ? <IconKanban /> : <IconDashboard />}
+        title="Dashboard"
+        icon={<IconDashboard />}
         actions={
-          <Button
-            variant="ghost"
-            size="sm"
-            iconLeft={isKanban ? <IconDashboard /> : <IconKanban />}
-            onClick={() => setView(isKanban ? 'dashboard' : 'kanban')}
-            title={isKanban ? 'Ver dashboard' : 'Ver kanban'}
-            aria-label={isKanban ? 'Alternar para o dashboard' : 'Alternar para o kanban'}
+          <PeriodFilter
+            preset={preset}
+            onPreset={setPreset}
+            customFrom={customFrom}
+            customTo={customTo}
+            onCustom={(f, t) => { setCustomFrom(f); setCustomTo(t) }}
           />
         }
       />
 
+      {/* Alterna entre a visão Gerencial (indicadores) e a Operacional (kanban). */}
+      <div className={styles.viewTabs}>
+        <Tabs tabs={DASHBOARD_TABS} active={view} onChange={key => setView(key as 'management' | 'operational')} />
+      </div>
+
       {/* O cabeçalho fica sempre no lugar; só o conteúdo troca pelo loader. */}
       {isLoading ? (
         <PageLoader />
-      ) : isKanban ? (
+      ) : isOperational ? (
         // Funil de contatos: Novos contatos → Agendamento → Converteu / Perdeu.
         <LeadsKanban />
       ) : (

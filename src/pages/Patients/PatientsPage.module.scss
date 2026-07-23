@@ -80,3 +80,29 @@
   gap: $sp-1;
   white-space: nowrap;
 }
+
+// Pílula de tipo (Paciente/Lead) na aba "Todos".
+.tipo {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: $fs-xs;
+  font-weight: 600;
+  color: var(--accent-fg);
+  background: var(--accent-bg);
+}
+.tipo--lead {
+  color: var(--warning-fg);
+  background: color-mix(in srgb, var(--warning-fg) 14%, transparent);
+}
+
+// Situação de lead (etapa do funil) na lista unificada.
+.leadStatus {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+// Espaço entre as abas (Todos/Pacientes/Leads) e a tabela.
+.conteudo {
+  margin-top: $sp-5;
+}

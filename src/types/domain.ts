@@ -56,6 +56,7 @@ export interface Patient {
   state?: string        // UF
   city?: string
   neighborhood?: string
+  street?: string       // logradouro (rua) — exigido em documento e NFS-e
   number?: string
 }
 
@@ -704,6 +705,8 @@ export interface Lead {
   notes?: string
   createdAt: string       // dd/mm
   status: LeadStatus
+  /** Paciente gerado por este lead (quando convertido) — vínculo lead→paciente. */
+  patientId?: string
 }
 
 /** Uma entrada do histórico de UM lead (RPC list_lead_history) — mudança de

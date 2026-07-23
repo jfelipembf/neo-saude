@@ -15,6 +15,8 @@ export const APP_ROUTES = {
   SCHEDULE:          '/agenda',
   PATIENTS:       '/pacientes',
   PATIENT_PROFILE: '/pacientes/:id',
+  // Perfil do lead (mesmo visual do paciente, sem abas + "Converter em paciente").
+  LEAD_PROFILE:   '/leads/:id',
   PROFESSIONALS:   '/profissionais',
   PROFESSIONAL_PROFILE: '/profissionais/:id',
   FINANCE:      '/financeiro',
@@ -43,5 +45,6 @@ export const APP_PAGES: { value: import('@/types/domain').AppPage; label: string
 /** Helpers para rotas com parâmetro — evita template string espalhada no app. */
 export const buildRoute = {
   patientProfile: (id: string) => `/pacientes/${id}`,
+  leadProfile: (id: string) => `/leads/${id}`,
   professionalProfile: (id: string) => `/profissionais/${id}`,
 }

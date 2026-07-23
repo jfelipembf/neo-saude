@@ -4,9 +4,9 @@ import { Tabs } from '@/components/Tabs/Tabs'
 import { IconFinance } from '@/components/icons'
 import { useUnbilledSessions } from '@/hooks/useFinance'
 import { CashFlowTab } from './CashFlow/CashFlowTab'
+import { SalesTab } from './Sales/SalesTab'
 import { PayableTab } from './Payable/PayableTab'
 import { ReceivableTab } from './Receivable/ReceivableTab'
-import { ReconciliationTab } from './Reconciliation/ReconciliationTab'
 import { DelinquencyTab } from './Delinquency/DelinquencyTab'
 import styles from './FinancePage.module.scss'
 
@@ -17,7 +17,7 @@ import styles from './FinancePage.module.scss'
 // referência do segmento (Simples Dental) resolve conferência diária com
 // relatório sobre os lançamentos — não com ritual de sessão (isso é para
 // operação com várias recepcionistas no dinheiro físico, caso Feegow).
-type TabKey = 'cashFlow' | 'payables' | 'receivables' | 'reconciliation' | 'delinquency'
+type TabKey = 'cashFlow' | 'sales' | 'payables' | 'receivables' | 'delinquency'
 
 export function FinancePage() {
   const [tab, setTab] = useState<TabKey>('cashFlow')
@@ -28,9 +28,9 @@ export function FinancePage() {
 
   const tabs = [
     { key: 'cashFlow',       label: 'Fluxo de caixa' },
+    { key: 'sales',          label: 'Vendas' },
     { key: 'payables',       label: 'Contas a Pagar' },
     { key: 'receivables',     label: 'Contas a Receber', badge: unbilled?.length ?? 0 },
-    { key: 'reconciliation', label: 'Conciliação' },
     { key: 'delinquency',    label: 'Inadimplência' },
   ]
 
@@ -43,9 +43,9 @@ export function FinancePage() {
       </header>
 
       {tab === 'cashFlow'       && <CashFlowTab />}
+      {tab === 'sales'          && <SalesTab />}
       {tab === 'payables'       && <PayableTab />}
       {tab === 'receivables'     && <ReceivableTab />}
-      {tab === 'reconciliation' && <ReconciliationTab />}
       {tab === 'delinquency'    && <DelinquencyTab />}
     </>
   )

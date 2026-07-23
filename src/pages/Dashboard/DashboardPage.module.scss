@@ -1,5 +1,11 @@
 @use '../../styles/mixins' as *;
 
+// Respiro entre a barra de abas (Gerencial/Operacional) e o conteúdo. A Tabs
+// sem filhos vem "flush" (margin 0), então o espaçamento mora aqui.
+.viewTabs {
+  margin-bottom: $sp-6;
+}
+
 // Agenda em coluna fixa e estreita à esquerda; o restante é a área de widgets.
 .grid {
   display: grid;

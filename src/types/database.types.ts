@@ -3775,7 +3775,17 @@ export type Database = {
         Returns: Database["public"]["Enums"]["session_billing_status"]
       }
       cash_flow: { Args: { p_days?: number }; Returns: Json }
+      convert_lead_to_patient: { Args: { p_lead: string }; Returns: Json }
       dashboard_stats: { Args: never; Returns: Json }
+      dashboard_stats_period: {
+        Args: {
+          p_from: string
+          p_prev_from: string
+          p_prev_to: string
+          p_to: string
+        }
+        Returns: Json
+      }
       finance_series: {
         Args: { p_month_iso?: string; p_period: string }
         Returns: {

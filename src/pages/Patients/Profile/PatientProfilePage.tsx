@@ -57,6 +57,7 @@ interface PatientFormState {
   state: string
   city: string
   neighborhood: string
+  street: string
   number: string
 }
 
@@ -76,6 +77,7 @@ function formFromPatient(p: Patient): PatientFormState {
     state: p.state ?? '',
     city: p.city ?? '',
     neighborhood: p.neighborhood ?? '',
+    street: p.street ?? '',
     number: p.number ?? '',
   }
 }
@@ -185,6 +187,7 @@ export function PatientProfilePage() {
           state: form.state.trim().toUpperCase() || undefined,
           city: form.city.trim() || undefined,
           neighborhood: form.neighborhood.trim() || undefined,
+          street: form.street.trim() || undefined,
           number: form.number.trim() || undefined,
         },
       },
@@ -239,6 +242,7 @@ export function PatientProfilePage() {
         { label: 'Estado', value: patient.state },
         { label: 'Cidade', value: patient.city },
         { label: 'Bairro', value: patient.neighborhood },
+        { label: 'Rua',    value: patient.street },
         { label: 'Número', value: patient.number },
       ],
     },
@@ -388,11 +392,11 @@ export function PatientProfilePage() {
 
               <section className={styles.formSection}>
                 <h3>Endereço</h3>
-                {/* CEP autopreenche estado/cidade/bairro (paciente não guarda rua). */}
+                {/* CEP autopreenche estado/cidade/bairro/rua (ViaCEP); a rua é
+                    exigida em documento impresso e na NFS-e. */}
                 <AddressFields
                   value={form}
                   onChange={(field, value) => set(field as keyof PatientFormState)(value)}
-                  showStreet={false}
                 />
               </section>
 

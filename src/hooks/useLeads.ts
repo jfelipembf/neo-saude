@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
-import { addLead, listLeadHistory, listLeads, setStatusLead, updateLeadDetails } from '@/services/leadsService'
+import { addLead, listLeadHistory, listLeads, setStatusLead, updateLeadDetails, convertLeadToPatient } from '@/services/leadsService'
 import type { LeadStatus } from '@/types/domain'
 
 export function useLeads() {
@@ -13,6 +13,18 @@ export function useSetLeadStatus() {
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: LeadStatus }) => setStatusLead(id, status),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.leads.all }),
+  })
+}
+
+/** Converte um lead em paciente (cria ou vincula) e refaz Leads + Pacientes. */
+export function useConvertLead() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => convertLeadToPatient(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.leads.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.patients.all })
+    },
   })
 }
 

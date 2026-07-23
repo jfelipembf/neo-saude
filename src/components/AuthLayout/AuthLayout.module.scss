@@ -1,18 +1,14 @@
 @use '../../styles/mixins' as *;
 
-// Autenticação dividida: imagem à esquerda + painel de conteúdo na direita.
+// Autenticação: a imagem cobre a página inteira e o formulário é um painel
+// LATERAL colado à direita, ocupando a altura toda — a imagem fica ATRÁS dele.
 .page {
   display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
   width: 100%;
   min-height: 100vh;
-}
-
-.hero {
-  flex: 1;
-  // Só a imagem, sem véu nem conteúdo por cima.
-  background: url('../../assets/images/login.bg.png') center / cover no-repeat;
-
-  @include mobile { display: none; }
+  background: url('../../assets/images/login.bg.svg') center / cover no-repeat;
 }
 
 .painel {
@@ -21,13 +17,17 @@
   justify-content: center;
   width: min(460px, 100%);
   padding: $sp-8 $sp-6;
-  background: var(--bg-surface);
+  // Superfície translúcida com desfoque: a imagem aparece por trás sem tirar a
+  // legibilidade do formulário (funciona no tema claro e no escuro).
+  background: color-mix(in srgb, var(--bg-surface) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-left: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-md);
 
   @include mobile {
     width: 100%;
     border-left: none;
-    background: var(--bg-base);
   }
 }
 

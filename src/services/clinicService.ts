@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
+import { signAssetUrl } from '@/lib/storage'
 import { cepToDb, cnpjToDb, emailToDb, phoneToDb, ufToDb } from '@/utils/text'
 import { PROFESSIONAL_CORE_COLUMNS, toProfessionalCore } from '@/services/professionalsService'
 import type { ProfessionalRow } from '@/services/professionalsService'
@@ -50,7 +51,10 @@ export async function getClinic(): Promise<ClinicData> {
     .eq('id', getCurrentClinicId())
     .single()
   if (error) throw error
-  return toClinicData(data as ClinicRow)
+  const clinic = toClinicData(data as ClinicRow)
+  // logo_url agora guarda o PATH do bucket privado — assina para exibir.
+  clinic.photo = await signAssetUrl(clinic.photo)
+  return clinic
 }
 
 /** Atualiza o cadastro da clínica. Não toca em plan_key/status (fora do form). */
@@ -63,7 +67,8 @@ export async function updateClinic(payload: ClinicData): Promise<void> {
       email: emailToDb(payload.email),
       phone: phoneToDb(payload.phone),
       logo_url: payload.photo ?? null,
-      specialty: payload.specialty,
+      // specialty NÃO é enviado: o ramo é definido pelo dono do SaaS (form
+      // read-only) e o grant de UPDATE de `clinic` nem inclui a coluna.
       cep: cepToDb(payload.cep),
       state: ufToDb(payload.state),
       city: payload.city,
@@ -91,7 +96,10 @@ export async function getTechnicalManager(): Promise<Professional | null> {
     .eq('is_technical_manager', true)
     .maybeSingle()
   if (error) throw error
-  return data ? toProfessionalCore(data as ProfessionalRow) : null
+  if (!data) return null
+  const rt = toProfessionalCore(data as ProfessionalRow)
+  rt.photo = await signAssetUrl((data as ProfessionalRow).photo_url)
+  return rt
 }
 
 /** Promove um profissional a RT. A RPC desmarca o anterior e marca o novo na

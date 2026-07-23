@@ -1,12 +1,13 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
+import { signAssetUrl, signAssetUrls } from '@/lib/storage'
 import type { ClientInsert, Insert } from '@/lib/db'
 import { capitalizeName, cepToDb, phoneToDb, emailToDb, ufToDb, digitsOnly } from '@/utils/text'
 import { brToIsoDate, isoToBrDate } from '@/utils/date'
 import type { Patient, Gender } from '@/types/domain'
 
 const COLUMNS =
-  'id, clinic_id, code, name, cpf, phone, insurance_id, last_visit, status, photo_url, sex, birth_date, email, whatsapp, cep, state, city, neighborhood, number'
+  'id, clinic_id, code, name, cpf, phone, insurance_id, last_visit, status, photo_url, sex, birth_date, email, whatsapp, cep, state, city, neighborhood, street, number'
 
 // Rótulo do "sem convênio": no banco é insurance_id NULL (não é linha de insurance).
 const PARTICULAR = 'Particular'
@@ -30,6 +31,7 @@ type PatientRow = {
   state: string | null
   city: string | null
   neighborhood: string | null
+  street: string | null
   number: string | null
 }
 
@@ -72,6 +74,7 @@ function toPatient(row: PatientRow, insMap: Map<string, string>): Patient {
     state: row.state ?? undefined,
     city: row.city ?? undefined,
     neighborhood: row.neighborhood ?? undefined,
+    street: row.street ?? undefined,
     number: row.number ?? undefined,
   }
 }
@@ -83,7 +86,14 @@ export async function listPatients(): Promise<Patient[]> {
     supabase.from('patient').select(COLUMNS).eq('clinic_id', clinicId).order('name'),
   ])
   if (error) throw error
-  return (data as PatientRow[]).map(row => toPatient(row, insMap))
+  const rows = data as PatientRow[]
+  // photo_url guarda o PATH do bucket privado — assina o lote de uma vez.
+  const signed = await signAssetUrls(rows.map(r => r.photo_url))
+  return rows.map(row => {
+    const p = toPatient(row, insMap)
+    p.photo = row.photo_url ? signed.get(row.photo_url) : undefined
+    return p
+  })
 }
 
 export async function getPatient(id: string): Promise<Patient | null> {
@@ -93,7 +103,10 @@ export async function getPatient(id: string): Promise<Patient | null> {
     supabase.from('patient').select(COLUMNS).eq('id', id).maybeSingle(),
   ])
   if (error) throw error
-  return data ? toPatient(data as PatientRow, insMap) : null
+  if (!data) return null
+  const p = toPatient(data as PatientRow, insMap)
+  p.photo = await signAssetUrl((data as PatientRow).photo_url)
+  return p
 }
 
 /** Dados do formulário de novo paciente (id/status/última visita nascem no banco). */
@@ -109,12 +122,13 @@ export interface NewPatient {
   state?: string
   city?: string
   neighborhood?: string
+  street?: string
   number?: string
 }
 
 /** Cadastra um paciente novo (entra ativo, sem convênio/última visita). */
 export async function addPatient(payload: NewPatient): Promise<void> {
-  const { firstName, lastName, birthDate, sex, email, phone, whatsapp, cep, state, city, neighborhood, number } = payload
+  const { firstName, lastName, birthDate, sex, email, phone, whatsapp, cep, state, city, neighborhood, street, number } = payload
   const row: ClientInsert<'patient'> = {
     clinic_id: getCurrentClinicId(),
     // O nome nasce normalizado aqui — o form não se preocupa com CAPS/"de souza".
@@ -128,6 +142,7 @@ export async function addPatient(payload: NewPatient): Promise<void> {
     state: ufToDb(state),
     city: city ?? null,
     neighborhood: neighborhood ?? null,
+    street: street ?? null,
     number: number ?? null,
   }
   const { error } = await supabase.from('patient').insert(row as Insert<'patient'>)
@@ -143,7 +158,7 @@ export interface EditPatient extends NewPatient {
 export async function updatePatient(id: string, payload: EditPatient): Promise<void> {
   const clinicId = getCurrentClinicId()
   const insuranceId = await insuranceIdByName(clinicId, payload.insurance)
-  const { firstName, lastName, birthDate, sex, email, phone, whatsapp, cep, state, city, neighborhood, number } = payload
+  const { firstName, lastName, birthDate, sex, email, phone, whatsapp, cep, state, city, neighborhood, street, number } = payload
   const { error } = await supabase
     .from('patient')
     .update({
@@ -158,6 +173,7 @@ export async function updatePatient(id: string, payload: EditPatient): Promise<v
       state: ufToDb(state),
       city: city ?? null,
       neighborhood: neighborhood ?? null,
+      street: street ?? null,
       number: number ?? null,
     })
     .eq('id', id)

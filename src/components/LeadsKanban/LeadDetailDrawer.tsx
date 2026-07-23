@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/Button/Button'
 import { Drawer } from '@/components/Drawer/Drawer'
 import { Select } from '@/components/Select/Select'
@@ -6,7 +7,7 @@ import { Spinner } from '@/components/Spinner/Spinner'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { useToast } from '@/components/Toast/useToast'
 import { useLeadHistory, useUpdateLeadDetails } from '@/hooks/useLeads'
-import { AUDIT_HIDDEN_FIELDS, LEAD_STATUS_LABEL, LEAD_STATUS_OPTIONS, auditFieldLabel } from '@/constants'
+import { AUDIT_HIDDEN_FIELDS, LEAD_STATUS_LABEL, LEAD_STATUS_OPTIONS, auditFieldLabel, buildRoute } from '@/constants'
 import { IconClock, IconEmail, IconPhone } from '@/components/icons'
 import type { Lead, LeadHistoryEntry, LeadStatus } from '@/types/domain'
 import styles from './LeadDetailDrawer.module.scss'
@@ -54,6 +55,7 @@ function describeEntry(entry: LeadHistoryEntry): string[] {
  */
 export function LeadDetailDrawer({ lead, onClose }: LeadDetailDrawerProps) {
   const toast = useToast()
+  const navigate = useNavigate()
   const { data: history, isLoading: loadingHistory } = useLeadHistory(lead.id)
   const { mutate: updateDetails, isPending: saving } = useUpdateLeadDetails()
 
@@ -67,6 +69,12 @@ export function LeadDetailDrawer({ lead, onClose }: LeadDetailDrawerProps) {
     )
   }
 
+  /** Vai para o perfil completo do lead (onde fica "Converter em paciente"). */
+  function verPerfil() {
+    onClose()
+    navigate(buildRoute.leadProfile(lead.id))
+  }
+
   return (
     <Drawer
       open
@@ -74,6 +82,7 @@ export function LeadDetailDrawer({ lead, onClose }: LeadDetailDrawerProps) {
       title="Detalhes do contato"
       footer={
         <>
+          <Button variant="outline" className={styles.converter} onClick={verPerfil}>Ver perfil</Button>
           <Button variant="ghost" onClick={onClose}>Fechar</Button>
           <Button loading={saving} onClick={save}>Salvar</Button>
         </>
@@ -86,6 +95,7 @@ export function LeadDetailDrawer({ lead, onClose }: LeadDetailDrawerProps) {
           {lead.email && <span className={styles.linhaDado}><IconEmail /> {lead.email}</span>}
           <span className={styles.interesse}>{lead.interest}</span>
           <span className={styles.linhaDado}><IconClock /> Cadastrado em {lead.createdAt}</span>
+          {lead.patientId && <span className={styles.convertido}>✓ Convertido em paciente</span>}
         </section>
 
         <section className={styles.formSection}>

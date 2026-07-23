@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
 import { toIsoDate, isoToBrDate } from '@/utils/date'
 import type { Appointment, AppointmentHistory, DashboardStats, ChartPeriod, SeriesPoint, AppointmentStatus, GoalMetric, MetricComparison } from '@/types/domain'
+import type { DashboardRange } from '@/utils/period'
 
 const hhmm = (t: string) => t.slice(0, 5)
 
@@ -105,9 +106,12 @@ const toMetric = (m: MetricRow): MetricComparison => ({
   target:   m.target   == null ? null : Number(m.target),
 })
 
-/** Os números do topo do Dashboard (RPC dashboard_stats), em uma chamada. */
-export async function getDashboardStats(): Promise<DashboardStats> {
-  const { data, error } = await supabase.rpc('dashboard_stats')
+/** Os números do topo do Dashboard para um PERÍODO (RPC dashboard_stats_period),
+ *  em uma chamada. As janelas (atual e anterior) vêm prontas de `dashboardRange`. */
+export async function getDashboardStats(range: DashboardRange): Promise<DashboardStats> {
+  const { data, error } = await supabase.rpc('dashboard_stats_period', {
+    p_from: range.from, p_to: range.to, p_prev_from: range.prevFrom, p_prev_to: range.prevTo,
+  })
   if (error) throw error
   const s = data as unknown as DashboardStatsRow
   return {

@@ -1,0 +1,70 @@
+@use '../../styles/mixins' as *;
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: $sp-2;
+
+  @include mobile {
+    align-items: stretch;
+  }
+}
+
+// Mesmo desenho do SegmentedControl: container arredondado ($radius-md) com os
+// botões dentro, divididos por borda — os cantos do resto do projeto.
+.botoes {
+  display: flex;
+  align-items: center;
+  height: $ctrl-h-md;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  overflow: hidden;
+  flex-shrink: 0;
+
+  @include mobile {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 14px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: $fs-sm;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  @include mobile { padding: 0 10px; font-size: $fs-xs; }
+
+  &:last-child { border-right: none; }
+  &:hover { background: var(--glass-bg-hover); color: var(--text-primary); }
+}
+
+.btn--ativo {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+
+  &:hover { background: var(--primary-dark); color: #fff; }
+}
+
+.custom {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+}
+
+.ate {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}

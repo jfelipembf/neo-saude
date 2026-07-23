@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
+import { signAssetUrl, signAssetUrls } from '@/lib/storage'
 import type { ClientPayload } from '@/lib/tenant'
 import type { ClientInsert, Insert, Update } from '@/lib/db'
 import { capitalizeName, cepToDb, phoneToDb, emailToDb, ufToDb } from '@/utils/text'
@@ -75,7 +76,14 @@ export async function listProfessionals(): Promise<Professional[]> {
     .eq('clinic_id', getCurrentClinicId())
     .order('name')
   if (error) throw error
-  return (data as ProfessionalRow[]).map(toProfessionalCore)
+  const rows = data as ProfessionalRow[]
+  // photo_url guarda o PATH do bucket privado — assina o lote de uma vez.
+  const signed = await signAssetUrls(rows.map(r => r.photo_url))
+  return rows.map(row => {
+    const p = toProfessionalCore(row)
+    p.photo = row.photo_url ? signed.get(row.photo_url) : undefined
+    return p
+  })
 }
 
 /**
@@ -118,6 +126,7 @@ export async function getProfessional(id: string): Promise<Professional | undefi
   if (experiences.error) throw experiences.error
 
   const professional = toProfessionalCore(data as ProfessionalRow)
+  professional.photo = await signAssetUrl((data as ProfessionalRow).photo_url)
   professional.education = (education.data ?? []).map(e => ({
     course: e.course as string,
     institution: e.institution as string,

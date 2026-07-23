@@ -60,6 +60,11 @@ export const queryKeys = {
     cashFlow: (days: number) => ['finance', 'cashFlow', days] as const,
     payables:    ['finance', 'payables'] as const,
     receivables: ['finance', 'receivables'] as const,
+    // Vendas (recebíveis quitados) de um período. Sob 'finance' de propósito: dar
+    // baixa/estornar um título muda o que a aba Vendas mostra, então as mutations
+    // do módulo (que invalidam ['finance']) já a atualizam sem F5. As datas do
+    // período entram na key completa lá no hook (useSales).
+    sales:      ['finance', 'sales'] as const,
     banks:      ['finance', 'banks'] as const,
     acquirers: ['finance', 'acquirers'] as const,
     collections: ['finance', 'collections'] as const,

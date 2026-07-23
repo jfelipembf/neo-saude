@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { queryKeys } from '@/lib/queryKeys'
 import { listDayAppointments, listPatientHistory, getDashboardStats, getAppointmentSeries, setAppointmentStatus } from '@/services/appointmentsService'
 import type { ChartPeriod, AppointmentStatus } from '@/types/domain'
+import type { DashboardRange } from '@/utils/period'
 
 export function useDayAppointments() {
   return useQuery({ queryKey: queryKeys.appointments.all, queryFn: listDayAppointments })
@@ -24,8 +25,13 @@ export function useAppointmentHistory(patientId: string) {
   })
 }
 
-export function useDashboardStats() {
-  return useQuery({ queryKey: queryKeys.appointments.stats, queryFn: getDashboardStats })
+export function useDashboardStats(range: DashboardRange) {
+  return useQuery({
+    // A janela entra na key: trocar o período refaz a busca. O prefixo
+    // ['appointments','stats'] segue valendo p/ as invalidações do módulo.
+    queryKey: [...queryKeys.appointments.stats, range.from, range.to],
+    queryFn: () => getDashboardStats(range),
+  })
 }
 
 /** Muda o status de uma consulta (presença/falta) e atualiza as listas. */

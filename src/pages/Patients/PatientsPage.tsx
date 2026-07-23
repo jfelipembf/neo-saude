@@ -2,9 +2,9 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
+import { Tabs } from '@/components/Tabs/Tabs'
 import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
-import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
 import { Modal } from '@/components/Modal/Modal'
@@ -14,14 +14,33 @@ import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { Pagination } from '@/components/Pagination/Pagination'
 import { useToast } from '@/components/Toast/useToast'
 import { usePatients, useCreatePatient } from '@/hooks/usePatients'
+import { useLeads } from '@/hooks/useLeads'
 import { IconPatients, IconEye, IconPlus, IconSearch, IconPhone, IconMessage } from '@/components/icons'
 import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
-import { buildRoute, SEX_OPTIONS } from '@/constants'
+import { buildRoute, SEX_OPTIONS, LEAD_STATUS_LABEL } from '@/constants'
 import { useDebounce } from '@/hooks/useDebounce'
 import { initials, digitsOnly } from '@/utils/text'
 import { matchesSearch } from '@/utils/search'
-import type { Patient, Gender } from '@/types/domain'
+import type { Gender, LeadStatus } from '@/types/domain'
 import styles from './PatientsPage.module.scss'
+
+/** Aba ativa da lista: todos, só pacientes ou só leads. */
+type ContactView = 'all' | 'patients' | 'leads'
+
+/** Linha unificada da lista (paciente ou lead) — mesma tabela para as 3 abas. */
+interface ContactRow {
+  id: string
+  kind: 'patient' | 'lead'
+  name: string
+  phone: string
+  whatsapp?: string
+  photo?: string
+  status: string        // paciente (active/inactive) OU lead (funil)
+  insurance?: string
+  lastVisit?: string
+  source?: string
+  interest?: string
+}
 
 interface PatientFormState {
   firstName: string
@@ -35,44 +54,70 @@ interface PatientFormState {
   state: string
   city: string
   neighborhood: string
+  street: string
   number: string
 }
 
 const EMPTY_FORM: PatientFormState = {
   firstName: '', lastName: '', sex: '', birthDateIso: '',
   email: '', phone: '', whatsapp: '',
-  cep: '', state: '', city: '', neighborhood: '', number: '',
+  cep: '', state: '', city: '', neighborhood: '', street: '', number: '',
 }
 
 export function PatientsPage() {
   const navigate = useNavigate()
   const toast = useToast()
   const { data: patients, isLoading } = usePatients()
+  const { data: leads, isLoading: loadingLeads } = useLeads()
   const { mutate: create, isPending: creating } = useCreatePatient()
 
+  const [view, setView] = useState<ContactView>('all')
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<PatientFormState>(EMPTY_FORM)
   const [nameError, setNameError] = useState('')
 
-  // Paginação + busca (mesmo desenho do PaymentsTable): tudo sobre a lista mock.
+  // Paginação + busca — tudo client-side sobre a lista da aba atual.
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
   const [search, setSearch] = useState('')
 
+  // Fontes → modelo unificado (paciente ou lead).
+  const patientRows: ContactRow[] = (patients ?? []).map(p => ({
+    id: p.id, kind: 'patient', name: p.name, phone: p.phone, whatsapp: p.whatsapp,
+    photo: p.photo, status: p.status, insurance: p.insurance, lastVisit: p.lastVisit,
+  }))
+  const leadRows: ContactRow[] = (leads ?? []).map(l => ({
+    id: l.id, kind: 'lead', name: l.name, phone: l.phone,
+    status: l.status, source: l.source, interest: l.interest,
+  }))
+  const rows = view === 'patients' ? patientRows
+    : view === 'leads' ? leadRows
+    : [...patientRows, ...leadRows]
+
+  const viewTabs = [
+    { key: 'all',      label: `Todos (${patientRows.length + leadRows.length})` },
+    { key: 'patients', label: `Pacientes (${patientRows.length})` },
+    { key: 'leads',    label: `Leads (${leadRows.length})` },
+  ]
+
   // Filtra pelo termo "estabilizado": não refiltra a cada tecla.
   const term = useDebounce(search)
   const searchDigits = digitsOnly(term)
-  const filtered = (patients ?? []).filter(p =>
-    // Nome ignora acento e partículas ("maria souza" acha "Maria de Souza");
-    // telefone compara só os dígitos, com ou sem máscara.
-    matchesSearch(p.name, term)
-    || (searchDigits.length > 0 && digitsOnly(p.phone).includes(searchDigits)),
+  const filtered = rows.filter(r =>
+    // Nome ignora acento e partículas; telefone compara só os dígitos.
+    matchesSearch(r.name, term)
+    || (searchDigits.length > 0 && digitsOnly(r.phone).includes(searchDigits)),
   )
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage))
-  // Se a lista encolher (busca ou "por página"), não fica em página fantasma.
+  // Se a lista encolher (busca, troca de aba, "por página"), não fica em página fantasma.
   const currentPage = Math.min(page, totalPages)
   const visible = filtered.slice((currentPage - 1) * perPage, currentPage * perPage)
+
+  /** Abre o alvo: paciente → perfil do paciente; lead → perfil do lead. */
+  function openContact(row: ContactRow) {
+    navigate(row.kind === 'patient' ? buildRoute.patientProfile(row.id) : buildRoute.leadProfile(row.id))
+  }
 
   const set = (field: keyof PatientFormState) => (value: string) => {
     setForm(current => ({ ...current, [field]: value }))
@@ -105,6 +150,7 @@ export function PatientsPage() {
         state: form.state.trim().toUpperCase() || undefined,
         city: form.city.trim() || undefined,
         neighborhood: form.neighborhood.trim() || undefined,
+        street: form.street.trim() || undefined,
         number: form.number.trim() || undefined,
       },
       {
@@ -116,68 +162,66 @@ export function PatientsPage() {
     )
   }
 
-  const columns: TableColumn<Patient>[] = [
-    {
-      key: 'name',
-      label: 'Nome',
-      render: p => (
-        <span className={styles.pacienteCell}>
-          <span className={styles.avatar}>
-            {p.photo ? <img src={p.photo} alt="" className={styles.avatarImg} /> : initials(p.name)}
-          </span>
-          {p.name}
-        </span>
-      ),
-    },
-    { key: 'phone',     label: 'Telefone' },
-    { key: 'insurance', label: 'Convênio' },
-    { key: 'lastVisit', label: 'Última visita' },
-    { key: 'status',    label: 'Status', render: p => <Badge status={p.status} /> },
-    {
-      key: 'actions',
-      label: 'Ação',
-      render: p => (
-        <span className={styles.acoesLinha}>
-          <Button
-            variant="ghost"
-            size="sm"
-            iconLeft={<IconPhone />}
-            disabled={!p.phone}
-            title="Ligar"
-            aria-label={`Ligar para ${p.name}`}
-            onClick={e => {
-              e.stopPropagation()
-              window.location.href = `tel:+55${p.phone.replace(/\D/g, '')}`
-            }}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            iconLeft={<IconMessage />}
-            disabled={!(p.whatsapp ?? p.phone)}
-            title="Chamar no WhatsApp"
-            aria-label={`Chamar ${p.name} no WhatsApp`}
-            onClick={e => {
-              e.stopPropagation()
-              // WhatsApp cadastrado ou o próprio celular.
-              window.open(`https://wa.me/55${(p.whatsapp ?? p.phone).replace(/\D/g, '')}`, '_blank')
-            }}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            iconLeft={<IconEye />}
-            title="Ver perfil"
-            aria-label={`Ver perfil de ${p.name}`}
-            onClick={e => {
-              e.stopPropagation()   // a linha inteira também navega — evita disparo duplo
-              navigate(buildRoute.patientProfile(p.id))
-            }}
-          />
-        </span>
-      ),
-    },
-  ]
+  const nameCell = (r: ContactRow) => (
+    <span className={styles.pacienteCell}>
+      <span className={styles.avatar}>
+        {r.photo ? <img src={r.photo} alt="" className={styles.avatarImg} /> : initials(r.name)}
+      </span>
+      {r.name}
+    </span>
+  )
+
+  // Etapa do funil — só faz sentido para lead (paciente não tem "situação").
+  const etapaCell = (r: ContactRow) => (
+    <span className={styles.leadStatus}>{LEAD_STATUS_LABEL[r.status as LeadStatus]}</span>
+  )
+
+  const tipoCell = (r: ContactRow) => (
+    <span className={`${styles.tipo} ${r.kind === 'lead' ? styles['tipo--lead'] : ''}`}>
+      {r.kind === 'lead' ? 'Lead' : 'Paciente'}
+    </span>
+  )
+
+  const actionsCell = (r: ContactRow) => (
+    <span className={styles.acoesLinha}>
+      <Button
+        variant="ghost" size="sm" iconLeft={<IconPhone />} disabled={!r.phone} title="Ligar"
+        aria-label={`Ligar para ${r.name}`}
+        onClick={e => { e.stopPropagation(); window.location.href = `tel:+55${digitsOnly(r.phone)}` }}
+      />
+      <Button
+        variant="ghost" size="sm" iconLeft={<IconMessage />} disabled={!(r.whatsapp ?? r.phone)}
+        title="Chamar no WhatsApp" aria-label={`Chamar ${r.name} no WhatsApp`}
+        onClick={e => { e.stopPropagation(); window.open(`https://wa.me/55${digitsOnly(r.whatsapp ?? r.phone)}`, '_blank') }}
+      />
+      <Button
+        variant="ghost" size="sm" iconLeft={<IconEye />}
+        title={r.kind === 'patient' ? 'Ver perfil' : 'Ver contato'}
+        aria-label={`Ver ${r.name}`}
+        onClick={e => { e.stopPropagation(); openContact(r) }}
+      />
+    </span>
+  )
+
+  const nameCol: TableColumn<ContactRow> = { key: 'name', label: 'Nome', render: nameCell }
+  const phoneCol: TableColumn<ContactRow> = { key: 'phone', label: 'Telefone', render: r => r.phone }
+  const actionsCol: TableColumn<ContactRow> = { key: 'actions', label: 'Ação', render: actionsCell }
+
+  const columns: TableColumn<ContactRow>[] =
+    view === 'patients'
+      ? [nameCol, phoneCol,
+         { key: 'insurance', label: 'Convênio', render: r => r.insurance || '—' },
+         { key: 'lastVisit', label: 'Última visita', render: r => r.lastVisit || '—' },
+         actionsCol]
+      : view === 'leads'
+        ? [nameCol, phoneCol,
+           { key: 'source', label: 'Origem', render: r => r.source || '—' },
+           { key: 'interest', label: 'Interesse', render: r => r.interest || '—' },
+           { key: 'stage', label: 'Etapa', render: etapaCell },
+           actionsCol]
+        : [nameCol, phoneCol,
+           { key: 'tipo', label: 'Tipo', render: tipoCell },
+           actionsCol]
 
   return (
     <>
@@ -191,26 +235,38 @@ export function PatientsPage() {
         }
       />
 
-      {/* O cabeçalho fica sempre no lugar; só o conteúdo troca pelo loader. */}
-      {isLoading ? (
+      <Tabs
+        tabs={viewTabs}
+        active={view}
+        onChange={key => { setView(key as ContactView); setPage(1) }}
+      />
+
+      {/* Afasta a lista das abas; só o conteúdo troca pelo loader. */}
+      <div className={styles.conteudo}>
+      {isLoading || loadingLeads ? (
         <PageLoader />
       ) : (
         <Table
           columns={columns}
           data={visible}
-          rowKey={p => p.id}
-          onRowClick={p => navigate(buildRoute.patientProfile(p.id))}
-          emptyMessage={term ? 'Nenhum paciente encontrado para a busca.' : 'Nenhum paciente cadastrado.'}
+          rowKey={r => `${r.kind}-${r.id}`}
+          onRowClick={openContact}
+          emptyMessage={
+            term ? 'Nenhum resultado para a busca.'
+              : view === 'leads' ? 'Nenhum lead cadastrado.'
+                : view === 'patients' ? 'Nenhum paciente cadastrado.'
+                  : 'Nenhum paciente ou lead ainda.'
+          }
           toolbar={
             <>
               <PerPageSelect perPage={perPage} onChange={n => { setPerPage(n); setPage(1) }} />
               <Input
                 size="sm"
                 iconLeft={<IconSearch />}
-                placeholder="Buscar paciente..."
+                placeholder="Buscar por nome ou telefone..."
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1) }}
-                aria-label="Buscar paciente"
+                aria-label="Buscar"
                 className={styles.busca}
               />
             </>
@@ -226,6 +282,7 @@ export function PatientsPage() {
           }
         />
       )}
+      </div>
 
       <Modal
         open={modalOpen}
@@ -305,11 +362,11 @@ export function PatientsPage() {
 
           <section className={styles.formSection}>
             <h3>Endereço</h3>
-            {/* CEP autopreenche estado/cidade/bairro (paciente não guarda rua). */}
+            {/* CEP autopreenche estado/cidade/bairro/rua (ViaCEP); a rua é
+                exigida em documento impresso e na NFS-e. */}
             <AddressFields
               value={form}
               onChange={(field, value) => set(field as keyof PatientFormState)(value)}
-              showStreet={false}
             />
           </section>
         </form>
