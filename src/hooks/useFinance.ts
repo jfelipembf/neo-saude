@@ -11,8 +11,8 @@ import {
   listUnbilledSessions, billTreatmentSession,
 } from '@/services/financeService'
 import type {
-  BatchSettlementInput, BillSessionInput, EditAcquirer, EditBankAccount, NewCollectionAttempt,
-  NewPayable, SettlementInput,
+  BatchSettlementInput, BillSessionInput, CashFlowHorizon, EditAcquirer, EditBankAccount,
+  NewCollectionAttempt, NewPayable, SettlementInput,
 } from '@/services/financeService'
 import type { ChartPeriod } from '@/types/domain'
 
@@ -43,8 +43,11 @@ export function useFinanceSeries(period: ChartPeriod, monthIso: string) {
 }
 
 // ── Página Financeiro ────────────────────────────────────────────────────────
-export function useCashFlow() {
-  return useQuery({ queryKey: queryKeys.finance.cashFlow, queryFn: getCashFlow })
+export function useCashFlow(days: CashFlowHorizon) {
+  return useQuery({
+    queryKey: queryKeys.finance.cashFlow(days),
+    queryFn: () => getCashFlow(days),
+  })
 }
 
 export function usePayables() {

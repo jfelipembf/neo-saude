@@ -25,19 +25,30 @@ export async function getFinanceSeries(period: ChartPeriod, monthIso: string): P
   return (data ?? []).map(p => ({ label: p.label, income: Number(p.income), expenses: Number(p.expenses) }))
 }
 
-/** Janela da projeção. A aba Fluxo de Caixa não tem seletor de período, então o
- *  recorte é fixo — e precisa ir explícito: a RPC só existe na forma cash_flow(int). */
-const CASH_FLOW_DAYS = 30
+/** Horizontes oferecidos na tela (dias corridos a partir de hoje). Uma projeção
+ *  é um horizonte ROLANTE — não um intervalo livre no passado —, então o
+ *  controle é a escolha de quão longe olhar. A RPC cash_flow(int) aceita 1..365;
+ *  esta lista é o subconjunto que a UI expõe. Ver CashFlowTab. */
+export const CASH_FLOW_HORIZONS = [30, 60, 90] as const
+export type CashFlowHorizon = (typeof CASH_FLOW_HORIZONS)[number]
+const DEFAULT_CASH_FLOW_HORIZON: CashFlowHorizon = 30
 
 /**
  * Fluxo de caixa projetado (RPC cash_flow). `baseBalance` é o SALDO APURADO —
  * abertura das contas ativas + tudo já recebido − tudo já pago —, o ponto de
- * partida do acumulado. `days` traz os próximos CASH_FLOW_DAYS dias (contando
- * hoje) com os títulos em ABERTO pela data de VENCIMENTO; o acumulado dia a dia
- * é calculado na tela, não aqui.
+ * partida do acumulado. `days` traz os próximos `days` dias (contando hoje) com
+ * os títulos em ABERTO pela data de VENCIMENTO; o acumulado dia a dia é
+ * calculado na tela, não aqui.
+ *
+ * `days` é validado contra CASH_FLOW_HORIZONS: o horizonte vem de um estado de
+ * UI, mas confiar direto num número que vai para a RPC é como um valor de query
+ * string entrar no banco sem conferência — cai no default se vier fora da lista.
  */
-export async function getCashFlow(): Promise<{ baseBalance: number; days: CashFlowDay[] }> {
-  const { data, error } = await supabase.rpc('cash_flow', { p_days: CASH_FLOW_DAYS })
+export async function getCashFlow(
+  days: CashFlowHorizon = DEFAULT_CASH_FLOW_HORIZON,
+): Promise<{ baseBalance: number; days: CashFlowDay[] }> {
+  const horizon = CASH_FLOW_HORIZONS.includes(days) ? days : DEFAULT_CASH_FLOW_HORIZON
+  const { data, error } = await supabase.rpc('cash_flow', { p_days: horizon })
   if (error) throw error
   // days[] traz { date (ISO), entry_count, inflows, outflows }; o `id` (ordenável)
   // é a própria data ISO.

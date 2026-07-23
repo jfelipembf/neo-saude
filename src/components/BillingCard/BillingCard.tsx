@@ -16,9 +16,20 @@ function dateSortKey(date: string) {
   return year * 10000 + month * 100 + day
 }
 
+/** dd/mm/aaaa → chave ordenável (aaaammdd) de uma data de calendário. */
+function dayKey(d: Date) {
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()
+}
+
 /**
- * Card do Dashboard com o que há para COBRAR: títulos vencidos e pendentes, do
- * mais atrasado para o mais recente. O detalhe fica no perfil do paciente.
+ * Card do Dashboard com o que há para COBRAR na JANELA CURTA: vencidos ainda em
+ * aberto + o que vence HOJE + o que vence AMANHÃ, do mais atrasado para o mais
+ * recente. Pendências de datas mais distantes ficam no Financeiro; aqui é a fila
+ * do que a recepção resolve hoje. O detalhe fica no perfil do paciente.
+ *
+ * O recorte é por DATA de vencimento (≤ amanhã), não pelo status: assim um
+ * título já vencido aparece mesmo que a rotina que marca `overdue` não tenha
+ * rodado — dinheiro atrasado nunca fica invisível por causa de um job.
  *
  * Lê `receivable`, e não `public.payment` — aquela tabela está congelada com
  * zero linhas, então este card mostrava "Nenhuma cobrança em aberto" para
@@ -32,12 +43,19 @@ export function BillingCard() {
 
   const nameById = new Map((patients ?? []).map(p => [p.id, p.name]))
 
+  // Amanhã ao fim do dia é o teto da janela: pega vencidos, hoje e o dia seguinte.
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const tomorrowKey = dayKey(tomorrow)
+
   // Em aberto = o que ainda entra no caixa (cancelado e pago ficam de fora).
   // debtor 'payer' porque este card É a fila de cobrança: parcela de cartão é
   // dívida da adquirente, já garantida, e ninguém liga para o paciente por ela.
   // Sem patientId não há a quem cobrar (aluguel de sala, repasse de convênio).
   const openCharges = (receivables ?? []).filter(
-    r => (r.status === 'overdue' || r.status === 'pending') && r.debtor === 'payer' && r.patientId,
+    r => (r.status === 'overdue' || r.status === 'pending')
+      && r.debtor === 'payer' && r.patientId
+      && dateSortKey(r.dueDate) <= tomorrowKey,
   )
   const list = [...openCharges].sort((a, b) => {
     // Vencidos primeiro; dentro de cada grupo, o mais antigo cobra primeiro.
@@ -74,7 +92,7 @@ export function BillingCard() {
         <>
           <ul className={styles.lista}>
             {list.length === 0 && (
-              <li className={styles.vazio}>Nenhuma cobrança em aberto.</li>
+              <li className={styles.vazio}>Nada a cobrar hoje nem amanhã.</li>
             )}
             {list.map(r => (
               <li key={r.id} className={styles.item}>

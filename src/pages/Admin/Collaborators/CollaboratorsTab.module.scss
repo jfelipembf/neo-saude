@@ -71,7 +71,53 @@
   word-break: break-word;
 }
 
-// Corpo dos modais (novo colaborador / redefinir senha).
+// Formulário inline de novo colaborador.
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
+  align-items: start;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.acoesForm {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-3;
+
+  @include phone {
+    flex-wrap: wrap;
+  }
+}
+
+// Cadastro (somente leitura) no detalhe do colaborador.
+.cadastro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-3 $sp-5;
+  margin: 0;
+}
+
+.cadastroItem {
+  display: flex;
+  flex-direction: column;
+
+  dt {
+    font-size: $fs-xs;
+    color: var(--text-muted);
+  }
+
+  dd {
+    margin: 0;
+    font-size: $fs-sm;
+    color: var(--text-primary);
+  }
+}
+
+// Corpo do modal (redefinir senha).
 .modalCorpo {
   display: flex;
   flex-direction: column;

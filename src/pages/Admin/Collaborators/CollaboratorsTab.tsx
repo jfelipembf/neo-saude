@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AddressFields } from '@/components/AddressFields/AddressFields'
 import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
@@ -10,14 +11,16 @@ import { Select } from '@/components/Select/Select'
 import { SideList } from '@/components/SideList/SideList'
 import { Toggle } from '@/components/Toggle/Toggle'
 import { useToast } from '@/components/Toast/useToast'
+import { SEX_OPTIONS, SEX_LABEL } from '@/constants'
 import { useRoles } from '@/hooks/useRoles'
 import {
   useCollaborators, useCreateCollaborator, useSetCollaboratorRole,
   useSetCollaboratorStatus, useResetCollaboratorPassword,
 } from '@/hooks/useStaff'
 import { userMessage } from '@/lib/errors'
-import { IconPhone, IconEmail } from '@/components/icons'
-import type { Collaborator } from '@/types/domain'
+import { cepToDb, phoneToDb } from '@/utils/text'
+import { IconPhone, IconEmail, IconMessage } from '@/components/icons'
+import type { Address, Collaborator, Gender } from '@/types/domain'
 import styles from './CollaboratorsTab.module.scss'
 
 /**
@@ -25,6 +28,10 @@ import styles from './CollaboratorsTab.module.scss'
  * cada um com um cargo da página de Cargos. Especialistas ficam de fora
  * (aparecem em Profissionais). O contratante cria o login com uma senha e o
  * colaborador já entra; o cargo define a que páginas ele tem acesso.
+ *
+ * O cadastro é um FORMULÁRIO INLINE na área de detalhe (não um modal): clicar
+ * em + abre o formulário completo — dados pessoais, contato, endereço e cargo —
+ * para preencher e salvar ali mesmo (pedido do dono).
  */
 export function CollaboratorsTab() {
   const toast = useToast()
@@ -75,10 +82,17 @@ export function CollaboratorsTab() {
 
   const contacts = selected
     ? [
-        { label: 'E-mail',   value: selected.email,  icon: <IconEmail /> },
-        { label: 'Telefone', value: selected.phone,  icon: <IconPhone /> },
+        { label: 'E-mail',   value: selected.email,    icon: <IconEmail /> },
+        { label: 'Telefone', value: selected.phone,    icon: <IconPhone /> },
+        { label: 'WhatsApp', value: selected.whatsapp, icon: <IconMessage /> },
       ]
     : []
+
+  // Endereço em uma linha só (partes vazias somem) — exibição, não formulário.
+  const address = selected
+    ? [selected.cep, selected.state, selected.city, selected.neighborhood, selected.number ? `Nº ${selected.number}` : undefined]
+        .filter(Boolean).join(' · ')
+    : ''
 
   return (
     <div className={styles.layout}>
@@ -86,15 +100,21 @@ export function CollaboratorsTab() {
         title="Colaboradores"
         size="lg"
         items={items}
-        selectedId={selectedId}
-        onSelect={id => setSelectedId(String(id))}
-        onAdd={() => setCreating(true)}
+        selectedId={creating ? null : selectedId}
+        onSelect={id => { setSelectedId(String(id)); setCreating(false) }}
+        onAdd={() => { setCreating(true); setSelectedId(null) }}
         searchPlaceholder="Buscar colaborador..."
         emptyText="Nenhum colaborador cadastrado"
       />
 
       <div className={styles.formArea}>
-        {!selected ? (
+        {creating ? (
+          <NewCollaboratorForm
+            roleOptions={roleOptions}
+            onCancel={() => setCreating(false)}
+            onCreated={() => setCreating(false)}
+          />
+        ) : !selected ? (
           <EmptyState
             title="Nenhum colaborador selecionado"
             description="Selecione um colaborador na lista ao lado, ou clique em + para cadastrar um novo login com cargo."
@@ -103,7 +123,7 @@ export function CollaboratorsTab() {
           <div className={styles.formRoot}>
             <FormSection
               title={selected.name}
-              description="Os dados de contato pertencem ao usuário e só ele os edita no próprio perfil."
+              description="Cadastro preenchido pela clínica ao criar o colaborador."
               actions={<Badge status={selected.status} />}
             >
               <ul className={styles.contatos}>
@@ -117,6 +137,20 @@ export function CollaboratorsTab() {
                   </li>
                 ))}
               </ul>
+              <dl className={styles.cadastro}>
+                <div className={styles.cadastroItem}>
+                  <dt>Sexo</dt>
+                  <dd>{selected.sex ? SEX_LABEL[selected.sex] : '—'}</dd>
+                </div>
+                <div className={styles.cadastroItem}>
+                  <dt>Nascimento</dt>
+                  <dd>{selected.birthDate ?? '—'}</dd>
+                </div>
+                <div className={styles.cadastroItem}>
+                  <dt>Endereço</dt>
+                  <dd>{address || '—'}</dd>
+                </div>
+              </dl>
             </FormSection>
 
             <FormSection
@@ -152,14 +186,6 @@ export function CollaboratorsTab() {
         )}
       </div>
 
-      {creating && (
-        <CreateCollaboratorModal
-          roleOptions={roleOptions}
-          onClose={() => setCreating(false)}
-          onCreated={id => { setCreating(false); setSelectedId(id) }}
-        />
-      )}
-
       {passwordFor && (
         <ResetPasswordModal
           collaborator={passwordFor}
@@ -170,87 +196,129 @@ export function CollaboratorsTab() {
   )
 }
 
-// ── Modal: novo colaborador (cria o login) ───────────────────────────────────
-interface CreateModalProps {
+// ── Formulário inline: novo colaborador (cadastro completo + login) ──────────
+interface NewCollaboratorFormProps {
   roleOptions: { value: string; label: string }[]
-  onClose: () => void
-  onCreated: (clinicUserId: string) => void
+  onCancel: () => void
+  onCreated: () => void
 }
 
-function CreateCollaboratorModal({ roleOptions, onClose, onCreated }: CreateModalProps) {
+function NewCollaboratorForm({ roleOptions, onCancel, onCreated }: NewCollaboratorFormProps) {
   const toast = useToast()
   const { mutate: create, isPending } = useCreateCollaborator()
 
-  const [name, setName] = useState('')
+  // Dados pessoais
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [sex, setSex] = useState('')
+  const [birthDateIso, setBirthDateIso] = useState('')
+  // Contato
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [phone, setPhone] = useState('')
+  const [whatsapp, setWhatsapp] = useState('')
+  // Endereço — o bloco compartilhado (AddressFields) preenche estado/cidade/
+  // bairro sozinho ao completar o CEP (ViaCEP), como no cadastro de pacientes.
+  const [address, setAddress] = useState<Partial<Address>>({})
+  // Cargo e acesso
   const [roleId, setRoleId] = useState(roleOptions[0]?.value ?? '')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
   function save() {
-    if (!name.trim()) { setError('Informe o nome do colaborador.'); return }
+    // Mesmas travas do cadastro de pacientes: formato errado morre no
+    // formulário, com mensagem — não vira erro críptico de banco.
+    if (!firstName.trim()) { setError('Informe o nome do colaborador.'); return }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { setError('Informe um e-mail válido.'); return }
+    if (phone.trim() && !phoneToDb(phone)) { setError('Telefone inválido — informe DDD + número (10 a 11 dígitos).'); return }
+    if (whatsapp.trim() && !phoneToDb(whatsapp)) { setError('WhatsApp inválido — informe DDD + número (10 a 11 dígitos).'); return }
+    if (address.cep?.trim() && !cepToDb(address.cep)) { setError('CEP inválido — são 8 dígitos (00000-000).'); return }
     if (password.length < 6) { setError('A senha deve ter ao menos 6 caracteres.'); return }
     if (!roleId) { setError('Selecione o cargo.'); return }
 
     create(
-      { fullName: name.trim(), email: email.trim(), password, roleId },
       {
-        onSuccess: () => { toast.success('Colaborador cadastrado! Ele já pode fazer login.'); onCreated('') },
+        fullName: `${firstName.trim()} ${lastName.trim()}`.trim(),
+        email: email.trim(),
+        password,
+        roleId,
+        phone: phone.trim() || undefined,
+        details: {
+          sex: sex as Gender | '',
+          birthDate: birthDateIso,
+          whatsapp: whatsapp.trim(),
+          cep: address.cep ?? '',
+          state: address.state ?? '',
+          city: address.city ?? '',
+          neighborhood: address.neighborhood ?? '',
+          number: address.number ?? '',
+        },
+      },
+      {
+        onSuccess: () => { toast.success('Colaborador cadastrado! Ele já pode fazer login.'); onCreated() },
         onError: e => setError(userMessage(e, 'Não foi possível criar o colaborador.')),
       },
     )
   }
 
   return (
-    <Modal
-      open
-      onClose={onClose}
-      title="Novo colaborador"
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose} disabled={isPending}>Cancelar</Button>
-          <Button loading={isPending} onClick={save}>Cadastrar</Button>
-        </>
-      }
-    >
-      <div className={styles.modalCorpo}>
+    <div className={styles.formRoot}>
+      <FormSection title="Dados pessoais" description="Cadastro do colaborador mantido pela clínica.">
+        <div className={styles.grid2}>
+          <Input label="Nome" placeholder="Maria" value={firstName} onChange={e => { setFirstName(e.target.value); setError('') }} autoFocus />
+          <Input label="Sobrenome" placeholder="Oliveira" value={lastName} onChange={e => setLastName(e.target.value)} />
+        </div>
+        <div className={styles.grid2}>
+          <Select label="Sexo" options={SEX_OPTIONS} placeholder="Selecione..." value={sex} onChange={e => setSex(e.target.value)} />
+          <Input label="Data de nascimento" type="date" value={birthDateIso} onChange={e => setBirthDateIso(e.target.value)} />
+        </div>
+      </FormSection>
+
+      <FormSection title="Contato" description="O e-mail é o login de acesso ao sistema.">
         <Input
-          label="Nome"
-          placeholder="Ex: Ana Recepção"
-          value={name}
-          onChange={e => { setName(e.target.value); setError('') }}
-          autoFocus
-        />
-        <Input
-          label="E-mail (login)"
+          label="E-mail"
           type="email"
-          placeholder="colaborador@email.com"
+          placeholder="maria@email.com"
           value={email}
           onChange={e => { setEmail(e.target.value); setError('') }}
           autoComplete="off"
         />
-        <Input
-          label="Senha"
-          type="password"
-          placeholder="Mínimo de 6 caracteres"
-          value={password}
-          onChange={e => { setPassword(e.target.value); setError('') }}
-          autoComplete="new-password"
+        <div className={styles.grid2}>
+          <Input label="Telefone" type="tel" placeholder="(79) 3200-0000" value={phone} onChange={e => setPhone(e.target.value)} />
+          <Input label="WhatsApp" type="tel" placeholder="(79) 99999-0000" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} />
+        </div>
+      </FormSection>
+
+      <FormSection title="Endereço" description="Digite o CEP e o endereço se preenche sozinho.">
+        <AddressFields
+          value={address}
+          onChange={(field, value) => { setAddress(a => ({ ...a, [field]: value })); setError('') }}
+          showStreet={false}
         />
-        <Select
-          label="Cargo"
-          options={roleOptions}
-          value={roleId}
-          onChange={e => setRoleId(e.target.value)}
-        />
-        <p className={styles.dica}>
-          O colaborador entra imediatamente com esse e-mail e senha. O acesso às
-          páginas segue o cargo escolhido.
-        </p>
+      </FormSection>
+
+      <FormSection
+        title="Cargo e acesso"
+        description="O cargo decide a quais páginas o colaborador tem acesso; ele entra imediatamente com o e-mail e a senha definidos aqui."
+      >
+        <div className={styles.grid2}>
+          <Select label="Cargo" options={roleOptions} value={roleId} onChange={e => { setRoleId(e.target.value); setError('') }} />
+          <Input
+            label="Senha"
+            type="password"
+            placeholder="Mínimo de 6 caracteres"
+            value={password}
+            onChange={e => { setPassword(e.target.value); setError('') }}
+            autoComplete="new-password"
+          />
+        </div>
         {error && <p className={styles.erro}>{error}</p>}
+      </FormSection>
+
+      <div className={styles.acoesForm}>
+        <Button variant="ghost" onClick={onCancel} disabled={isPending}>Cancelar</Button>
+        <Button loading={isPending} onClick={save}>Cadastrar colaborador</Button>
       </div>
-    </Modal>
+    </div>
   )
 }
 

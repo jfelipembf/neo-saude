@@ -3,7 +3,6 @@ import { Button } from '@/components/Button/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { Input } from '@/components/Input/Input'
 import { Modal } from '@/components/Modal/Modal'
-import { SegmentedControl } from '@/components/SegmentedControl/SegmentedControl'
 import { Select } from '@/components/Select/Select'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { useToast } from '@/components/Toast/useToast'
@@ -14,15 +13,28 @@ import { useProfessionals } from '@/hooks/useProfessionals'
 import { useRooms } from '@/hooks/useRooms'
 import { usePatientName } from '@/hooks/useDisplayNames'
 import { toIsoDate } from '@/utils/date'
-import { digitsOnly } from '@/utils/text'
-import { IconPhone, IconX } from '@/components/icons'
-import type { AgendaAppointment } from '@/types/domain'
+import { digitsOnly, initials } from '@/utils/text'
+import { IconPhone, IconEmail, IconWhatsApp } from '@/components/icons'
+import type { AgendaAppointment, AppointmentStatus } from '@/types/domain'
 import styles from './AppointmentModal.module.scss'
 
-const CONFIRMATION_OPTIONS = [
-  { value: 'yes', label: 'Sim' },
-  { value: 'no', label: 'Não' },
-] as const
+// Situação da consulta editável direto no modal: agendada, compareceu (veio),
+// faltou ou cancelada. Os valores casam com o enum appointment_status e com os
+// rótulos do card (ClassCard): completed='Compareceu', no_show='Faltou'.
+const SITUACOES: { value: AppointmentStatus; label: string }[] = [
+  { value: 'scheduled', label: 'Agendada' },
+  { value: 'completed', label: 'Compareceu' },
+  { value: 'no_show',   label: 'Faltou' },
+  { value: 'canceled',  label: 'Cancelada' },
+]
+const SITUACAO_TOAST: Record<AppointmentStatus, string> = {
+  scheduled:  'Consulta reaberta como agendada.',
+  confirmed:  'Consulta confirmada.',
+  in_service: 'Consulta em atendimento.',
+  completed:  'Presença registrada — o paciente compareceu.',
+  no_show:    'Falta registrada.',
+  canceled:   'Consulta cancelada.',
+}
 
 /** '07:30' + 30 → '08:00'. */
 function addMinutes(hhmm: string, minutes: number) {
@@ -75,11 +87,11 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
   const [duration, setDuration] = useState('30')
   const [room, setRoom] = useState('')
   const [notes, setNotes] = useState('')
-  const [confirmation, setConfirmation] = useState<'yes' | 'no'>('yes')
+  const [status, setStatus] = useState<AppointmentStatus>('scheduled')
   const [error, setError] = useState('')
   const [confirmingCancel, setConfirmingCancel] = useState(false)
 
-  const canceled = slot?.status === 'canceled'
+  const canceled = status === 'canceled'
 
   // Abriu o modal (ou trocou a sessão): hidrata da sessão (edição) ou reseta
   // (criação). Padrão do React "resetar estado quando um prop muda" — ajuste
@@ -100,7 +112,7 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
         setDuration(String(durationBetween(slot.startTime, slot.endTime)))
         setRoom(slot.room ?? '')
         setNotes(slot.notes ?? '')
-        setConfirmation(slot.sendConfirmation === false ? 'no' : 'yes')
+        setStatus(slot.status)
       } else {
         setProfessionalId('')
         setPatientSearch('')
@@ -109,7 +121,7 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
         setDuration('30')
         setRoom('')
         setNotes('')
-        setConfirmation('yes')
+        setStatus('scheduled')
       }
     }
   }
@@ -139,7 +151,9 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
     const specialty = (professionals ?? []).find(p => p.id === professionalId)?.specialty
     const activity = slot?.activity ?? specialty ?? 'Consulta'
     return {
-      patientId: currentPatient!.id,
+      // Na mudança de situação (compareceu/faltou/cancelar) o paciente não muda:
+      // cai no do slot se a busca não resolveu para um cadastro exato.
+      patientId: (currentPatient?.id ?? slot?.patientId)!,
       activity,
       date: dateIso,
       startTime: time,
@@ -149,7 +163,9 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
       color: slot?.color ?? activityColor(activity),
       status,
       notes: notes.trim() || undefined,
-      sendConfirmation: confirmation === 'yes',
+      // O seletor de confirmação saiu do modal; preserva o que a consulta já
+      // tinha (ou liga por padrão numa consulta nova).
+      sendConfirmation: slot?.sendConfirmation ?? true,
     }
   }
 
@@ -169,8 +185,8 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
       return
     }
 
-    // Salvar mantém o status atual (reativa se estava cancelada e editou).
-    const payload = buildPayload(slot?.status ?? 'scheduled')
+    // Salvar mantém a situação atual (a situação muda pelos botões dedicados).
+    const payload = buildPayload(status)
     const options = {
       onSuccess: () => {
         toast.success(slot ? 'Agendamento atualizado!' : 'Consulta agendada!')
@@ -181,33 +197,34 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
     else create(payload, options)
   }
 
-  /** Cancela a consulta — o card continua na grade, em cinza. */
-  function cancelAppointment() {
+  /**
+   * Marca a SITUAÇÃO da consulta (compareceu / faltou / cancelar / reabrir) e
+   * salva na hora. NÃO fecha o modal: o status fica destacado — é o "mostrar o
+   * preenchimento depois de salvar". Salva junto os campos que o usuário editou.
+   */
+  function setAttendance(target: AppointmentStatus) {
     if (!slot) return
+    if (!(currentPatient?.id ?? slot.patientId)) {
+      setError('Informe o paciente antes de registrar a situação.')
+      return
+    }
     update(
-      { id: slot.id, payload: buildPayload('canceled') },
+      { id: slot.id, payload: buildPayload(target) },
       {
         onSuccess: () => {
-          toast.success('Consulta cancelada.')
+          setStatus(target)
           setConfirmingCancel(false)
-          onClose()
+          toast.success(SITUACAO_TOAST[target])
         },
       },
     )
   }
 
-  /** Reativa uma consulta cancelada. */
-  function reactivateAppointment() {
-    if (!slot) return
-    update(
-      { id: slot.id, payload: buildPayload('scheduled') },
-      {
-        onSuccess: () => {
-          toast.success('Consulta reativada!')
-          onClose()
-        },
-      },
-    )
+  /** Clique num chip de situação: cancelar pede confirmação; o resto salva já. */
+  function handleSituacao(target: AppointmentStatus) {
+    if (target === status) return
+    if (target === 'canceled') { setConfirmingCancel(true); return }
+    setAttendance(target)
   }
 
   return (
@@ -218,29 +235,7 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
       size="lg"
       footer={
         <>
-          {/* Cancelar a consulta (não fechar o modal) — só quando ativa. */}
-          {slot && !canceled && (
-            <Button
-              variant="ghost"
-              iconLeft={<IconX />}
-              className={styles.cancelarConsulta}
-              disabled={saving}
-              onClick={() => setConfirmingCancel(true)}
-            >
-              Cancelar consulta
-            </Button>
-          )}
-          {slot && canceled && (
-            <Button
-              variant="outline"
-              className={styles.cancelarConsulta}
-              loading={saving}
-              onClick={reactivateAppointment}
-            >
-              Reativar consulta
-            </Button>
-          )}
-          {slot && currentPatient?.phone && (
+          {currentPatient?.phone && (
             <Button
               variant="ghost"
               iconLeft={<IconPhone />}
@@ -248,6 +243,21 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
               onClick={() => { window.location.href = `tel:+55${digitsOnly(currentPatient.phone)}` }}
             >
               Ligar
+            </Button>
+          )}
+          {/* WhatsApp: abre a conversa com o paciente (usa o WhatsApp se houver,
+              senão o telefone). Substitui o antigo seletor de confirmação. */}
+          {currentPatient && (currentPatient.whatsapp || currentPatient.phone) && (
+            <Button
+              variant="ghost"
+              iconLeft={<IconWhatsApp />}
+              className={styles.whatsapp}
+              title={`Abrir WhatsApp de ${currentPatient.name}`}
+              onClick={() => window.open(
+                `https://wa.me/55${digitsOnly(currentPatient.whatsapp ?? currentPatient.phone)}`,
+                '_blank', 'noopener')}
+            >
+              WhatsApp
             </Button>
           )}
           <Button variant="ghost" onClick={onClose} disabled={creating || saving}>Fechar</Button>
@@ -258,10 +268,61 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
       }
     >
       <div className={styles.corpo}>
+        {/* Cabeçalho do paciente: foto, nome, telefone e e-mail, com divisória. */}
+        {currentPatient && (
+          <>
+            <div className={styles.paciente}>
+              <span className={styles.pacienteFoto}>
+                {currentPatient.photo
+                  ? <img src={currentPatient.photo} alt="" className={styles.pacienteFotoImg} />
+                  : initials(currentPatient.name)}
+              </span>
+              <div className={styles.pacienteInfo}>
+                <span className={styles.pacienteNome}>{currentPatient.name}</span>
+                <div className={styles.pacienteContatos}>
+                  {currentPatient.phone && (
+                    <span className={styles.pacienteContato}><IconPhone /> {currentPatient.phone}</span>
+                  )}
+                  {currentPatient.email && (
+                    <span className={styles.pacienteContato}><IconEmail /> {currentPatient.email}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className={styles.divisor} />
+          </>
+        )}
+
+        {/* Situação: registra presença/falta/cancelamento direto no modal e
+            mantém o status destacado depois de salvar (o card reflete na grade). */}
+        {slot && (
+          <div className={styles.situacao}>
+            <span className={styles.situacaoRotulo}>Situação da consulta</span>
+            <div className={styles.situacaoOpcoes} role="group" aria-label="Situação da consulta">
+              {SITUACOES.map(s => (
+                <button
+                  key={s.value}
+                  type="button"
+                  className={[
+                    styles.situacaoChip,
+                    status === s.value ? styles['situacaoChip--ativa'] : '',
+                    status === s.value ? styles[`situacaoChip--${s.value}`] : '',
+                  ].filter(Boolean).join(' ')}
+                  aria-pressed={status === s.value}
+                  disabled={saving}
+                  onClick={() => handleSituacao(s.value)}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {canceled && (
           <div className={styles.avisoCancelada} role="status">
             Esta consulta está <strong>cancelada</strong>. Os dados ficam disponíveis para consulta;
-            use “Reativar consulta” para trazê-la de volta à grade.
+            selecione <strong>Agendada</strong> acima para trazê-la de volta à grade.
           </div>
         )}
         <Select
@@ -272,7 +333,9 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
           onChange={e => { setProfessionalId(e.target.value); setError('') }}
         />
 
-        {/* Paciente com busca (nome, telefone ou CPF). */}
+        {/* Busca de paciente — só numa consulta NOVA. Já agendada, o paciente
+            está no cabeçalho acima e não se troca por este menu. */}
+        {!slot && (
         <div className={styles.pacienteCampo}>
           <Input
             label="Paciente"
@@ -302,6 +365,7 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
             </ul>
           )}
         </div>
+        )}
 
         <div className={styles.grid3}>
           <Input
@@ -346,20 +410,15 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
           onChange={e => setNotes(e.target.value)}
         />
 
-        <div className={styles.confirmacao}>
-          <span className={styles.confirmacaoRotulo}>Enviar mensagem de confirmação?</span>
-          <SegmentedControl options={CONFIRMATION_OPTIONS} value={confirmation} onChange={setConfirmation} />
-        </div>
-
         {error && <p className={styles.erro}>{error}</p>}
       </div>
 
       <ConfirmDialog
         open={confirmingCancel}
         onClose={() => setConfirmingCancel(false)}
-        onConfirm={cancelAppointment}
+        onConfirm={() => setAttendance('canceled')}
         title="Cancelar consulta?"
-        message="O agendamento continuará visível na grade, em cinza e marcado como cancelado — sem ocupar o horário. Você pode reativá-lo depois."
+        message="O agendamento continuará visível na grade, em cinza e marcado como cancelado — sem ocupar o horário. Você pode reabri-lo depois em “Agendada”."
         variant="danger"
         confirmLabel="Cancelar consulta"
         cancelLabel="Voltar"

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { Calendar } from '@/components/Calendar/Calendar'
-import { toIsoDate } from '@/utils/date'
+import { localDate, toIsoDate } from '@/utils/date'
 import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
@@ -13,10 +13,11 @@ import { AppointmentsChart } from '@/components/AppointmentsChart/AppointmentsCh
 import { FinanceChart } from '@/components/FinanceChart/FinanceChart'
 import { StatsCard } from '@/components/StatsCard/StatsCard'
 import { LeadsKanban } from '@/components/LeadsKanban/LeadsKanban'
-import { useDashboardStats, useDayAppointments, useSetAppointmentStatus } from '@/hooks/useAppointments'
+import { useDashboardStats, useSetAppointmentStatus } from '@/hooks/useAppointments'
+import { useAgendaAppointments } from '@/hooks/useSchedule'
 import { usePatientName } from '@/hooks/useDisplayNames'
 import {
-  IconDashboard, IconClock, IconCheck, IconX,
+  IconDashboard, IconClock, IconCheck, IconX, IconBan,
   IconSchedule, IconTrendUp, IconTrendDown, IconKanban,
 } from '@/components/icons'
 import {
@@ -24,12 +25,33 @@ import {
 } from '@/constants'
 import { formatBRL, formatPercent } from '@/utils/format'
 import { goalProgress, percentChange } from '@/utils/metrics'
-import type { Appointment, GoalMetric } from '@/types/domain'
+import type { AgendaAppointment, AppointmentStatus, GoalMetric } from '@/types/domain'
 import styles from './DashboardPage.module.scss'
+
+// Rótulos do card "Agenda do dia" — o vocabulário que o dono usa (presente/
+// ausente), sem mexer no statusMap global do Badge.
+const DAY_STATUS_LABEL: Record<AppointmentStatus, string> = {
+  scheduled: 'Agendado',
+  confirmed: 'Confirmado',
+  in_service: 'Em atendimento',
+  completed: 'Presente',
+  no_show: 'Ausente',
+  canceled: 'Cancelado',
+}
 
 export function DashboardPage() {
   const navigate = useNavigate()
-  const { data: appointments, isLoading } = useDayAppointments()
+  const today = new Date()
+  const todayIso = toIsoDate(today)
+
+  // O card "Agenda do dia" é LIGADO à agenda: clicar num dia do calendário
+  // mostra as consultas daquele dia com o status. Uma query de ±6 meses cobre a
+  // navegação do calendário inteira (mesma janela da aba do profissional).
+  const [selectedDate, setSelectedDate] = useState(todayIso)
+  const fromIso = toIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 182))
+  const toIso = toIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 182))
+  const { data: appointments, isLoading } = useAgendaAppointments(fromIso, toIso)
+
   // Query própria: os cartões não seguram a agenda no loader (e vice-versa).
   // Enquanto não chega, cada cartão mostra '—' em vez de um zero que seria lido
   // como "o mês está zerado" (ver `metricCard`).
@@ -38,11 +60,14 @@ export function DashboardPage() {
   const { mutate: setStatus } = useSetAppointmentStatus()
   const [view, setView] = useState<'dashboard' | 'kanban'>('dashboard')
 
-  const today = new Date()
-  const todayIso = toIsoDate(today)
-  const todayLabel = today.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
+  const selectedLabel = localDate(selectedDate)
+    .toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
 
-  const todaysPatients = appointments ?? []
+  const dayPatients = (appointments ?? [])
+    .filter(a => a.date === selectedDate)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+  // Pontinho no calendário nos dias com consulta (canceladas não marcam).
+  const markedDates = [...new Set((appointments ?? []).filter(a => a.status !== 'canceled').map(a => a.date))]
   const isKanban = view === 'kanban'
 
   /**
@@ -82,9 +107,9 @@ export function DashboardPage() {
     }
   }
 
-  // Clicar no círculo já ativo desfaz a marcação (volta para "agendada").
-  function markAttendance(c: Appointment, attended: boolean) {
-    const target = attended ? 'completed' : 'no_show'
+  // Desfecho da consulta (presente/ausente/cancelada) — mesma semântica dos
+  // círculos do card da Agenda: clicar no já ativo desfaz (volta a "agendada").
+  function markOutcome(c: AgendaAppointment, target: AppointmentStatus) {
     setStatus({ id: c.id, status: c.status === target ? 'scheduled' : target })
   }
 
@@ -118,46 +143,70 @@ export function DashboardPage() {
               <header className={styles.agendaHeader}>
                 <div>
                   <h2 className={styles.agendaTitle}>Agenda do dia</h2>
-                  <p className={styles.agendaDate}>{todayLabel}</p>
+                  <p className={styles.agendaDate}>{selectedLabel}</p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => navigate(APP_ROUTES.SCHEDULE)}>
                   Ver agenda
                 </Button>
               </header>
 
-              <Calendar markedDates={[todayIso]} />
+              <Calendar
+                markedDates={markedDates}
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+              />
 
-              <h3 className={styles.listTitle}>Pacientes de hoje</h3>
+              <h3 className={styles.listTitle}>
+                {selectedDate === todayIso ? 'Pacientes de hoje' : 'Pacientes do dia'}
+              </h3>
               <ul className={styles.list}>
-                {todaysPatients.length === 0 && (
-                  <li className={styles.emptyItem}>Nenhum paciente agendado para hoje.</li>
+                {dayPatients.length === 0 && (
+                  <li className={styles.emptyItem}>
+                    {selectedDate === todayIso
+                      ? 'Nenhum paciente agendado para hoje.'
+                      : 'Nenhum paciente agendado para este dia.'}
+                  </li>
                 )}
-                {todaysPatients.map(c => (
+                {dayPatients.map(c => (
                   <li key={c.id} className={styles.item}>
                     <div className={styles.itemInfo}>
                       <span className={styles.itemPaciente}>{patientName(c.patientId)}</span>
-                      <span className={styles.itemLine}><IconClock /> {c.time} · {c.service}</span>
-                      <Badge status={c.status} className={styles.itemBadge} />
+                      <span className={styles.itemLine}><IconClock /> {c.startTime} · {c.activity}</span>
+                      <Badge status={c.status} label={DAY_STATUS_LABEL[c.status]} className={styles.itemBadge} />
                     </div>
 
                     <div className={styles.presence}>
                       <button
                         type="button"
                         className={`${styles.circleBtn} ${styles['circleBtn--ok']} ${c.status === 'completed' ? styles['circleBtn--active'] : ''}`}
-                        onClick={() => markAttendance(c, true)}
-                        title="Compareceu"
+                        onClick={() => markOutcome(c, 'completed')}
+                        title={c.status === 'completed' ? 'Desfazer presença' : 'Presente'}
                         aria-label={`Marcar que ${patientName(c.patientId)} compareceu`}
+                        aria-pressed={c.status === 'completed'}
                       >
                         <IconCheck />
                       </button>
                       <button
                         type="button"
                         className={`${styles.circleBtn} ${styles['circleBtn--no']} ${c.status === 'no_show' ? styles['circleBtn--active'] : ''}`}
-                        onClick={() => markAttendance(c, false)}
-                        title="Não compareceu"
-                        aria-label={`Marcar que ${patientName(c.patientId)} não compareceu`}
+                        onClick={() => markOutcome(c, 'no_show')}
+                        title={c.status === 'no_show' ? 'Desfazer falta' : 'Faltou'}
+                        aria-label={`Marcar que ${patientName(c.patientId)} faltou`}
+                        aria-pressed={c.status === 'no_show'}
                       >
                         <IconX />
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.circleBtn} ${styles['circleBtn--cancel']} ${c.status === 'canceled' ? styles['circleBtn--active'] : ''}`}
+                        onClick={() => markOutcome(c, 'canceled')}
+                        title={c.status === 'canceled' ? 'Reativar consulta' : 'Cancelar consulta'}
+                        aria-label={c.status === 'canceled'
+                          ? `Reativar a consulta de ${patientName(c.patientId)}`
+                          : `Cancelar a consulta de ${patientName(c.patientId)}`}
+                        aria-pressed={c.status === 'canceled'}
+                      >
+                        <IconBan />
                       </button>
                     </div>
                   </li>

@@ -50,7 +50,10 @@ export const queryKeys = {
     // do financeiro invalidam este prefixo inteiro.
     all: ['finance'] as const,
     series: (period: string, isoMonth: string) => ['finance', 'series', period, isoMonth] as const,
-    cashFlow:       ['finance', 'cashFlow'] as const,
+    // Parametrizada pelo horizonte: a projeção de 30, 60 e 90 dias é dado
+    // diferente e não pode compartilhar cache. Continua sob o prefixo
+    // ['finance'], então as mutations do módulo a invalidam junto com o resto.
+    cashFlow: (days: number) => ['finance', 'cashFlow', days] as const,
     payables:    ['finance', 'payables'] as const,
     receivables: ['finance', 'receivables'] as const,
     banks:      ['finance', 'banks'] as const,

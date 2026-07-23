@@ -1283,39 +1283,63 @@ export type Database = {
       clinic_user: {
         Row: {
           access_profile_id: string
+          birth_date: string | null
+          cep: string | null
+          city: string | null
           clinic_id: string
           created_at: string
           id: string
           invited_by: string | null
           is_owner: boolean
           joined_at: string | null
+          neighborhood: string | null
+          number: string | null
+          sex: Database["public"]["Enums"]["gender"] | null
+          state: string | null
           status: Database["public"]["Enums"]["membership_status"]
           updated_at: string
           user_id: string
+          whatsapp: string | null
         }
         Insert: {
           access_profile_id: string
+          birth_date?: string | null
+          cep?: string | null
+          city?: string | null
           clinic_id: string
           created_at?: string
           id?: string
           invited_by?: string | null
           is_owner?: boolean
           joined_at?: string | null
+          neighborhood?: string | null
+          number?: string | null
+          sex?: Database["public"]["Enums"]["gender"] | null
+          state?: string | null
           status?: Database["public"]["Enums"]["membership_status"]
           updated_at?: string
           user_id: string
+          whatsapp?: string | null
         }
         Update: {
           access_profile_id?: string
+          birth_date?: string | null
+          cep?: string | null
+          city?: string | null
           clinic_id?: string
           created_at?: string
           id?: string
           invited_by?: string | null
           is_owner?: boolean
           joined_at?: string | null
+          neighborhood?: string | null
+          number?: string | null
+          sex?: Database["public"]["Enums"]["gender"] | null
+          state?: string | null
           status?: Database["public"]["Enums"]["membership_status"]
           updated_at?: string
           user_id?: string
+          whatsapp?: string | null
         }
         Relationships: [
           {
@@ -3761,13 +3785,21 @@ export type Database = {
         Returns: {
           access_profile_id: string
           avatar_url: string
+          birth_date: string
+          cep: string
+          city: string
           clinic_user_id: string
           email: string
           full_name: string
+          neighborhood: string
+          number: string
           phone: string
           role_name: string
+          sex: Database["public"]["Enums"]["gender"]
+          state: string
           status: Database["public"]["Enums"]["membership_status"]
           user_id: string
+          whatsapp: string
         }[]
       }
       my_session: { Args: { p_clinic?: string }; Returns: Json }

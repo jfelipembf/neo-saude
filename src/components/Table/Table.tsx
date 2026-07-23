@@ -17,6 +17,9 @@ interface TableProps<T> {
   rowKey: (row: T) => string
   /** Linha clicável (ex.: abrir perfil). */
   onRowClick?: (row: T) => void
+  /** Classe extra por linha (ex.: destacar o dia em que o saldo fica negativo).
+   *  Devolva undefined para as linhas sem destaque. */
+  rowClassName?: (row: T) => string | undefined
   emptyMessage?: string
   /** Barra DENTRO do cartão, acima da tabela (filtros, "N por página") — modelo do perfil do paciente. */
   toolbar?: ReactNode
@@ -28,7 +31,7 @@ interface TableProps<T> {
 }
 
 export function Table<T>({
-  columns, data, rowKey, onRowClick, emptyMessage = 'Nenhum registro.',
+  columns, data, rowKey, onRowClick, rowClassName, emptyMessage = 'Nenhum registro.',
   toolbar, footer, renderExpanded,
 }: TableProps<T>) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -77,7 +80,8 @@ export function Table<T>({
               return (
                 <Fragment key={id}>
                   <tr
-                    className={handleRowClick ? styles.clickable : undefined}
+                    className={[handleRowClick ? styles.clickable : '', rowClassName?.(row) ?? '']
+                      .filter(Boolean).join(' ') || undefined}
                     onClick={handleRowClick}
                   >
                     {expandable && (

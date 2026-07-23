@@ -1,0 +1,55 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Estilo exclusivo da aba Fluxo de Caixa: o seletor de horizonte da toolbar, o
+// alerta de saldo negativo do rodapé e o destaque da linha do dia em que o caixa
+// vira. O vocabulário compartilhado (células, resumo, rodapé) vem de
+// ../shared/finance.module.scss.
+// ─────────────────────────────────────────────────────────────────────────────
+@use '../../../styles/mixins' as *;
+
+// ── Seletor de horizonte (Próximos 30/60/90 dias) ────────────────────────────
+.horizon {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+
+  @include phone {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+.horizonLabel {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.horizonField {
+  min-width: 168px;
+}
+
+// ── Alerta do rodapé: em que dia o saldo projetado fica negativo ─────────────
+// Uma linha, não um cartão: é a resposta à única pergunta que traz o dono a
+// esta tela ("quando fico sem caixa?"), então fica sempre visível no resumo.
+.alert {
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-2;
+  font-size: $fs-sm;
+  font-weight: 600;
+
+  svg { width: 15px; height: 15px; flex-shrink: 0; }
+}
+
+.alertDanger { color: var(--danger-fg); }
+.alertOk     { color: var(--success-fg); }
+
+// ── Linha do primeiro dia negativo, na tabela ───────────────────────────────
+// Fundo tênue derivado do vermelho da marca (mesma técnica das ações de perigo
+// do financeiro): destaca o dia sem competir com o texto.
+.negativeRow > td {
+  background: rgba($danger, 0.08);
+}
+
+.negativeRow:hover > td {
+  background: rgba($danger, 0.12);
+}

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { IconChevronLeft, IconChevronRight } from '@/components/icons'
 import { useAppointmentSeries } from '@/hooks/useAppointments'
@@ -92,7 +93,12 @@ export function AppointmentsChart() {
       {isLoading ? (
         <div className={styles.loading}><Spinner /></div>
       ) : (
-        <div className={`${styles.chart} ${isPlaceholderData ? styles['chart--stale'] : ''}`}>
+        <div
+          className={`${styles.chart} ${isPlaceholderData ? styles['chart--stale'] : ''}`}
+          // Nº de colunas orienta a largura mínima do plot: com muitos baldes
+          // (mês/ano) o gráfico ROLA dentro do card em vez de esmagar as barras.
+          style={{ '--cols': points.length } as CSSProperties}
+        >
           <div className={styles.plot}>
             {/* Linhas-guia (teto e meio); a base é o próprio eixo do plot. */}
             {[100, 50].map(pct => (

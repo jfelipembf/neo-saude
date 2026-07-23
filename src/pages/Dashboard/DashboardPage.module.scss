@@ -40,8 +40,9 @@
   grid-template-rows: 1fr 1fr;
   gap: $sp-6;
   min-height: 0;   // deixa as linhas encolherem em vez de estourar a célula
+  min-width: 0;    // largura FIXA da célula: o conteúdo rola, não estica o card
 
-  > * { min-height: 0; }
+  > * { min-height: 0; min-width: 0; }
 
   // Empilhado no mobile também, mas com altura natural de cada gráfico.
   @include mobile {
@@ -192,6 +193,20 @@
     &.circleBtn--active {
       background: $danger;
       border-color: $danger;
+      color: #fff;
+    }
+  }
+
+  // Cancelar consulta — cinza neutro (o mesmo tom do card cancelado na grade).
+  &--cancel {
+    border-color: $neutral;
+    color: var(--text-muted);
+
+    &:hover { background: rgba($neutral, 0.12); }
+
+    &.circleBtn--active {
+      background: $neutral;
+      border-color: $neutral;
       color: #fff;
     }
   }

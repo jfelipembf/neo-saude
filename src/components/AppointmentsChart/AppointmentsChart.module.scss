@@ -117,7 +117,12 @@ $eixo-w: 32px;   // espaço à esquerda do plot para os ticks do eixo Y
 }
 
 // ── Área do gráfico ──────────────────────────────────────────────────────────
+// O card tem largura FIXA (a da célula do grid): com muitos baldes (mês = até
+// 31, ano = 12) o plot ganha largura mínima por coluna e ROLA horizontalmente
+// aqui dentro, em vez de esmagar as barras ou esticar o card.
 .chart {
+  overflow-x: auto;
+  padding-top: $sp-6;   // espaço para o tooltip da barra não ser cortado
   transition: opacity 0.15s ease;
 
   // Troca de período com dados antigos no ar: segura o quadro esmaecido.
@@ -128,6 +133,7 @@ $eixo-w: 32px;   // espaço à esquerda do plot para os ticks do eixo Y
   position: relative;
   height: 180px;
   margin-left: $eixo-w;
+  min-width: calc(var(--cols, 7) * 26px);
   border-bottom: 1px solid var(--glass-border);   // eixo/base
 }
 
@@ -219,6 +225,7 @@ $eixo-w: 32px;   // espaço à esquerda do plot para os ticks do eixo Y
   gap: $sp-2;
   margin-left: $eixo-w;
   margin-top: $sp-2;
+  min-width: calc(var(--cols, 7) * 26px);
 }
 
 .xLabel {

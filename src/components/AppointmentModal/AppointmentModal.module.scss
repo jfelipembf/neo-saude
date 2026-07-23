@@ -70,3 +70,117 @@
 
   strong { color: var(--text-primary); }
 }
+
+// ── Situação da consulta (compareceu / faltou / cancelar) ────────────────────
+// Chips selecionáveis no corpo do modal; o ativo fica preenchido com a cor da
+// situação — é o "mostrar o preenchimento depois de salvar".
+.situacao {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  padding-bottom: $sp-1;
+}
+
+.situacaoRotulo {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.situacaoOpcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2;
+}
+
+.situacaoChip {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--field-border);
+  background: var(--field-bg);
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  &:hover:not(:disabled) { border-color: var(--text-secondary); }
+  &:disabled { opacity: 0.6; cursor: default; }
+}
+
+// Ativa: preenche com a cor da situação.
+.situacaoChip--ativa {
+  color: #fff;
+  border-color: transparent;
+}
+.situacaoChip--scheduled.situacaoChip--ativa { background: var(--info-fg); }
+.situacaoChip--completed.situacaoChip--ativa { background: var(--success-fg); }
+.situacaoChip--no_show.situacaoChip--ativa   { background: var(--warning-fg); }
+.situacaoChip--canceled.situacaoChip--ativa  { background: var(--danger-fg); }
+
+// ── Cabeçalho do paciente (topo do modal) ────────────────────────────────────
+.paciente {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+}
+
+.pacienteFoto {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: #fff;
+  font-size: $fs-md;
+  font-weight: 600;
+}
+
+.pacienteFotoImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pacienteInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pacienteNome {
+  font-size: $fs-md;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pacienteContatos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-3;
+}
+
+.pacienteContato {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  word-break: break-word;
+
+  svg { width: 14px; height: 14px; flex-shrink: 0; }
+}
+
+.divisor {
+  height: 1px;
+  background: var(--glass-border);
+  margin: 2px 0;
+}
+
+// Botão de WhatsApp no rodapé — verde da marca no ícone.
+.whatsapp svg { color: #25d366; }

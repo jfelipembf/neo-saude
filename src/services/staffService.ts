@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
-import type { Collaborator, MembershipStatus } from '@/types/domain'
+import { isoToBrDate } from '@/utils/date'
+import { capitalizeName, cepToDb, phoneToDb, ufToDb } from '@/utils/text'
+import type { Collaborator, Gender, MembershipStatus } from '@/types/domain'
 
 // Linha crua da RPC list_clinic_staff.
 type StaffRow = {
@@ -13,6 +15,14 @@ type StaffRow = {
   access_profile_id: string
   role_name: string
   status: MembershipStatus
+  sex: Gender | null
+  birth_date: string | null
+  whatsapp: string | null
+  cep: string | null
+  state: string | null
+  city: string | null
+  neighborhood: string | null
+  number: string | null
 }
 
 function toCollaborator(r: StaffRow): Collaborator {
@@ -26,6 +36,14 @@ function toCollaborator(r: StaffRow): Collaborator {
     roleId: r.access_profile_id,
     roleName: r.role_name,
     status: r.status,
+    sex: r.sex ?? undefined,
+    birthDate: isoToBrDate(r.birth_date),
+    whatsapp: r.whatsapp ?? undefined,
+    cep: r.cep ?? undefined,
+    state: r.state ?? undefined,
+    city: r.city ?? undefined,
+    neighborhood: r.neighborhood ?? undefined,
+    number: r.number ?? undefined,
   }
 }
 
@@ -77,16 +95,42 @@ export interface NewCollaborator {
   password: string
   fullName: string
   roleId: string
+  phone?: string
+  /** Cadastro completo (opcional campo a campo) — gravado em clinic_user. */
+  details?: {
+    sex?: Gender | ''
+    birthDate?: string    // aaaa-mm-dd
+    whatsapp?: string
+    cep?: string
+    state?: string
+    city?: string
+    neighborhood?: string
+    number?: string
+  }
 }
 
-/** Cria o login do colaborador (Edge Function service_role) e vincula ao cargo. */
+/** Cria o login do colaborador (Edge Function service_role) e vincula ao cargo.
+ *  Mesmos normalizadores do cadastro de PACIENTES (capitalizeName/phoneToDb/
+ *  cepToDb/ufToDb): máscara e formato errado morrem aqui, não no banco. */
 export async function createCollaborator(payload: NewCollaborator): Promise<void> {
+  const d = payload.details
   await invokeManage({
     action: 'create',
     email: payload.email,
     password: payload.password,
-    fullName: payload.fullName,
+    fullName: capitalizeName(payload.fullName),
     accessProfileId: payload.roleId,
+    phone: phoneToDb(payload.phone) ?? '',
+    details: {
+      sex: d?.sex || '',
+      birthDate: d?.birthDate ?? '',
+      whatsapp: phoneToDb(d?.whatsapp) ?? '',
+      cep: cepToDb(d?.cep) ?? '',
+      state: ufToDb(d?.state) ?? '',
+      city: d?.city?.trim() ?? '',
+      neighborhood: d?.neighborhood?.trim() ?? '',
+      number: d?.number?.trim() ?? '',
+    },
   })
 }
 

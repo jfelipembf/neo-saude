@@ -343,6 +343,15 @@ export interface Collaborator {
   roleId: string         // access_profile_id — o cargo
   roleName: string
   status: MembershipStatus
+  // Cadastro completo (dados da clínica sobre o funcionário — vivem em clinic_user).
+  sex?: Gender
+  birthDate?: string    // dd/mm/aaaa
+  whatsapp?: string
+  cep?: string
+  state?: string        // UF
+  city?: string
+  neighborhood?: string
+  number?: string
 }
 
 // ── Comissões dos profissionais (aba do Administrativo) ──────────────────────

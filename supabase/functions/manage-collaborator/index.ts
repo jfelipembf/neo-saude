@@ -56,6 +56,11 @@ Deno.serve(async (req) => {
     const password = String(body.password ?? '')
     const fullName = String(body.fullName ?? '').trim()
     const accessProfileId = String(body.accessProfileId ?? '')
+    const phone = String(body.phone ?? '').trim()
+    // Cadastro completo (sexo, nascimento, WhatsApp, endereço) — opcional campo
+    // a campo; gravado em clinic_user (dado da CLÍNICA sobre o funcionário).
+    const details = (typeof body.details === 'object' && body.details !== null ? body.details : {}) as Record<string, unknown>
+    const str = (v: unknown) => { const s = String(v ?? '').trim(); return s || null }
     if (!email || !password || !accessProfileId) return json({ error: 'Preencha e-mail, senha e cargo.' }, 400)
     if (password.length < 6) return json({ error: 'A senha deve ter ao menos 6 caracteres.' }, 400)
 
@@ -76,13 +81,22 @@ Deno.serve(async (req) => {
     }
     const newUserId = created.user.id
 
-    // O trigger on_auth_user_created cria o profile; garante o nome.
-    if (fullName) await admin.from('profile').update({ full_name: fullName }).eq('id', newUserId)
+    // O trigger on_auth_user_created cria o profile; garante nome e telefone.
+    if (fullName || phone) {
+      await admin.from('profile').update({
+        ...(fullName ? { full_name: fullName } : {}),
+        ...(phone ? { phone } : {}),
+      }).eq('id', newUserId)
+    }
 
-    // Vincula à clínica com o cargo, já ATIVO.
+    // Vincula à clínica com o cargo, já ATIVO — e com o cadastro completo.
     const { error: linkErr } = await admin.from('clinic_user').insert({
       clinic_id: clinicId, user_id: newUserId, access_profile_id: accessProfileId,
       status: 'active', invited_by: user.id,
+      sex: str(details.sex), birth_date: str(details.birthDate),
+      whatsapp: str(details.whatsapp), cep: str(details.cep),
+      state: str(details.state)?.toUpperCase() ?? null, city: str(details.city),
+      neighborhood: str(details.neighborhood), number: str(details.number),
     })
     if (linkErr) {
       await admin.auth.admin.deleteUser(newUserId)   // não deixa conta órfã
