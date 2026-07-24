@@ -47,7 +47,10 @@ export const GOAL_METRIC_HELP: Record<GoalMetric, string> = {
   appointments_completed:
     'Consultas do mês com atendimento concluído. A diferença para as agendadas '
     + 'é o que ainda vai acontecer no mês mais as faltas.',
-  revenue:  'Recebido no mês, pela data da baixa.',
+  // Competência, valor bruto: a MESMA definição de dashboard_stats_period e da
+  // aba Vendas (docs/modelo-contabil.md). O que ENTROU de dinheiro é assunto
+  // do gráfico Ganhos × Gastos, não desta métrica.
+  revenue:  'Vendido no mês, pela data da venda (valor bruto, pago ou não).',
   expenses: 'Pago no mês, pela data do pagamento.',
 }
 

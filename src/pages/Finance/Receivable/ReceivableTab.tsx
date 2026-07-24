@@ -121,8 +121,9 @@ export function ReceivableTab() {
     { key: 'grossAmount', label: 'Bruto', render: c => <span className={shared.valor}>{formatBRL(c.grossAmount)}</span> },
     { key: 'fee',        label: 'Taxa', render: c => c.fee > 0 ? <span className={shared.neg}>{formatBRL(c.fee)}</span> : <span className={shared.traco}>—</span> },
     {
-      key: 'net', label: 'Líquido',
-      // A coluna mostra o RESTANTE a receber (líquido − parciais).
+      // "Em aberto", não "Líquido": a coluna mostra o RESTANTE a receber
+      // (líquido − parciais) — o rótulo antigo mentia sobre a fórmula.
+      key: 'net', label: 'Em aberto',
       render: c => <span className={`${shared.valor} ${shared.pos}`}>{formatBRL(Math.max(remainingOf(c), 0))}</span>,
     },
     { key: 'status',      label: 'Status', render: c => <Badge status={c.status} /> },

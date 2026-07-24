@@ -1,0 +1,118 @@
+@use '../../../../styles/mixins' as *;
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+// Busca + filtro de área lado a lado (busca ocupa o espaço sobrando).
+.filtros {
+  display: flex;
+  gap: $sp-2;
+
+  @include phone {
+    flex-direction: column;
+  }
+}
+
+.busca {
+  flex: 1;
+  min-width: 0;
+}
+
+.filtroArea {
+  flex: 0 0 180px;
+
+  @include phone {
+    flex: 1;
+  }
+}
+
+.list {
+  @include hide-scrollbar;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 340px;
+  overflow-y: auto;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+
+  @include mobile {
+    max-height: 50vh;
+  }
+}
+
+.empty {
+  padding: $sp-4;
+  font-size: $fs-sm;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  padding: $sp-2 $sp-3;
+  border-bottom: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: var(--glass-bg-hover); }
+}
+
+.itemText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.itemLabel {
+  font-size: $fs-sm;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.itemSub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+// Checkbox customizado (appearance:none + marca desenhada) — mesma técnica do
+// bloqueio de horários da Agenda (ScheduleGrid), mas com a cor da marca (--primary).
+.checkbox {
+  appearance: none;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1.5px solid var(--glass-border-strong);
+  border-radius: $radius-sm;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+
+  &:checked {
+    background: var(--primary);
+    border-color: var(--primary);
+  }
+
+  // Marca em "V", centralizada pelo centro geométrico (translate -50%/-50%),
+  // não por left/top chutados.
+  &:checked::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 4px;
+    height: 8px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: translate(-50%, -50%) rotate(45deg);
+  }
+}

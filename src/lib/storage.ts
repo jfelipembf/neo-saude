@@ -16,25 +16,70 @@ function fileExtension(name: string): string {
   return ext && ext.length <= 5 ? ext.toLowerCase() : 'img'
 }
 
+// Toda foto do app (teste, goniômetro, paciente, profissional, sala,
+// material, logo da clínica) sobe por uploadImage — comprimir aqui de uma vez
+// baixa o uso do bucket sem mexer em quem chama.
+const MAX_DIMENSION = 1600   // px no maior lado — sobra pra tela e pra medir no goniômetro
+const JPEG_QUALITY = 0.82
+
+/**
+ * Redimensiona (maior lado ≤ MAX_DIMENSION) e recomprime uma imagem antes do
+ * upload. PNG continua PNG (perderia a transparência do logo da clínica virando
+ * JPEG); os demais formatos viram JPEG, que comprime bem mais. Se o resultado
+ * não ficar menor que o original (foto já pequena/otimizada), ou se o formato
+ * não for suportado (svg, gif, heic…) ou o navegador não conseguir decodificar,
+ * devolve o arquivo original — nunca bloqueia o upload por causa disso.
+ */
+async function compressImage(file: File): Promise<File> {
+  if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) return file
+
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+    const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height))
+    const width = Math.round(bitmap.width * scale)
+    const height = Math.round(bitmap.height * scale)
+
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return file
+    ctx.drawImage(bitmap, 0, 0, width, height)
+    bitmap.close()
+
+    const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
+    const blob: Blob | null = await new Promise(resolve => canvas.toBlob(resolve, outputType, JPEG_QUALITY))
+    if (!blob || blob.size >= file.size) return file
+
+    const ext = outputType === 'image/png' ? 'png' : 'jpg'
+    const baseName = file.name.replace(/\.[^.]+$/, '')
+    return new File([blob], `${baseName}.${ext}`, { type: outputType })
+  } catch {
+    return file
+  }
+}
+
 /**
  * Sobe uma imagem e devolve o PATH persistido no Storage (não a URL).
  *
  * - Modo mock (sem .env): cai no `createObjectURL` — preview só na sessão. Como
  *   o valor guardado é uma URL blob:, `signAssetUrl` a devolve intacta.
- * - Modo real: grava em `clinic-assets/{clinic_id}/{folder}/{uuid}.{ext}` (a
- *   policy exige que a 1ª pasta seja a clínica do usuário) e devolve o PATH;
- *   a leitura assina esse path na hora de exibir.
+ * - Modo real: comprime (ver compressImage), grava em
+ *   `clinic-assets/{clinic_id}/{folder}/{uuid}.{ext}` (a policy exige que a
+ *   1ª pasta seja a clínica do usuário) e devolve o PATH; a leitura assina
+ *   esse path na hora de exibir.
  *
  * @param folder subpasta por entidade — ex.: 'professionals', 'clinic', 'materials'.
  */
 export async function uploadImage(file: File, folder: string): Promise<string> {
   if (isMockMode) return URL.createObjectURL(file)
 
+  const toUpload = await compressImage(file)
   const clinicId = getCurrentClinicId()
-  const path = `${clinicId}/${folder}/${crypto.randomUUID()}.${fileExtension(file.name)}`
+  const path = `${clinicId}/${folder}/${crypto.randomUUID()}.${fileExtension(toUpload.name)}`
 
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
-    contentType: file.type || undefined,
+  const { error } = await supabase.storage.from(BUCKET).upload(path, toUpload, {
+    contentType: toUpload.type || undefined,
     upsert: false,
   })
   if (error) throw error

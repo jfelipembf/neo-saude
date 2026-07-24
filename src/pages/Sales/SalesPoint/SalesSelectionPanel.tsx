@@ -1,16 +1,16 @@
+import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { SegmentedControl } from '@/components/SegmentedControl/SegmentedControl'
+import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
+import { Select } from '@/components/Select/Select'
 import { FormSection } from '@/components/FormSection/FormSection'
+import { IconPlus } from '@/components/icons'
 import { formatBRL } from '@/utils/format'
-import { CATALOG_TABS } from './types'
-import type { CatalogKind, CatalogItem } from './types'
+import type { CatalogItem } from './types'
 import styles from './SalesPointPage.module.scss'
 
 interface Props {
   catalog:    CatalogItem[]
-  tab:        CatalogKind
-  onTab:      (k: CatalogKind) => void
   saleDate:   string
   discount:   string
   onSaleDate:  (v: string) => void
@@ -19,16 +19,23 @@ interface Props {
   children:    ReactNode
 }
 
-/** Painel esquerdo do PDV — o que está sendo vendido + o pagamento. */
+/** Painel esquerdo do PDV — o que está sendo vendido + o pagamento. Com mais
+ *  de um serviço no catálogo, escolhe por um menu suspenso (mostra o valor
+ *  assim que seleciona); com só um, não tem o que escolher — já mostra ele. */
 export function SalesSelectionPanel({
-  catalog, tab, onTab, saleDate, discount, onSaleDate, onDiscount, onAddItem, children,
+  catalog, saleDate, discount, onSaleDate, onDiscount, onAddItem, children,
 }: Props) {
-  const items = catalog.filter(i => i.kind === tab)
+  const [selectedId, setSelectedId] = useState('')
+  const selected = catalog.length === 1 ? catalog[0] : catalog.find(c => c.id === selectedId)
+
+  function add() {
+    if (!selected) return
+    onAddItem(selected)
+    setSelectedId('')
+  }
 
   return (
     <div className={styles.panel}>
-      <SegmentedControl options={CATALOG_TABS} value={tab} onChange={onTab} />
-
       <FormSection title="Dados da venda">
         <div className={styles.saleGrid}>
           <Input label="Data da venda" type="date" value={saleDate} onChange={e => onSaleDate(e.target.value)} />
@@ -37,24 +44,31 @@ export function SalesSelectionPanel({
       </FormSection>
 
       <div className={styles.catalog}>
-        <span className={styles.blockTitle}>{tab === 'service' ? 'Serviços' : 'Contratos'}</span>
-        {items.length === 0 ? (
+        <span className={styles.blockTitle}>Serviços</span>
+        {catalog.length === 0 ? (
           <p className={styles.empty}>Nenhum item disponível.</p>
         ) : (
-          <div className={styles.catalogGrid}>
-            {items.map(item => (
-              <button
-                key={item.id}
-                type="button"
-                className={styles.catalogCard}
-                onClick={() => onAddItem(item)}
-              >
-                <span className={styles.catalogName}>{item.name}</span>
-                {item.detail && <span className={styles.catalogDetail}>{item.detail}</span>}
-                <span className={styles.catalogPrice}>{formatBRL(item.price)}</span>
-              </button>
-            ))}
-          </div>
+          <>
+            {catalog.length > 1 && (
+              <Select
+                label="Serviço"
+                options={catalog.map(c => ({ value: c.id, label: c.name }))}
+                placeholder="Selecione..."
+                value={selectedId}
+                onChange={e => setSelectedId(e.target.value)}
+              />
+            )}
+            {selected && (
+              <div className={styles.catalogSelected}>
+                <div className={styles.catalogSelectedInfo}>
+                  <span className={styles.catalogName}>{selected.name}</span>
+                  {selected.detail && <span className={styles.catalogDetail}>{selected.detail}</span>}
+                  <span className={styles.catalogPrice}>{formatBRL(selected.price)}</span>
+                </div>
+                <Button size="sm" iconLeft={<IconPlus />} onClick={add}>Adicionar</Button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

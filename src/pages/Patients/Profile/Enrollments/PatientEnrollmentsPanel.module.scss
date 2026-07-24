@@ -1,0 +1,71 @@
+@use '../../../../styles/mixins' as *;
+
+.painel {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.lista {
+  @include card;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  padding: 0 $sp-5;
+}
+
+.turma {
+  display: flex;
+  align-items: center;
+  gap: $sp-4;
+  padding: $sp-4 0;
+  border-bottom: 1px solid var(--glass-border);
+
+  &:last-child { border-bottom: none; }
+
+  @include phone {
+    flex-wrap: wrap;
+  }
+}
+
+.turmaIcone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: $radius-md;
+  background: var(--accent-bg);
+  color: var(--primary-fg);
+
+  svg { width: 18px; height: 18px; }
+}
+
+.turmaInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.turmaNome {
+  font-size: $fs-base;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.turmaMeta {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.removerBtn {
+  flex-shrink: 0;
+
+  &:hover:not(:disabled) {
+    color: var(--danger-fg) !important;
+    background: rgba($danger, 0.1) !important;
+  }
+}

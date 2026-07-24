@@ -1,0 +1,155 @@
+@use '../../styles/mixins' as *;
+
+// ── Antes de ter foto: dropzone grande ───────────────────────────────────────
+.dropzone {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  border-radius: $radius-lg;
+  border: 1px dashed var(--glass-border);
+  background: var(--glass-bg);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+
+  &:hover { border-color: var(--primary); }
+}
+
+.dropzoneConteudo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $sp-2;
+  color: var(--text-muted);
+  font-size: $fs-sm;
+  text-align: center;
+
+  svg { width: 28px; height: 28px; }
+}
+
+.dropzoneInput {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+// ── Com foto: overlay de medição ──────────────────────────────────────────────
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.foto {
+  position: relative;
+  border-radius: $radius-lg;
+  border: 1px solid var(--glass-border);
+  overflow: hidden;
+  // Não deixa a foto crescer sem limite — a régua funciona igual em qualquer
+  // tamanho, mas uma foto gigante atrapalharia o formulário.
+  max-height: 480px;
+}
+
+.img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 480px;
+  object-fit: contain;
+  background: var(--bg-base);
+  user-select: none;
+}
+
+.linhas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+
+  line {
+    stroke: var(--primary);
+    stroke-width: 2;
+    // O viewBox 0-100 estica sem preservar proporção (preserveAspectRatio=none)
+    // p/ acompanhar fotos retangulares — sem isto a linha ficaria mais grossa
+    // num eixo que no outro.
+    vector-effect: non-scaling-stroke;
+  }
+}
+
+.ponto {
+  @include focus-ring;
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid #fff;
+  box-shadow: var(--shadow-sm);
+  cursor: grab;
+  touch-action: none;
+
+  &:active { cursor: grabbing; }
+
+  // Vértice (a articulação medida) em destaque — é o ponto que ancora o ângulo.
+  &--vertice {
+    width: 20px;
+    height: 20px;
+    background: var(--warning-fg);
+  }
+}
+
+.angulo {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  transform: translate(calc(-50% + 24px), -50%);
+  padding: 2px 8px;
+  border-radius: $radius-pill;
+  background: var(--bg-elevated);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  font-size: $fs-xs;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  flex-wrap: wrap;
+}
+
+.dica {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.trocar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: none;
+  background: transparent;
+  border-radius: $radius-sm;
+  color: var(--text-secondary);
+  font-size: $fs-xs;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  svg { width: 13px; height: 13px; }
+
+  &:hover { background: var(--glass-bg-hover); color: var(--danger-fg); }
+}

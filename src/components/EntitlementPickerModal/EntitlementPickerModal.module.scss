@@ -1,0 +1,39 @@
+@use '../../styles/mixins' as *;
+
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  margin: 0;
+  padding: 0;
+}
+
+.item {
+  @include focus-ring;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  background: var(--glass-bg);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover { background: var(--glass-bg-hover); border-color: var(--primary); }
+}
+
+.itemName {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.itemMeta {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}

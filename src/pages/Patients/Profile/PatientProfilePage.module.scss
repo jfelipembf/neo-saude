@@ -125,10 +125,10 @@
   color: var(--text-secondary);
 }
 
-// Ações rápidas de contato (Ligar / WhatsApp), lado a lado e na largura toda.
+// Ações rápidas (Ligar / WhatsApp / Comprar) — só ícone, mesmo tamanho
+// (btn--icon-only já fixa a largura), lado a lado sem esticar.
 .acoesContato {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
   gap: $sp-2;
 }
 

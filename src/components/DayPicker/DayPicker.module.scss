@@ -1,0 +1,39 @@
+@use '../../styles/mixins' as *;
+
+.wrap {
+  @include field-root;
+}
+
+.label {
+  @include field-label;
+}
+
+.days {
+  display: flex;
+  gap: $sp-2;
+}
+
+.day {
+  @include focus-ring;
+  flex: 1;
+  padding: $sp-2 $sp-1;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-sm;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: $fs-xs;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  &:hover { border-color: var(--primary); color: var(--text-primary); }
+}
+
+.day--on {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+
+  &:hover { background: var(--primary); color: #fff; }
+}

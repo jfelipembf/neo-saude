@@ -1,0 +1,219 @@
+@use '../../../styles/mixins' as *;
+
+// ── Contêiner: duas colunas (catálogo+pagamento | carrinho) ──────────────────
+.pdv {
+  display: flex;
+  align-items: flex-start;
+  gap: $sp-4;
+
+  @include mobile {
+    flex-direction: column;
+  }
+}
+
+.panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.cartCol {
+  width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+
+  @include mobile {
+    width: 100%;
+  }
+}
+
+.blockTitle {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.empty {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+  padding: $sp-3 0;
+}
+
+.erro {
+  font-size: $fs-sm;
+  color: var(--danger-fg);
+}
+
+// ── Painel de seleção: data/desconto + grade de catálogo ─────────────────────
+.saleGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.catalog {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+// Serviço escolhido (no dropdown, ou o único disponível) — valor já visível
+// antes de adicionar ao carrinho.
+.catalogSelected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  padding: $sp-3;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+}
+
+.catalogSelectedInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.catalogName {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.catalogDetail {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.catalogPrice {
+  margin-top: $sp-1;
+  font-size: $fs-sm;
+  font-weight: 700;
+  color: var(--primary-fg, var(--primary));
+}
+
+// ── Formulário de pagamento ──────────────────────────────────────────────────
+.payForm {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding: $sp-3;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+}
+
+.payGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
+.payFooter {
+  display: flex;
+  justify-content: flex-end;
+}
+
+// ── Carrinho (resumo da venda) ────────────────────────────────────────────────
+.cart {
+  @include card;
+  padding: $sp-4;
+  gap: $sp-3;
+}
+
+.cartTitle {
+  font-size: $fs-md;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cartSection {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.lineItem {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  padding: $sp-1 0;
+  border-bottom: 1px solid var(--glass-border);
+
+  &:last-child { border-bottom: none; }
+}
+
+.lineName {
+  flex: 1;
+  min-width: 0;
+  font-size: $fs-sm;
+  color: var(--text-primary);
+}
+
+.lineValue {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  border-radius: $radius-sm;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover { background: color-mix(in srgb, var(--danger-fg) 12%, transparent); color: var(--danger-fg); }
+
+  svg { width: 14px; height: 14px; }
+}
+
+.totals {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  padding-top: $sp-2;
+  border-top: 1px solid var(--glass-border);
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.totalFinal {
+  font-size: $fs-md;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.chipPago {
+  color: var(--success-fg);
+}

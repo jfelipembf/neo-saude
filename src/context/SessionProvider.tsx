@@ -99,10 +99,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       setSession(newSession)
       if (newSession) {
+        // SIGNED_IN é a transição do login: liga `loading` até my_session() resolver,
+        // senão o FeatureGuard decide com `info` ainda null (fail-closed) e bloqueia
+        // por um instante — o "acesso restrito" que pisca antes de liberar. Os
+        // demais eventos (TOKEN_REFRESHED…) não mexem em `loading`: a sessão já
+        // está de pé, então recarregar as features em silêncio não deve interromper
+        // quem já está usando o app com um loader de tela cheia.
+        if (event === 'SIGNED_IN') setLoading(true)
         await loadSessionInfo()
+        if (event === 'SIGNED_IN') setLoading(false)
       } else {
         setInfo(null)
         setCurrentClinicId(null)

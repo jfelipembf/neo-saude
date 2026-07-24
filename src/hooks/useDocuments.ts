@@ -1,12 +1,27 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
-import { addDocument, listPatientDocuments, removeDocument, updateDocument } from '@/services/documentsService'
+import {
+  addDocument,
+  listAppointmentAttachments,
+  listPatientDocuments,
+  removeDocument,
+  updateDocument,
+} from '@/services/documentsService'
 import type { NewDocument } from '@/services/documentsService'
 
 export function usePatientDocuments(patientId: string) {
   return useQuery({
     queryKey: queryKeys.documents.byPatient(patientId),
     queryFn: () => listPatientDocuments(patientId),
+  })
+}
+
+/** Anexos de UMA sessão (coluna direita do AppointmentModal, fisioterapia). */
+export function useAppointmentAttachments(appointmentId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.documents.byAppointment(appointmentId ?? ''),
+    queryFn: () => listAppointmentAttachments(appointmentId as string),
+    enabled: !!appointmentId,
   })
 }
 

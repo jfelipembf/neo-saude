@@ -9,18 +9,28 @@ import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { ScheduleGrid } from '@/components/ScheduleGrid/ScheduleGrid'
 import type { ScheduleView } from '@/components/ScheduleGrid/ScheduleGrid'
 import { SCHEDULE_VIEW_OPTIONS } from '@/components/ScheduleGrid/scheduleOptions'
+import { ClassAttendanceModal } from '@/components/ClassAttendanceModal/ClassAttendanceModal'
 import { useAgendaAppointments } from '@/hooks/useSchedule'
 import { useSetAppointmentStatus } from '@/hooks/useAppointments'
 import { useProfessionals } from '@/hooks/useProfessionals'
 import { useAvailabilityTemplate, useBlockedSlots, useSaveBlockedSlots, useAbsences } from '@/hooks/useProfessionalAvailability'
+import { useClassGroups } from '@/hooks/useClassGroups'
+import {
+  useClassGroupEnrollmentCounts, useEnrollPatient, useEntitlementWeeklyLimit,
+  usePatientClassGroupEnrollments,
+} from '@/hooks/useClassGroupRoster'
+import { useRooms } from '@/hooks/useRooms'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePatientName } from '@/hooks/useDisplayNames'
 import { useOutsideClick } from '@/hooks/useOutsideClick'
 import { useToast } from '@/components/Toast/useToast'
+import { useSession } from '@/context/SessionProvider'
+import { getCurrentClinicId } from '@/lib/tenant'
 import { matchesSearch } from '@/utils/search'
 import { toIsoDate } from '@/utils/date'
+import { materializeClassGroupOccurrences } from '@/utils/classGroupOccurrences'
 import { IconSearch, IconFilter } from '@/components/icons'
-import type { AgendaAppointment } from '@/types/domain'
+import type { AgendaAppointment, ClassGroupOccurrence } from '@/types/domain'
 import styles from './ScheduleBoard.module.scss'
 
 /** Domingo da semana de `d` (a grade vai de Dom a Sáb; colunas começam na Seg). */
@@ -30,12 +40,23 @@ function weekStart(d: Date) {
 
 // Preferência "Sáb/Dom escondidos" persistida por navegador (mesmo padrão de
 // ThemeProvider.tsx) — string simples de dígitos separados por vírgula, sem
-// JSON, para não ter parse que quebre com um valor corrompido.
-const HIDDEN_WEEKDAYS_KEY = 'neo-saude-agenda-hidden-weekdays'
+// JSON, para não ter parse que quebre com um valor corrompido. POR CLÍNICA:
+// cada uma tem sua particularidade (uma atende sábado, outra não) — uma
+// chave só pro navegador vazava a preferência de uma clínica pra outra em
+// quem tem acesso a mais de uma.
+function hiddenWeekdaysKey(clinicId: string) {
+  return `neo-saude-agenda-hidden-weekdays:${clinicId}`
+}
 
-function loadHiddenWeekdays(): Set<number> {
-  const saved = localStorage.getItem(HIDDEN_WEEKDAYS_KEY) ?? ''
+function loadHiddenWeekdays(clinicId: string): Set<number> {
+  const saved = localStorage.getItem(hiddenWeekdaysKey(clinicId)) ?? ''
   return new Set(saved.split(',').filter(Boolean).map(Number))
+}
+
+interface EnrollTarget {
+  patientId: string
+  patientName: string
+  entitlementId: string
 }
 
 interface ScheduleBoardProps {
@@ -44,10 +65,20 @@ interface ScheduleBoardProps {
   /** Clique no "+" de uma célula vazia e disponível — só aparece com um
    *  profissional filtrado (é ele quem entra pré-preenchido no modal). */
   onQuickAdd?: (professionalId: string, dateIso: string, time: string) => void
+  /** Modo "Matricular" (veio do botão no perfil do paciente, via ?enroll=&
+   *  entitlement= — ver AgendaPage): clicar numa turma matricula esse
+   *  paciente direto, sem abrir a chamada. */
+  enrollTarget?: EnrollTarget
+  /** Matrícula concluída OU "Cancelar" no modo enrollTarget. */
+  onEnrollDone?: () => void
 }
 
 /** Grade de horários autocontida (controles + grid), reaproveitável em qualquer página. */
-export function ScheduleBoard({ onSelect, onQuickAdd }: ScheduleBoardProps) {
+export function ScheduleBoard({ onSelect, onQuickAdd, enrollTarget, onEnrollDone }: ScheduleBoardProps) {
+  // Módulo-level, igual services (ScheduleBoard só monta autenticado, sessão
+  // já resolvida) — evita lidar com o `info` ainda-nulo do SessionProvider.
+  const clinicId = getCurrentClinicId()
+  const { specialty } = useSession()
   const [view, setView] = useState<ScheduleView>('week')
   const [refDate, setRefDate] = useState(() => new Date())
   const [search, setSearch] = useState('')
@@ -73,10 +104,10 @@ export function ScheduleBoard({ onSelect, onQuickAdd }: ScheduleBoardProps) {
   // Dias (0=Dom, 6=Sáb) escondidos da grade — não filtra os agendamentos,
   // só as colunas exibidas (a marcação continua existindo na data real).
   // Persiste por navegador: reabrir a Agenda mantém a mesma escolha.
-  const [hiddenWeekdays, setHiddenWeekdays] = useState<Set<number>>(loadHiddenWeekdays)
+  const [hiddenWeekdays, setHiddenWeekdays] = useState<Set<number>>(() => loadHiddenWeekdays(clinicId))
   useEffect(() => {
-    localStorage.setItem(HIDDEN_WEEKDAYS_KEY, [...hiddenWeekdays].join(','))
-  }, [hiddenWeekdays])
+    localStorage.setItem(hiddenWeekdaysKey(clinicId), [...hiddenWeekdays].join(','))
+  }, [clinicId, hiddenWeekdays])
 
   const [filterOpen, setFilterOpen] = useState(false)
   const filterRef = useOutsideClick<HTMLDivElement>(() => setFilterOpen(false), filterOpen)
@@ -108,6 +139,88 @@ export function ScheduleBoard({ onSelect, onQuickAdd }: ScheduleBoardProps) {
   const toIso = toIsoDate(new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6))
   const { data: appointments = [], isLoading } = useAgendaAppointments(fromIso, toIso)
   const toast = useToast()
+
+  // Turmas coletivas materializadas na semana visível — mesma cor do
+  // profissional responsável dos cards de consulta (ver ClassGroupCard).
+  const { data: classGroups = [] } = useClassGroups()
+  const { data: rooms = [] } = useRooms()
+  const { data: enrollmentCounts = new Map<string, number>() } = useClassGroupEnrollmentCounts()
+  const roomNameById = new Map(rooms.map(r => [r.id, r.name]))
+  const classOccurrences = materializeClassGroupOccurrences(classGroups, fromIso, toIso, roomNameById, enrollmentCounts)
+
+  // Chamada da turma (presença/falta + prontuário) — só fisioterapia (ver
+  // ClassAttendanceModal). Nas demais especialidades o card de turma não abre nada.
+  const [attendanceOccurrence, setAttendanceOccurrence] = useState<ClassGroupOccurrence | null>(null)
+
+  // ── Modo "Matricular" (enrollTarget) ──────────────────────────────────────
+  // Multi-seleção: clicar numa turma ALTERNA ela na seleção (sombra/selo no
+  // card, ver ClassGroupCard) — só matricula de fato ao clicar "Matricular
+  // (N)". Turma que o paciente já cursa nem entra na seleção (aviso).
+  const { mutateAsync: enrollAsync, isPending: enrollingFromAgenda } = useEnrollPatient()
+  const { data: currentEnrollments = [] } = usePatientClassGroupEnrollments(enrollTarget?.patientId ?? '')
+  const { data: weeklyLimit } = useEntitlementWeeklyLimit(enrollTarget?.entitlementId ?? '')
+  const [selectedClassGroupIds, setSelectedClassGroupIds] = useState<Set<string>>(new Set())
+  const [confirmingEnroll, setConfirmingEnroll] = useState(false)
+
+  // Troca de paciente/entitlement (outro "Matricular" clicado) — zera a
+  // seleção em rascunho, ela é só desta rodada.
+  useEffect(() => {
+    setSelectedClassGroupIds(new Set())
+  }, [enrollTarget?.patientId, enrollTarget?.entitlementId])
+
+  const alreadyEnrolledGroupIds = new Set(currentEnrollments.map(e => e.classGroupId))
+  // Sessões/semana já ocupadas pelo MESMO contrato (entitlement) desta rodada
+  // — outro contrato do paciente não conta pro limite deste. Cada ClassGroup
+  // é UM dia (ver domain.ts), então sessão selecionada = dia usado.
+  const weeklyUsed = currentEnrollments.filter(e => e.entitlementId === enrollTarget?.entitlementId).length
+  const selectedWeekly = selectedClassGroupIds.size
+
+  // Clique num card de turma: no modo "Matricular" alterna a seleção
+  // (respeitando o limite semanal do contrato). Fora desse modo, abre a
+  // chamada normal (só fisioterapia).
+  function handleClassCardClick(occurrence: ClassGroupOccurrence) {
+    if (!enrollTarget) { setAttendanceOccurrence(occurrence); return }
+
+    if (alreadyEnrolledGroupIds.has(occurrence.classGroupId)) {
+      toast.info('Paciente já matriculado nesta turma.')
+      return
+    }
+
+    setSelectedClassGroupIds(prev => {
+      const next = new Set(prev)
+      if (next.has(occurrence.classGroupId)) { next.delete(occurrence.classGroupId); return next }
+
+      if (weeklyLimit != null && weeklyUsed + selectedWeekly + 1 > weeklyLimit) {
+        toast.info(`Limite semanal do contrato (${weeklyLimit} dia${weeklyLimit > 1 ? 's' : ''}/semana) seria excedido.`)
+        return prev
+      }
+      next.add(occurrence.classGroupId)
+      return next
+    })
+  }
+
+  function handleCancelEnroll() {
+    setSelectedClassGroupIds(new Set())
+    onEnrollDone?.()
+  }
+
+  async function handleConfirmEnroll() {
+    if (!enrollTarget || selectedClassGroupIds.size === 0) return
+    setConfirmingEnroll(true)
+    const ids = [...selectedClassGroupIds]
+    const results = await Promise.allSettled(ids.map(classGroupId => enrollAsync({
+      classGroupId,
+      dateIso: classOccurrences.find(o => o.classGroupId === classGroupId)?.date ?? toIsoDate(new Date()),
+      patientId: enrollTarget.patientId,
+      entitlementId: enrollTarget.entitlementId,
+    })))
+    setConfirmingEnroll(false)
+    const okCount = results.filter(r => r.status === 'fulfilled').length
+    const failCount = results.length - okCount
+    if (okCount > 0) toast.success(`Matriculado em ${okCount} turma${okCount > 1 ? 's' : ''}!`)
+    if (failCount > 0) toast.error(failCount === 1 ? 'Uma turma não pôde ser matriculada.' : 'Algumas turmas não puderam ser matriculadas.')
+    if (failCount === 0) { setSelectedClassGroupIds(new Set()); onEnrollDone?.() }
+  }
 
   // ── Bloqueio de hora específica e ausência por período ────────────────────
   // Vencem a disponibilidade recorrente (ver ScheduleGrid.tsx isAvailable).
@@ -210,6 +323,9 @@ export function ScheduleBoard({ onSelect, onQuickAdd }: ScheduleBoardProps) {
   const byProfessional = professionalId
     ? appointments.filter(s => s.professionalId === professionalId)
     : appointments
+  const visibleClassOccurrences = professionalId
+    ? classOccurrences.filter(o => o.professionalId === professionalId)
+    : classOccurrences
 
   // Busca por paciente: some com os demais cards e ficam só os agendamentos
   // dele na semana visível (nome normalizado — acento não atrapalha).
@@ -222,6 +338,41 @@ export function ScheduleBoard({ onSelect, onQuickAdd }: ScheduleBoardProps) {
 
   return (
     <div className={styles.board}>
+      {enrollTarget && (
+        <div className={styles.enrollBar}>
+          <div className={styles.enrollBarTop}>
+            <span className={styles.enrollBarText}>
+              Matriculando <strong>{enrollTarget.patientName}</strong> — clique numa ou mais turmas na agenda
+              {selectedClassGroupIds.size > 0 ? ` (${selectedClassGroupIds.size} selecionada${selectedClassGroupIds.size > 1 ? 's' : ''})` : ''} e confirme.
+              {weeklyLimit != null && ` Limite do contrato: ${weeklyUsed + selectedWeekly}/${weeklyLimit} dias/semana.`}
+            </span>
+            <div className={styles.enrollBarActions}>
+              <Button variant="ghost" disabled={confirmingEnroll} onClick={handleCancelEnroll}>Cancelar</Button>
+              <Button
+                disabled={selectedClassGroupIds.size === 0}
+                loading={confirmingEnroll || enrollingFromAgenda}
+                onClick={handleConfirmEnroll}
+              >
+                Matricular{selectedClassGroupIds.size > 0 ? ` (${selectedClassGroupIds.size})` : ''}
+              </Button>
+            </div>
+          </div>
+
+          {currentEnrollments.length > 0 && (
+            <div className={styles.enrollCurrent}>
+              <span className={styles.enrollCurrentLabel}>Turmas matriculadas:</span>
+              <div className={styles.enrollCurrentList}>
+                {currentEnrollments.map(e => (
+                  <span key={e.enrollmentId} className={styles.enrollChip}>
+                    {e.classGroupName}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className={styles.controls}>
         <Select
           size="md"
@@ -304,6 +455,9 @@ export function ScheduleBoard({ onSelect, onQuickAdd }: ScheduleBoardProps) {
 
       <ScheduleGrid
         appointments={visible}
+        classOccurrences={visibleClassOccurrences}
+        onSelectClass={enrollTarget || specialty === 'physiotherapy' ? handleClassCardClick : undefined}
+        selectedClassGroupIds={enrollTarget ? selectedClassGroupIds : undefined}
         view={view}
         referenceDate={refDate}
         hiddenWeekdays={effectiveHiddenWeekdays}
@@ -355,6 +509,8 @@ export function ScheduleBoard({ onSelect, onQuickAdd }: ScheduleBoardProps) {
           onChange={e => setBlockReason(e.target.value)}
         />
       </ConfirmDialog>
+
+      <ClassAttendanceModal occurrence={attendanceOccurrence} onClose={() => setAttendanceOccurrence(null)} />
     </div>
   )
 }

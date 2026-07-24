@@ -1,9 +1,126 @@
 @use '../../styles/mixins' as *;
 
+// ── Duas colunas: formulário à esquerda, prontuário da sessão à direita
+//    (fisioterapia, só com a sessão já salva — ver AppointmentModal.tsx). ──
+.layout {
+  display: flex;
+  gap: $sp-5;
+  align-items: flex-start;
+
+  @include mobile {
+    flex-direction: column;
+  }
+}
+
 .corpo {
   display: flex;
   flex-direction: column;
   gap: $sp-4;
+  flex: 1 1 380px;
+  min-width: 0;
+}
+
+.colDireita {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  width: 480px;
+  flex-shrink: 0;
+  padding-left: $sp-5;
+  border-left: 1px solid var(--glass-border);
+
+  @include mobile {
+    width: 100%;
+    padding-left: 0;
+    padding-top: $sp-4;
+    border-left: none;
+    border-top: 1px solid var(--glass-border);
+  }
+}
+
+.prontuarioRotulo {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.prontuarioVazio {
+  padding: $sp-4;
+  border: 1px dashed var(--glass-border);
+  border-radius: $radius-md;
+  font-size: $fs-sm;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.prontuarioAcoes {
+  display: flex;
+  justify-content: flex-end;
+}
+
+// ── Anexos da sessão (imagem em anexo, separado do texto) ────────────────────
+.anexos {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.anexosCabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.anexosLista {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.anexo {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  padding: $sp-2;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-sm;
+}
+
+.anexoPreview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: $radius-sm;
+  overflow: hidden;
+  background: var(--field-bg);
+  color: var(--text-muted);
+
+  img { width: 100%; height: 100%; object-fit: cover; }
+  svg { width: 16px; height: 16px; }
+}
+
+.anexoNome {
+  flex: 1;
+  min-width: 0;
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.anexoInputArquivo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 
 // ── Busca de paciente com sugestões ──────────────────────────────────────────
@@ -118,19 +235,23 @@
 .situacaoChip--no_show.situacaoChip--ativa   { background: var(--warning-fg); }
 .situacaoChip--canceled.situacaoChip--ativa  { background: var(--danger-fg); }
 
-// ── Cabeçalho do paciente (topo do modal) ────────────────────────────────────
+// ── Cabeçalho do paciente (topo do modal) — cartão próprio ───────────────────
 .paciente {
   display: flex;
   align-items: center;
-  gap: $sp-3;
+  gap: $sp-4;
+  padding: $sp-4;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
 }
 
 .pacienteFoto {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   flex-shrink: 0;
   overflow: hidden;
   border-radius: 50%;
@@ -149,12 +270,12 @@
 .pacienteInfo {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
 .pacienteNome {
-  font-size: $fs-md;
+  font-size: $fs-lg;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -162,7 +283,8 @@
 .pacienteContatos {
   display: flex;
   flex-wrap: wrap;
-  gap: $sp-3;
+  column-gap: $sp-4;
+  row-gap: 2px;
 }
 
 .pacienteContato {
@@ -173,13 +295,7 @@
   color: var(--text-secondary);
   word-break: break-word;
 
-  svg { width: 14px; height: 14px; flex-shrink: 0; }
-}
-
-.divisor {
-  height: 1px;
-  background: var(--glass-border);
-  margin: 2px 0;
+  svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-muted); }
 }
 
 // Botão de WhatsApp no rodapé — verde da marca no ícone.

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
@@ -18,31 +18,45 @@ const TreatmentsPanel = lazy(() =>
 )
 import { DocumentsUpload } from '@/components/DocumentsUpload/DocumentsUpload'
 import { AnamnesisTab } from './Anamnesis/AnamnesisTab'
+import { PatientTestsPanel } from './Tests/PatientTestsPanel'
+import { PatientClinicalNotesPanel } from './ClinicalNotes/PatientClinicalNotesPanel'
+import { PatientEnrollmentsPanel } from './Enrollments/PatientEnrollmentsPanel'
+import { SalesPointModal } from '@/pages/Sales/SalesPoint/SalesPointModal'
 import { BudgetsPanel } from '@/components/BudgetsPanel/BudgetsPanel'
 import { PrescriptionsPanel } from '@/components/PrescriptionsPanel/PrescriptionsPanel'
+import { EntitlementPickerModal } from '@/components/EntitlementPickerModal/EntitlementPickerModal'
 import { useToast } from '@/components/Toast/useToast'
-import { SEX_OPTIONS, SEX_LABEL } from '@/constants'
+import { SEX_OPTIONS, SEX_LABEL, APP_ROUTES } from '@/constants'
 import { useInsuranceOptions } from '@/hooks/useInsurances'
+import { usePatientEntitlements } from '@/hooks/usePatientEntitlements'
 import { queryKeys } from '@/lib/queryKeys'
 import { getPatient } from '@/services/patientsService'
 import { useUpdatePatient, useUpdatePatientPhoto } from '@/hooks/usePatients'
 import { uploadImage } from '@/lib/storage'
-import { IconUser, IconEdit, IconPhone, IconMessage, IconEmail, IconCamera } from '@/components/icons'
+import { IconUser, IconEdit, IconPhone, IconMessage, IconEmail, IconCamera, IconCart, IconPlus } from '@/components/icons'
 import { initials, digitsOnly } from '@/utils/text'
+import { isEntitlementActive } from '@/utils/entitlements'
 import { useSession } from '@/context/SessionProvider'
 import { appliesToSpecialty } from '@/constants/specialty'
-import type { Patient, Gender, ClinicSpecialty } from '@/types/domain'
+import type { Patient, Gender, ClinicSpecialty, PatientServiceEntitlement } from '@/types/domain'
 import styles from './PatientProfilePage.module.scss'
 
-type TabKey = 'personal' | 'anamnesis' | 'treatment' | 'quotes' | 'prescriptions' | 'payments' | 'documents'
+type TabKey =
+  | 'personal' | 'anamnesis' | 'treatment' | 'quotes' | 'tests' | 'clinicalNotes' | 'enrollments'
+  | 'prescriptions' | 'payments' | 'documents'
 
-// `specialties` restringe a aba a certos ramos (ver constants/specialty). Ausente
-// = núcleo (todo ramo). Tratamento hoje é o odontograma → só odontologia.
-const TABS: { key: TabKey; label: string; specialties?: ClinicSpecialty[] }[] = [
+// `specialties`/`excludeSpecialties` restringem a aba a certos ramos (ver
+// constants/specialty). Ausente = núcleo (todo ramo). Tratamento hoje é o
+// odontograma → só odontologia. Orçamentos não faz sentido em fisioterapia
+// (vira a aba Testes, com os testes/escalas de avaliação do paciente).
+const TABS: { key: TabKey; label: string; specialties?: ClinicSpecialty[]; excludeSpecialties?: ClinicSpecialty[] }[] = [
   { key: 'personal',       label: 'Dados pessoais' },
   { key: 'anamnesis',    label: 'Anamnese' },
   { key: 'treatment',  label: 'Tratamento', specialties: ['dentistry'] },
-  { key: 'quotes',  label: 'Orçamentos' },
+  { key: 'quotes',  label: 'Orçamentos', excludeSpecialties: ['physiotherapy'] },
+  { key: 'tests',  label: 'Testes', specialties: ['physiotherapy'] },
+  { key: 'clinicalNotes',  label: 'Prontuários', specialties: ['physiotherapy'] },
+  { key: 'enrollments',  label: 'Matrículas', specialties: ['physiotherapy'] },
   { key: 'prescriptions', label: 'Prescrições' },
   { key: 'payments',  label: 'Pagamentos' },
   { key: 'documents',  label: 'Documentos' },
@@ -88,6 +102,7 @@ function formFromPatient(p: Patient): PatientFormState {
 
 export function PatientProfilePage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const toast = useToast()
 
   const { data: patient, isLoading } = useQuery({
@@ -101,12 +116,31 @@ export function PatientProfilePage() {
   const { specialty } = useSession()
   // Abas visíveis para o ramo da clínica (Tratamento/odontograma só em odontologia).
   const visibleTabs = TABS.filter(t => appliesToSpecialty(specialty, t))
+  // Carrinho de compras: só fisioterapia (pacotes de sessão) — ver Ponto de Venda.
+  const showCart = appliesToSpecialty(specialty, { specialties: ['physiotherapy'] })
+  const { data: entitlements } = usePatientEntitlements(showCart ? (id ?? '') : '')
+  // Matricular exige pelo menos um pacote/plano ativo — é ele que justifica a
+  // matrícula e define até quando ela vale (ver classGroupRosterService.ts).
+  const activeEntitlements = (entitlements ?? []).filter(isEntitlementActive)
 
   const [tab, setTab] = useState<TabKey>('personal')
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<PatientFormState | null>(null)
   const [nameError, setNameError] = useState('')
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [salesOpen, setSalesOpen] = useState(false)
+  const [entitlementPickerOpen, setEntitlementPickerOpen] = useState(false)
+
+  function goEnrollWithEntitlement(entitlement: PatientServiceEntitlement) {
+    setEntitlementPickerOpen(false)
+    navigate(`${APP_ROUTES.SCHEDULE}?enroll=${id}&entitlement=${entitlement.id}`)
+  }
+
+  function handleMatricular() {
+    if (activeEntitlements.length === 0) return
+    if (activeEntitlements.length === 1) { goEnrollWithEntitlement(activeEntitlements[0]); return }
+    setEntitlementPickerOpen(true)
+  }
 
   // Zona de cabeçalho compartilhada: fica no lugar em QUALQUER estado da página
   // (carregando, não encontrado, conteúdo) — o breadcrumb nunca pula.
@@ -302,27 +336,66 @@ export function PatientProfilePage() {
             </p>
           </div>
 
-          {/* Ações rápidas: ligar e chamar no WhatsApp. */}
+          {/* Ações rápidas: ligar e chamar no WhatsApp (+ carrinho, só fisioterapia). */}
           <div className={styles.acoesContato}>
             <Button
               variant="outline"
               iconLeft={<IconPhone />}
               disabled={!patient.phone}
+              title="Ligar"
+              aria-label="Ligar para o paciente"
               onClick={() => { window.location.href = `tel:+55${digitsOnly(patient.phone)}` }}
-            >
-              Ligar
-            </Button>
+            />
             <Button
               iconLeft={<IconMessage />}
               disabled={!(patient.whatsapp ?? patient.phone)}
+              title="WhatsApp"
+              aria-label="Abrir WhatsApp do paciente"
               onClick={() =>
                 // WhatsApp cadastrado ou o próprio celular.
                 window.open(`https://wa.me/55${digitsOnly(patient.whatsapp ?? patient.phone)}`, '_blank')
               }
-            >
-              WhatsApp
-            </Button>
+            />
+            {showCart && (
+              <Button
+                variant="outline"
+                iconLeft={<IconCart />}
+                title="Comprar"
+                aria-label="Abrir Ponto de Venda"
+                onClick={() => setSalesOpen(true)}
+              />
+            )}
+            {showCart && (
+              <Button
+                variant="outline"
+                iconLeft={<IconPlus />}
+                disabled={activeEntitlements.length === 0}
+                title={activeEntitlements.length === 0 ? 'O paciente precisa de um pacote ou plano ativo' : 'Matricular numa turma'}
+                onClick={handleMatricular}
+              >
+                Matricular
+              </Button>
+            )}
           </div>
+
+          {showCart && entitlements && entitlements.length > 0 && (
+            <div className={styles.bloco}>
+              <h3 className={styles.blocoTitulo}>Pacotes</h3>
+              <ul className={styles.contatos}>
+                {entitlements.map(e => (
+                  <li key={e.id} className={styles.contato}>
+                    <span className={styles.contatoTexto}>
+                      <span className={styles.contatoLabel}>{e.serviceName}</span>
+                      <span className={styles.contatoValor}>
+                        {e.remaining > 0 ? `${e.remaining} de ${e.totalSessions} restantes` : 'Esgotado'}
+                        {e.expiresAt ? ` · válido até ${e.expiresAt}` : ''}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className={styles.bloco}>
             <h3 className={styles.blocoTitulo}>Contato</h3>
@@ -450,6 +523,15 @@ export function PatientProfilePage() {
           {tab === 'quotes' && (
             <BudgetsPanel patientId={patient.id} patientName={patient.name} />
           )}
+          {tab === 'tests' && (
+            <PatientTestsPanel patientId={patient.id} />
+          )}
+          {tab === 'clinicalNotes' && (
+            <PatientClinicalNotesPanel patientId={patient.id} />
+          )}
+          {tab === 'enrollments' && (
+            <PatientEnrollmentsPanel patientId={patient.id} />
+          )}
           {tab === 'prescriptions' && (
             <PrescriptionsPanel patientId={patient.id} patientName={patient.name} />
           )}
@@ -459,6 +541,19 @@ export function PatientProfilePage() {
           {tab === 'documents' && <DocumentsUpload patientId={patient.id} />}
         </div>
       </div>
+
+      {showCart && (
+        <SalesPointModal open={salesOpen} onClose={() => setSalesOpen(false)} patientId={patient.id} />
+      )}
+
+      {showCart && (
+        <EntitlementPickerModal
+          open={entitlementPickerOpen}
+          patientId={patient.id}
+          onClose={() => setEntitlementPickerOpen(false)}
+          onPick={goEnrollWithEntitlement}
+        />
+      )}
     </>
   )
 }

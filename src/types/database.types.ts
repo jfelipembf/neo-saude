@@ -1,7 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// ARQUIVO GERADO — não edite à mão. Regenere após QUALQUER migration com:
-//   npx supabase gen types typescript --project-id cchbamuhjvxxayokklux > src/types/database.types.ts
-// ─────────────────────────────────────────────────────────────────────────────
 export type Json =
   | string
   | number
@@ -598,11 +594,13 @@ export type Database = {
       appointment: {
         Row: {
           clinic_id: string
+          clinical_note_html: string | null
           color: string | null
           created_at: string
           date: string
           duration_minutes: number
           ends_at: string | null
+          entitlement_id: string | null
           id: string
           notes: string | null
           patient_id: string
@@ -618,11 +616,13 @@ export type Database = {
         }
         Insert: {
           clinic_id: string
+          clinical_note_html?: string | null
           color?: string | null
           created_at?: string
           date: string
           duration_minutes?: number
           ends_at?: string | null
+          entitlement_id?: string | null
           id?: string
           notes?: string | null
           patient_id: string
@@ -638,11 +638,13 @@ export type Database = {
         }
         Update: {
           clinic_id?: string
+          clinical_note_html?: string | null
           color?: string | null
           created_at?: string
           date?: string
           duration_minutes?: number
           ends_at?: string | null
+          entitlement_id?: string | null
           id?: string
           notes?: string | null
           patient_id?: string
@@ -663,6 +665,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clinic"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_entitlement_fk"
+            columns: ["entitlement_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "patient_service_entitlement"
+            referencedColumns: ["id", "clinic_id"]
           },
           {
             foreignKeyName: "appointment_patient_fk"
@@ -1142,6 +1151,206 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profile"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_group: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          duration_minutes: number
+          end_date: string | null
+          id: string
+          max_capacity: number
+          name: string
+          professional_id: string | null
+          room_id: string | null
+          start_date: string
+          start_time: string
+          updated_at: string
+          weekday: number
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          duration_minutes: number
+          end_date?: string | null
+          id?: string
+          max_capacity: number
+          name: string
+          professional_id?: string | null
+          room_id?: string | null
+          start_date: string
+          start_time: string
+          updated_at?: string
+          weekday: number
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          duration_minutes?: number
+          end_date?: string | null
+          id?: string
+          max_capacity?: number
+          name?: string
+          professional_id?: string | null
+          room_id?: string | null
+          start_date?: string
+          start_time?: string
+          updated_at?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_group_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_group_professional_fk"
+            columns: ["professional_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "professional"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "class_group_professional_fk"
+            columns: ["professional_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "professional_directory"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "class_group_room_fk"
+            columns: ["room_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "room"
+            referencedColumns: ["id", "clinic_id"]
+          },
+        ]
+      }
+      class_group_attendance: {
+        Row: {
+          class_group_id: string
+          clinic_id: string
+          clinical_note_html: string | null
+          created_at: string
+          id: string
+          justification: string | null
+          occurred_on: string
+          patient_id: string
+          status: Database["public"]["Enums"]["class_attendance_status"]
+          updated_at: string
+        }
+        Insert: {
+          class_group_id: string
+          clinic_id: string
+          clinical_note_html?: string | null
+          created_at?: string
+          id?: string
+          justification?: string | null
+          occurred_on: string
+          patient_id: string
+          status?: Database["public"]["Enums"]["class_attendance_status"]
+          updated_at?: string
+        }
+        Update: {
+          class_group_id?: string
+          clinic_id?: string
+          clinical_note_html?: string | null
+          created_at?: string
+          id?: string
+          justification?: string | null
+          occurred_on?: string
+          patient_id?: string
+          status?: Database["public"]["Enums"]["class_attendance_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_group_attendance_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_group_attendance_group_fk"
+            columns: ["class_group_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "class_group"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "class_group_attendance_patient_fk"
+            columns: ["patient_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "patient"
+            referencedColumns: ["id", "clinic_id"]
+          },
+        ]
+      }
+      class_group_enrollment: {
+        Row: {
+          class_group_id: string
+          clinic_id: string
+          created_at: string
+          enrolled_at: string
+          entitlement_id: string
+          id: string
+          patient_id: string
+          updated_at: string
+        }
+        Insert: {
+          class_group_id: string
+          clinic_id: string
+          created_at?: string
+          enrolled_at?: string
+          entitlement_id: string
+          id?: string
+          patient_id: string
+          updated_at?: string
+        }
+        Update: {
+          class_group_id?: string
+          clinic_id?: string
+          created_at?: string
+          enrolled_at?: string
+          entitlement_id?: string
+          id?: string
+          patient_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_group_enrollment_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_group_enrollment_entitlement_fk"
+            columns: ["entitlement_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "patient_service_entitlement"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "class_group_enrollment_group_fk"
+            columns: ["class_group_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "class_group"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "class_group_enrollment_patient_fk"
+            columns: ["patient_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "patient"
+            referencedColumns: ["id", "clinic_id"]
           },
         ]
       }
@@ -1802,6 +2011,7 @@ export type Database = {
       }
       patient_document: {
         Row: {
+          appointment_id: string | null
           clinic_id: string
           created_at: string
           description: string | null
@@ -1816,6 +2026,7 @@ export type Database = {
           uploaded_by: string | null
         }
         Insert: {
+          appointment_id?: string | null
           clinic_id: string
           created_at?: string
           description?: string | null
@@ -1830,6 +2041,7 @@ export type Database = {
           uploaded_by?: string | null
         }
         Update: {
+          appointment_id?: string | null
           clinic_id?: string
           created_at?: string
           description?: string | null
@@ -1844,6 +2056,13 @@ export type Database = {
           uploaded_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "patient_document_appointment_fk"
+            columns: ["appointment_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "appointment"
+            referencedColumns: ["id", "clinic_id"]
+          },
           {
             foreignKeyName: "patient_document_clinic_id_fkey"
             columns: ["clinic_id"]
@@ -1864,6 +2083,211 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profile"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_service_entitlement: {
+        Row: {
+          clinic_id: string
+          expires_at: string | null
+          id: string
+          patient_id: string
+          purchased_at: string
+          sale_item_id: string
+          scheduled_sessions: number
+          service_id: string
+          total_sessions: number
+          used_sessions: number
+        }
+        Insert: {
+          clinic_id: string
+          expires_at?: string | null
+          id?: string
+          patient_id: string
+          purchased_at?: string
+          sale_item_id: string
+          scheduled_sessions?: number
+          service_id: string
+          total_sessions: number
+          used_sessions?: number
+        }
+        Update: {
+          clinic_id?: string
+          expires_at?: string | null
+          id?: string
+          patient_id?: string
+          purchased_at?: string
+          sale_item_id?: string
+          scheduled_sessions?: number
+          service_id?: string
+          total_sessions?: number
+          used_sessions?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entitlement_patient_fk"
+            columns: ["patient_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "patient"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "entitlement_sale_item_fk"
+            columns: ["sale_item_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "sale_item"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "entitlement_service_fk"
+            columns: ["service_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "service"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "patient_service_entitlement_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_test: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          id: string
+          patient_id: string
+          test_id: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          id?: string
+          patient_id: string
+          test_id: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          id?: string
+          patient_id?: string
+          test_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_test_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_test_patient_fk"
+            columns: ["patient_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "patient"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "patient_test_test_fk"
+            columns: ["test_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "physio_test"
+            referencedColumns: ["id", "clinic_id"]
+          },
+        ]
+      }
+      patient_test_result: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          id: string
+          image_url: string | null
+          level_description: string
+          level_id: string | null
+          level_name: string
+          measured_angle: number | null
+          measured_points: Json | null
+          patient_id: string
+          performed_at: string
+          professional_id: string | null
+          test_id: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          level_description: string
+          level_id?: string | null
+          level_name: string
+          measured_angle?: number | null
+          measured_points?: Json | null
+          patient_id: string
+          performed_at: string
+          professional_id?: string | null
+          test_id: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          level_description?: string
+          level_id?: string | null
+          level_name?: string
+          measured_angle?: number | null
+          measured_points?: Json | null
+          patient_id?: string
+          performed_at?: string
+          professional_id?: string | null
+          test_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_test_result_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_test_result_level_fk"
+            columns: ["level_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "physio_test_level"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "patient_test_result_patient_fk"
+            columns: ["patient_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "patient"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "patient_test_result_professional_fk"
+            columns: ["professional_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "professional"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "patient_test_result_professional_fk"
+            columns: ["professional_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "professional_directory"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "patient_test_result_test_fk"
+            columns: ["test_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "physio_test"
+            referencedColumns: ["id", "clinic_id"]
           },
         ]
       }
@@ -2056,6 +2480,101 @@ export type Database = {
             columns: ["payment_id", "clinic_id"]
             isOneToOne: false
             referencedRelation: "payment"
+            referencedColumns: ["id", "clinic_id"]
+          },
+        ]
+      }
+      physio_test: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          id: string
+          image_url: string | null
+          instructions: string | null
+          is_seed: boolean
+          kind: Database["public"]["Enums"]["physio_test_kind"]
+          name: string
+          specialty: string
+          updated_at: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          instructions?: string | null
+          is_seed?: boolean
+          kind?: Database["public"]["Enums"]["physio_test_kind"]
+          name: string
+          specialty: string
+          updated_at?: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          instructions?: string | null
+          is_seed?: boolean
+          kind?: Database["public"]["Enums"]["physio_test_kind"]
+          name?: string
+          specialty?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "physio_test_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      physio_test_level: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+          sort_order: number
+          test_id: string
+          updated_at: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          description: string
+          id?: string
+          name: string
+          sort_order?: number
+          test_id: string
+          updated_at?: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          test_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "physio_test_level_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "physio_test_level_test_fk"
+            columns: ["test_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "physio_test"
             referencedColumns: ["id", "clinic_id"]
           },
         ]
@@ -2915,10 +3434,13 @@ export type Database = {
       receivable: {
         Row: {
           acquirer_id: string | null
+          authorization_code: string | null
           auto_settle_blocked: boolean
           bank_account_id: string | null
+          card_brand: string | null
           clinic_id: string
           code: string
+          competence_date: string
           created_at: string
           debtor: Database["public"]["Enums"]["receivable_debtor"] | null
           description: string
@@ -2937,6 +3459,7 @@ export type Database = {
           quote_id: string | null
           received_amount: number
           received_at: string | null
+          sale_id: string | null
           source: string
           status: Database["public"]["Enums"]["payment_status"]
           treatment_session_id: string | null
@@ -2944,10 +3467,13 @@ export type Database = {
         }
         Insert: {
           acquirer_id?: string | null
+          authorization_code?: string | null
           auto_settle_blocked?: boolean
           bank_account_id?: string | null
+          card_brand?: string | null
           clinic_id: string
           code: string
+          competence_date?: string
           created_at?: string
           debtor?: Database["public"]["Enums"]["receivable_debtor"] | null
           description: string
@@ -2966,6 +3492,7 @@ export type Database = {
           quote_id?: string | null
           received_amount?: number
           received_at?: string | null
+          sale_id?: string | null
           source: string
           status?: Database["public"]["Enums"]["payment_status"]
           treatment_session_id?: string | null
@@ -2973,10 +3500,13 @@ export type Database = {
         }
         Update: {
           acquirer_id?: string | null
+          authorization_code?: string | null
           auto_settle_blocked?: boolean
           bank_account_id?: string | null
+          card_brand?: string | null
           clinic_id?: string
           code?: string
+          competence_date?: string
           created_at?: string
           debtor?: Database["public"]["Enums"]["receivable_debtor"] | null
           description?: string
@@ -2995,6 +3525,7 @@ export type Database = {
           quote_id?: string | null
           received_amount?: number
           received_at?: string | null
+          sale_id?: string | null
           source?: string
           status?: Database["public"]["Enums"]["payment_status"]
           treatment_session_id?: string | null
@@ -3044,6 +3575,13 @@ export type Database = {
             referencedColumns: ["id", "clinic_id"]
           },
           {
+            foreignKeyName: "receivable_sale_fk"
+            columns: ["sale_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "sale"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
             foreignKeyName: "receivable_session_fk"
             columns: ["treatment_session_id", "clinic_id"]
             isOneToOne: false
@@ -3084,6 +3622,122 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clinic"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      sale: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          created_by: string | null
+          discount: number
+          id: string
+          items_total: number
+          patient_id: string
+          sale_date: string
+          total: number | null
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          created_by?: string | null
+          discount?: number
+          id?: string
+          items_total?: number
+          patient_id: string
+          sale_date?: string
+          total?: number | null
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          created_by?: string | null
+          discount?: number
+          id?: string
+          items_total?: number
+          patient_id?: string
+          sale_date?: string
+          total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_patient_fk"
+            columns: ["patient_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "patient"
+            referencedColumns: ["id", "clinic_id"]
+          },
+        ]
+      }
+      sale_item: {
+        Row: {
+          amount: number | null
+          clinic_id: string
+          created_at: string
+          id: string
+          name: string
+          price: number
+          quantity: number
+          sale_id: string
+          service_id: string
+        }
+        Insert: {
+          amount?: number | null
+          clinic_id: string
+          created_at?: string
+          id?: string
+          name: string
+          price: number
+          quantity?: number
+          sale_id: string
+          service_id: string
+        }
+        Update: {
+          amount?: number | null
+          clinic_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          price?: number
+          quantity?: number
+          sale_id?: string
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_item_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_item_sale_fk"
+            columns: ["sale_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "sale"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "sale_item_service_fk"
+            columns: ["service_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "service"
+            referencedColumns: ["id", "clinic_id"]
           },
         ]
       }
@@ -4035,8 +4689,17 @@ export type Database = {
         Returns: Database["public"]["Enums"]["session_billing_status"]
       }
       cash_flow: { Args: { p_days?: number }; Returns: Json }
+      checkout_sale: {
+        Args: {
+          p_discount: number
+          p_items: Json
+          p_patient: string
+          p_plan: Json
+          p_sale_date: string
+        }
+        Returns: string
+      }
       convert_lead_to_patient: { Args: { p_lead: string }; Returns: Json }
-      dashboard_stats: { Args: never; Returns: Json }
       dashboard_stats_period: {
         Args: {
           p_from: string
@@ -4281,8 +4944,6 @@ export type Database = {
     }
     Enums: {
       active_status: "active" | "inactive"
-      duration_unit: "days" | "weeks" | "months"
-      service_modality: "common" | "package"
       anamnesis_input_type: "options" | "text" | "longText"
       anamnesis_status: "active" | "archived"
       appointment_status:
@@ -4302,6 +4963,7 @@ export type Database = {
       bank_account_type: "checking" | "savings" | "cash"
       billing_cycle: "monthly" | "yearly"
       cash_movement_type: "inflow" | "outflow"
+      class_attendance_status: "present" | "absent"
       clinic_specialty:
         | "dentistry"
         | "physiotherapy"
@@ -4313,6 +4975,7 @@ export type Database = {
       commission_base: "received" | "performed"
       commission_payout: "fixed_day" | "per_visit"
       commission_type: "percentage" | "fixed"
+      duration_unit: "days" | "weeks" | "months"
       gender: "male" | "female"
       goal_metric:
         | "appointments_scheduled"
@@ -4330,6 +4993,7 @@ export type Database = {
         | "pix"
         | "wire"
       payment_status: "paid" | "pending" | "overdue" | "canceled"
+      physio_test_kind: "scale" | "goniometry" | "line" | "distance"
       prescription_type:
         | "prescription"
         | "clinical_record"
@@ -4338,6 +5002,7 @@ export type Database = {
       quote_status: "pending" | "approved"
       receivable_debtor: "payer" | "acquirer"
       schedule_slot_status: "active" | "canceled"
+      service_modality: "common" | "package"
       session_billing_status: "unbilled" | "billed" | "covered" | "not_billable"
       subscription_status: "active" | "past_due" | "canceled"
       task_priority: "high" | "medium" | "low"
@@ -4472,8 +5137,6 @@ export const Constants = {
   public: {
     Enums: {
       active_status: ["active", "inactive"],
-      duration_unit: ["days", "weeks", "months"],
-      service_modality: ["common", "package"],
       anamnesis_input_type: ["options", "text", "longText"],
       anamnesis_status: ["active", "archived"],
       appointment_status: [
@@ -4495,6 +5158,7 @@ export const Constants = {
       bank_account_type: ["checking", "savings", "cash"],
       billing_cycle: ["monthly", "yearly"],
       cash_movement_type: ["inflow", "outflow"],
+      class_attendance_status: ["present", "absent"],
       clinic_specialty: [
         "dentistry",
         "physiotherapy",
@@ -4507,6 +5171,7 @@ export const Constants = {
       commission_base: ["received", "performed"],
       commission_payout: ["fixed_day", "per_visit"],
       commission_type: ["percentage", "fixed"],
+      duration_unit: ["days", "weeks", "months"],
       gender: ["male", "female"],
       goal_metric: [
         "appointments_scheduled",
@@ -4526,6 +5191,7 @@ export const Constants = {
         "wire",
       ],
       payment_status: ["paid", "pending", "overdue", "canceled"],
+      physio_test_kind: ["scale", "goniometry", "line", "distance"],
       prescription_type: [
         "prescription",
         "clinical_record",
@@ -4535,6 +5201,7 @@ export const Constants = {
       quote_status: ["pending", "approved"],
       receivable_debtor: ["payer", "acquirer"],
       schedule_slot_status: ["active", "canceled"],
+      service_modality: ["common", "package"],
       session_billing_status: ["unbilled", "billed", "covered", "not_billable"],
       subscription_status: ["active", "past_due", "canceled"],
       task_priority: ["high", "medium", "low"],

@@ -19,9 +19,10 @@ import type { Receivable } from '@/types/domain'
 import shared from '../shared/finance.module.scss'
 import styles from './SalesTab.module.scss'
 
-/** O que de fato ENTROU no título: a baixa parcial acumula em receivedAmount;
- *  sem ela, o líquido é bruto − taxa (o caso da venda quitada de uma vez). */
-const netOf = (c: Receivable) => c.receivedAmount ?? (c.grossAmount - c.fee)
+/** Líquido da venda = bruto − taxa da adquirente. É o valor ESPERADO da venda
+ *  (não o já recebido — este aparece no detalhe expandido): a aba agora lista
+ *  por competência, então uma venda pendente de repasse também tem líquido. */
+const netOf = (c: Receivable) => c.grossAmount - c.fee
 
 /** Um par rótulo/valor da grade de detalhes (aceita texto ou children, ex.: Badge). */
 function Campo({ label, valor, children }: { label: string; valor?: string; children?: ReactNode }) {
@@ -34,9 +35,11 @@ function Campo({ label, valor, children }: { label: string; valor?: string; chil
 }
 
 /**
- * Aba "Vendas": os recebíveis QUITADOS do período (mesmo seletor Hoje/Ontem/…
- * do Dashboard), com a quebra por forma de pagamento no topo e a tabela
- * expansível que abre TODOS os detalhes financeiros do título.
+ * Aba "Vendas": o que foi VENDIDO no período — regime de COMPETÊNCIA, pela
+ * data da venda (mesmo seletor Hoje/Ontem/… do Dashboard e MESMA definição do
+ * card "Faturamento"). Venda no cartão aparece no dia da venda, com status
+ * pendente até o repasse da adquirente cair (baixa automática do cron).
+ * A tabela expansível abre todos os detalhes financeiros do título.
  */
 export function SalesTab() {
   const [preset, setPreset] = useState<PeriodPreset>('today')
@@ -63,7 +66,7 @@ export function SalesTab() {
   const totalNet = list.reduce((s, c) => s + netOf(c), 0)
 
   const columns: TableColumn<Receivable>[] = [
-    { key: 'receivedAt', label: 'Recebimento', render: c => c.receivedAt ?? '—' },
+    { key: 'competenceDate', label: 'Data da venda', render: c => c.competenceDate || '—' },
     {
       key: 'patient', label: 'Paciente',
       // Venda sem paciente é legítima (repasse de convênio, aluguel) — traço, não vazio.
@@ -74,6 +77,14 @@ export function SalesTab() {
     { key: 'source', label: 'Origem' },
     { key: 'gross', label: 'Bruto', render: c => <span className={shared.valor}>{formatBRL(c.grossAmount)}</span> },
     { key: 'net', label: 'Líquido', render: c => <span className={`${shared.valor} ${shared.pos}`}>{formatBRL(netOf(c))}</span> },
+    // Cartão pendente de repasse: o PACIENTE já pagou (dívida é da adquirente)
+    // — o rótulo diz isso, em vez de um "Pendente" que soaria como inadimplência.
+    {
+      key: 'status', label: 'Status',
+      render: c => c.debtor === 'acquirer' && (c.status === 'pending' || c.status === 'overdue')
+        ? <Badge status="pending" label="Aguardando repasse" />
+        : <Badge status={c.status} />,
+    },
   ]
 
   return (
@@ -96,7 +107,7 @@ export function SalesTab() {
             columns={columns}
             data={pagination.visible}
             rowKey={c => c.id}
-            emptyMessage="Nenhuma venda recebida no período."
+            emptyMessage="Nenhuma venda no período."
             toolbar={
               <div className={styles.toolbar}>
                 <PerPageSelect perPage={pagination.perPage} onChange={pagination.setPerPage} />
@@ -108,6 +119,8 @@ export function SalesTab() {
                   <Campo label="Código" valor={c.code} />
                   <Campo label="Origem" valor={c.source} />
                   <Campo label="Forma de pagamento" valor={c.method ? PAYMENT_METHOD_LABEL[c.method] : '—'} />
+                  {c.cardBrand && <Campo label="Bandeira" valor={c.cardBrand} />}
+                  {c.authorizationCode && <Campo label="Autorização" valor={c.authorizationCode} />}
                   <Campo label="Parcela" valor={c.installmentNumber && c.installmentCount ? `${c.installmentNumber} de ${c.installmentCount}` : '—'} />
                   <Campo label="Vencimento" valor={c.dueDate || '—'} />
                   <Campo label="Recebimento" valor={c.receivedAt ?? '—'} />

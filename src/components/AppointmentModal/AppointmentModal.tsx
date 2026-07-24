@@ -1,22 +1,27 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/Button/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { Input } from '@/components/Input/Input'
 import { Modal } from '@/components/Modal/Modal'
+import { RichTextEditor } from '@/components/RichTextEditor/RichTextEditor'
 import { Select } from '@/components/Select/Select'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { useToast } from '@/components/Toast/useToast'
 import { SCHEDULE_TAGS } from '@/constants'
-import { useCreateAgendaAppointment, useUpdateAgendaAppointment } from '@/hooks/useSchedule'
+import { useCreateAgendaAppointment, useUpdateAgendaAppointment, useUpdateClinicalNote } from '@/hooks/useSchedule'
+import { useAppointmentAttachments, useDeleteDocument, useUploadDocument } from '@/hooks/useDocuments'
 import { usePatients } from '@/hooks/usePatients'
 import { useProfessionals } from '@/hooks/useProfessionals'
 import { useRooms } from '@/hooks/useRooms'
 import { useAvailabilityTemplate } from '@/hooks/useProfessionalAvailability'
+import { usePatientEntitlements } from '@/hooks/usePatientEntitlements'
 import { usePatientName } from '@/hooks/useDisplayNames'
+import { useSession } from '@/context/SessionProvider'
 import { userMessage } from '@/lib/errors'
-import { toIsoDate, localDate } from '@/utils/date'
+import { toIsoDate, localDate, parseBrDate } from '@/utils/date'
 import { digitsOnly, initials } from '@/utils/text'
-import { IconPhone, IconEmail, IconWhatsApp } from '@/components/icons'
+import { isImageFile } from '@/utils/files'
+import { IconDocument, IconEmail, IconImage, IconPhone, IconTrash, IconWhatsApp } from '@/components/icons'
 import type { AgendaAppointment, AppointmentStatus } from '@/types/domain'
 import styles from './AppointmentModal.module.scss'
 
@@ -81,6 +86,7 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
   const { data: rooms } = useRooms()
   const { mutate: create, isPending: creating } = useCreateAgendaAppointment()
   const { mutate: update, isPending: saving } = useUpdateAgendaAppointment()
+  const { mutate: saveNote, isPending: savingNote } = useUpdateClinicalNote()
 
   const patientName = usePatientName()
   const [professionalId, setProfessionalId] = useState('')
@@ -97,6 +103,15 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
   const [status, setStatus] = useState<AppointmentStatus>('scheduled')
   const [error, setError] = useState('')
   const [confirmingCancel, setConfirmingCancel] = useState(false)
+  // Pacote de sessões do qual esta consulta desconta — só entra na consulta
+  // NOVA (imutável depois de criada, ver appointment.entitlement_id).
+  const [entitlementId, setEntitlementId] = useState('')
+  // Prontuário da SESSÃO (coluna direita, fisioterapia) — salvo à parte do
+  // resto do agendamento (ver handleSaveNote).
+  const [noteHtml, setNoteHtml] = useState('')
+  // Renomeado pra não colidir com a `specialty` LOCAL de buildPayload (a do
+  // profissional escolhido, não a da clínica).
+  const { specialty: clinicSpecialty } = useSession()
 
   const canceled = status === 'canceled'
 
@@ -124,6 +139,8 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
         setRoom(slot.room ?? '')
         setNotes(slot.notes ?? '')
         setStatus(slot.status)
+        setEntitlementId('')
+        setNoteHtml(slot.clinicalNoteHtml ?? '')
       } else {
         setProfessionalId(initial?.professionalId ?? '')
         setPatientSearch('')
@@ -133,6 +150,8 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
         setRoom('')
         setNotes('')
         setStatus('scheduled')
+        setEntitlementId('')
+        setNoteHtml('')
       }
     }
   }
@@ -163,6 +182,27 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
     : []
 
   const currentPatient = (patients ?? []).find(p => p.name === patientSearch.trim())
+
+  // Pacotes do paciente — só busca em fisioterapia. Numa consulta NOVA serve
+  // pro seletor (só os com saldo); numa já existente, só pra mostrar o nome
+  // do pacote vinculado (entitlementId é imutável depois de criada).
+  const { data: entitlements } = usePatientEntitlements(
+    clinicSpecialty === 'physiotherapy' ? ((slot?.patientId ?? currentPatient?.id) ?? '') : '',
+  )
+  const availableEntitlements = (entitlements ?? []).filter(e => e.remaining > 0)
+
+  // Pré-seleciona o pacote numa consulta NOVA: com um só, carrega ele; com
+  // mais de um, o mais antigo primeiro (purchasedAt). Refaz se o paciente
+  // trocar (busca resolveu pra outro cadastro) — mesmo padrão de
+  // roomAutoFilledFor acima, ajuste de estado durante o render.
+  const [entitlementAutoFilledFor, setEntitlementAutoFilledFor] = useState<string | null>(null)
+  const entitlementAutoFillKey = `${hydrationKey}:${currentPatient?.id ?? ''}`
+  if (open && !slot && availableEntitlements.length > 0 && entitlementAutoFilledFor !== entitlementAutoFillKey) {
+    const oldest = availableEntitlements.reduce((a, b) =>
+      parseBrDate(b.purchasedAt) < parseBrDate(a.purchasedAt) ? b : a)
+    setEntitlementId(oldest.id)
+    setEntitlementAutoFilledFor(entitlementAutoFillKey)
+  }
 
   /**
    * Data/horário escolhidos caem dentro da disponibilidade do profissional?
@@ -198,6 +238,9 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
       // O seletor de confirmação saiu do modal; preserva o que a consulta já
       // tinha (ou liga por padrão numa consulta nova).
       sendConfirmation: slot?.sendConfirmation ?? true,
+      // Imutável: numa edição, sempre o que a consulta já tinha — o campo só
+      // aparece (e só é lido) numa consulta NOVA.
+      entitlementId: slot ? slot.entitlementId : (entitlementId || undefined),
     }
   }
 
@@ -268,24 +311,43 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
     setAttendance(target)
   }
 
+  // ── Prontuário da sessão (coluna direita, fisioterapia) ──────────────────
+  const attachmentsInputRef = useRef<HTMLInputElement>(null)
+  const { data: attachments } = useAppointmentAttachments(slot?.id)
+  const { mutate: uploadAttachment, isPending: uploadingAttachment } = useUploadDocument()
+  const { mutate: removeAttachment } = useDeleteDocument()
+  const noteDirty = noteHtml !== (slot?.clinicalNoteHtml ?? '')
+
+  function handleSaveNote() {
+    if (!slot) return
+    saveNote(
+      { appointmentId: slot.id, html: noteHtml, patientId: slot.patientId },
+      { onSuccess: () => toast.success('Prontuário da sessão salvo!') },
+    )
+  }
+
+  function handleAttachFile(file: File) {
+    if (!slot) return
+    uploadAttachment(
+      { patientId: slot.patientId, appointmentId: slot.id, name: file.name.replace(/\.[^.]+$/, ''), file },
+      { onSuccess: () => toast.success('Anexo enviado!') },
+    )
+  }
+
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={slot ? 'Editar agendamento' : 'Nova consulta'}
-      size="lg"
+      // Fisioterapia chama de "sessão", não "consulta" — mesmo vocabulário do
+      // resto do módulo (pacote de SESSÕES, sessões restantes...).
+      title={
+        clinicSpecialty === 'physiotherapy'
+          ? (slot ? 'Editar sessão' : 'Nova sessão')
+          : (slot ? 'Editar agendamento' : 'Nova consulta')
+      }
+      size={clinicSpecialty === 'physiotherapy' ? 'xl' : 'lg'}
       footer={
         <>
-          {currentPatient?.phone && (
-            <Button
-              variant="ghost"
-              iconLeft={<IconPhone />}
-              title={`Ligar para ${currentPatient.name}`}
-              onClick={() => { window.location.href = `tel:+55${digitsOnly(currentPatient.phone)}` }}
-            >
-              Ligar
-            </Button>
-          )}
           {/* WhatsApp: abre a conversa com o paciente (usa o WhatsApp se houver,
               senão o telefone). Substitui o antigo seletor de confirmação. */}
           {currentPatient && (currentPatient.whatsapp || currentPatient.phone) && (
@@ -308,30 +370,29 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
         </>
       }
     >
+      <div className={styles.layout}>
       <div className={styles.corpo}>
-        {/* Cabeçalho do paciente: foto, nome, telefone e e-mail, com divisória. */}
+        {/* Cabeçalho do paciente: foto, nome, telefone e e-mail — cartão
+            próprio, já separa visualmente do formulário abaixo. */}
         {currentPatient && (
-          <>
-            <div className={styles.paciente}>
-              <span className={styles.pacienteFoto}>
-                {currentPatient.photo
-                  ? <img src={currentPatient.photo} alt="" className={styles.pacienteFotoImg} />
-                  : initials(currentPatient.name)}
-              </span>
-              <div className={styles.pacienteInfo}>
-                <span className={styles.pacienteNome}>{currentPatient.name}</span>
-                <div className={styles.pacienteContatos}>
-                  {currentPatient.phone && (
-                    <span className={styles.pacienteContato}><IconPhone /> {currentPatient.phone}</span>
-                  )}
-                  {currentPatient.email && (
-                    <span className={styles.pacienteContato}><IconEmail /> {currentPatient.email}</span>
-                  )}
-                </div>
+          <div className={styles.paciente}>
+            <span className={styles.pacienteFoto}>
+              {currentPatient.photo
+                ? <img src={currentPatient.photo} alt="" className={styles.pacienteFotoImg} />
+                : initials(currentPatient.name)}
+            </span>
+            <div className={styles.pacienteInfo}>
+              <span className={styles.pacienteNome}>{currentPatient.name}</span>
+              <div className={styles.pacienteContatos}>
+                {currentPatient.phone && (
+                  <span className={styles.pacienteContato}><IconPhone /> {currentPatient.phone}</span>
+                )}
+                {currentPatient.email && (
+                  <span className={styles.pacienteContato}><IconEmail /> {currentPatient.email}</span>
+                )}
               </div>
             </div>
-            <div className={styles.divisor} />
-          </>
+          </div>
         )}
 
         {/* Situação: registra presença/falta/cancelamento direto no modal e
@@ -367,7 +428,7 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
           </div>
         )}
         <Select
-          label="Dentista"
+          label={clinicSpecialty === 'physiotherapy' ? 'Fisioterapeuta' : 'Dentista'}
           options={professionalOptions}
           placeholder="Selecione..."
           value={professionalId}
@@ -408,6 +469,22 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
         </div>
         )}
 
+        {/* Pacote de sessões: só numa consulta NOVA, fisioterapia, e quando o
+            paciente tem pelo menos um pacote com saldo. Some com a lista se o
+            paciente escolhido não tiver nenhum — não força "sessão avulsa". O
+            saldo (total/restantes) não vai no rótulo do Select — aparece no
+            card assim que escolhe, ver abaixo. */}
+        {!slot && availableEntitlements.length > 0 && (
+          <Select
+            label="Pacote"
+            options={[
+              { value: '', label: 'Sessão avulsa (sem pacote)' },
+              ...availableEntitlements.map(e => ({ value: e.id, label: e.serviceName })),
+            ]}
+            value={entitlementId}
+            onChange={e => setEntitlementId(e.target.value)}
+          />
+        )}
         <div className={styles.grid3}>
           <Input
             label="Data da consulta"
@@ -452,6 +529,81 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
         />
 
         {error && <p className={styles.erro}>{error}</p>}
+      </div>
+
+      {/* Prontuário da SESSÃO: rico (fonte/cor/alinhamento) + anexos — só
+          fisioterapia (ver clinicSpecialty acima) e só com a sessão já salva
+          (o anexo/nota precisam de um appointment_id real). */}
+      {clinicSpecialty === 'physiotherapy' && (
+        <div className={styles.colDireita}>
+          <span className={styles.prontuarioRotulo}>Prontuário da sessão</span>
+
+          {!slot ? (
+            <p className={styles.prontuarioVazio}>
+              Salve a consulta para registrar o prontuário desta sessão.
+            </p>
+          ) : (
+            <>
+              <RichTextEditor
+                value={noteHtml}
+                onChange={setNoteHtml}
+                placeholder="Descreva a evolução, condutas e observações desta sessão..."
+              />
+              <div className={styles.prontuarioAcoes}>
+                <Button size="sm" loading={savingNote} disabled={!noteDirty} onClick={handleSaveNote}>
+                  Salvar prontuário
+                </Button>
+              </div>
+
+              <div className={styles.anexos}>
+                <div className={styles.anexosCabecalho}>
+                  <span className={styles.prontuarioRotulo}>Anexos</span>
+                  <Button
+                    variant="ghost" size="sm" iconLeft={<IconImage />}
+                    loading={uploadingAttachment}
+                    onClick={() => attachmentsInputRef.current?.click()}
+                  >
+                    Anexar imagem
+                  </Button>
+                  <input
+                    ref={attachmentsInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className={styles.anexoInputArquivo}
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file) handleAttachFile(file)
+                      e.target.value = ''
+                    }}
+                    tabIndex={-1}
+                    aria-hidden="true"
+                  />
+                </div>
+
+                {attachments && attachments.length > 0 && (
+                  <ul className={styles.anexosLista}>
+                    {attachments.map(a => (
+                      <li key={a.id} className={styles.anexo}>
+                        <span className={styles.anexoPreview}>
+                          {isImageFile(a.type) && a.url
+                            ? <img src={a.url} alt="" />
+                            : <IconDocument />}
+                        </span>
+                        <span className={styles.anexoNome}>{a.name}</span>
+                        <Button
+                          variant="ghost" size="sm" iconLeft={<IconTrash />}
+                          title="Excluir anexo" aria-label={`Excluir ${a.name}`}
+                          onClick={() => removeAttachment(a.id)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
       </div>
 
       <ConfirmDialog

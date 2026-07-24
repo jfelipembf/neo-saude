@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { useState } from 'react'
 import { IconChevronLeft, IconChevronRight } from '@/components/icons'
 import { toIsoDate } from '@/utils/date'
@@ -13,10 +14,12 @@ interface CalendarProps {
   onSelect?: (isoDate: string) => void
   /** 'lg' aumenta a altura das células (ex.: agenda do perfil do profissional). */
   size?: 'md' | 'lg'
+  /** Cor do ponto de marcação — default preserva o `currentColor` de sempre. */
+  markColor?: string
 }
 
 /** Calendário mensal (pt-BR): navegação entre meses, hoje destacado, dias marcáveis. */
-export function Calendar({ markedDates = [], selected, onSelect, size = 'md' }: CalendarProps) {
+export function Calendar({ markedDates = [], selected, onSelect, size = 'md', markColor }: CalendarProps) {
   const today = new Date()
   const todayIso = toIsoDate(today)
 
@@ -37,7 +40,10 @@ export function Calendar({ markedDates = [], selected, onSelect, size = 'md' }: 
   }
 
   return (
-    <div className={`${styles.calendar} ${size === 'lg' ? styles['calendar--lg'] : ''}`}>
+    <div
+      className={`${styles.calendar} ${size === 'lg' ? styles['calendar--lg'] : ''}`}
+      style={markColor ? ({ '--mark-color': markColor } as CSSProperties) : undefined}
+    >
       <header className={styles.header}>
         <button type="button" className={styles.navBtn} onClick={() => changeMonth(-1)} aria-label="Mês anterior">
           <IconChevronLeft />

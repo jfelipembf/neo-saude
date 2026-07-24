@@ -1,10 +1,11 @@
 import { Fragment } from 'react'
 import type { CSSProperties } from 'react'
 import { ClassCard } from './ClassCard'
+import { ClassGroupCard } from './ClassGroupCard'
 import { DAY_OF_WEEK_SHORT } from '@/constants'
 import { IconPlus } from '@/components/icons'
 import { toIsoDate, toShortDate } from '@/utils/date'
-import type { AgendaAppointment, AppointmentStatus, ProfessionalAvailabilitySlot } from '@/types/domain'
+import type { AgendaAppointment, AppointmentStatus, ClassGroupOccurrence, ProfessionalAvailabilitySlot } from '@/types/domain'
 import styles from './ScheduleGrid.module.scss'
 
 // Ordem das colunas na visão semana: Seg…Sáb, Dom (índices do getDay, 0 = Dom).
@@ -14,6 +15,18 @@ export type ScheduleView = 'week' | 'day'
 
 interface ScheduleGridProps {
   appointments: AgendaAppointment[]
+  /** Ocorrências de turmas coletivas na semana visível (ver
+   *  utils/classGroupOccurrences) — desenhadas na cor do profissional
+   *  responsável, junto com as consultas de paciente na mesma célula. */
+  classOccurrences?: ClassGroupOccurrence[]
+  /** Clique num card de turma — abre a chamada OU (modo Matricular) alterna a
+   *  seleção da turma. Sem isto, o card não é clicável (ver gate de
+   *  especialidade/modo em ScheduleBoard). */
+  onSelectClass?: (occurrence: ClassGroupOccurrence) => void
+  /** Modo "Matricular": ids de class_group já escolhidos nesta rodada — os
+   *  cards dessas turmas ganham a sombra/selo de "selecionada" (ver
+   *  ClassGroupCard). */
+  selectedClassGroupIds?: Set<string>
   view: ScheduleView
   /** Data de referência: define a semana visível (e o dia, na visão "Dia"). */
   referenceDate: Date
@@ -103,7 +116,7 @@ function freeWindow(appointments: AgendaAppointment[], dateIso: string, hourStar
 
 /** Grade de horários: colunas por dia (datas reais), linhas por hora, cards na cor da atividade. */
 export function ScheduleGrid({
-  appointments, view, referenceDate,
+  appointments, classOccurrences, onSelectClass, selectedClassGroupIds, view, referenceDate,
   onSelect, onSetStatus, showArrow, hideArea, hiddenWeekdays, availability, onQuickAdd, blockEditing,
 }: ScheduleGridProps) {
   // weekday-hora → disponível, só quando um profissional está filtrado.
@@ -134,14 +147,21 @@ export function ScheduleGrid({
   const isoOfCol = new Map(dayCols.map(wd => [wd, toIsoDate(dateOfWeekday(referenceDate, wd))]))
   const colDates = new Set(isoOfCol.values())
   const visible = appointments.filter(s => colDates.has(s.date))
+  const visibleClasses = (classOccurrences ?? []).filter(o => colDates.has(o.date))
 
-  // 07–19 fixo + início E FIM de qualquer consulta fora da faixa — é o fim
-  // que faz sobrar uma linha própria pro restante da hora (ex.: uma consulta
-  // até 10:30 cria a linha "10:30", o resto até 11h livre pra o "+").
-  const times = [...new Set([...BASE_TIMES, ...visible.map(s => s.startTime), ...visible.map(s => s.endTime)])].sort()
+  // 07–19 fixo + início E FIM de qualquer consulta ou turma fora da faixa —
+  // é o fim que faz sobrar uma linha própria pro restante da hora (ex.: uma
+  // consulta até 10:30 cria a linha "10:30", o resto até 11h livre pra o "+").
+  const times = [...new Set([
+    ...BASE_TIMES,
+    ...visible.map(s => s.startTime), ...visible.map(s => s.endTime),
+    ...visibleClasses.map(o => o.startTime), ...visibleClasses.map(o => o.endTime),
+  ])].sort()
 
   const at = (weekday: number, time: string) =>
     visible.filter(s => s.date === isoOfCol.get(weekday) && s.startTime === time)
+  const atClasses = (weekday: number, time: string) =>
+    visibleClasses.filter(o => o.date === isoOfCol.get(weekday) && o.startTime === time)
 
   // Nº de faixas do grid tem que bater com o nº de colunas renderizadas
   // (ver comentário em ScheduleGrid.module.scss) — senão as células desalinham.
@@ -185,6 +205,16 @@ export function ScheduleGrid({
                   />
                 ))}
 
+                {atClasses(wd, time).map(o => (
+                  <ClassGroupCard
+                    key={o.id}
+                    occurrence={o}
+                    hideArea={hideArea}
+                    onClick={onSelectClass ? () => onSelectClass(o) : undefined}
+                    selected={selectedClassGroupIds?.has(o.classGroupId)}
+                  />
+                ))}
+
                 {(() => {
                   const dateIso = isoOfCol.get(wd)!
 
@@ -196,12 +226,16 @@ export function ScheduleGrid({
                   // bloqueada também precisa aparecer aqui, marcada — é assim
                   // que dá pra desmarcar o checkbox e desbloquear. Ausência do
                   // dia inteiro continua fora (bloquear hora avulsa não faz
-                  // sentido se o dia já está todo de folga). Só em hora cheia
-                  // e célula vazia — bloquear é por hora inteira, não faz
-                  // sentido sobre um card já existente.
+                  // sentido se o dia já está todo de folga). Só em hora cheia.
+                  // Turma OU consulta ATIVA no horário: sem checkbox (não faz
+                  // sentido bloquear em cima de um card que já ocupa a hora).
+                  // Exceção: consulta CANCELADA — o horário voltou a ficar
+                  // livre (o card continua ali, cinza, mas o checkbox aparece
+                  // junto pra poder fechar aquela hora pra novo agendamento.
                   if (blockEditing) {
                     const hour = Number(time.split(':')[0])
-                    if (!availability || availability.absentDates?.has(dateIso) || !isRecurring(wd, hour) || !BASE_TIMES.includes(time) || at(wd, time).length > 0) return null
+                    const hasActiveAppointment = at(wd, time).some(s => s.status !== 'canceled')
+                    if (!availability || availability.absentDates?.has(dateIso) || !isRecurring(wd, hour) || !BASE_TIMES.includes(time) || hasActiveAppointment || atClasses(wd, time).length > 0) return null
                     const key = `${dateIso}-${hour}`
                     return (
                       <label className={styles.blockCheckbox} aria-label={`Bloquear ${time}`}>
@@ -223,7 +257,7 @@ export function ScheduleGrid({
                   // própria linha) — senão, num dia sem nada marcado, a linha
                   // "10:30" (que só existe por causa de OUTRO dia) repetiria a
                   // mesma janela livre da linha "10:00" e duplicaria o "+".
-                  if (!onQuickAdd || !availability || !isAvailable(wd, time, dateIso) || at(wd, time).length > 0) return null
+                  if (!onQuickAdd || !availability || !isAvailable(wd, time, dateIso) || at(wd, time).length > 0 || atClasses(wd, time).length > 0) return null
                   const hourFloor = floorHourBoundary(time)
                   const gap = freeWindow(visible, dateIso, hourFloor, nextHourBoundary(hourFloor))
                   if (!gap || gap.start !== time) return null

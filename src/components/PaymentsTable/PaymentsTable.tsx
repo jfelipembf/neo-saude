@@ -8,7 +8,7 @@ import { Select } from '@/components/Select/Select'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { IconChevronRight, IconPrint, IconFinance, IconLock } from '@/components/icons'
 import { useSession } from '@/context/SessionProvider'
-import { usePatientReceivables, useSettleReceivable, useBankAccounts } from '@/hooks/useFinance'
+import { usePatientReceivables, useSettleReceivable, useBankAccounts, useAcquirers } from '@/hooks/useFinance'
 import { useToast } from '@/components/Toast/useToast'
 import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { esc } from '@/utils/printDocument'
@@ -37,30 +37,49 @@ function installmentLabel(r: Receivable) {
     : '—'
 }
 
+/**
+ * Status na PERSPECTIVA DO PACIENTE: título de cartão (debtor='acquirer') é
+ * "Pago" mesmo pendente de repasse — a maquininha garantiu a venda, o paciente
+ * não deve mais nada. "Pendente" internamente ali é assunto da clínica com a
+ * adquirente (Contas a Receber mostra e o cron baixa sozinho no dia).
+ * Ver docs/modelo-contabil.md.
+ */
+function patientStatus(r: Receivable): string {
+  if (r.status === 'canceled') return 'canceled'
+  if (r.debtor === 'acquirer') return 'paid'
+  return r.status
+}
+
 /** Pares label/valor do detalhe expandido — só os que existem. */
-function details(r: Receivable) {
+function details(r: Receivable, acquirerName?: string) {
   const pairs: { label: string; amount: string }[] = [
     { label: 'Bruto', amount: formatBRL(r.grossAmount) },
   ]
+  if (acquirerName) pairs.push({ label: 'Adquirente', amount: acquirerName })
+  if (r.cardBrand) pairs.push({ label: 'Bandeira', amount: r.cardBrand })
   if (r.fee > 0) pairs.push({ label: 'Taxa', amount: formatBRL(r.fee) })
   pairs.push({ label: 'Líquido', amount: formatBRL(r.grossAmount - r.fee) })
+  if (r.method) pairs.push({ label: 'Forma', amount: PAYMENT_METHOD_LABEL[r.method] })
+  if (r.authorizationCode) pairs.push({ label: 'Autorização', amount: r.authorizationCode })
+  if (r.installmentCount) pairs.push({ label: 'Parcela', amount: installmentLabel(r) })
+  if (r.debtor === 'payer') pairs.push({ label: 'Vencimento', amount: r.dueDate })
   if (r.receivedAmount) pairs.push({ label: 'Já recebido', amount: formatBRL(r.receivedAmount) })
   if (r.receivedAt) pairs.push({ label: 'Recebido em', amount: r.receivedAt })
-  if (r.method) pairs.push({ label: 'Forma', amount: PAYMENT_METHOD_LABEL[r.method] })
-  if (r.installmentCount) pairs.push({ label: 'Parcela', amount: installmentLabel(r) })
   return pairs
 }
 
-/** Miolo do recibo — cabeçalho da clínica e rodapé vêm da base de impressão. */
+/** Miolo do recibo — cabeçalho da clínica e rodapé vêm da base de impressão.
+ *  O valor é o BRUTO: é o que o paciente pagou (a taxa da adquirente é custo
+ *  da clínica, não desconto do paciente — ver docs/modelo-contabil.md). */
 function receiptBody(r: Receivable, patientName?: string) {
   return `
     ${patientName ? `<p><strong>Paciente:</strong> ${esc(patientName)}</p>` : ''}
     <p><strong>Referente a:</strong> ${esc(r.description)}<br>
        <strong>Origem:</strong> ${esc(r.source)}<br>
-       <strong>Recebido em:</strong> ${esc(r.receivedAt ?? r.dueDate)}</p>
+       <strong>Pago em:</strong> ${esc(r.receivedAt ?? r.competenceDate)}</p>
     <table>
-      <tr><td>${esc(r.method ? PAYMENT_METHOD_LABEL[r.method] : 'Recebimento')}</td><td class="valor">${formatBRL(r.receivedAmount ?? r.grossAmount - r.fee)}</td></tr>
-      <tr class="total"><td>Total</td><td class="valor">${formatBRL(r.receivedAmount ?? r.grossAmount - r.fee)}</td></tr>
+      <tr><td>${esc(r.method ? PAYMENT_METHOD_LABEL[r.method] : 'Pagamento')}${r.cardBrand ? ` — ${esc(r.cardBrand)}` : ''}${r.installmentCount && r.installmentCount > 1 ? ` (parcela ${r.installmentNumber}/${r.installmentCount})` : ''}</td><td class="valor">${formatBRL(r.grossAmount)}</td></tr>
+      <tr class="total"><td>Total</td><td class="valor">${formatBRL(r.grossAmount)}</td></tr>
     </table>
     <p class="clausula">Recibo sem valor fiscal.</p>`
 }
@@ -87,6 +106,8 @@ export function PaymentsTable({ patientId, patientName, patientCpf }: PaymentsTa
   const { data: receivables, isLoading } = usePatientReceivables(patientId)
   const { mutate: settle, isPending: settling } = useSettleReceivable()
   const { data: bankAccounts } = useBankAccounts()
+  const { data: acquirers } = useAcquirers()
+  const acquirerName = (id?: string) => (id ? (acquirers ?? []).find(a => a.id === id)?.name : undefined)
   const toast = useToast()
   const printDocument = usePrintDocument()
 
@@ -123,7 +144,9 @@ export function PaymentsTable({ patientId, patientName, patientCpf }: PaymentsTa
     )
   }
 
-  const filtered = filter === 'all' ? list : list.filter(r => r.status === filter)
+  // O filtro usa o status DA PERSPECTIVA DO PACIENTE (cartão pendente de
+  // repasse conta como "Pago" — é assim que a linha aparece na tabela).
+  const filtered = filter === 'all' ? list : list.filter(r => patientStatus(r) === filter)
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage))
   // O filtro pode encolher a lista: nunca fica numa página que não existe mais.
   const currentPage = Math.min(page, totalPages)
@@ -182,10 +205,10 @@ export function PaymentsTable({ patientId, patientName, patientCpf }: PaymentsTa
           <thead>
             <tr>
               <th className={styles.thSeta} aria-label="Expandir" />
-              <th>Vencimento</th>
+              <th>Data</th>
+              <th>Código</th>
               <th>Descrição</th>
-              <th>Origem</th>
-              <th className={styles.thValor}>Em aberto</th>
+              <th className={styles.thValor}>Valor</th>
               <th>Status</th>
               <th className={styles.thAcoes}>Ação</th>
             </tr>
@@ -201,8 +224,10 @@ export function PaymentsTable({ patientId, patientName, patientCpf }: PaymentsTa
               const unpaid = charge.status === 'pending' || charge.status === 'overdue'
               // Cartão: quem deve é a adquirente e a baixa acontece sozinha na
               // data do repasse. Oferecer "receber" aqui convidaria a recepção a
-              // cobrar o paciente por uma venda que a maquininha já garantiu.
+              // cobrar o paciente por uma venda que a maquininha já garantiu —
+              // pro PACIENTE a linha está paga (recibo liberado).
               const byAcquirer = charge.debtor === 'acquirer'
+              const paidByPatient = charge.status === 'paid' || (byAcquirer && charge.status !== 'canceled')
               return (
                 <Fragment key={charge.id}>
                   <tr className={styles.linha} onClick={() => toggle(charge.id)}>
@@ -217,11 +242,12 @@ export function PaymentsTable({ patientId, patientName, patientCpf }: PaymentsTa
                         <IconChevronRight />
                       </button>
                     </td>
-                    <td>{charge.dueDate}</td>
+                    <td>{charge.competenceDate}</td>
+                    <td className={styles.tdFormas}>{charge.code}</td>
                     <td>{charge.description}</td>
-                    <td className={styles.tdFormas}>{charge.source}</td>
-                    <td className={styles.tdValor}>{formatBRL(remainingOf(charge))}</td>
-                    <td><Badge status={charge.status} /></td>
+                    {/* Valor BRUTO da cobrança — bruto/taxa/líquido abrem no detalhe. */}
+                    <td className={styles.tdValor}>{formatBRL(charge.grossAmount)}</td>
+                    <td><Badge status={patientStatus(charge)} /></td>
                     <td className={styles.tdAcoes}>
                       {unpaid && !byAcquirer && canEdit('finance') && (
                         <Button
@@ -233,10 +259,7 @@ export function PaymentsTable({ patientId, patientName, patientCpf }: PaymentsTa
                           onClick={e => { e.stopPropagation(); setToSettle(charge) }}
                         />
                       )}
-                      {unpaid && byAcquirer && (
-                        <span className={styles.aguardando}>Repasse em {charge.dueDate}</span>
-                      )}
-                      {charge.status === 'paid' && (
+                      {paidByPatient && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -262,21 +285,17 @@ export function PaymentsTable({ patientId, patientName, patientCpf }: PaymentsTa
                       <td colSpan={7}>
                         <div className={styles.detalhe}>
                           <div className={styles.forma}>
-                            <span className={styles.formaTipo}>
-                              {byAcquirer ? 'Cartão — dívida da adquirente' : 'Cobrança'}
-                            </span>
                             <dl className={styles.formaDados}>
-                              {details(charge).map(pair => (
+                              {details(charge, acquirerName(charge.acquirerId)).map(pair => (
                                 <div key={pair.label} className={styles.par}>
                                   <dt>{pair.label}</dt>
                                   <dd>{pair.amount}</dd>
                                 </div>
                               ))}
                             </dl>
-                            {byAcquirer && (
+                            {byAcquirer && unpaid && (
                               <p className={styles.semFormas}>
-                                A venda já foi garantida pela maquininha: a baixa acontece sozinha na
-                                data prevista de repasse e o paciente não tem o que ser cobrado.
+                                Repasse da adquirente previsto para {charge.dueDate} — baixa automática.
                               </p>
                             )}
                             {charge.notes && <p className={styles.semFormas}>{charge.notes}</p>}

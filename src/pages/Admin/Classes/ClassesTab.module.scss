@@ -1,0 +1,151 @@
+@use '../../../styles/mixins' as *;
+
+// Mesmo desenho de Testes/Serviços: lista lateral + formulário ao lado.
+.layout {
+  display: flex;
+  align-items: flex-start;
+  gap: $sp-4;
+
+  @include mobile {
+    flex-direction: column;
+  }
+}
+
+.sidebar {
+  width: 300px;
+  flex-shrink: 0;
+
+  @include mobile {
+    width: 100%;
+  }
+}
+
+.formArea {
+  flex: 1;
+  min-width: 0;
+}
+
+// ── Card único, 2 colunas — mesmo layout do formulário de turmas do Neo ──────
+.card {
+  @include card;
+  padding: $sp-5;
+}
+
+.cols {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0;
+  align-items: start;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  padding: 0 $sp-5;
+
+  &:first-child { padding-left: 0; }
+  &:last-child { padding-right: 0; }
+
+  @include mobile {
+    padding: 0;
+
+    &:first-child { padding: 0; }
+  }
+}
+
+.colDivider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--glass-border);
+
+  @include mobile {
+    display: none;
+  }
+}
+
+.sectionTitle {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  padding-bottom: $sp-3;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+// Nome / Profissional responsável / Sala — 2 por linha.
+.fieldsGrid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
+  align-items: start;
+
+  @include form-grid-collapse;
+}
+
+// Hora início / Duração / Capacidade / Data início / Data fim — 3 por linha.
+.fieldsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $sp-3;
+  align-items: start;
+
+  @include form-grid-collapse;
+}
+
+.fieldFull {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+}
+
+.fieldError {
+  font-size: $fs-xs;
+  color: var(--danger-fg);
+}
+
+.hint {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: $sp-2;
+  padding: $sp-3;
+  border-radius: $radius-md;
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+  color: var(--text-secondary);
+  font-size: $fs-xs;
+  line-height: 1.5;
+}
+
+.hintIcon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--primary);
+
+  svg { width: 16px; height: 16px; }
+}
+
+// ── Ações ─────────────────────────────────────────────────────────────────────
+.acoesBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  flex-wrap: wrap;
+  margin-top: $sp-5;
+  padding-top: $sp-4;
+  border-top: 1px solid var(--glass-border);
+}
+
+.acoesBarDireita {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-3;
+  margin-left: auto;
+}

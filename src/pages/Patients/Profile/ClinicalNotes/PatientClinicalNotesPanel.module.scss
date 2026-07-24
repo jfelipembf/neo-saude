@@ -1,0 +1,97 @@
+@use '../../../../styles/mixins' as *;
+
+// Um card só pro calendário + prontuário do dia — não dois cartões separados.
+.painel {
+  @include card;
+  display: flex;
+  align-items: flex-start;
+  gap: $sp-5;
+  padding: $sp-5;
+
+  @include mobile {
+    flex-direction: column;
+  }
+}
+
+.coluna {
+  flex-shrink: 0;
+  width: 400px;
+
+  @include mobile {
+    width: 100%;
+  }
+}
+
+.conteudo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding-left: $sp-5;
+  border-left: 1px solid var(--glass-border);
+
+  @include mobile {
+    padding-left: 0;
+    padding-top: $sp-4;
+    border-left: none;
+    border-top: 1px solid var(--glass-border);
+  }
+}
+
+.dataTitulo {
+  font-size: $fs-md;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.nota {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding-bottom: $sp-4;
+  border-bottom: 1px solid var(--glass-border);
+
+  &:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+}
+
+.notaCabecalho {
+  display: flex;
+  align-items: baseline;
+  gap: $sp-2;
+}
+
+.notaHorario {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--primary-fg, var(--primary));
+}
+
+.notaAtividade {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.notaAnexos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2;
+}
+
+.notaAnexo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: $radius-sm;
+  border: 1px solid var(--glass-border);
+  overflow: hidden;
+  color: var(--text-muted);
+
+  img { width: 100%; height: 100%; object-fit: cover; }
+  svg { width: 18px; height: 18px; }
+}

@@ -14,10 +14,9 @@ import { IconDocument, IconUpload, IconEye, IconX, IconEdit, IconTrash } from '@
 import {
   usePatientDocuments, useUploadDocument, useUpdateDocument, useDeleteDocument,
 } from '@/hooks/useDocuments'
+import { isImageFile } from '@/utils/files'
 import type { PatientDocument } from '@/types/domain'
 import styles from './DocumentsUpload.module.scss'
-
-const IMAGE_EXTENSIONS = ['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP']
 
 /** 1234567 → "1,2 MB" */
 function formatSize(bytes: number) {
@@ -135,7 +134,7 @@ export function DocumentsUpload({ patientId }: DocumentsUploadProps) {
   }
 
   const list = documents ?? []
-  const isViewingImage = viewing?.url && IMAGE_EXTENSIONS.includes(viewing.type)
+  const isViewingImage = viewing?.url && isImageFile(viewing.type)
 
   const totalPages = Math.max(1, Math.ceil(list.length / perPage))
   // Excluir pode encolher a lista: nunca fica numa página que não existe mais.

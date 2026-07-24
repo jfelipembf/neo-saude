@@ -16,6 +16,75 @@
   gap: $sp-3;
 }
 
+// Modo "Matricular" (veio do perfil do paciente) — faixa acima dos controles
+// avisando quem está sendo matriculado, até confirmar ou cancelar a seleção.
+.enrollBar {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding: $sp-3 $sp-4;
+  border-radius: $radius-md;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
+.enrollBarTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  flex-wrap: wrap;
+}
+
+.enrollBarText {
+  font-size: $fs-sm;
+  color: var(--text-primary);
+
+  strong { font-weight: 700; }
+}
+
+.enrollBarActions {
+  display: flex;
+  gap: $sp-2;
+  flex-shrink: 0;
+}
+
+// Turmas em que o paciente já está matriculado (painel dentro do modo
+// Matricular) — cada uma vira um chip com botão de remover.
+.enrollCurrent {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  flex-wrap: wrap;
+  padding-top: $sp-2;
+  border-top: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.enrollCurrentLabel {
+  font-size: $fs-xs;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.enrollCurrentList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2;
+}
+
+.enrollChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: $radius-pill;
+  background: var(--bg-elevated);
+  border: 1px solid var(--glass-border);
+  font-size: $fs-xs;
+  color: var(--text-primary);
+}
+
 .selectProfissional {
   width: 220px;
 

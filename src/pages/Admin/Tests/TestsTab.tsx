@@ -1,47 +1,65 @@
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/Button/Button'
+import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { FormSection } from '@/components/FormSection/FormSection'
 import { Input } from '@/components/Input/Input'
+import { PhotoInput } from '@/components/PhotoInput/PhotoInput'
+import { SegmentedControl } from '@/components/SegmentedControl/SegmentedControl'
 import { Select } from '@/components/Select/Select'
 import { SideList } from '@/components/SideList/SideList'
 import type { SideListItem } from '@/components/SideList/SideList'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { useToast } from '@/components/Toast/useToast'
-import { IconPlus, IconX, IconCamera } from '@/components/icons'
-import { MOCK_PHYSIO_TESTS } from '@/mocks/physioTests'
-import type { PhysioTest, TestLevel } from '@/mocks/physioTests'
+import { IconPlus, IconTrash, IconX } from '@/components/icons'
+import { useCreateTest, useDeleteTest, useTests, useUpdateTest } from '@/hooks/useTests'
+import type { EditTest } from '@/services/testsService'
 import { TEST_SPECIALTY_OPTIONS, OTHER_TEST_SPECIALTY } from '@/constants/testSpecialty'
+import type { PhysioTest, PhysioTestLevel, TestKind } from '@/types/domain'
 import styles from './TestsTab.module.scss'
 
-// UI de demonstração (estado LOCAL, ainda sem banco). Um "teste" de fisioterapia
-// = nome + especialização + imagem ilustrativa + instruções + uma lista ordenada
-// de NÍVEIS (ex.: escala Oxford de força, EVA de dor). O catálogo inicial (Berg,
-// TUG, TC6, Barthel, Roland-Morris, Fugl-Meyer…) vive em mocks/physioTests.ts.
-// Depois isto vira tabela no Supabase.
+// Um "teste" de fisioterapia = nome + especialização + imagem + instruções +
+// uma lista ordenada de NÍVEIS (ex.: escala Oxford de força, EVA de dor). O
+// catálogo é a base do menu de seleção da aba Testes do paciente. O cadastro
+// é sempre CONFIGURAÇÃO (nome/instruções/níveis/foto ilustrativa) — a
+// ferramenta de medição interativa (goniômetro digital) só existe na
+// aplicação ao paciente (aba Testes do perfil), nunca aqui.
 
 const SPECIALTY_SELECT_OPTIONS = [
   ...TEST_SPECIALTY_OPTIONS.map(s => ({ value: s, label: s })),
   { value: OTHER_TEST_SPECIALTY, label: 'Outra (digitar)' },
 ]
 
-let seq = 0
+const KIND_OPTIONS: { value: TestKind; label: string }[] = [
+  { value: 'scale', label: 'Escala' },
+  { value: 'goniometry', label: 'Ângulo' },
+]
+
 let levelSeq = 0
-const newLevel = (name = '', description = ''): TestLevel => ({ id: `lv-${++levelSeq}`, name, description })
+// `id` local só para key/edição em tela — o save envia só name/description,
+// o banco sempre gera um id novo (replaceLevels é delete-then-insert).
+const newLevel = (name = '', description = ''): PhysioTestLevel => ({ id: `lv-${++levelSeq}`, name, description })
 
 interface TestFormState {
   name: string
-  image: string       // URL de preview (mock)
+  kind: TestKind
+  // image é só para EXIBIÇÃO no PhotoInput (pode ser uma URL já assinada, ao
+  // editar um teste existente); imagePath é o que de fato é salvo — sem essa
+  // separação, salvar sem trocar a foto gravaria a URL assinada (que expira
+  // em 1h) na coluna, corrompendo-a na próxima leitura.
+  image?: string
+  imagePath?: string
   /** Valor do Select: uma das TEST_SPECIALTY_OPTIONS ou o sentinela "outra". */
   specialty: string
   /** Texto digitado quando specialty === OTHER_TEST_SPECIALTY. */
   customSpecialty: string
   instructions: string
-  levels: TestLevel[]
+  levels: PhysioTestLevel[]
 }
 
 const EMPTY_FORM: TestFormState = {
-  name: '', image: '', specialty: '', customSpecialty: '', instructions: '', levels: [newLevel()],
+  name: '', kind: 'scale', image: undefined, imagePath: undefined, specialty: '', customSpecialty: '', instructions: '',
+  levels: [newLevel()],
 }
 
 /** A especialização já é uma das opções fixas, ou entra como "outra" digitada. */
@@ -49,7 +67,9 @@ function formFromTest(t: PhysioTest): TestFormState {
   const known = (TEST_SPECIALTY_OPTIONS as readonly string[]).includes(t.specialty)
   return {
     name: t.name,
-    image: t.image ?? '',
+    kind: t.kind,
+    image: t.imageUrl,
+    imagePath: t.imagePath,
     specialty: known ? t.specialty : OTHER_TEST_SPECIALTY,
     customSpecialty: known ? '' : t.specialty,
     instructions: t.instructions ?? '',
@@ -58,21 +78,26 @@ function formFromTest(t: PhysioTest): TestFormState {
 }
 
 /** Aba "Testes" (fisioterapia): catálogo de testes/escalas de avaliação. Lista
- *  lateral + formulário ao lado. UI de demonstração — CRUD em estado local. */
+ *  lateral + formulário ao lado. */
 export function TestsTab() {
   const toast = useToast()
-  const [tests, setTests] = useState<PhysioTest[]>(MOCK_PHYSIO_TESTS)
+  const { data: tests = [] } = useTests()
+  const { mutate: create, isPending: creating } = useCreateTest()
+  const { mutate: update, isPending: updating } = useUpdateTest()
+  const { mutate: remove, isPending: deleting } = useDeleteTest()
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isNew, setIsNew] = useState(false)
   const [form, setForm] = useState<TestFormState>(EMPTY_FORM)
   const [nameError, setNameError] = useState('')
   const [specialtyError, setSpecialtyError] = useState('')
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   // Filtro do menu suspenso da lista lateral ('' = todas as especialidades).
   const [specialtyFilter, setSpecialtyFilter] = useState('')
 
   const isFormVisible = selectedId !== null || isNew
   const isOtherSpecialty = form.specialty === OTHER_TEST_SPECIALTY
+  const selectedTest = selectedId ? (tests.find(t => t.id === selectedId) ?? null) : null
 
   // Opções do filtro: a lista fixa ∪ especializações "outras" já cadastradas —
   // um teste com especialização digitada continua filtrável.
@@ -88,11 +113,12 @@ export function TestsTab() {
 
   // Sem avatar aqui de propósito: a foto do teste aparece no FORMULÁRIO
   // (preview de imagem), não faz sentido repetir/recortar no sidemenu.
-  const items: SideListItem[] = filteredTests.map(t => ({
-    id: t.id,
-    label: t.name,
-    sublabel: `${t.specialty} · ${t.levels.length} ${t.levels.length === 1 ? 'nível' : 'níveis'}`,
-  }))
+  const items: SideListItem[] = filteredTests.map(t => {
+    const sublabel = t.kind === 'goniometry'
+      ? `${t.specialty} · Ângulo`
+      : `${t.specialty} · ${t.levels.length} ${t.levels.length === 1 ? 'nível' : 'níveis'}`
+    return { id: t.id, label: t.name, sublabel }
+  })
 
   function handleSelect(id: string | number) {
     const t = tests.find(x => x.id === String(id))
@@ -101,15 +127,10 @@ export function TestsTab() {
   }
   function handleNew() {
     setSelectedId(null); setIsNew(true)
-    setForm({ name: '', image: '', specialty: '', customSpecialty: '', instructions: '', levels: [newLevel()] })
+    setForm({ ...EMPTY_FORM, levels: [newLevel()] })
     setNameError(''); setSpecialtyError('')
   }
   function handleCancel() { setSelectedId(null); setIsNew(false); setForm(EMPTY_FORM); setNameError(''); setSpecialtyError('') }
-
-  function pickImage(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) setForm(f => ({ ...f, image: URL.createObjectURL(file) }))
-  }
 
   // ── Níveis (lista dinâmica) ──
   const addLevel = () => setForm(f => ({ ...f, levels: [...f.levels, newLevel()] }))
@@ -125,24 +146,33 @@ export function TestsTab() {
       setSpecialtyError('Digite a especialização.'); return
     }
     const specialty = isOtherSpecialty ? form.customSpecialty.trim() : form.specialty
-    const draft: PhysioTest = {
-      id: selectedId ?? `local-${++seq}`,
+    const payload: EditTest = {
       name: form.name.trim(),
-      image: form.image || undefined,
+      kind: form.kind,
+      imageUrl: form.imagePath,
       specialty,
       instructions: form.instructions.trim() || undefined,
       levels: form.levels
         .filter(l => l.name.trim() || l.description.trim())
-        .map(l => ({ ...l, name: l.name.trim(), description: l.description.trim() })),
+        .map(l => ({ name: l.name.trim(), description: l.description.trim() })),
     }
     if (selectedId) {
-      setTests(prev => prev.map(t => (t.id === draft.id ? draft : t)))
-      toast.success('Teste atualizado (demonstração).')
+      update({ id: selectedId, payload }, {
+        onSuccess: () => { toast.success('Teste atualizado!'); setIsNew(false) },
+      })
     } else {
-      setTests(prev => [draft, ...prev])
-      toast.success('Teste criado (demonstração).')
+      create(payload, {
+        onSuccess: newId => { toast.success('Teste criado!'); setSelectedId(newId); setIsNew(false) },
+      })
     }
-    setSelectedId(draft.id); setIsNew(false)
+  }
+
+  function handleConfirmDelete() {
+    if (!selectedId) return
+    remove(selectedId, {
+      onSuccess: () => { toast.success('Teste excluído!'); handleCancel() },
+      onError: err => toast.error(err instanceof Error ? err.message : 'Não foi possível excluir o teste.'),
+    })
   }
 
   return (
@@ -177,25 +207,29 @@ export function TestsTab() {
           <>
             <div className={styles.formRoot}>
               <FormSection title={isNew ? 'Novo teste' : (form.name || 'Teste')}>
-                <div className={styles.dados}>
-                  {/* Imagem ilustrativa do teste */}
-                  <label className={styles.imagem}>
-                    {form.image
-                      ? <img src={form.image} alt="" className={styles.imagemPreview} />
-                      : <span className={styles.imagemVazia}><IconCamera /><span>Adicionar imagem</span></span>}
-                    <input type="file" accept="image/*" onChange={pickImage} className={styles.imagemInput} />
-                  </label>
+                <Input
+                  label="Nome do teste"
+                  placeholder="Ex: Força Muscular (Oxford), EVA de dor..."
+                  value={form.name}
+                  onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setNameError('') }}
+                  error={nameError}
+                />
 
-                  <div className={styles.campoNome}>
-                    <Input
-                      label="Nome do teste"
-                      placeholder="Ex: Força Muscular (Oxford), EVA de dor..."
-                      value={form.name}
-                      onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setNameError('') }}
-                      error={nameError}
-                    />
-                  </div>
+                <div className={styles.tipoLinha}>
+                  <span className={styles.tipoLabel}>Tipo de teste</span>
+                  <SegmentedControl
+                    options={KIND_OPTIONS}
+                    value={form.kind}
+                    onChange={v => setForm(f => ({ ...f, kind: v }))}
+                  />
                 </div>
+
+                <PhotoInput
+                  label="Imagem ilustrativa"
+                  value={form.image}
+                  onChange={url => setForm(f => ({ ...f, image: url, imagePath: url }))}
+                  folder="tests"
+                />
 
                 <div className={styles.especializacaoLinha}>
                   <Select
@@ -231,6 +265,9 @@ export function TestsTab() {
               {/* ── Níveis ── */}
               <FormSection
                 title="Níveis"
+                description={
+                  form.kind === 'goniometry' ? 'A interpretação da faixa de graus (ex.: "0° – 90°" → "Amplitude limitada").' : undefined
+                }
                 actions={<Button size="sm" variant="ghost" iconLeft={<IconPlus />} onClick={addLevel}>Adicionar nível</Button>}
               >
                 <ol className={styles.niveis}>
@@ -268,12 +305,35 @@ export function TestsTab() {
             </div>
 
             <div className={styles.acoesBar}>
-              <Button variant="ghost" onClick={handleCancel}>Cancelar</Button>
-              <Button onClick={handleSave}>{isNew ? 'Cadastrar' : 'Salvar alterações'}</Button>
+              {!isNew && selectedTest && (
+                selectedTest.isSeed ? (
+                  <span className={styles.seedAviso}>Teste padrão do sistema — não pode ser excluído.</span>
+                ) : (
+                  <Button variant="danger" iconLeft={<IconTrash />} onClick={() => setConfirmDeleteOpen(true)}>
+                    Excluir
+                  </Button>
+                )
+              )}
+              <div className={styles.acoesBarDireita}>
+                <Button variant="ghost" onClick={handleCancel}>Cancelar</Button>
+                <Button onClick={handleSave} loading={creating || updating}>
+                  {isNew ? 'Cadastrar' : 'Salvar alterações'}
+                </Button>
+              </div>
             </div>
           </>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Excluir teste"
+        message={selectedTest ? `Deseja excluir "${selectedTest.name}" do catálogo? Essa ação não pode ser desfeita.` : ''}
+        variant="danger"
+        confirmDisabled={deleting}
+      />
     </div>
   )
 }

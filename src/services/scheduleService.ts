@@ -7,7 +7,7 @@ import type { AgendaAppointment, AppointmentStatus } from '@/types/domain'
 // (`schedule_slot` ficou reservada para regras recorrentes; a Agenda não a usa.)
 
 const COLUMNS =
-  'id, clinic_id, patient_id, professional_id, room_id, service, date, start_time, duration_minutes, status, notes, color, send_confirmation'
+  'id, clinic_id, patient_id, professional_id, room_id, service, date, start_time, duration_minutes, status, notes, color, send_confirmation, entitlement_id, clinical_note_html'
 
 type AppointmentRow = {
   id: string
@@ -23,6 +23,8 @@ type AppointmentRow = {
   notes: string | null
   color: string | null
   send_confirmation: boolean
+  entitlement_id: string | null
+  clinical_note_html: string | null
 }
 
 // 'HH:MM:SS' (banco) → 'HH:MM' (domínio).
@@ -84,6 +86,8 @@ export async function listAgendaAppointments(fromIso: string, toIso: string): Pr
     status: row.status,
     notes: row.notes ?? undefined,
     sendConfirmation: row.send_confirmation,
+    entitlementId: row.entitlement_id ?? undefined,
+    clinicalNoteHtml: row.clinical_note_html ?? undefined,
   }))
 }
 
@@ -109,12 +113,27 @@ async function toRow(clinicId: string, payload: EditAgendaAppointment) {
 
 export async function addAgendaAppointment(payload: EditAgendaAppointment): Promise<void> {
   const clinicId = getCurrentClinicId()
-  const { error } = await supabase.from('appointment').insert({ clinic_id: clinicId, ...(await toRow(clinicId, payload)) })
+  const { error } = await supabase.from('appointment').insert({
+    clinic_id: clinicId,
+    // Só entra no INSERT: a coluna é imutável depois de criada (sem GRANT de
+    // update nela — ver 20260724150000_sales_and_entitlements).
+    entitlement_id: payload.entitlementId ?? null,
+    ...(await toRow(clinicId, payload)),
+  })
   if (error) throw error
 }
 
 export async function updateAgendaAppointment(id: string, payload: EditAgendaAppointment): Promise<void> {
   const clinicId = getCurrentClinicId()
   const { error } = await supabase.from('appointment').update(await toRow(clinicId, payload)).eq('id', id)
+  if (error) throw error
+}
+
+/** Prontuário da SESSÃO — salvo à parte do resto do agendamento (ver AppointmentModal). */
+export async function updateClinicalNote(appointmentId: string, html: string): Promise<void> {
+  const { error } = await supabase
+    .from('appointment')
+    .update({ clinical_note_html: html })
+    .eq('id', appointmentId)
   if (error) throw error
 }

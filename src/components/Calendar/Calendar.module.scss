@@ -115,5 +115,5 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--mark-color, currentColor);
 }

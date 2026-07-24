@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
-import { addAgendaAppointment, listAgendaAppointments, updateAgendaAppointment } from '@/services/scheduleService'
+import {
+  addAgendaAppointment,
+  listAgendaAppointments,
+  updateAgendaAppointment,
+  updateClinicalNote,
+} from '@/services/scheduleService'
 import type { EditAgendaAppointment } from '@/services/scheduleService'
 
 /** Consultas do intervalo visível (semana da grade / janela do calendário). */
@@ -21,7 +26,15 @@ export function useCreateAgendaAppointment() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (payload: EditAgendaAppointment) => addAgendaAppointment(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all }),
+    onSuccess: (_data, payload) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all })
+      // Agendada num pacote: tg_debit_entitlement já reservou a sessão no
+      // banco (scheduled_sessions) — sem isto, o saldo (card do modal, bloco
+      // "Pacotes" do perfil) ficava mostrando o número de ANTES de agendar.
+      if (payload.entitlementId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.entitlements.byPatient(payload.patientId) })
+      }
+    },
   })
 }
 
@@ -30,6 +43,26 @@ export function useUpdateAgendaAppointment() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: EditAgendaAppointment }) => updateAgendaAppointment(id, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all }),
+    onSuccess: (_data, { payload }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all })
+      // Mudar a situação (compareceu/faltou/cancelar) desloca sessão entre
+      // reservada/usada/devolvida — mesmo motivo do invalidate acima.
+      if (payload.entitlementId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.entitlements.byPatient(payload.patientId) })
+      }
+    },
+  })
+}
+
+/** Salva o prontuário da SESSÃO — ação própria, independente do resto do agendamento. */
+export function useUpdateClinicalNote() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ appointmentId, html }: { appointmentId: string; html: string; patientId: string }) =>
+      updateClinicalNote(appointmentId, html),
+    onSuccess: (_data, { patientId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all })
+      queryClient.invalidateQueries({ queryKey: ['clinicalNotes', patientId] })
+    },
   })
 }

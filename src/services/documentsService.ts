@@ -28,6 +28,8 @@ export interface NewDocument {
   name: string
   description?: string
   file: File
+  /** Anexo de uma SESSÃO específica (aba Prontuários) — omitido = documento geral do paciente. */
+  appointmentId?: string
 }
 
 type DocumentRow = {
@@ -41,18 +43,14 @@ type DocumentRow = {
   size_bytes: number | null
   storage_path: string
   created_at: string
+  appointment_id: string | null
 }
 
-export async function listPatientDocuments(patientId: string): Promise<PatientDocument[]> {
-  const { data, error } = await supabase
-    .from('patient_document')
-    .select('id, clinic_id, patient_id, name, description, file_name, mime_type, size_bytes, storage_path, created_at')
-    .eq('patient_id', patientId)
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  const rows = data as DocumentRow[]
-  if (rows.length === 0) return []
+const ROW_COLUMNS =
+  'id, clinic_id, patient_id, name, description, file_name, mime_type, size_bytes, storage_path, created_at, appointment_id'
 
+async function rowsToDocuments(rows: DocumentRow[]): Promise<PatientDocument[]> {
+  if (rows.length === 0) return []
   // URLs assinadas (bucket privado) — uma chamada em lote, ordem preservada.
   const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrls(rows.map(r => r.storage_path), SIGNED_URL_TTL)
 
@@ -67,7 +65,31 @@ export async function listPatientDocuments(patientId: string): Promise<PatientDo
     size: r.size_bytes != null ? formatSize(Number(r.size_bytes)) : '—',
     uploadedAt: isoToBrDate(r.created_at) ?? '',
     url: signed?.[i]?.signedUrl ?? undefined,
+    appointmentId: r.appointment_id ?? undefined,
   }))
+}
+
+/** Documentos GERAIS do paciente (aba Documentos) — não inclui anexos de sessão. */
+export async function listPatientDocuments(patientId: string): Promise<PatientDocument[]> {
+  const { data, error } = await supabase
+    .from('patient_document')
+    .select(ROW_COLUMNS)
+    .eq('patient_id', patientId)
+    .is('appointment_id', null)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return rowsToDocuments(data as DocumentRow[])
+}
+
+/** Anexos de UMA sessão específica (aba Prontuários). */
+export async function listAppointmentAttachments(appointmentId: string): Promise<PatientDocument[]> {
+  const { data, error } = await supabase
+    .from('patient_document')
+    .select(ROW_COLUMNS)
+    .eq('appointment_id', appointmentId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return rowsToDocuments(data as DocumentRow[])
 }
 
 /** Envia o arquivo ao Storage e registra os metadados. */
@@ -87,6 +109,7 @@ export async function addDocument(payload: NewDocument): Promise<void> {
     mime_type: payload.file.type || null,
     size_bytes: payload.file.size,
     storage_path: path,
+    appointment_id: payload.appointmentId ?? null,
   })
   // Falhou o metadado? não deixa o objeto órfão no Storage.
   if (error) {

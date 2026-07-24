@@ -154,9 +154,46 @@ export const queryKeys = {
   services: {
     all: ['services'] as const,
   },
+  // Catálogo de testes/escalas de fisioterapia (Administrativo → Testes).
+  tests: {
+    all: ['tests'] as const,
+  },
+  // Turmas coletivas (Administrativo → Turmas).
+  classGroups: {
+    all: ['classGroups'] as const,
+  },
+  // Matrícula/frequência de turma — nº de matriculados (badge da Agenda), o
+  // roster de UMA ocorrência (turma + data, modal de chamada), as turmas de
+  // UM paciente (painel "Turmas matriculadas" do modo Matricular) e o limite
+  // semanal do contrato por trás de uma entitlement.
+  classGroupRoster: {
+    enrollmentCounts: ['classGroupRoster', 'counts'] as const,
+    byOccurrence: (classGroupId: string, dateIso: string) => ['classGroupRoster', classGroupId, dateIso] as const,
+    byPatient: (patientId: string) => ['classGroupRoster', 'patient', patientId] as const,
+    weeklyLimit: (entitlementId: string) => ['classGroupRoster', 'weeklyLimit', entitlementId] as const,
+  },
+  // Pacotes de sessão comprados por um paciente (checkout_sale) — ver aba
+  // "Pacote" do agendamento e o bloco "Pacotes" do perfil.
+  entitlements: {
+    byPatient: (patientId: string) => ['entitlements', patientId] as const,
+  },
+  // Testes fixados no sidenav de um paciente + histórico de resultados (aba
+  // Testes do perfil). 'results' é parametrizada por teste: o histórico de
+  // Berg e o de TUG são conjuntos diferentes, não a mesma lista com outro filtro.
+  patientTests: {
+    byPatient: (patientId: string) => ['patientTests', patientId] as const,
+    results:    (patientId: string, testId: string) => ['patientTests', patientId, 'results', testId] as const,
+  },
   documents: {
     all: ['documents'] as const,
     byPatient: (patientId: string) => ['documents', 'patient', patientId] as const,
+    byAppointment: (appointmentId: string) => ['documents', 'appointment', appointmentId] as const,
+  },
+  // Prontuário por SESSÃO (aba Prontuários do perfil, fisioterapia) — datas
+  // marcadas no calendário + conteúdo do dia selecionado.
+  clinicalNotes: {
+    dates:  (patientId: string) => ['clinicalNotes', patientId, 'dates'] as const,
+    byDate: (patientId: string, dateIso: string) => ['clinicalNotes', patientId, 'date', dateIso] as const,
   },
   rooms: {
     all: ['rooms'] as const,

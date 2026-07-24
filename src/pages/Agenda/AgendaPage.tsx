@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { ScheduleBoard } from '@/components/ScheduleBoard/ScheduleBoard'
 import { AppointmentModal } from '@/components/AppointmentModal/AppointmentModal'
+import { usePatientName } from '@/hooks/useDisplayNames'
 import { IconSchedule } from '@/components/icons'
 import type { AgendaAppointment } from '@/types/domain'
 
@@ -20,6 +22,25 @@ export function AgendaPage() {
   // novo, pré-preenchido pelo "+" da grade.
   const [modal, setModal] = useState<ModalState | null>(null)
 
+  // Modo "Matricular": chega aqui pelo botão do perfil do paciente
+  // (?enroll=<patientId>&entitlement=<entitlementId>) — ScheduleBoard troca
+  // o clique numa turma por matricular esse paciente ali, direto.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const patientName = usePatientName()
+  const enrollPatientId = searchParams.get('enroll')
+  const enrollEntitlementId = searchParams.get('entitlement')
+  const enrollTarget = enrollPatientId && enrollEntitlementId
+    ? { patientId: enrollPatientId, entitlementId: enrollEntitlementId, patientName: patientName(enrollPatientId) }
+    : undefined
+
+  function exitEnrollMode() {
+    setSearchParams(params => {
+      params.delete('enroll')
+      params.delete('entitlement')
+      return params
+    }, { replace: true })
+  }
+
   return (
     <>
       <PageHeader title="Agenda" icon={<IconSchedule />} />
@@ -29,6 +50,8 @@ export function AgendaPage() {
       <ScheduleBoard
         onSelect={slot => setModal({ slot })}
         onQuickAdd={(professionalId, dateIso, time) => setModal({ initial: { professionalId, dateIso, time } })}
+        enrollTarget={enrollTarget}
+        onEnrollDone={exitEnrollMode}
       />
 
       <AppointmentModal

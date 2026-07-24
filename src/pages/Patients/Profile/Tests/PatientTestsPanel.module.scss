@@ -1,0 +1,241 @@
+@use '../../../../styles/mixins' as *;
+
+// Mesmo desenho de Admin → Testes: lista lateral + conteúdo ao lado.
+.layout {
+  display: flex;
+  align-items: flex-start;
+  gap: $sp-4;
+
+  @include mobile {
+    flex-direction: column;
+  }
+}
+
+.sidebar {
+  flex-shrink: 0;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+.detail {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  padding: $sp-5;
+}
+
+.detailHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $sp-3;
+  flex-wrap: wrap;
+}
+
+.detailTitle {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.detailSpecialty {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.semNiveis {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}
+
+// ── Novo teste (nível + data) ─────────────────────────────────────────────────
+.novoForm {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding: $sp-3;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+}
+
+.novoFormTitulo {
+  font-size: $fs-sm;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.novoFormAcoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-2;
+}
+
+// ── Medição de goniometria (foto + pontos) dentro do "Novo teste" ────────────
+.goniometriaCampo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.goniometriaLabel {
+  font-size: $fs-xs;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+// ── Histórico: cards horizontais, mais recente à esquerda ────────────────────
+.resultsRow {
+  @include hide-scrollbar;
+  display: flex;
+  gap: $sp-3;
+  overflow-x: auto;
+  padding-bottom: $sp-1;
+}
+
+// Um único card por resultado: a foto da medição em cima (quando houver),
+// o resultado (nível/ângulo/data) embaixo — tudo dentro do card maior (.detail).
+.resultCard {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  width: 220px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  overflow: hidden;
+
+  @include phone {
+    width: 180px;
+  }
+}
+
+.resultAcoes {
+  position: absolute;
+  z-index: 1;
+  top: $sp-2;
+  right: $sp-2;
+  display: flex;
+  gap: $sp-1;
+}
+
+.resultIconBtn {
+  @include focus-ring;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.15s ease, color 0.15s ease;
+
+  svg { width: 13px; height: 13px; }
+
+  &:hover { background: var(--glass-bg-hover); color: var(--primary); }
+
+  &--perigo:hover { color: var(--danger-fg); }
+}
+
+.resultImageWrap {
+  position: relative;
+}
+
+.resultImage {
+  display: block;
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+  background: var(--bg-base);
+
+  @include phone {
+    height: 220px;
+  }
+}
+
+// Régua do goniômetro (as 2 linhas + os 3 pontos da medição) sobre a foto —
+// mesmo traço do GoniometryPhoto, mas estático (sem arrastar).
+.resultRegua {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+
+  line {
+    stroke: var(--primary);
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+  }
+}
+
+.resultReguaPonto {
+  fill: var(--primary);
+  stroke: #fff;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.resultReguaVertice {
+  fill: var(--warning-fg);
+  stroke: #fff;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.resultAngleBadge {
+  position: absolute;
+  right: $sp-2;
+  bottom: $sp-2;
+  padding: 2px 8px;
+  border-radius: $radius-pill;
+  background: var(--bg-elevated);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  font-size: $fs-xs;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--shadow-sm);
+}
+
+.resultBody {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  padding: $sp-3;
+}
+
+.resultAngle {
+  font-size: $fs-lg;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.resultLevel {
+  font-size: $fs-sm;
+  font-weight: 700;
+  color: var(--primary-fg, var(--primary));
+}
+
+.resultDescription {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.resultDate {
+  margin-top: $sp-1;
+  font-size: 11px;
+  color: var(--text-muted);
+}

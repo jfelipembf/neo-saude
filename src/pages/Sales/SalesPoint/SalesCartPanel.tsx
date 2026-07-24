@@ -17,6 +17,7 @@ interface Props {
   onRemoveItem:    (uid: string) => void
   onRemovePayment: (uid: string) => void
   onFinalize:      () => void
+  saving?:         boolean
 }
 
 /** Painel direito do PDV — resumo da venda. */
@@ -51,6 +52,7 @@ export function SalesCartPanel(p: Props) {
             <div key={pay.uid} className={styles.lineItem}>
               <span className={styles.lineName}>
                 {PAY_METHOD_LABEL[pay.method]}
+                {pay.cardBrand ? ` ${pay.cardBrand}` : ''}
                 {pay.installments > 1 ? ` · ${pay.installments}x` : ' · à vista'}
               </span>
               <span className={styles.lineValue}>{formatBRL(pay.amount)}</span>
@@ -77,7 +79,7 @@ export function SalesCartPanel(p: Props) {
         </div>
       </div>
 
-      <Button onClick={p.onFinalize} disabled={p.cart.length === 0}>
+      <Button onClick={p.onFinalize} disabled={p.cart.length === 0 || p.saving} loading={p.saving}>
         Finalizar venda
       </Button>
     </div>

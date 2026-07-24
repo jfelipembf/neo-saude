@@ -153,6 +153,115 @@ export interface Service {
   status: ActiveStatus       // inactive = fora do catálogo de novas vendas
 }
 
+// ── Ponto de Venda (carrinho do perfil do paciente) ──────────────────────────
+export interface SaleItem {
+  id: string
+  serviceId: string
+  name: string       // congelado do catálogo no momento da venda
+  price: number       // congelado — preço unitário
+  quantity: number
+  amount: number       // price * quantity
+}
+
+export interface Sale {
+  id: string
+  clinicId: string
+  patientId: string
+  saleDate: string     // dd/mm/aaaa
+  discount: number
+  itemsTotal: number
+  total: number
+  items: SaleItem[]
+}
+
+/**
+ * Direito de UM paciente a N sessões de um pacote comprado (checkout_sale).
+ * `remaining` já vem calculado do banco (não é mantido por trigger — ver
+ * comment da tabela): total - used - scheduled.
+ */
+export interface PatientServiceEntitlement {
+  id: string
+  serviceId: string
+  serviceName: string
+  totalSessions: number
+  usedSessions: number
+  scheduledSessions: number
+  remaining: number
+  purchasedAt: string   // dd/mm/aaaa
+  expiresAt?: string     // dd/mm/aaaa — undefined = sem validade de uso
+}
+
+// ── Testes de fisioterapia (Administrativo → Testes + aba Testes do paciente) ─
+export interface PhysioTestLevel {
+  id: string
+  name: string
+  description: string
+}
+
+/** scale = interpretação por pontuação/tempo (a maioria dos testes). goniometry
+ *  = o goniômetro digital — foto + 3 pontos arrastáveis (A·vértice·C), ângulo
+ *  entre os dois segmentos calculado ao vivo. O CADASTRO (Administrativo →
+ *  Testes) só define nome/instruções/níveis; a medição em si (foto + pontos)
+ *  acontece na aplicação ao paciente (aba Testes do perfil), não no catálogo. */
+export type TestKind = 'scale' | 'goniometry'
+
+/** Ponto percentual (0–100) de uma foto do goniômetro digital — não pixel,
+ *  para acompanhar a foto em qualquer tamanho de tela (ver utils/goniometry). */
+export interface GoniometryPoint { x: number; y: number }
+export type GoniometryPoints = [GoniometryPoint, GoniometryPoint, GoniometryPoint]
+
+export interface PhysioTest {
+  id: string
+  clinicId: string
+  name: string
+  kind: TestKind
+  /** Imagem ilustrativa do teste (mesmo cadastro para os dois kinds). */
+  imageUrl?: string
+  /** PATH bruto (não assinado) da mesma imagem — só usado ao EDITAR o teste:
+   *  se a foto não for trocada, é o que deve ser regravado (salvar imageUrl,
+   *  que é uma URL assinada, corromperia a coluna após expirar em 1h). */
+  imagePath?: string
+  /** Neurológica, Ortopédica, Respiratória... (ver constants/testSpecialty). Texto
+   *  livre: a lista fixa é só sugestão — o cadastro aceita uma especialização própria. */
+  specialty: string
+  instructions?: string
+  levels: PhysioTestLevel[]
+  /** true = teste de referência que veio pronto no sistema — só edita, não
+   *  exclui. false = teste personalizado da própria clínica, pode excluir
+   *  (se ainda não tiver sido aplicado a nenhum paciente). */
+  isSeed: boolean
+}
+
+/** Teste do catálogo fixado no sidenav de UM paciente (aba Testes do perfil). */
+export interface PatientTest {
+  id: string
+  testId: string
+}
+
+/** Uma aplicação registrada de um teste a um paciente, com o nível atingido —
+ *  nome/descrição do nível vêm CONGELADOS (não mudam se o catálogo mudar depois). */
+export interface PatientTestResult {
+  id: string
+  testId: string
+  professionalId?: string
+  levelId?: string
+  levelName: string
+  levelDescription: string
+  /** Só testes kind='goniometry': o ângulo cru medido nesta aplicação. */
+  measuredAngle?: number
+  /** Foto usada na medição desta aplicação (já assinada) — mostrada no card
+   *  de resultado, acima do valor medido. */
+  imageUrl?: string
+  /** PATH bruto (não assinado) da mesma foto — só usado ao EDITAR o
+   *  resultado: se o fisioterapeuta não trocar a foto, é o que deve ser
+   *  regravado (salvar imageUrl, que é uma URL assinada, corromperia a coluna). */
+  imagePath?: string
+  /** Os 3 pontos (A·vértice·C) usados nesta medição — desenha a régua sobre
+   *  imageUrl no card de resultado. Só quando imageUrl também existe. */
+  measuredPoints?: GoniometryPoints
+  performedAt: string   // dd/mm/aaaa
+}
+
 // ── Orçamentos do paciente (aba do perfil) ───────────────────────────────────
 export type QuoteStatus = 'pending' | 'approved'
 
@@ -467,6 +576,66 @@ export interface Room {
   photo?: string          // URL da imagem (upload local no modo mock)
 }
 
+/** Turma coletiva recorrente (Administrativo → Turmas) — nome/profissional/sala/
+ *  horário/capacidade compartilhados por todos os dias da semana selecionados. */
+/** Uma sessão semanal recorrente de turma coletiva — turma com aulas em dois
+ *  dias vira DUAS ClassGroup (uma por dia), cada uma com sua própria
+ *  capacidade/matrícula: um paciente pode entrar só na terça sem contar vaga
+ *  nem limite semanal na quinta. */
+export interface ClassGroup {
+  id: string
+  clinicId: string
+  name: string
+  professionalId?: string
+  roomId?: string
+  weekday: number     // 0=domingo … 6=sábado (Date.getDay())
+  startTime: string       // 'HH:mm'
+  durationMinutes: number
+  maxCapacity: number
+  startDate: string        // dd/mm/aaaa
+  endDate?: string          // dd/mm/aaaa — sem fim = turma contínua
+}
+
+/** Uma ocorrência (dia concreto) de uma ClassGroup na semana visível da Agenda
+ *  — materializada no cliente a partir de weekday/startDate/endDate, nunca
+ *  persistida (por isso não tem `id` de banco: `id` aqui é só de renderização). */
+export interface ClassGroupOccurrence {
+  id: string               // `${classGroupId}-${date}` — único por ocorrência renderizada
+  classGroupId: string
+  name: string
+  date: string               // aaaa-mm-dd
+  startTime: string           // 'HH:mm'
+  endTime: string
+  professionalId?: string
+  roomName?: string
+  maxCapacity: number
+  /** Alunos matriculados NESTA sessão (class_group_enrollment) — cada dia da
+   *  semana é uma ClassGroup própria, então a lotação é independente por dia. */
+  enrolledCount: number
+}
+
+export type ClassAttendanceStatus = 'present' | 'absent'
+
+/** Uma linha do roster no modal de chamada de uma ocorrência de turma —
+ *  matrícula (permanente) + a presença/falta/prontuário DESTA data (se já
+ *  registrada; sem registro ainda, cai no padrão status='present' sem nota). */
+export interface ClassGroupRosterEntry {
+  enrollmentId: string
+  patientId: string
+  patientName: string
+  patientPhoto?: string
+  status: ClassAttendanceStatus
+  /** Só relevante quando status='absent'. */
+  justification?: string
+  /** Prontuário da sessão deste paciente nesta turma+data — painel lateral. */
+  clinicalNoteHtml?: string
+  /** Pacote/plano que originou a matrícula (só exibição — ver domain.ts
+   *  PatientServiceEntitlement / classGroupRosterService.ts). */
+  entitlementServiceName?: string
+  /** dd/mm/aaaa — undefined = sem validade (não vence). */
+  entitlementExpiresAt?: string
+}
+
 /** Material/insumo de estoque (Administrativo → Materiais). */
 export interface Material {
   id: string
@@ -516,6 +685,11 @@ export interface AgendaAppointment {
   notes?: string
   /** Enviar mensagem de confirmação ao paciente. */
   sendConfirmation?: boolean
+  /** Pacote de sessões do qual esta consulta desconta — IMUTÁVEL depois de
+   *  criada (ver appointment.entitlement_id). undefined = consulta avulsa. */
+  entitlementId?: string
+  /** Prontuário da SESSÃO — HTML rico, sanitizado (ver appointment.clinical_note_html). */
+  clinicalNoteHtml?: string
 }
 
 // ── Documentos do paciente (aba do perfil) ───────────────────────────────────
@@ -531,6 +705,8 @@ export interface PatientDocument {
   uploadedAt: string      // dd/mm/aaaa
   /** URL de visualização (object URL na sessão; no Supabase, URL do storage). */
   url?: string
+  /** Anexo de uma SESSÃO específica (aba Prontuários) — undefined = documento geral do paciente. */
+  appointmentId?: string
 }
 
 // ── Histórico de consultas (timeline do perfil do paciente) ──────────────────
@@ -933,6 +1109,10 @@ export interface Receivable {
   /** Referência humana sequencial por clínica (CTR-000001). */
   code: string
   description: string
+  /** Data da VENDA (dd/mm/aaaa) — regime de competência, igual em todas as
+   *  parcelas do mesmo plano. Faturamento soma o bruto por esta data; caixa
+   *  continua por receivedAt. Ver docs/modelo-contabil.md. */
+  competenceDate: string
   dueDate: string
   receivedAt?: string     // dd/mm/aaaa (quando quitada)
   method?: PaymentMethod
@@ -940,6 +1120,11 @@ export interface Receivable {
   grossAmount: number
   fee: number             // R$ retido pela adquirente
   status: PaymentStatus
+  /** Bandeira e código de autorização da maquininha (crédito/débito). */
+  cardBrand?: string
+  authorizationCode?: string
+  /** Venda do PDV que originou o título (N parcelas → 1 venda). */
+  saleId?: string
   // Origem comercial (parcelas nascidas de um orçamento aprovado).
   patientId?: string
   quoteId?: string
