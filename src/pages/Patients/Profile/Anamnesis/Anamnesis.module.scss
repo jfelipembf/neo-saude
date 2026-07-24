@@ -1,7 +1,6 @@
 @use '../../../../styles/mixins' as *;
 
-// Envolve a ficha (ou o EmptyState) + o card "Personalizado" — são dois blocos
-// irmãos agora (perguntas personalizadas são do paciente, não da ficha).
+// Envolve o card único da aba (ficha/EmptyState + "Personalizado" dentro dele).
 .wrap {
   display: flex;
   flex-direction: column;

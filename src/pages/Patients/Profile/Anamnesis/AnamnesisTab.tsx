@@ -92,74 +92,76 @@ export function AnamnesisTab({ patientId, patientName }: AnamnesisTabProps) {
 
   return (
     <div className={styles.wrap}>
-      {!record ? (
-        <EmptyState
-          icon={<IconDocument />}
-          title="Anamnese ainda não preenchida"
-          description="Registre o questionário de saúde antes do primeiro atendimento — alergias, medicamentos e condições que mudam a conduta clínica."
-          action={
-            <Button iconLeft={<IconEdit />} onClick={() => setEditing(true)}>
-              Preencher anamnese
-            </Button>
-          }
-        />
-      ) : (
-        <section className={styles.card} aria-label="Anamnese do paciente">
-          <div className={styles.head}>
-            <div>
-              <h2 className={styles.titulo}>Anamnese</h2>
-              <span className={styles.atualizada}>Atualizada em {record.updatedAt}</span>
-            </div>
-            <div className={styles.acoes}>
-              <Button
-                variant="ghost"
-                size="sm"
-                iconLeft={<IconPrint />}
-                onClick={() => printDocument({
-                  title: 'Ficha de anamnese',
-                  subtitle: patientName,
-                  body: anamnesisBody(record, sections, specialty, customQuestions ?? [], patientName),
-                  styles: ANAMNESIS_STYLES,
-                })}
-              >
-                Imprimir
+      <section className={styles.card} aria-label="Anamnese do paciente">
+        {!record ? (
+          <EmptyState
+            icon={<IconDocument />}
+            title="Anamnese ainda não preenchida"
+            description="Registre o questionário de saúde antes do primeiro atendimento — alergias, medicamentos e condições que mudam a conduta clínica."
+            action={
+              <Button iconLeft={<IconEdit />} onClick={() => setEditing(true)}>
+                Preencher anamnese
               </Button>
-              <Button variant="outline" size="sm" iconLeft={<IconEdit />} onClick={() => setEditing(true)}>
-                Editar
-              </Button>
+            }
+          />
+        ) : (
+          <>
+            <div className={styles.head}>
+              <div>
+                <h2 className={styles.titulo}>Anamnese</h2>
+                <span className={styles.atualizada}>Atualizada em {record.updatedAt}</span>
+              </div>
+              <div className={styles.acoes}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  iconLeft={<IconPrint />}
+                  onClick={() => printDocument({
+                    title: 'Ficha de anamnese',
+                    subtitle: patientName,
+                    body: anamnesisBody(record, sections, specialty, customQuestions ?? [], patientName),
+                    styles: ANAMNESIS_STYLES,
+                  })}
+                >
+                  Imprimir
+                </Button>
+                <Button variant="outline" size="sm" iconLeft={<IconEdit />} onClick={() => setEditing(true)}>
+                  Editar
+                </Button>
+              </div>
             </div>
-          </div>
 
-          {sections.map(section => (
-            <section key={section.title} className={styles.secao}>
-              <h3 className={styles.secaoTitulo}>{section.title}</h3>
+            {sections.map(section => (
+              <section key={section.title} className={styles.secao}>
+                <h3 className={styles.secaoTitulo}>{section.title}</h3>
 
-              <dl className={styles.respostas}>
-                {section.questions.map(p => {
-                  const value = record[p.field]
-                  const detail = p.detail ? record[p.detail.field] : undefined
-                  const alert = p.type === 'options' && isAlert(p.field, value)
-                  const open = p.type !== 'options'
+                <dl className={styles.respostas}>
+                  {section.questions.map(p => {
+                    const value = record[p.field]
+                    const detail = p.detail ? record[p.detail.field] : undefined
+                    const alert = p.type === 'options' && isAlert(p.field, value)
+                    const open = p.type !== 'options'
 
-                  return (
-                    <div key={p.field} className={`${styles.resposta} ${open ? styles['resposta--aberta'] : ''}`}>
-                      <dt>{p.question}</dt>
-                      <dd className={alert ? styles.alerta : undefined}>
-                        {p.type === 'options' ? answerLabel(p, value) : (value || '—')}
-                        {detail && <span className={styles.detalhe}>{p.detail!.label}: {detail}</span>}
-                      </dd>
-                    </div>
-                  )
-                })}
-              </dl>
-            </section>
-          ))}
-        </section>
-      )}
+                    return (
+                      <div key={p.field} className={`${styles.resposta} ${open ? styles['resposta--aberta'] : ''}`}>
+                        <dt>{p.question}</dt>
+                        <dd className={alert ? styles.alerta : undefined}>
+                          {p.type === 'options' ? answerLabel(p, value) : (value || '—')}
+                          {detail && <span className={styles.detalhe}>{p.detail!.label}: {detail}</span>}
+                        </dd>
+                      </div>
+                    )
+                  })}
+                </dl>
+              </section>
+            ))}
+          </>
+        )}
 
-      {/* Perguntas personalizadas: permanentes ao paciente, à parte da ficha
-          versionada — por isso ficam visíveis mesmo sem a anamnese padrão preenchida. */}
-      <section className={styles.card} aria-label="Perguntas personalizadas do paciente">
+        {/* Perguntas personalizadas: permanentes ao paciente, à parte da ficha
+            versionada — por isso ficam fora do "!record" acima (aparecem
+            mesmo sem a anamnese padrão preenchida). Agora dentro do MESMO
+            card da ficha, não mais um card à parte. */}
         <CustomQuestionsSection patientId={patientId} />
       </section>
     </div>
