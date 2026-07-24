@@ -2,13 +2,25 @@
 
 // Autenticação: a imagem cobre a página inteira e o formulário é um painel
 // LATERAL colado à direita, ocupando a altura toda — a imagem fica ATRÁS dele.
+//
+// Ajustada pela ALTURA (não "cover"): "cover" estica a imagem até preencher a
+// largura toda, o que em telas mais largas que a foto (a maioria) cortava um
+// pedaço em cima/embaixo. Com altura 100% + largura automática, a foto nunca
+// é cortada; o conteúdo relevante (mesa, plantas, ícones) fica preso à
+// ESQUERDA, e o vão que sobrar à direita (onde o formulário flutua por cima)
+// cai bem perto da borda quase-branca da própria foto — por isso o fallback
+// $login-bg-fallback, não uma cor de tema.
 .page {
   display: flex;
   align-items: stretch;
   justify-content: flex-end;
   width: 100%;
   min-height: 100vh;
-  background: url('../../assets/images/login.bg.png') center / cover no-repeat;
+  background-color: $login-bg-fallback;
+  background-image: url('../../assets/images/login.bg.png');
+  background-position: left center;
+  background-size: auto 100%;
+  background-repeat: no-repeat;
 }
 
 .painel {

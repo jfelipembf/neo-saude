@@ -9,7 +9,7 @@
   min-height: 100vh;
   padding: clamp($sp-5, 6vw, 96px);
   overflow: hidden;
-  background: #eef3f0;   // casa com o fundo claro da ilustração (sem emenda)
+  background: $error-bg-fallback;   // casa com a borda clara da ilustração (sem emenda)
 
   @include mobile {
     justify-content: center;
@@ -18,22 +18,25 @@
   }
 }
 
-// Imagem ENCAIXADA na tela: `contain` mostra a ilustração inteira, sem cortar
-// nem ampliar demais (o corte no topo vinha do `cover`). Fica à esquerda, com o
-// fundo claro (que combina com a arte) preenchendo a sobra à direita — onde o
-// texto se apoia.
+// Ajustada pela ALTURA (não `contain`): `contain` limitava pela LARGURA em
+// quase toda tela (a ilustração é mais larga que a maioria dos monitores),
+// sobrando uma faixa vazia em cima/embaixo com emenda visível. Com altura
+// 100% + largura automática, a arte preenche a tela toda sem faixa — o que
+// eventualmente sobra (tela ultrawide) é cortado à DIREITA pelo `overflow:
+// hidden` do .page, área que já é vazia na própria imagem.
 .image {
   position: absolute;
-  inset: 0;
-  width: 100%;
+  top: 0;
+  left: 0;
   height: 100%;
-  object-fit: contain;
-  object-position: left center;
+  width: auto;
   z-index: 0;
 
   @include mobile {
-    // No mobile a arte encaixa no topo e o texto desce (page: align-items flex-end).
-    object-position: center top;
+    // No mobile a arte encaixa na LARGURA (deitada no topo) e o texto desce
+    // (page: align-items flex-end) — eixo trocado em relação ao desktop.
+    height: auto;
+    width: 100%;
   }
 }
 

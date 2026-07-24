@@ -19,6 +19,16 @@ $secondary-rgb:     139, 92, 246;
 $accent:            #A855F7;   // roxo vivo (realces pontuais)
 $accent-rgb:        168, 85, 247;
 
+// Tom da borda direita (quase-branca) de login.bg.png — preenche o vão que
+// sobra quando a imagem é ajustada por ALTURA (sem cortar), não por "cover"
+// (ver AuthLayout.module.scss). Mesmo em qualquer tema: é a cor da FOTO, não
+// de uma superfície de UI.
+$login-bg-fallback: #f0eeeb;
+
+// Mesma ideia, mas pra ilustração de error.png (ErrorBoundary) — a borda
+// direita dela (onde o texto/botão flutuam) é quase branca.
+$error-bg-fallback: #f9f9fa;
+
 // ── Status ───────────────────────────────────────────────────────────────────
 $success:           #10B981;
 $warning:           #F59E0B;
