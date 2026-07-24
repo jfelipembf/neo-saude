@@ -29,15 +29,19 @@ import { useUpdatePatient, useUpdatePatientPhoto } from '@/hooks/usePatients'
 import { uploadImage } from '@/lib/storage'
 import { IconUser, IconEdit, IconPhone, IconMessage, IconEmail, IconCamera } from '@/components/icons'
 import { initials, digitsOnly } from '@/utils/text'
-import type { Patient, Gender } from '@/types/domain'
+import { useSession } from '@/context/SessionProvider'
+import { appliesToSpecialty } from '@/constants/specialty'
+import type { Patient, Gender, ClinicSpecialty } from '@/types/domain'
 import styles from './PatientProfilePage.module.scss'
 
 type TabKey = 'personal' | 'anamnesis' | 'treatment' | 'quotes' | 'prescriptions' | 'payments' | 'documents'
 
-const TABS = [
+// `specialties` restringe a aba a certos ramos (ver constants/specialty). Ausente
+// = núcleo (todo ramo). Tratamento hoje é o odontograma → só odontologia.
+const TABS: { key: TabKey; label: string; specialties?: ClinicSpecialty[] }[] = [
   { key: 'personal',       label: 'Dados pessoais' },
   { key: 'anamnesis',    label: 'Anamnese' },
-  { key: 'treatment',  label: 'Tratamento' },
+  { key: 'treatment',  label: 'Tratamento', specialties: ['dentistry'] },
   { key: 'quotes',  label: 'Orçamentos' },
   { key: 'prescriptions', label: 'Prescrições' },
   { key: 'payments',  label: 'Pagamentos' },
@@ -94,6 +98,9 @@ export function PatientProfilePage() {
   const { mutate: save, isPending: saving } = useUpdatePatient()
   const { mutate: savePhoto } = useUpdatePatientPhoto()
   const insuranceOptions = useInsuranceOptions()
+  const { specialty } = useSession()
+  // Abas visíveis para o ramo da clínica (Tratamento/odontograma só em odontologia).
+  const visibleTabs = TABS.filter(t => appliesToSpecialty(specialty, t))
 
   const [tab, setTab] = useState<TabKey>('personal')
   const [editing, setEditing] = useState(false)
@@ -106,7 +113,7 @@ export function PatientProfilePage() {
   const header = (
     <header className={styles.topo}>
       <PageHeader title="Perfil do paciente" icon={<IconUser />} />
-      <Tabs tabs={TABS} active={tab} onChange={changeTab} />
+      <Tabs tabs={visibleTabs} active={tab} onChange={changeTab} />
     </header>
   )
 

@@ -18,6 +18,10 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
     'Este profissional é o responsável técnico da clínica. Defina outro responsável antes de inativá-lo.',
   professional_technical_manager_uk:
     'A clínica já tem um responsável técnico. Troque o responsável em Configurações → Conta.',
+  // Trava real de banco (exclude using gist) — sala é unidade de ocupação e
+  // não se divide (ver appointment_room_overlap_ex na migration de Agenda).
+  appointment_room_overlap_ex:
+    'Já existe uma consulta agendada para essa sala nesse mesmo horário.',
 }
 
 /** Códigos usados pelos `raise exception` do schema: a mensagem que vem junto

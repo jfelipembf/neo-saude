@@ -29,11 +29,24 @@ export function Header() {
 
   return (
     <header className={styles.header}>
-      <div className={styles.brand}>
-        <span className={styles.brandLogo}><IconLogo /></span>
+      <div className={styles.topBar}>
+        <div className={styles.brand}>
+          <span className={styles.brandLogo}><IconLogo /></span>
+        </div>
+
+        <div className={styles.actions}>
+          {/* Busca global de pacientes — antes do seletor de tema (lua). */}
+          <HeaderSearch />
+          <button type="button" className={styles.iconBtn} onClick={toggleTheme} title="Alternar tema" aria-label="Alternar tema">
+            <IconTheme />
+          </button>
+          {/* Identidade + menu (perfil · configurações · sair). */}
+          <ProfileMenu />
+        </div>
       </div>
 
-      <nav className={styles.nav}>
+      {/* Segunda barra: só a navegação, separada da barra de marca/ações. */}
+      <nav className={styles.navBar}>
         {navItems.map(item => (
           <NavLink
             key={item.to}
@@ -46,16 +59,6 @@ export function Header() {
           </NavLink>
         ))}
       </nav>
-
-      <div className={styles.actions}>
-        {/* Busca global de pacientes — antes do seletor de tema (lua). */}
-        <HeaderSearch />
-        <button type="button" className={styles.iconBtn} onClick={toggleTheme} title="Alternar tema" aria-label="Alternar tema">
-          <IconTheme />
-        </button>
-        {/* Identidade + menu (perfil · configurações · sair). */}
-        <ProfileMenu />
-      </div>
     </header>
   )
 }

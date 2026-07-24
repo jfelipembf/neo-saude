@@ -1,5 +1,13 @@
 @use '../../../../styles/mixins' as *;
 
+// Envolve a ficha (ou o EmptyState) + o card "Personalizado" — são dois blocos
+// irmãos agora (perguntas personalizadas são do paciente, não da ficha).
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
 .card {
   @include card;
   display: flex;
@@ -154,4 +162,101 @@
   gap: $sp-3;
   padding-top: $sp-3;
   border-top: 1px solid var(--glass-border);
+}
+
+// ── Personalizado: perguntas ad-hoc do paciente ──────────────────────────────
+.secaoCabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+  padding-bottom: $sp-1;
+  border-bottom: 1px solid var(--glass-border);
+
+  .secaoTitulo { padding-bottom: 0; border-bottom: none; }
+}
+
+.customVazio {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}
+
+.customLista {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  margin: 0;
+  padding: 0;
+}
+
+.customItem {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $sp-3;
+  padding: $sp-2 0;
+  border-bottom: 1px solid var(--glass-border);
+
+  &:last-child { border-bottom: none; }
+}
+
+.customItemTexto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.customPergunta {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.customResposta {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.customItemAcoes {
+  display: flex;
+  align-items: center;
+  gap: $sp-1;
+  flex-shrink: 0;
+}
+
+.customIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  border-radius: $radius-sm;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover { background: var(--glass-bg-hover); color: var(--text-primary); }
+
+  svg { width: 15px; height: 15px; }
+}
+
+.customForm {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding: $sp-3;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+}
+
+.customFormAcoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-2;
 }

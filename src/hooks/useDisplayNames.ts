@@ -46,3 +46,25 @@ export function usePatientName() {
   const map = getNameMap(data)
   return (id?: string) => (id && map?.get(id)) || NO_NAME
 }
+
+const colorMapsByList = new WeakMap<object, Map<string, string | undefined>>()
+
+function getColorMap(list: { id: string; color?: string }[] | undefined) {
+  if (!list) return undefined
+  let map = colorMapsByList.get(list)
+  if (!map) {
+    map = new Map(list.map(item => [item.id, item.color]))
+    colorMapsByList.set(list, map)
+  }
+  return map
+}
+
+/** Cor cadastrada do profissional (perfil dele) — os cards da Agenda usam
+ *  esta cor, não a da atividade, pra todo card daquele profissional ficar
+ *  consistente com o que está configurado no perfil (e acompanhar sozinho
+ *  se o dono trocar a cor depois, sem precisar re-salvar consultas antigas). */
+export function useProfessionalColor() {
+  const { data } = useProfessionals()
+  const map = getColorMap(data)
+  return (id?: string) => (id ? map?.get(id) : undefined)
+}

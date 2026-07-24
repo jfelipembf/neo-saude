@@ -143,13 +143,23 @@
   text-overflow: ellipsis;
 }
 
-// Badge de estado (Canc.) — chip adaptativo sobre a cor.
+// Linha própria do chip de desfecho — nunca ao lado do nome do paciente nem
+// do Dr(a), senão o chip espreme os dois até sumir em cards estreitos (piso
+// de 140px na grade). max-width + ellipsis é rede de segurança pro card mais
+// estreito possível: o chip trunca em vez de vazar por cima do card vizinho.
+.statusRow {
+  display: flex;
+}
+
 .badge {
-  flex-shrink: 0;
+  max-width: 100%;
+  overflow: hidden;
   font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   padding: 1px 5px;
   border-radius: $radius-sm;
   color: var(--on-card);

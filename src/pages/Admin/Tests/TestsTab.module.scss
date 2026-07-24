@@ -1,0 +1,179 @@
+@use '../../../styles/mixins' as *;
+
+// Mesmo desenho de Serviços/Comissões: lista lateral + formulário ao lado.
+.layout {
+  display: flex;
+  align-items: flex-start;
+  gap: $sp-4;
+
+  @include mobile {
+    flex-direction: column;
+  }
+}
+
+// Coluna lateral: filtro por especialidade + a lista (mesma largura do
+// SideList size="lg", já que ela fica aninhada aqui dentro).
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  width: 300px;
+  flex-shrink: 0;
+
+  @include mobile {
+    width: 100%;
+  }
+}
+
+.formArea {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.formRoot {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.acoesBar {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-3;
+}
+
+// ── Dados: imagem + nome lado a lado ─────────────────────────────────────────
+.dados {
+  display: flex;
+  align-items: flex-start;
+  gap: $sp-4;
+
+  @include phone {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+// Especialização + (quando "Outra") o campo digitado, lado a lado.
+.especializacaoLinha {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-4;
+
+  @include form-grid-collapse;
+}
+
+.imagem {
+  position: relative;
+  flex-shrink: 0;
+  width: 120px;
+  height: 120px;
+  border-radius: $radius-lg;
+  border: 1px dashed var(--glass-border);
+  background: var(--glass-bg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+
+  &:hover { border-color: var(--primary); }
+}
+
+.imagemPreview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.imagemVazia {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: $sp-1;
+  color: var(--text-muted);
+  font-size: $fs-xs;
+  text-align: center;
+
+  svg { width: 22px; height: 22px; }
+}
+
+.imagemInput {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.campoNome {
+  flex: 1;
+  min-width: 0;
+}
+
+// ── Níveis (lista dinâmica) ──────────────────────────────────────────────────
+.niveis {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  margin: 0;
+  padding: 0;
+}
+
+.nivel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 2fr) auto;
+  align-items: center;
+  gap: $sp-2;
+
+  @include phone {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      'num nome remover'
+      'num desc desc';
+    row-gap: $sp-2;
+  }
+}
+
+.nivelNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: $radius-pill;
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary-dark, var(--primary));
+  font-size: $fs-xs;
+  font-weight: 700;
+
+  @include phone { grid-area: num; }
+}
+
+.nivelNome { @include phone { grid-area: nome; } }
+.nivelDesc { @include phone { grid-area: desc; } }
+
+.nivelRemover {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: $radius-sm;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover:not(:disabled) { background: color-mix(in srgb, var(--danger-fg) 12%, transparent); color: var(--danger-fg); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  svg { width: 16px; height: 16px; }
+
+  @include phone { grid-area: remover; }
+}

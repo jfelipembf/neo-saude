@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Calendar } from '@/components/Calendar/Calendar'
 import { Button } from '@/components/Button/Button'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
+import { SegmentedControl } from '@/components/SegmentedControl/SegmentedControl'
 import { IconSchedule, IconPhone, IconMessage, IconEye } from '@/components/icons'
 import { buildRoute, DAY_OF_WEEK_LONG } from '@/constants'
 import { useAgendaAppointments } from '@/hooks/useSchedule'
@@ -10,6 +11,7 @@ import { usePatients } from '@/hooks/usePatients'
 import { toIsoDate, localDate } from '@/utils/date'
 import { digitsOnly } from '@/utils/text'
 import type { Professional } from '@/types/domain'
+import { AvailabilityPanel } from './AvailabilityPanel'
 import shared from '../shared/profile.module.scss'
 import styles from './ScheduleTab.module.scss'
 
@@ -17,10 +19,17 @@ interface ScheduleTabProps {
   professional: Professional
 }
 
-/** Aba "Agenda": calendário + consultas do dia escolhido. Consultas são
- *  eventos datados (não recorrentes); a janela de ±6 meses cobre de sobra a
- *  navegação do calendário. */
+type View = 'appointments' | 'availability'
+
+const VIEW_OPTIONS = [
+  { value: 'appointments' as const, label: 'Consultas' },
+  { value: 'availability' as const, label: 'Disponibilidade' },
+]
+
+/** Aba "Agenda": alterna entre as consultas já marcadas (calendário + lista
+ *  do dia) e a grade de disponibilidade recorrente do profissional. */
 export function ScheduleTab({ professional }: ScheduleTabProps) {
+  const [view, setView] = useState<View>('appointments')
   const navigate = useNavigate()
   const today = new Date()
   const fromIso = toIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 182))
@@ -47,9 +56,14 @@ export function ScheduleTab({ professional }: ScheduleTabProps) {
 
   return (
     <section className={shared.formCard} aria-label="Agenda">
-      <h2 className={shared.formTitulo}>Agenda</h2>
+      <div className={shared.detalheHead}>
+        <h2 className={shared.formTitulo}>Agenda</h2>
+        <SegmentedControl options={VIEW_OPTIONS} value={view} onChange={setView} />
+      </div>
 
-      {professionalSlots.length === 0 ? (
+      {view === 'availability' && <AvailabilityPanel professionalId={professional.id} />}
+
+      {view === 'appointments' && (professionalSlots.length === 0 ? (
         <EmptyState
           icon={<IconSchedule />}
           title="Nenhuma consulta agendada"
@@ -124,7 +138,7 @@ export function ScheduleTab({ professional }: ScheduleTabProps) {
             )}
           </div>
         </div>
-      )}
+      ))}
     </section>
   )
 }

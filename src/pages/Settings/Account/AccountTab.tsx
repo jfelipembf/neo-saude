@@ -4,11 +4,21 @@ import { Button } from '@/components/Button/Button'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { FormSection } from '@/components/FormSection/FormSection'
 import { PhotoInput } from '@/components/PhotoInput/PhotoInput'
+import { Toggle } from '@/components/Toggle/Toggle'
 import { useToast } from '@/components/Toast/useToast'
 import { useClinic, useSaveClinic } from '@/hooks/useClinic'
 import { IconEdit } from '@/components/icons'
 import { ClinicFormModal } from './ClinicForm'
 import styles from './AccountTab.module.scss'
+
+// UI only por enquanto — sem persistência (nem service, nem coluna no banco).
+const PRACTICE_AREAS = [
+  { key: 'medicine',       label: 'Medicina' },
+  { key: 'physiotherapy',  label: 'Fisioterapia' },
+  { key: 'dentistry',      label: 'Odontologia' },
+  { key: 'psychology',     label: 'Psicologia' },
+  { key: 'nutrition',      label: 'Nutrição' },
+]
 
 /** Aba "Conta": cadastro e logo da clínica (o que vai no cabeçalho dos
  *  documentos impressos). Tema e sair ficam no Header; o cadastro profissional
@@ -19,6 +29,16 @@ export function AccountTab() {
   const { mutate: saveClinic } = useSaveClinic()
 
   const [editingClinic, setEditingClinic] = useState(false)
+  const [practiceAreas, setPracticeAreas] = useState<Set<string>>(new Set())
+
+  function togglePracticeArea(key: string, enabled: boolean) {
+    setPracticeAreas(current => {
+      const next = new Set(current)
+      if (enabled) next.add(key)
+      else next.delete(key)
+      return next
+    })
+  }
 
   if (isLoading) return <PageLoader />
 
@@ -91,6 +111,23 @@ export function AccountTab() {
         description="Aparece no topo de todos os documentos impressos (recibos, orçamentos, receituários)."
       >
         <PhotoInput label="Logo" value={clinic?.photo} onChange={changeLogo} folder="clinic" />
+      </FormSection>
+
+      <FormSection
+        title="Ramos de atuação"
+        description="Marque as áreas que a clínica atende."
+      >
+        <div className={styles.ramos}>
+          {PRACTICE_AREAS.map(area => (
+            <div key={area.key} className={styles.ramo}>
+              <Toggle
+                label={area.label}
+                checked={practiceAreas.has(area.key)}
+                onChange={enabled => togglePracticeArea(area.key, enabled)}
+              />
+            </div>
+          ))}
+        </div>
       </FormSection>
 
       {/* Monta só quando aberto — o formulário nasce do cadastro salvo. */}

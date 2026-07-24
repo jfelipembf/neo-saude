@@ -11,8 +11,10 @@ import { useCreateAgendaAppointment, useUpdateAgendaAppointment } from '@/hooks/
 import { usePatients } from '@/hooks/usePatients'
 import { useProfessionals } from '@/hooks/useProfessionals'
 import { useRooms } from '@/hooks/useRooms'
+import { useAvailabilityTemplate } from '@/hooks/useProfessionalAvailability'
 import { usePatientName } from '@/hooks/useDisplayNames'
-import { toIsoDate } from '@/utils/date'
+import { userMessage } from '@/lib/errors'
+import { toIsoDate, localDate } from '@/utils/date'
 import { digitsOnly, initials } from '@/utils/text'
 import { IconPhone, IconEmail, IconWhatsApp } from '@/components/icons'
 import type { AgendaAppointment, AppointmentStatus } from '@/types/domain'
@@ -63,6 +65,8 @@ interface AppointmentModalProps {
   onClose: () => void
   /** Consulta em edição — sem ela, o modal cria um agendamento novo. */
   slot?: AgendaAppointment | null
+  /** Pré-preenchimento do "+" na grade (só vale numa consulta NOVA, sem `slot`). */
+  initial?: { professionalId?: string; dateIso?: string; time?: string }
 }
 
 /**
@@ -70,7 +74,7 @@ interface AppointmentModalProps {
  * (dentista, paciente com busca, data/horário/duração, etiqueta, confirmação
  * e retorno programado).
  */
-export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps) {
+export function AppointmentModal({ open, onClose, slot, initial }: AppointmentModalProps) {
   const toast = useToast()
   const { data: professionals } = useProfessionals()
   const { data: patients } = usePatients()
@@ -80,11 +84,14 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
 
   const patientName = usePatientName()
   const [professionalId, setProfessionalId] = useState('')
+  // Disponibilidade do profissional escolhido — barra salvar fora do horário
+  // dele (ver isWithinAvailability abaixo).
+  const { data: availability } = useAvailabilityTemplate(professionalId)
   const [patientSearch, setPatientSearch] = useState('')
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const [dateIso, setDateIso] = useState(() => toIsoDate(new Date()))
   const [time, setTime] = useState('07:30')
-  const [duration, setDuration] = useState('30')
+  const [duration, setDuration] = useState('60')
   const [room, setRoom] = useState('')
   const [notes, setNotes] = useState('')
   const [status, setStatus] = useState<AppointmentStatus>('scheduled')
@@ -97,7 +104,11 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
   // (criação). Padrão do React "resetar estado quando um prop muda" — ajuste
   // DURANTE O RENDER com guarda (não um efeito com setState): evita o flash de
   // estado velho de um efeito e o aviso react-hooks/set-state-in-effect.
-  const hydrationKey = open ? (slot?.id ?? 'new') : null
+  // A chave de uma consulta NOVA inclui o pré-preenchimento: sem isso, abrir o
+  // "+" de duas células diferentes seguidas cairia na mesma chave 'new' e a
+  // segunda ficaria com os dados (profissional/dia/hora) da primeira.
+  const newKey = `new:${initial?.professionalId ?? ''}:${initial?.dateIso ?? ''}:${initial?.time ?? ''}`
+  const hydrationKey = open ? (slot?.id ?? newKey) : null
   const [hydratedFor, setHydratedFor] = useState<string | null>(null)
   if (hydrationKey !== hydratedFor) {
     setHydratedFor(hydrationKey)
@@ -114,16 +125,25 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
         setNotes(slot.notes ?? '')
         setStatus(slot.status)
       } else {
-        setProfessionalId('')
+        setProfessionalId(initial?.professionalId ?? '')
         setPatientSearch('')
-        setDateIso(toIsoDate(new Date()))
-        setTime('07:30')
-        setDuration('30')
+        setDateIso(initial?.dateIso ?? toIsoDate(new Date()))
+        setTime(initial?.time ?? '07:30')
+        setDuration('60')
         setRoom('')
         setNotes('')
         setStatus('scheduled')
       }
     }
+  }
+
+  // Clínica com uma sala só: pré-preenche na consulta NOVA — `rooms` pode
+  // ainda não ter carregado no reset acima, então isto roda à parte (mesmo
+  // padrão de ajuste em tempo de render), uma vez por sessão do modal.
+  const [roomAutoFilledFor, setRoomAutoFilledFor] = useState<string | null>(null)
+  if (open && !slot && rooms?.length === 1 && roomAutoFilledFor !== hydrationKey && room === '') {
+    setRoom(rooms[0].name)
+    setRoomAutoFilledFor(hydrationKey)
   }
 
   const professionalOptions = (professionals ?? [])
@@ -144,6 +164,18 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
 
   const currentPatient = (patients ?? []).find(p => p.name === patientSearch.trim())
 
+  /**
+   * Data/horário escolhidos caem dentro da disponibilidade do profissional?
+   * Profissional SEM grade configurada (nenhuma linha ainda) não bloqueia —
+   * é o estado de quem ainda não usou a aba Disponibilidade do perfil dele.
+   */
+  function isWithinAvailability() {
+    if (!availability || availability.length === 0) return true
+    const weekday = localDate(dateIso).getDay()
+    const hour = Number(time.split(':')[0])
+    return availability.some(s => s.weekday === weekday && s.hour === hour)
+  }
+
   /** Monta o payload da consulta com um status específico. */
   function buildPayload(status: AgendaAppointment['status']) {
     // A atividade (e a cor do card) vem da especialidade do profissional —
@@ -157,7 +189,7 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
       activity,
       date: dateIso,
       startTime: time,
-      endTime: addMinutes(time, Number(duration) || 30),
+      endTime: addMinutes(time, Number(duration) || 60),
       professionalId,
       room: room || undefined,
       color: slot?.color ?? activityColor(activity),
@@ -184,6 +216,10 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
       setError('Informe o horário.')
       return
     }
+    if (!isWithinAvailability()) {
+      setError('Fora do horário de disponibilidade deste profissional.')
+      return
+    }
 
     // Salvar mantém a situação atual (a situação muda pelos botões dedicados).
     const payload = buildPayload(status)
@@ -192,6 +228,11 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
         toast.success(slot ? 'Agendamento atualizado!' : 'Consulta agendada!')
         onClose()
       },
+      // A sala é trava real de banco (exclude using gist — ver
+      // appointment_room_overlap_ex): duas consultas ativas não cabem na
+      // mesma sala no mesmo horário. userMessage traduz o erro da constraint;
+      // o modal fica aberto com o aviso em vez de fechar como se tivesse dado certo.
+      onError: (e: unknown) => setError(userMessage(e, 'Não foi possível salvar a consulta. Tente novamente.')),
     }
     if (slot) update({ id: slot.id, payload }, options)
     else create(payload, options)
@@ -386,7 +427,7 @@ export function AppointmentModal({ open, onClose, slot }: AppointmentModalProps)
             min={5}
             step={5}
             inputMode="numeric"
-            placeholder="30"
+            placeholder="60"
             value={duration}
             onChange={e => setDuration(e.target.value)}
           />

@@ -2,14 +2,20 @@ import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId, type ClientPayload } from '@/lib/tenant'
 import { isoToBrDate } from '@/utils/date'
 import type {
-  Anamnesis, YesNo, YesNoUnknown, BloodPressure, BleedingLevel, HealingLevel, GumBleeding, FlossUse,
+  Anamnesis, ClinicSpecialty, YesNo, YesNoUnknown, BloodPressure, BleedingLevel, HealingLevel,
+  GumBleeding, FlossUse, AffectedSide,
 } from '@/types/domain'
 
 // A anamnese é um QUESTIONÁRIO DINÂMICO no banco (template → pergunta → resposta),
-// mas os CÓDIGOS das perguntas do template padrão de odontologia batem 1:1 com os
-// campos do tipo plano `Anamnesis` (medications, allergy, bloodPressure…). Então
-// o de-para é direto: salvar via RPC save_anamnesis({codigo: resposta}) e carregar
-// via patient_anamnesis (record.answers já vem achatado por código).
+// UM POR ESPECIALIDADE (private.seed_anamnesis_template), mas os CÓDIGOS batem 1:1
+// com os campos do tipo plano `Anamnesis` (medications, allergy, chiefComplaint,
+// painScale…). Então o de-para é direto: salvar via RPC save_anamnesis({codigo:
+// resposta}) e carregar via patient_anamnesis (record.answers já vem achatado por
+// código). A LEITURA extrai todo código conhecido (o que não existir no template do
+// paciente simplesmente não aparece no map — val()/det() voltam undefined, sem
+// erro). A ESCRITA precisa do `specialty` para montar só o subconjunto de códigos
+// que EXISTE no template ativo — a RPC save_anamnesis rejeita código desconhecido
+// (protege contra ficha de um ramo salvando pergunta de outro).
 
 type AnswerVal = { value?: string | null; detail?: string | null } | undefined
 type AnswerMap = Record<string, AnswerVal>
@@ -45,21 +51,33 @@ export async function getPatientAnamnesis(patientId: string): Promise<Anamnesis 
     pregnant: (val(a, 'pregnant') as YesNoUnknown) ?? 'no',
     pregnancyWeeks: det(a, 'pregnant'),
     healthIssues: val(a, 'healthIssues'),
-    // Saúde bucal
     chiefComplaint: val(a, 'chiefComplaint'),
-    anesthesiaReaction: (val(a, 'anesthesiaReaction') as YesNo) ?? 'no',
+    // Saúde bucal (só existe no template de odontologia — nos demais fica tudo undefined)
+    anesthesiaReaction: val(a, 'anesthesiaReaction') as YesNo | undefined,
     anesthesiaReactionDetails: det(a, 'anesthesiaReaction'),
     lastTreatment: val(a, 'lastTreatment'),
-    toothGumPain: (val(a, 'toothGumPain') as YesNo) ?? 'no',
-    gumBleeding: (val(a, 'gumBleeding') as GumBleeding) ?? 'no',
-    badTasteDryMouth: (val(a, 'badTasteDryMouth') as YesNo) ?? 'no',
+    toothGumPain: val(a, 'toothGumPain') as YesNo | undefined,
+    gumBleeding: val(a, 'gumBleeding') as GumBleeding | undefined,
+    badTasteDryMouth: val(a, 'badTasteDryMouth') as YesNo | undefined,
     brushingsPerDay: val(a, 'brushingsPerDay'),
-    flossing: (val(a, 'flossing') as FlossUse) ?? 'no',
-    jawPainClicking: (val(a, 'jawPainClicking') as YesNo) ?? 'no',
-    grindsTeeth: (val(a, 'grindsTeeth') as YesNo) ?? 'no',
-    faceSores: (val(a, 'faceSores') as YesNo) ?? 'no',
-    smokes: (val(a, 'smokes') as YesNo) ?? 'no',
+    flossing: val(a, 'flossing') as FlossUse | undefined,
+    jawPainClicking: val(a, 'jawPainClicking') as YesNo | undefined,
+    grindsTeeth: val(a, 'grindsTeeth') as YesNo | undefined,
+    faceSores: val(a, 'faceSores') as YesNo | undefined,
+    smokes: val(a, 'smokes') as YesNo | undefined,
     smokingAmount: det(a, 'smokes'),
+    // Avaliação fisioterapêutica (só existe no template de fisioterapia)
+    onsetDescription: val(a, 'onsetDescription'),
+    painScale: val(a, 'painScale'),
+    priorTreatment: val(a, 'priorTreatment') as YesNo | undefined,
+    priorTreatmentDetails: det(a, 'priorTreatment'),
+    physicalActivity: val(a, 'physicalActivity') as YesNo | undefined,
+    physicalActivityDetails: det(a, 'physicalActivity'),
+    affectedSide: val(a, 'affectedSide') as AffectedSide | undefined,
+    dailyImpact: val(a, 'dailyImpact') as YesNo | undefined,
+    dailyImpactDetails: det(a, 'dailyImpact'),
+    redFlags: val(a, 'redFlags') as YesNo | undefined,
+    redFlagsDetails: det(a, 'redFlags'),
   }
 }
 
@@ -71,9 +89,9 @@ export type EditAnamnesis = Omit<ClientPayload<Anamnesis>, 'patientId' | 'update
 type WithDetail = { value: string; detail: string | null }
 const withDetail = (value: string, detail?: string): WithDetail => ({ value, detail: detail ?? null })
 
-/** Cria ou atualiza (substitui) a ficha ATIVA do paciente via RPC transacional. */
-export async function saveAnamnesis(patientId: string, p: EditAnamnesis): Promise<void> {
-  const answers = {
+/** Saúde geral — núcleo comum a todo template (existe em qualquer especialidade). */
+function coreAnswers(p: EditAnamnesis) {
+  return {
     medications: withDetail(p.medications, p.medicationsDetails),
     allergy: withDetail(p.allergy, p.allergyDetails),
     bloodPressure: p.bloodPressure,
@@ -86,18 +104,46 @@ export async function saveAnamnesis(patientId: string, p: EditAnamnesis): Promis
     pregnant: withDetail(p.pregnant, p.pregnancyWeeks),
     healthIssues: p.healthIssues ?? '',
     chiefComplaint: p.chiefComplaint ?? '',
-    anesthesiaReaction: withDetail(p.anesthesiaReaction, p.anesthesiaReactionDetails),
-    lastTreatment: p.lastTreatment ?? '',
-    toothGumPain: p.toothGumPain,
-    gumBleeding: p.gumBleeding,
-    badTasteDryMouth: p.badTasteDryMouth,
-    brushingsPerDay: p.brushingsPerDay ?? '',
-    flossing: p.flossing,
-    jawPainClicking: p.jawPainClicking,
-    grindsTeeth: p.grindsTeeth,
-    faceSores: p.faceSores,
-    smokes: withDetail(p.smokes, p.smokingAmount),
   }
+}
+
+/** Cria ou atualiza (substitui) a ficha ATIVA do paciente via RPC transacional.
+ *  `specialty` decide QUAIS códigos entram além do núcleo: a RPC save_anamnesis
+ *  valida cada código contra o template ativo da clínica e rejeita o que não
+ *  existir nele — mandar os campos do ramo errado quebraria o salvamento. */
+export async function saveAnamnesis(patientId: string, p: EditAnamnesis, specialty?: ClinicSpecialty): Promise<void> {
+  const answers: Record<string, unknown> = coreAnswers(p)
+
+  if (specialty === 'physiotherapy') {
+    Object.assign(answers, {
+      onsetDescription: p.onsetDescription ?? '',
+      painScale: p.painScale ?? '',
+      priorTreatment: withDetail(p.priorTreatment ?? 'no', p.priorTreatmentDetails),
+      physicalActivity: withDetail(p.physicalActivity ?? 'no', p.physicalActivityDetails),
+      affectedSide: p.affectedSide ?? 'not_applicable',
+      dailyImpact: withDetail(p.dailyImpact ?? 'no', p.dailyImpactDetails),
+      redFlags: withDetail(p.redFlags ?? 'no', p.redFlagsDetails),
+    })
+  } else if (specialty === 'dentistry' || specialty === undefined) {
+    // undefined (sessão ainda resolvendo) cai no ramo odontológico por ser o
+    // template histórico do produto — só é alcançado num instante de boot raro.
+    Object.assign(answers, {
+      anesthesiaReaction: withDetail(p.anesthesiaReaction ?? 'no', p.anesthesiaReactionDetails),
+      lastTreatment: p.lastTreatment ?? '',
+      toothGumPain: p.toothGumPain ?? 'no',
+      gumBleeding: p.gumBleeding ?? 'no',
+      badTasteDryMouth: p.badTasteDryMouth ?? 'no',
+      brushingsPerDay: p.brushingsPerDay ?? '',
+      flossing: p.flossing ?? 'no',
+      jawPainClicking: p.jawPainClicking ?? 'no',
+      grindsTeeth: p.grindsTeeth ?? 'no',
+      faceSores: p.faceSores ?? 'no',
+      smokes: withDetail(p.smokes ?? 'no', p.smokingAmount),
+    })
+  }
+  // Demais ramos (nutrição, psicologia, personal trainer): questionário nasce
+  // vazio de propósito (ver seed_anamnesis_template) — só o núcleo é enviado.
+
   const { error } = await supabase.rpc('save_anamnesis', { p_patient: patientId, p_answers: answers })
   if (error) throw error
 }

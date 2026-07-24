@@ -1,17 +1,10 @@
 import type { CSSProperties } from 'react'
 import { useTheme } from '@/context/ThemeProvider'
-import { usePatientName, useProfessionalName } from '@/hooks/useDisplayNames'
+import { usePatientName, useProfessionalName, useProfessionalColor } from '@/hooks/useDisplayNames'
 import { IconBan, IconCheck, IconChevronRight, IconX } from '@/components/icons'
 import type { AgendaAppointment, AppointmentStatus } from '@/types/domain'
 import { firstName, stripTitle } from '@/utils/text'
 import styles from './ClassCard.module.scss'
-
-/** Rótulo do desfecho exibido no chip do card. */
-const STATUS_BADGE: Partial<Record<AppointmentStatus, string>> = {
-  completed: 'Compareceu',
-  no_show: 'Faltou',
-  canceled: 'Cancelado',
-}
 
 interface ClassCardProps {
   appointment: AgendaAppointment
@@ -44,18 +37,22 @@ function maskedLuminance(color: string | undefined, theme: 'dark' | 'light'): nu
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255
 }
 
-/** Card de um atendimento na grade — preenchido na COR da atividade (sob a
- *  máscara do tema), com o horário inicial em evidência. */
+/** Card de um atendimento na grade — preenchido na COR CADASTRADA DO
+ *  PROFISSIONAL (perfil dele), não na da atividade — todo card do mesmo
+ *  profissional fica consistente e acompanha sozinho se a cor mudar depois.
+ *  `slot.color` (atividade) só entra como reserva, se o profissional não
+ *  tiver cor definida. Horário inicial em evidência. */
 export function ClassCard({ appointment: slot, onClick, onSetStatus, showArrow, hideArea }: ClassCardProps) {
   const { theme } = useTheme()
   const patientName = usePatientName()
   const professionalName = useProfessionalName()
+  const professionalColor = useProfessionalColor()
   const patient = patientName(slot.patientId)
   const professional = professionalName(slot.professionalId)
+  const cardColor = professionalColor(slot.professionalId) ?? slot.color
   const canceled = slot.status === 'canceled'
   // Cancelada vira cinza (texto claro); nas demais o texto segue a luminância da cor mascarada.
-  const light = !canceled && maskedLuminance(slot.color, theme) > 0.6
-  const badge = STATUS_BADGE[slot.status]
+  const light = !canceled && maskedLuminance(cardColor, theme) > 0.6
 
   // Mesma semântica dos círculos do Dashboard: clicar no desfecho já ativo
   // DESFAZ a marcação (volta para "agendada"). Não fecha sobre o onClick do
@@ -73,7 +70,7 @@ export function ClassCard({ appointment: slot, onClick, onSetStatus, showArrow, 
         canceled ? styles['card--cancelada'] : '',
         onClick ? styles['card--clicavel'] : '',
       ].filter(Boolean).join(' ')}
-      style={{ '--card-color': slot.color } as CSSProperties}
+      style={{ '--card-color': cardColor } as CSSProperties}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -92,13 +89,13 @@ export function ClassCard({ appointment: slot, onClick, onSetStatus, showArrow, 
         )}
       </div>
 
-      {/* ── Corpo: paciente em destaque, Dr(a) logo abaixo ── */}
+      {/* ── Corpo: paciente em destaque numa linha própria — Dr(a) e o chip de
+          desfecho cada um na sua linha, sem disputar espaço com o nome. ── */}
       <div className={styles.body}>
         <div className={styles.topline}>
           <span className={styles.title} title={`${patient} · ${slot.activity}`}>
             {patient}
           </span>
-          {badge && <span className={styles.badge}>{badge}</span>}
         </div>
 
         {slot.professionalId && (

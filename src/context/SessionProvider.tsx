@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, isMockMode } from '@/lib/supabase'
 import { setCurrentClinicId } from '@/lib/tenant'
+import type { ClinicSpecialty } from '@/types/domain'
 
 /** Permissão efetiva por feature (passou nos DOIS portões: plano + cargo). */
 export interface FeatureAccess {
@@ -14,6 +15,8 @@ export interface FeatureAccess {
 export interface SessionInfo {
   clinicId: string
   clinicName: string
+  /** Ramo de atuação da clínica — filtra abas/telas específicas (ver constants/specialty). */
+  specialty?: ClinicSpecialty
   /** Mapa feature_key → { view, edit } — o front esconde menu/aba/botão por aqui. */
   features: Record<string, FeatureAccess>
   accessProfileName: string | null
@@ -25,6 +28,8 @@ interface SessionContextValue {
   info: SessionInfo | null
   /** true enquanto a sessão inicial ainda não foi resolvida (evita flash de login). */
   loading: boolean
+  /** Ramo de atuação da clínica corrente (undefined enquanto não resolvido). */
+  specialty: ClinicSpecialty | undefined
   /** O cargo permite VER a feature? (esconde menu/rota). */
   canView: (feature: string) => boolean
   /** O cargo permite EDITAR a feature? (esconde botões de salvar/criar). */
@@ -57,6 +62,7 @@ function parseSessionInfo(raw: unknown): SessionInfo | null {
   return {
     clinicId: String(clinic.id),
     clinicName: String(clinic.name ?? ''),
+    specialty: clinic.specialty ? (String(clinic.specialty) as ClinicSpecialty) : undefined,
     features,
     accessProfileName: membership?.access_profile_name ? String(membership.access_profile_name) : null,
   }
@@ -145,7 +151,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const canEdit = (feature: string) => isMockMode || Boolean(info?.features?.[feature]?.edit)
 
   return (
-    <SessionContext.Provider value={{ session, info, loading, canView, canEdit, signIn, signOut, resetPassword }}>
+    <SessionContext.Provider value={{ session, info, loading, specialty: info?.specialty, canView, canEdit, signIn, signOut, resetPassword }}>
       {children}
     </SessionContext.Provider>
   )

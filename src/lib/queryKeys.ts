@@ -12,6 +12,11 @@ export const queryKeys = {
   anamnesis: {
     byPatient: (patientId: string) => ['anamnesis', patientId] as const,
   },
+  // Perguntas personalizadas do paciente (aba Anamnese → Personalizado) —
+  // permanentes, independem da ficha ativa; key própria, fora do prefixo 'anamnesis'.
+  customQuestions: {
+    byPatient: (patientId: string) => ['customQuestions', patientId] as const,
+  },
   whatsapp: {
     connection:    ['whatsapp', 'connection'] as const,
     automations: ['whatsapp', 'automations'] as const,
@@ -42,6 +47,16 @@ export const queryKeys = {
      *  do Dashboard). O mês faz parte da key — julho e agosto são dados
      *  diferentes, não a mesma lista com outro filtro. */
     quoteConversion: (monthIso: string) => ['professionals', 'quoteConversion', monthIso] as const,
+    // Disponibilidade (aba Agenda do perfil) — prefixada por 'professionals'
+    // de propósito, mesmo motivo de earnings: cai junto se algo invalidar o
+    // perfil inteiro.
+    availabilityTemplate: (id: string) => ['professionals', id, 'availability', 'template'] as const,
+    // Bloqueio de hora específica (Agenda geral) — a janela de datas faz
+    // parte da key: a semana de julho e a de agosto são bloqueios diferentes.
+    blockedSlots: (id: string, fromIso: string, toIso: string) =>
+      ['professionals', id, 'blockedSlots', fromIso, toIso] as const,
+    // Ausências por período (aba Agenda > Disponibilidade do perfil).
+    absences: (id: string) => ['professionals', id, 'absences'] as const,
   },
   user: {
     me: ['user', 'me'] as const,
@@ -133,6 +148,11 @@ export const queryKeys = {
   },
   insurances: {
     all: ['insurances'] as const,
+  },
+  // Catálogo de serviços (Administrativo → Serviços). Base do PDV e dos contratos
+  // de fisioterapia.
+  services: {
+    all: ['services'] as const,
   },
   documents: {
     all: ['documents'] as const,

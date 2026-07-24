@@ -16,6 +16,14 @@
   gap: $sp-3;
 }
 
+.selectProfissional {
+  width: 220px;
+
+  @include phone {
+    width: 100%;
+  }
+}
+
 .controlsRight {
   display: flex;
   align-items: center;
@@ -42,4 +50,49 @@
   @include phone {
     width: 100%;
   }
+}
+
+// ── Filtro de Sáb/Dom ────────────────────────────────────────────────────────
+.filtro {
+  position: relative;   // âncora do dropdown absoluto
+  flex-shrink: 0;
+}
+
+.filtroMenu {
+  position: absolute;
+  top: calc(100% + #{$sp-2});
+  right: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  min-width: 160px;
+  padding: $sp-2;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.filtroItem {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  padding: $sp-2 $sp-2;
+  border-radius: $radius-sm;
+  font-size: $fs-sm;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: var(--glass-bg-hover);
+  }
+}
+
+.filtroCheckbox {
+  width: 16px;
+  height: 16px;
+  accent-color: $success;
+  cursor: pointer;
 }

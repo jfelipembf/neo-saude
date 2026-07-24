@@ -1,10 +1,13 @@
 @use '../../styles/mixins' as *;
 
+// Altura fixa em $ctrl-h-md — mesma linha de base dos outros controles da
+// barra (Select/Input em size="md", SegmentedControl, Button "Hoje").
 .nav {
   display: flex;
   align-items: center;
   gap: $sp-1;
-  padding: 2px;
+  height: $ctrl-h-md;
+  padding: 0 4px;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: $radius-md;

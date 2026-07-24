@@ -1,0 +1,136 @@
+@use '../../../../styles/mixins' as *;
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+// Só aparece quando o rascunho diverge do que está salvo — some de novo
+// assim que o Salvar resolve (ver AvailabilityPanel.tsx).
+.saveBar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+// Mesmo padrão de ScheduleGrid.module.scss: tabela larga rola dentro do
+// próprio cartão em vez de estourar a página no mobile.
+.scroll {
+  @include card;
+  overflow-x: auto;
+
+  &::-webkit-scrollbar { height: 8px; }
+  &::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 4px; }
+}
+
+.grid {
+  display: grid;
+  min-width: 100%;
+  grid-template-columns: repeat(6, minmax(64px, 1fr));
+}
+
+.dayHead {
+  padding: 10px;
+  text-align: center;
+  font-size: $fs-xs;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  background: var(--glass-bg-hover);
+  border-bottom: 1px solid var(--glass-border);
+
+  &:not(:last-child) { border-right: 1px solid var(--glass-border); }
+}
+
+// Disponível = colorido, indisponível = neutro — MESMO sentido do contorno
+// que a Agenda desenha nas células dentro da disponibilidade do profissional
+// (ScheduleGrid.module.scss .cell--available). Já existiu uma versão com as
+// cores trocadas (indisponível colorido); foi revertida porque o clique
+// "que deveria marcar disponível" ficava sem cor e confundia quem editava —
+// horário marcado errado silenciosamente.
+.cell {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-right: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+  font-size: $fs-xs;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover { background: var(--glass-bg-hover); }
+  &:focus-visible { @include focus-ring; }
+
+  &--on {
+    background: rgba(var(--primary-rgb), 0.85);
+    // Fundo forte (não o tingido leve de --primary-fg) — mesmo contraste de
+    // texto branco que Button.module.scss usa em .btn--primary.
+    color: #fff;
+
+    &:hover { background: var(--primary); }
+  }
+}
+
+// ── Ausências por período (viagem, férias, atestado) ────────────────────────
+.absences {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.absencesTitle {
+  font-size: $fs-sm;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.absenceList {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.absenceItem {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  padding: $sp-2 $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+
+  // O botão de remover fica sempre no fim, disponibilidade de espaço à parte.
+  > :last-child { margin-left: auto; }
+}
+
+.absencePeriod {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.absenceReason {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}
+
+.absenceForm {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) 2fr auto;
+  gap: $sp-3;
+  align-items: end;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}

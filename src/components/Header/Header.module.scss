@@ -2,12 +2,20 @@
 
 .header {
   display: flex;
-  align-items: center;
-  gap: $sp-6;
-  height: 60px;
-  padding: 0 $sp-6;
+  flex-direction: column;
   flex-shrink: 0;
   background: var(--bg-surface);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+// Primeira barra: marca à esquerda, ações à direita.
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-6;
+  height: 56px;
+  padding: 0 $sp-6;
   border-bottom: 1px solid var(--glass-border);
 
   @include mobile {
@@ -39,18 +47,21 @@
   }
 }
 
+// Segunda barra, abaixo da barra de marca/ações.
 // No DESKTOP sem overflow: um submenu (dropdown absoluto) seria cortado pelo scroll.
 // No phone os rótulos somem — os itens ficam só com os ícones.
-.nav {
+.navBar {
   display: flex;
   align-items: center;
   gap: 2px;
-  flex: 1;
+  height: 48px;
+  padding: 0 $sp-6;
   min-width: 0;
 
   // Mobile/tablet: os itens não cabem na largura da tela (com rótulo no tablet,
   // só ícones no phone). Rola na horizontal em vez de encavalar.
   @include mobile {
+    padding: 0 $sp-4;
     overflow-x: auto;
     scrollbar-width: none;                    // Firefox
     &::-webkit-scrollbar { display: none; }   // WebKit

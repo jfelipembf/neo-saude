@@ -130,6 +130,29 @@ export interface Insurance {
   status: ActiveStatus
 }
 
+// ── Serviços / Contratos (Administrativo → Serviços) ─────────────────────────
+// Cadastro UNIFICADO do que a clínica vende. Modalidade:
+//   · common  = Contrato Comum   — vigência por Duração & Período (ex.: 12 meses)
+//   · package = Pacote de sessões — nº de sessões + validade de uso
+// price = Valor Base (total), parcelável em até maxInstallments. Base do PDV.
+export type ServiceModality = 'common' | 'package'
+export type DurationUnit    = 'days' | 'weeks' | 'months'
+
+export interface Service {
+  id: string
+  clinicId: string
+  name: string
+  modality: ServiceModality
+  price: number              // Valor Base (total do contrato/pacote)
+  durationQty: number        // comum: duração da vigência; pacote: validade de uso
+  durationUnit: DurationUnit  // Período
+  sessions?: number          // pacote: quantidade de sessões
+  weeklyLimit?: number       // comum: limite de sessões por semana (ex.: 2x)
+  maxInstallments: number
+  description?: string
+  status: ActiveStatus       // inactive = fora do catálogo de novas vendas
+}
+
 // ── Orçamentos do paciente (aba do perfil) ───────────────────────────────────
 export type QuoteStatus = 'pending' | 'approved'
 
@@ -182,8 +205,12 @@ export interface PaymentPlanEntry {
 }
 
 // ── Anamnese (aba do perfil do paciente) ─────────────────────────────────────
-// Questionário de saúde no modelo sugerido pelos Conselhos Regionais de
-// Odontologia: respostas fechadas + campos de detalhe quando a resposta pede.
+// Questionário de saúde POR RAMO: a seção "Saúde geral" é o NÚCLEO, comum a
+// qualquer especialidade. Cada ramo soma a sua própria seção (odontologia:
+// "Saúde bucal", no modelo dos Conselhos Regionais de Odontologia; fisioterapia:
+// "Avaliação fisioterapêutica"). Por isso os campos de UM ramo só são opcionais
+// para os demais — cada ficha só preenche a seção do seu ramo (ver questions.ts
+// sectionsForSpecialty). Fonte: private.seed_anamnesis_template (banco).
 export type YesNo = 'yes' | 'no'
 export type YesNoUnknown = 'yes' | 'no' | 'unknown'
 export type BloodPressure = 'normal' | 'high' | 'low' | 'controlled'
@@ -191,6 +218,7 @@ export type BleedingLevel = 'normal' | 'excessive'
 export type HealingLevel = 'normal' | 'complicated'
 export type GumBleeding = 'no' | 'yes' | 'during_brushing' | 'sometimes'
 export type FlossUse = 'daily' | 'sometimes' | 'no'
+export type AffectedSide = 'right' | 'left' | 'both' | 'not_applicable'
 
 export interface Anamnesis {
   clinicId: string
@@ -198,7 +226,7 @@ export interface Anamnesis {
   /** Última atualização — a ficha é revisada a cada retorno. */
   updatedAt: string   // dd/mm/aaaa
 
-  // Saúde geral
+  // Saúde geral (núcleo — toda especialidade pergunta isto)
   medications: YesNo
   medicationsDetails?: string      // posologia e dose
   allergy: YesNoUnknown
@@ -215,21 +243,51 @@ export interface Anamnesis {
   pregnancyWeeks?: string
   healthIssues?: string         // texto livre
 
-  // Saúde bucal
+  /** Queixa principal — reaproveitada pela seção específica de cada ramo. */
   chiefComplaint?: string
-  anesthesiaReaction: YesNo
+
+  // Saúde bucal (só odontologia)
+  anesthesiaReaction?: YesNo
   anesthesiaReactionDetails?: string
   lastTreatment?: string
-  toothGumPain: YesNo
-  gumBleeding: GumBleeding
-  badTasteDryMouth: YesNo
+  toothGumPain?: YesNo
+  gumBleeding?: GumBleeding
+  badTasteDryMouth?: YesNo
   brushingsPerDay?: string
-  flossing: FlossUse
-  jawPainClicking: YesNo
-  grindsTeeth: YesNo
-  faceSores: YesNo
-  smokes: YesNo
+  flossing?: FlossUse
+  jawPainClicking?: YesNo
+  grindsTeeth?: YesNo
+  faceSores?: YesNo
+  smokes?: YesNo
   smokingAmount?: string
+
+  // Avaliação fisioterapêutica (só fisioterapia)
+  onsetDescription?: string        // como e quando o problema começou
+  painScale?: string               // intensidade da dor hoje (0 a 10)
+  priorTreatment?: YesNo           // já fez fisio/outro tratamento para isto?
+  priorTreatmentDetails?: string
+  physicalActivity?: YesNo         // pratica atividade física regularmente?
+  physicalActivityDetails?: string
+  affectedSide?: AffectedSide      // lado predominantemente afetado
+  dailyImpact?: YesNo              // atrapalha as atividades diárias/trabalho?
+  dailyImpactDetails?: string
+  /** Emagrecimento sem motivo, dor noturna que não passa com repouso, febre,
+   *  alteração de força/sensibilidade — sinais de alerta (encaminhar/investigar). */
+  redFlags?: YesNo
+  redFlagsDetails?: string
+}
+
+/** Pergunta ad-hoc que o profissional cria para UM paciente (aba Anamnese →
+ *  "Personalizado"). Presa ao paciente, não à ficha: permanente, independe de
+ *  template/ramo e não reseta quando uma ficha nova é aberta no retorno. */
+export interface PatientCustomQuestion {
+  id: string
+  clinicId: string
+  patientId: string
+  questionText: string
+  answerText?: string
+  createdAt: string   // dd/mm/aaaa
+  updatedAt: string   // dd/mm/aaaa
 }
 
 // ── Assinatura do SaaS (Configurações) ───────────────────────────────────────
@@ -608,6 +666,34 @@ export interface ProfessionalEarning {
   billingStatus: SessionBillingStatus
   /** Quanto já entrou pelos títulos ligados a esta sessão (base 'received'). */
   receivedAmount: number
+}
+
+/** Uma célula da grade recorrente de disponibilidade (aba Agenda do perfil do
+ *  profissional). A LINHA EXISTIR no banco é o "disponível" — não há campo
+ *  booleano aqui porque a ausência do slot já significa indisponível. */
+export interface ProfessionalAvailabilitySlot {
+  weekday: number   // 0=Dom…6=Sáb (Date.getDay()), grade edita só 1-6
+  hour: number       // início do bloco de 1h (6 = 06:00–07:00 … 19 = 19:00–20:00)
+}
+
+/** Bloqueio de UMA hora específica numa data real (Agenda geral, com o
+ *  profissional filtrado) — vence a disponibilidade recorrente só naquele
+ *  dia/hora, sem mexer na regra nem nas outras semanas. */
+export interface ProfessionalBlockedSlot {
+  date: string   // iso (aaaa-mm-dd)
+  hour: number    // início do bloco de 1h
+  reason?: string   // capturado no ConfirmDialog ao salvar, livre e opcional
+}
+
+/** Período em que o profissional fica indisponível em TODOS os horários,
+ *  todos os dias do intervalo — viagem, férias, atestado (aba Agenda >
+ *  Disponibilidade do perfil). */
+export interface ProfessionalAbsence {
+  id: string
+  professionalId: string
+  startDate: string   // iso (aaaa-mm-dd)
+  endDate: string      // iso (aaaa-mm-dd), inclusive
+  reason?: string
 }
 
 /** Orçado × convertido de UM profissional num mês (card "Comissões" do

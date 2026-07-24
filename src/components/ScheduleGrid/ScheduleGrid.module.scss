@@ -8,15 +8,18 @@
   &::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 4px; }
 }
 
-// Semana: hora + 7 dias. Dia: hora + 1 coluna (variante abaixo — sem estilo inline).
+// Semana: hora + dias visíveis. Dia: hora + 1 coluna.
+// O nº de faixas do grid PRECISA bater com o nº de colunas renderizadas —
+// Sáb/Dom escondidos tiram colunas do DOM (ver ScheduleGrid.tsx), então o
+// template fixo em 7 desalinha as células (cada linha "sobra" pras próximas).
 .grid {
   display: grid;
   min-width: 100%;
-  grid-template-columns: 64px repeat(7, minmax(140px, 1fr));
 
-  &--dia {
-    grid-template-columns: 64px minmax(140px, 1fr);
-  }
+  &--dia   { grid-template-columns: 64px minmax(140px, 1fr); }
+  &--cols-7 { grid-template-columns: 64px repeat(7, minmax(140px, 1fr)); }
+  &--cols-6 { grid-template-columns: 64px repeat(6, minmax(140px, 1fr)); }
+  &--cols-5 { grid-template-columns: 64px repeat(5, minmax(140px, 1fr)); }
 }
 
 .corner {
@@ -73,6 +76,7 @@
 }
 
 .cell {
+  position: relative;   // âncora do contorno de disponibilidade (::before)
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -85,3 +89,104 @@
 
 // Coluna do dia atual: células com leve tom da cor primária.
 .cellToday { background: rgba(var(--primary-rgb), 0.05); }
+
+// Contorno fino e suave na cor do profissional filtrado (--availability-color,
+// setada no .grid pai) — envolve as células dentro do horário dele. Cor
+// diluída via color-mix (não a cor cheia do profissional) para não competir
+// com os cards por cima; pointer-events: none pra não atrapalhar o clique.
+.cell--available::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border: 1px solid color-mix(in srgb, var(--availability-color, transparent) 55%, transparent);
+  border-radius: $radius-sm;
+  pointer-events: none;
+}
+
+// "+" no centro da célula vazia e disponível — abre a nova consulta já
+// pré-preenchida (ver ScheduleGrid.tsx). Ocupa a célula inteira (mesma área
+// clicável de um ClassCard) e usa a cor do profissional filtrado.
+.quickAdd {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 100%;
+  border: none;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: color-mix(in srgb, var(--availability-color, var(--text-muted)) 60%, transparent);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  svg { width: 18px; height: 18px; }
+
+  &:hover {
+    background: color-mix(in srgb, var(--availability-color, transparent) 14%, transparent);
+    color: var(--availability-color, var(--text-primary));
+  }
+
+  &:focus-visible { @include focus-ring; }
+}
+
+// Aparece só quando a janela livre da linha é menor que a hora cheia (sobra
+// de uma consulta que não termina em hora redonda) — ver ScheduleGrid.tsx.
+.quickAddHint {
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+// Checkbox do modo "bloquear agendamento" — ocupa a célula inteira, igual ao
+// "+" que ele substitui nesse modo (ver ScheduleGrid.tsx). MESMA cor e MESMA
+// diluição (55%) do contorno em .cell--available::before, pra ler como parte
+// do mesmo desenho. `appearance: none` + estilo próprio de propósito:
+// `accent-color` sozinho só pinta o preenchimento marcado — a BORDA do
+// checkbox desmarcado continua preta (padrão nativo do navegador), que é
+// exatamente o "linha ainda preta" que sobrava antes desta troca.
+.blockCheckbox {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  cursor: pointer;
+
+  input {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    border: 1.5px solid color-mix(in srgb, var(--availability-color, $danger) 55%, transparent);
+    border-radius: $radius-sm;
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+
+    &:checked {
+      background: color-mix(in srgb, var(--availability-color, $danger) 55%, transparent);
+      border-color: color-mix(in srgb, var(--availability-color, $danger) 55%, transparent);
+    }
+
+    // Marca em "V" desenhada com borda rotacionada — sem imagem/ícone.
+    // Centralizada via translate(-50%,-50%) — não por left/top chutados: essa
+    // técnica centra o centro geométrico da marca não importa o w/h dela,
+    // em vez de depender de pixels ajustados só de olho.
+    &:checked::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 4px;
+      height: 8px;
+      border: solid #fff;
+      border-width: 0 2px 2px 0;
+      transform: translate(-50%, -50%) rotate(45deg);
+    }
+
+    &:focus-visible { @include focus-ring; }
+  }
+}
