@@ -29,9 +29,11 @@
 }
 
 // ─── Sizes ────────────────────────────────────────────────────────────────────
-.btn--sm { height: $ctrl-h-sm; padding: 0 12px; font-size: $fs-xs; border-radius: 4px; gap: 6px; }
+// Raio NÃO varia por tamanho — herda $radius-sm de .btn (era 4px/6px por
+// engano, então um botão pequeno e um grande tinham cantos diferentes).
+.btn--sm { height: $ctrl-h-sm; padding: 0 12px; font-size: $fs-xs; gap: 6px; }
 .btn--md { height: $ctrl-h-md; padding: 0 18px; font-size: $fs-base; }
-.btn--lg { height: $ctrl-h-lg; padding: 0 24px; font-size: $fs-md; border-radius: 6px; }
+.btn--lg { height: $ctrl-h-lg; padding: 0 24px; font-size: $fs-md; }
 
 .btn--icon-only {
   &.btn--sm { width: $ctrl-h-sm; padding: 0; }

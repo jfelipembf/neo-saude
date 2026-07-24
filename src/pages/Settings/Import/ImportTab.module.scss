@@ -83,7 +83,7 @@
   flex-direction: column;
   gap: $sp-2;
   padding: $sp-3;
-  border-radius: 12px;
+  border-radius: $radius-lg;
   border: 1px solid color-mix(in srgb, var(--danger-fg) 30%, transparent);
   background: color-mix(in srgb, var(--danger-fg) 7%, transparent);
 }

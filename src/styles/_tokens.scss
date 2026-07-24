@@ -39,10 +39,13 @@ $ctrl-px-md:  12px;
 $ctrl-px-lg:  16px;
 
 // ── Raios ────────────────────────────────────────────────────────────────────
-$radius-sm:   5px;    // controles (botão, input)
-$radius-md:   8px;    // toasts, dropdowns
-$radius-lg:   12px;   // cartões, modais
-$radius-pill: 999px;  // badges
+// Um raio só para todo controle/superfície (botão, input, dropdown, card,
+// modal, toast): 5px, o mesmo do Select. As três variáveis continuam
+// separadas só para preservar o nome semântico em cada uso — mudam juntas.
+$radius-sm:   5px;    // controles (botão, input, dropdown)
+$radius-md:   5px;    // toasts, dropdowns
+$radius-lg:   5px;    // cartões, modais
+$radius-pill: 999px;  // badges — forma proposital, fora da unificação
 
 // ── Tipografia ───────────────────────────────────────────────────────────────
 $font-family: 'Inter', system-ui, -apple-system, sans-serif;

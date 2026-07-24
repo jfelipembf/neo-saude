@@ -44,7 +44,7 @@
   height: 28px;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   color: var(--text-secondary);
   transition: background 0.15s ease, color 0.15s ease;
 
@@ -84,7 +84,7 @@
   color: var(--text-primary);
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease;
 

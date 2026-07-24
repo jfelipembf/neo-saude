@@ -86,12 +86,12 @@ export function TestsTab() {
 
   const filteredTests = specialtyFilter ? tests.filter(t => t.specialty === specialtyFilter) : tests
 
+  // Sem avatar aqui de propósito: a foto do teste aparece no FORMULÁRIO
+  // (preview de imagem), não faz sentido repetir/recortar no sidemenu.
   const items: SideListItem[] = filteredTests.map(t => ({
     id: t.id,
     label: t.name,
     sublabel: `${t.specialty} · ${t.levels.length} ${t.levels.length === 1 ? 'nível' : 'níveis'}`,
-    avatarUrl: t.image || undefined,
-    avatar: true,
   }))
 
   function handleSelect(id: string | number) {

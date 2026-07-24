@@ -5,6 +5,7 @@ import type {
   Anamnesis, ClinicSpecialty, YesNo, YesNoUnknown, BloodPressure, BleedingLevel, HealingLevel,
   GumBleeding, FlossUse, AffectedSide,
 } from '@/types/domain'
+import type { Json } from '@/types/database.types'
 
 // A anamnese é um QUESTIONÁRIO DINÂMICO no banco (template → pergunta → resposta),
 // UM POR ESPECIALIDADE (private.seed_anamnesis_template), mas os CÓDIGOS batem 1:1
@@ -144,6 +145,6 @@ export async function saveAnamnesis(patientId: string, p: EditAnamnesis, special
   // Demais ramos (nutrição, psicologia, personal trainer): questionário nasce
   // vazio de propósito (ver seed_anamnesis_template) — só o núcleo é enviado.
 
-  const { error } = await supabase.rpc('save_anamnesis', { p_patient: patientId, p_answers: answers })
+  const { error } = await supabase.rpc('save_anamnesis', { p_patient: patientId, p_answers: answers as unknown as Json })
   if (error) throw error
 }

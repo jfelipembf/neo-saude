@@ -80,7 +80,7 @@
   color: var(--text-secondary);
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
@@ -123,7 +123,7 @@
   height: 34px;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   color: var(--text-secondary);
   transition: background 0.15s ease, color 0.15s ease;
 

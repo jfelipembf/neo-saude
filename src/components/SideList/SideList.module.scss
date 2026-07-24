@@ -51,7 +51,7 @@
   height: 26px;
   flex-shrink: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   background: var(--primary);
   color: #fff;
   cursor: pointer;

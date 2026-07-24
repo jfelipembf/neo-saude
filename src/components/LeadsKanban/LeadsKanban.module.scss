@@ -176,7 +176,7 @@
 
 .chip {
   padding: 3px 9px;
-  border-radius: 6px;
+  border-radius: $radius-sm;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border-strong);
   color: var(--text-secondary);

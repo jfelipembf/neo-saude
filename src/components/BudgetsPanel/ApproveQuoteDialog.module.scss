@@ -101,7 +101,7 @@
   flex-direction: column;
   gap: $sp-2;
   padding: $sp-3;
-  border-radius: 10px;
+  border-radius: $radius-lg;
   border: 1px solid color-mix(in srgb, var(--warning-fg) 40%, transparent);
   background: color-mix(in srgb, var(--warning-fg) 10%, transparent);
   font-size: $fs-sm;
