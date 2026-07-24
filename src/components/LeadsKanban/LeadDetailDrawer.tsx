@@ -5,10 +5,11 @@ import { Drawer } from '@/components/Drawer/Drawer'
 import { Select } from '@/components/Select/Select'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { Textarea } from '@/components/Textarea/Textarea'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { useLeadHistory, useUpdateLeadDetails } from '@/hooks/useLeads'
 import { AUDIT_HIDDEN_FIELDS, LEAD_STATUS_LABEL, LEAD_STATUS_OPTIONS, auditFieldLabel, buildRoute } from '@/constants'
 import { IconClock, IconEmail, IconPhone } from '@/components/icons'
+import { daysBetween } from '@/utils/date'
 import type { Lead, LeadHistoryEntry, LeadStatus } from '@/types/domain'
 import styles from './LeadDetailDrawer.module.scss'
 
@@ -61,6 +62,7 @@ export function LeadDetailDrawer({ lead, onClose }: LeadDetailDrawerProps) {
 
   const [status, setStatus] = useState<LeadStatus>(lead.status)
   const [notes, setNotes] = useState(lead.notes ?? '')
+  const daysInStage = daysBetween(new Date(lead.stageSince), new Date())
 
   function save() {
     updateDetails(
@@ -95,6 +97,11 @@ export function LeadDetailDrawer({ lead, onClose }: LeadDetailDrawerProps) {
           {lead.email && <span className={styles.linhaDado}><IconEmail /> {lead.email}</span>}
           <span className={styles.interesse}>{lead.interest}</span>
           <span className={styles.linhaDado}><IconClock /> Cadastrado em {lead.createdAt}</span>
+          {status !== 'converted' && status !== 'lost' && (
+            <span className={styles.linhaDado}>
+              <IconClock /> Nesta etapa há {daysInStage} dia{daysInStage === 1 ? '' : 's'}
+            </span>
+          )}
           {lead.patientId && <span className={styles.convertido}>✓ Convertido em paciente</span>}
         </section>
 

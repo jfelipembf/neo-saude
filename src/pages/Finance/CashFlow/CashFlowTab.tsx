@@ -53,17 +53,17 @@ export function CashFlowTab() {
 
   const columns: TableColumn<CashFlowRow>[] = [
     {
-      key: 'data', label: 'Data',
+      key: 'date', label: 'Data',
       render: d => (
         <span className={shared.celulaForte}>
           {d.date} <span className={shared.contagem}>({d.entryCount})</span>
         </span>
       ),
     },
-    { key: 'entradas', label: 'Entradas', render: d => d.inflows > 0 ? <span className={shared.pos}>{formatBRL(d.inflows)}</span> : <span className={shared.traco}>—</span> },
-    { key: 'saidas',   label: 'Saídas',   render: d => d.outflows > 0 ? <span className={shared.neg}>{formatBRL(d.outflows)}</span> : <span className={shared.traco}>—</span> },
+    { key: 'inflows', label: 'Entradas', render: d => d.inflows > 0 ? <span className={shared.pos}>{formatBRL(d.inflows)}</span> : <span className={shared.traco}>—</span> },
+    { key: 'outflows',   label: 'Saídas',   render: d => d.outflows > 0 ? <span className={shared.neg}>{formatBRL(d.outflows)}</span> : <span className={shared.traco}>—</span> },
     {
-      key: 'liquido', label: 'Líquido',
+      key: 'net', label: 'Líquido',
       render: d => (
         <span className={`${shared.valor} ${d.net >= 0 ? shared.pos : shared.neg}`}>
           {d.net >= 0 ? '+' : ''}{formatBRL(d.net)}

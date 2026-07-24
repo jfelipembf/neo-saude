@@ -1,11 +1,5 @@
-import { addDays, brToIsoDate, localDate, toIsoDate } from '@/utils/date'
+import { addDays, addMinutes, brToIsoDate, localDate, toIsoDate } from '@/utils/date'
 import type { ClassGroup, ClassGroupOccurrence } from '@/types/domain'
-
-function addMinutes(start: string, minutes: number) {
-  const [h, m] = start.split(':').map(Number)
-  const total = h * 60 + m + minutes
-  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
-}
 
 /**
  * Materializa as ocorrências (dias concretos) de cada turma dentro de

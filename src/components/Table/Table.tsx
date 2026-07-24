@@ -9,6 +9,10 @@ export interface TableColumn<T> {
   label: string
   /** Célula custom (Badge, link, formatação…). */
   render?: (row: T) => ReactNode
+  /** Classe aplicada ao <th> E ao <td> da coluna — para alinhar valor à direita,
+   *  fixar a largura da coluna de ações, etc. Sem ela, uma tabela com coluna de
+   *  dinheiro precisava reimplementar a <table> inteira só pelo alinhamento. */
+  className?: string
 }
 
 interface TableProps<T> {
@@ -28,11 +32,15 @@ interface TableProps<T> {
   /** Conteúdo do detalhe expandido: adiciona a coluna da setinha e a linha
    *  expansível (modelo da tabela de pagamentos). */
   renderExpanded?: (row: T) => ReactNode
+  /** Descreve a linha no aria-label do botão de expandir — sem isto o leitor de
+   *  tela anuncia só "Ver detalhes", igual em todas as linhas.
+   *  Ex.: row => row.description */
+  expandedLabel?: (row: T) => string
 }
 
 export function Table<T>({
   columns, data, rowKey, onRowClick, rowClassName, emptyMessage = 'Nenhum registro.',
-  toolbar, footer, renderExpanded,
+  toolbar, footer, renderExpanded, expandedLabel,
 }: TableProps<T>) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -58,7 +66,7 @@ export function Table<T>({
             <tr>
               {expandable && <th className={styles.thSeta} aria-label="Expandir" />}
               {columns.map(col => (
-                <th key={col.key}>{col.label}</th>
+                <th key={col.key} className={col.className}>{col.label}</th>
               ))}
             </tr>
           </thead>
@@ -91,14 +99,14 @@ export function Table<T>({
                           className={`${styles.setaBtn} ${isOpen ? styles['setaBtn--aberta'] : ''}`}
                           onClick={e => { e.stopPropagation(); toggle(id) }}
                           aria-expanded={isOpen}
-                          aria-label={isOpen ? 'Recolher detalhes' : 'Ver detalhes'}
+                          aria-label={`${isOpen ? 'Recolher' : 'Ver'} detalhes${expandedLabel ? ` de ${expandedLabel(row)}` : ''}`}
                         >
                           <IconChevronRight />
                         </button>
                       </td>
                     )}
                     {columns.map(col => (
-                      <td key={col.key}>
+                      <td key={col.key} className={col.className}>
                         {col.render ? col.render(row) : (row as Record<string, ReactNode>)[col.key]}
                       </td>
                     ))}

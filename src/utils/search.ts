@@ -4,7 +4,7 @@ import { NAME_PARTICLES } from './text'
  * Texto comparável: sem acento e em minúsculas.
  * 'João D'Ávila' → 'joao d'avila' — assim "joao" acha "João".
  */
-export function normalizeText(text: string) {
+function normalizeText(text: string) {
   return text
     .normalize('NFD')                  // separa a letra do acento
     .replace(/[\u0300-\u036f]/g, '')   // remove os acentos (marcas combinantes)

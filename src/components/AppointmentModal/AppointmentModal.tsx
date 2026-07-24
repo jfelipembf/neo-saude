@@ -6,9 +6,9 @@ import { Modal } from '@/components/Modal/Modal'
 import { RichTextEditor } from '@/components/RichTextEditor/RichTextEditor'
 import { Select } from '@/components/Select/Select'
 import { Textarea } from '@/components/Textarea/Textarea'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { SCHEDULE_TAGS } from '@/constants'
-import { useCreateAgendaAppointment, useUpdateAgendaAppointment, useUpdateClinicalNote } from '@/hooks/useSchedule'
+import { useCreateScheduleAppointment, useUpdateScheduleAppointment, useUpdateClinicalNote } from '@/hooks/useSchedule'
 import { useAppointmentAttachments, useDeleteDocument, useUploadDocument } from '@/hooks/useDocuments'
 import { usePatients } from '@/hooks/usePatients'
 import { useProfessionals } from '@/hooks/useProfessionals'
@@ -18,11 +18,11 @@ import { usePatientEntitlements } from '@/hooks/usePatientEntitlements'
 import { usePatientName } from '@/hooks/useDisplayNames'
 import { useSession } from '@/context/SessionProvider'
 import { userMessage } from '@/lib/errors'
-import { toIsoDate, localDate, parseBrDate } from '@/utils/date'
+import { addMinutes, toIsoDate, localDate, parseBrDate } from '@/utils/date'
 import { digitsOnly, initials } from '@/utils/text'
 import { isImageFile } from '@/utils/files'
 import { IconDocument, IconEmail, IconImage, IconPhone, IconTrash, IconWhatsApp } from '@/components/icons'
-import type { AgendaAppointment, AppointmentStatus } from '@/types/domain'
+import type { ScheduledAppointment, AppointmentStatus } from '@/types/domain'
 import styles from './AppointmentModal.module.scss'
 
 // Situação da consulta editável direto no modal: agendada, compareceu (veio),
@@ -41,13 +41,6 @@ const SITUACAO_TOAST: Record<AppointmentStatus, string> = {
   completed:  'Presença registrada — o paciente compareceu.',
   no_show:    'Falta registrada.',
   canceled:   'Consulta cancelada.',
-}
-
-/** '07:30' + 30 → '08:00'. */
-function addMinutes(hhmm: string, minutes: number) {
-  const [h, m] = hhmm.split(':').map(Number)
-  const total = h * 60 + m + minutes
-  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 }
 
 /** Duração (min) entre '07:30' e '08:00' — para editar uma sessão existente. */
@@ -69,7 +62,7 @@ interface AppointmentModalProps {
   open: boolean
   onClose: () => void
   /** Consulta em edição — sem ela, o modal cria um agendamento novo. */
-  slot?: AgendaAppointment | null
+  slot?: ScheduledAppointment | null
   /** Pré-preenchimento do "+" na grade (só vale numa consulta NOVA, sem `slot`). */
   initial?: { professionalId?: string; dateIso?: string; time?: string }
 }
@@ -84,8 +77,8 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
   const { data: professionals } = useProfessionals()
   const { data: patients } = usePatients()
   const { data: rooms } = useRooms()
-  const { mutate: create, isPending: creating } = useCreateAgendaAppointment()
-  const { mutate: update, isPending: saving } = useUpdateAgendaAppointment()
+  const { mutate: create, isPending: creating } = useCreateScheduleAppointment()
+  const { mutate: update, isPending: saving } = useUpdateScheduleAppointment()
   const { mutate: saveNote, isPending: savingNote } = useUpdateClinicalNote()
 
   const patientName = usePatientName()
@@ -217,7 +210,7 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
   }
 
   /** Monta o payload da consulta com um status específico. */
-  function buildPayload(status: AgendaAppointment['status']) {
+  function buildPayload(status: ScheduledAppointment['status']) {
     // A atividade (e a cor do card) vem da especialidade do profissional —
     // na edição, mantém a atividade que a consulta já tinha.
     const specialty = (professionals ?? []).find(p => p.id === professionalId)?.specialty

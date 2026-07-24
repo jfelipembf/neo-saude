@@ -29,6 +29,16 @@ $login-bg-fallback: #f0eeeb;
 // direita dela (onde o texto/botão flutuam) é quase branca.
 $error-bg-fallback: #f9f9fa;
 
+// Mesma ideia, pra ilustração de 401.png (UnauthorizedPage) — borda direita
+// praticamente branca pura.
+$unauthorized-bg-fallback: #fefefe;
+
+// Texto sobre QUALQUER uma dessas ilustrações (login/error/401): o fundo é
+// sempre uma foto/arte CLARA fixa, então o texto fica escuro fixo nos dois
+// temas do app (claro/escuro) — não usa var(--text-*), que inverteria no escuro.
+$illustration-title-ink: #1f2a37;
+$illustration-body-ink:  #4b5563;
+
 // ── Status ───────────────────────────────────────────────────────────────────
 $success:           #10B981;
 $warning:           #F59E0B;

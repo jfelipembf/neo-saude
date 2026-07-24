@@ -31,7 +31,8 @@ export type ClinicSpecialty =
   | 'personal_training'
 
 export type AppointmentStatus = 'scheduled' | 'confirmed' | 'in_service' | 'completed' | 'canceled' | 'no_show'
-export type ActiveStatus = 'active' | 'inactive'
+// Uso interno deste módulo: as entidades expõem `status` já tipado.
+type ActiveStatus = 'active' | 'inactive'
 
 export type Gender = 'male' | 'female'
 
@@ -434,7 +435,7 @@ export interface SubscriptionInvoice {
 }
 
 // ── WhatsApp: conexão e automações (Configurações) ───────────────────────────
-export type WhatsAppStatus = 'connected' | 'disconnected' | 'connecting'
+type WhatsAppStatus = 'connected' | 'disconnected' | 'connecting'
 
 export interface WhatsAppConnection {
   status: WhatsAppStatus
@@ -557,7 +558,7 @@ export interface ClinicData extends Address {
   id: string
   /** Ramo de atuação — define as telas específicas do prontuário. */
   specialty: ClinicSpecialty
-  photo?: string          // URL da imagem (upload local no modo mock)
+  photo?: string          // path da imagem no bucket privado (assinado na leitura)
   name: string
   cnpj: string
   email: string
@@ -566,14 +567,15 @@ export interface ClinicData extends Address {
 
 // O RESPONSÁVEL TÉCNICO não tem tipo próprio: pela norma do conselho ele é
 // inscrito no CRO, logo é um `Professional` marcado no banco com
-// `is_technical_manager`. Ver clinicService.getTechnicalManager().
+// `is_technical_manager`. Hoje nenhuma tela lê/escreve essa flag — o serviço que
+// fazia isso saiu junto com a UI do RT; a coluna e a RPC continuam no banco.
 
 /** Sala de atendimento (Administrativo → Salas). */
 export interface Room {
   id: string
   clinicId: string
   name: string
-  photo?: string          // URL da imagem (upload local no modo mock)
+  photo?: string          // path da imagem no bucket privado (assinado na leitura)
 }
 
 /** Turma coletiva recorrente (Administrativo → Turmas) — nome/profissional/sala/
@@ -641,14 +643,14 @@ export interface Material {
   id: string
   clinicId: string
   name: string           // ex.: Resina Fotopolimerizável A2
-  photo?: string          // URL da imagem (upload local no modo mock)
+  photo?: string          // path da imagem no bucket privado (assinado na leitura)
   inStock: number
   minQuantity: number
   expiryDate?: string      // dd/mm/aaaa
   notes?: string    // ex.: Lote 123
 }
 
-/** Perfil do usuário logado (exibido no ResumeProfile do Dashboard). */
+/** Perfil do usuário logado (menu de perfil no topo, cabeçalho de receituário). */
 export interface UserProfile {
   id: string
   clinicId: string
@@ -670,7 +672,7 @@ export interface UserProfile {
 // ── Agenda (consultas datadas) ───────────────────────────────────────────────
 // Uma consulta é um evento ÚNICO com data — não recorrência semanal (decisão
 // do dono). Vive na tabela `appointment`, a mesma que o Dashboard conta.
-export interface AgendaAppointment {
+export interface ScheduledAppointment {
   id: string
   clinicId: string
   patientId: string
@@ -744,7 +746,7 @@ export type ToothStatus = 'open' | 'finished' | 'extracted'
 export type SessionBillingStatus = 'unbilled' | 'billed' | 'covered' | 'not_billable'
 
 /** Uma parcela do plano de repasse do cartão (prévia e realidade têm o mesmo formato). */
-export interface SessionInstallment {
+interface SessionInstallment {
   number: number
   count: number
   dueDate: string        // dd/mm/aaaa — data prevista de REPASSE, não de cobrança
@@ -908,7 +910,7 @@ export type PaymentStatus = 'paid' | 'pending' | 'overdue' | 'canceled'
 export type PaymentMethod = 'cash' | 'credit' | 'debit' | 'boleto' | 'check' | 'pix' | 'wire'
 
 /** Uma forma de pagamento dentro de um recebimento (pode haver mais de uma). */
-export interface PaymentEntry {
+interface PaymentEntry {
   method: PaymentMethod
   amount: number          // R$
   date?: string          // dd/mm/aaaa do recebimento
@@ -954,7 +956,11 @@ export interface Task {
 }
 
 // ── Leads / funil de contatos (kanban) ───────────────────────────────────────
-export type LeadStatus = 'new' | 'negotiating' | 'scheduling' | 'converted' | 'lost'
+// Ordem do funil: new → qualifying → qualified → scheduling → attended →
+// negotiating → converted (lost é terminal, fora da ordem principal).
+export type LeadStatus =
+  | 'new' | 'qualifying' | 'qualified' | 'scheduling' | 'attended'
+  | 'negotiating' | 'converted' | 'lost'
 
 export interface Lead {
   id: string
@@ -967,6 +973,9 @@ export interface Lead {
   notes?: string
   createdAt: string       // dd/mm
   status: LeadStatus
+  /** Desde quando o lead está na etapa (status) atual — ISO. Alimenta o
+   *  alerta de "parado há X dias" no Kanban. */
+  stageSince: string
   /** Paciente gerado por este lead (quando convertido) — vínculo lead→paciente. */
   patientId?: string
 }
@@ -1149,7 +1158,7 @@ export interface Receivable {
 }
 
 // ── Cobrança de inadimplentes (aba Inadimplência do Financeiro) ──────────────
-export type CollectionChannel = 'whatsapp' | 'phone' | 'email'
+type CollectionChannel = 'whatsapp' | 'phone' | 'email'
 
 /** Uma tentativa de cobrança registrada — a trilha do "já cobramos?". */
 export interface CollectionAttempt {

@@ -29,14 +29,14 @@ export function SubscriptionTab() {
 
   const columns: TableColumn<SubscriptionInvoice>[] = [
     {
-      key: 'competencia', label: 'Competência',
+      key: 'competence', label: 'Competência',
       render: f => <span className={styles.competencia}>{f.referenceMonth}</span>,
     },
     { key: 'dueDate', label: 'Vencimento' },
-    { key: 'pagamento',  label: 'Pagamento', render: f => f.paidAt ?? '—' },
-    { key: 'forma',      label: 'Forma', render: f => f.paymentMethod ?? '—' },
+    { key: 'payment',  label: 'Pagamento', render: f => f.paidAt ?? '—' },
+    { key: 'method',      label: 'Forma', render: f => f.paymentMethod ?? '—' },
     {
-      key: 'valor', label: 'Valor',
+      key: 'amount', label: 'Valor',
       render: f => <span className={styles.valor}>{formatBRL(f.amount)}</span>,
     },
     { key: 'status', label: 'Status', render: f => <Badge status={f.status} /> },

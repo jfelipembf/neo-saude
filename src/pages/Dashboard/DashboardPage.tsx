@@ -18,7 +18,7 @@ import { StatsCard } from '@/components/StatsCard/StatsCard'
 import { LeadsKanban } from '@/components/LeadsKanban/LeadsKanban'
 import { PeriodFilter } from '@/components/PeriodFilter/PeriodFilter'
 import { useDashboardStats, useSetAppointmentStatus } from '@/hooks/useAppointments'
-import { useAgendaAppointments } from '@/hooks/useSchedule'
+import { useScheduleAppointments } from '@/hooks/useSchedule'
 import { usePatientName } from '@/hooks/useDisplayNames'
 import {
   IconDashboard, IconClock, IconCheck, IconX, IconBan,
@@ -29,7 +29,7 @@ import {
 } from '@/constants'
 import { formatBRL, formatPercent } from '@/utils/format'
 import { goalProgress, percentChange } from '@/utils/metrics'
-import type { AgendaAppointment, AppointmentStatus, GoalMetric } from '@/types/domain'
+import type { ScheduledAppointment, AppointmentStatus, GoalMetric } from '@/types/domain'
 import styles from './DashboardPage.module.scss'
 
 // Rótulos do card "Agenda do dia" — o vocabulário que o dono usa (presente/
@@ -61,7 +61,7 @@ export function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState(todayIso)
   const fromIso = toIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 182))
   const toIso = toIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 182))
-  const { data: appointments, isLoading } = useAgendaAppointments(fromIso, toIso)
+  const { data: appointments, isLoading } = useScheduleAppointments(fromIso, toIso)
 
   // Query própria: os cartões não seguram a agenda no loader (e vice-versa).
   // Enquanto não chega, cada cartão mostra '—' em vez de um zero que seria lido
@@ -127,7 +127,7 @@ export function DashboardPage() {
 
   // Desfecho da consulta (presente/ausente/cancelada) — mesma semântica dos
   // círculos do card da Agenda: clicar no já ativo desfaz (volta a "agendada").
-  function markOutcome(c: AgendaAppointment, target: AppointmentStatus) {
+  function markOutcome(c: ScheduledAppointment, target: AppointmentStatus) {
     setStatus({ id: c.id, status: c.status === target ? 'scheduled' : target })
   }
 

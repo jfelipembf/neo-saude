@@ -48,7 +48,7 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
 
   const columns: TableColumn<Professional>[] = [
     {
-      key: 'profissional',
+      key: 'professional',
       label: 'Profissional',
       render: p => (
         <span className={styles.profCell}>
@@ -63,7 +63,7 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
       ),
     },
     {
-      key: 'especialidade',
+      key: 'specialty',
       label: 'Especialidade',
       render: p => (
         <span className={styles.espCell}>
@@ -73,7 +73,7 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
       ),
     },
     {
-      key: 'nota',
+      key: 'rating',
       label: 'Nota',
       render: p => (
         p.rating != null ? (
@@ -85,7 +85,7 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
       ),
     },
     {
-      key: 'acoes',
+      key: 'actions',
       label: 'Ação',
       render: p => (
         <Button

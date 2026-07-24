@@ -9,7 +9,7 @@ import { Pagination } from '@/components/Pagination/Pagination'
 import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { Textarea } from '@/components/Textarea/Textarea'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { IconDocument, IconUpload, IconEye, IconX, IconEdit, IconTrash } from '@/components/icons'
 import {
   usePatientDocuments, useUploadDocument, useUpdateDocument, useDeleteDocument,

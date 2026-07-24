@@ -5,7 +5,7 @@ import { ClassGroupCard } from './ClassGroupCard'
 import { DAY_OF_WEEK_SHORT } from '@/constants'
 import { IconPlus } from '@/components/icons'
 import { toIsoDate, toShortDate } from '@/utils/date'
-import type { AgendaAppointment, AppointmentStatus, ClassGroupOccurrence, ProfessionalAvailabilitySlot } from '@/types/domain'
+import type { ScheduledAppointment, AppointmentStatus, ClassGroupOccurrence, ProfessionalAvailabilitySlot } from '@/types/domain'
 import styles from './ScheduleGrid.module.scss'
 
 // Ordem das colunas na visão semana: Seg…Sáb, Dom (índices do getDay, 0 = Dom).
@@ -14,7 +14,7 @@ const WEEK_COLS = [1, 2, 3, 4, 5, 6, 0]
 export type ScheduleView = 'week' | 'day'
 
 interface ScheduleGridProps {
-  appointments: AgendaAppointment[]
+  appointments: ScheduledAppointment[]
   /** Ocorrências de turmas coletivas na semana visível (ver
    *  utils/classGroupOccurrences) — desenhadas na cor do profissional
    *  responsável, junto com as consultas de paciente na mesma célula. */
@@ -30,9 +30,9 @@ interface ScheduleGridProps {
   view: ScheduleView
   /** Data de referência: define a semana visível (e o dia, na visão "Dia"). */
   referenceDate: Date
-  onSelect?: (appointment: AgendaAppointment) => void
+  onSelect?: (appointment: ScheduledAppointment) => void
   /** Registra o desfecho (compareceu/faltou/cancelou) pelos botões do card. */
-  onSetStatus?: (appointment: AgendaAppointment, status: AppointmentStatus) => void
+  onSetStatus?: (appointment: ScheduledAppointment, status: AppointmentStatus) => void
   /** Mostra a setinha de hover nos cards clicáveis. */
   showArrow?: boolean
   /** Oculta a linha de sala nos cards. */
@@ -98,7 +98,7 @@ function nextHourBoundary(time: string) {
  * nenhuma ali) e deixa a janela [10:30, 11:00) livre na linha das 10h.
  * `null` = a hora inteira está ocupada.
  */
-function freeWindow(appointments: AgendaAppointment[], dateIso: string, hourStart: string, hourEnd: string) {
+function freeWindow(appointments: ScheduledAppointment[], dateIso: string, hourStart: string, hourEnd: string) {
   // Cancelada e falta NÃO ocupam o horário (mesmo recorte que o banco usa nas
   // travas de sala — ver appointment_room_overlap_ex na migration de Agenda).
   const overlapping = appointments

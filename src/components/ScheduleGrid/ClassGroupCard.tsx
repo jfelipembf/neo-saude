@@ -5,7 +5,7 @@ import { maskedLuminance } from '@/utils/cardColor'
 import { firstName, stripTitle } from '@/utils/text'
 import { IconCheck } from '@/components/icons'
 import type { ClassGroupOccurrence } from '@/types/domain'
-import styles from './ClassCard.module.scss'
+import styles from './scheduleCards.module.scss'
 
 interface ClassGroupCardProps {
   occurrence: ClassGroupOccurrence

@@ -1,10 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
-import { addPatient, listPatients, updatePatient, updatePatientPhoto } from '@/services/patientsService'
+import { addPatient, getPatient, listPatients, updatePatient, updatePatientPhoto } from '@/services/patientsService'
 import type { EditPatient, NewPatient } from '@/services/patientsService'
 
 export function usePatients() {
   return useQuery({ queryKey: queryKeys.patients.all, queryFn: listPatients })
+}
+
+/** Um paciente pelo id (perfil). Fica desabilitado enquanto o id não resolve —
+ *  a rota entrega `id` como string | undefined. */
+export function usePatient(id: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.patients.detail(id ?? ''),
+    queryFn: () => getPatient(id ?? ''),
+    enabled: Boolean(id),
+  })
 }
 
 /** Cadastra um paciente (modal "Novo paciente") e atualiza a lista. */

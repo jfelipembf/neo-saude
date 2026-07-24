@@ -10,7 +10,7 @@ import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { Select } from '@/components/Select/Select'
 import { SideList } from '@/components/SideList/SideList'
 import { Toggle } from '@/components/Toggle/Toggle'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { SEX_OPTIONS, SEX_LABEL } from '@/constants'
 import { useRoles } from '@/hooks/useRoles'
 import {

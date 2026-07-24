@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { IconChevronLeft, IconChevronRight } from '@/components/icons'
 import { useAppointmentSeries } from '@/hooks/useAppointments'
+import { toIsoMonth } from '@/utils/date'
 import type { ChartPeriod } from '@/types/domain'
 import styles from './AppointmentsChart.module.scss'
 
@@ -17,11 +18,6 @@ function axisCeiling(max: number) {
   return Math.max(4, Math.ceil(max / 4) * 4)
 }
 
-/** Date → 'aaaa-mm' (chave do mês de referência). */
-function toMonthIso(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
-
 /** Gráfico de barras do total de consultas, com filtro semana/mês/ano e seletor de mês. */
 export function AppointmentsChart() {
   const [period, setPeriod] = useState<ChartPeriod>('week')
@@ -30,7 +26,7 @@ export function AppointmentsChart() {
     return new Date(today.getFullYear(), today.getMonth(), 1)
   })
 
-  const { data: series, isLoading, isPlaceholderData } = useAppointmentSeries(period, toMonthIso(refMonth))
+  const { data: series, isLoading, isPlaceholderData } = useAppointmentSeries(period, toIsoMonth(refMonth))
 
   const points = series ?? []
   const ceiling = axisCeiling(Math.max(...points.map(p => p.value), 0))

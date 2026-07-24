@@ -1,44 +1,72 @@
 @use '../../../styles/mixins' as *;
 
+// Mesmo desenho do ErrorBoundary (ver comentário lá): a ilustração ajusta
+// pela ALTURA (nunca corta topo/base), o texto flutua na área livre à
+// direita — cor de fallback batendo o tom quase-branco da borda da imagem.
 .page {
+  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: $sp-2;
+  justify-content: flex-end;
   width: 100%;
   min-height: 60vh;
-  padding: $sp-6;
-  text-align: center;
+  padding: clamp($sp-5, 6vw, 96px);
+  overflow: hidden;
+  border-radius: $radius-lg;
+  background: $unauthorized-bg-fallback;
+
+  @include mobile {
+    justify-content: center;
+    align-items: flex-end;
+    padding-bottom: $sp-8;
+  }
 }
 
-.icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: $radius-sm;
-  background: var(--field-bg);
-  color: var(--text-muted);
+.image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: auto;
+  z-index: 0;
 
-  svg { width: 28px; height: 28px; }
+  @include mobile {
+    height: auto;
+    width: 100%;
+  }
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: $sp-2;
+  max-width: 420px;
+  text-align: right;
+
+  @include mobile {
+    align-items: center;
+    text-align: center;
+    max-width: 100%;
+  }
 }
 
 .title {
   font-size: $fs-xl;
   font-weight: 600;
-  color: var(--text-primary);
+  color: $illustration-title-ink;
 }
 
 .description {
-  max-width: 420px;
   font-size: $fs-base;
-  color: var(--text-secondary);
+  color: $illustration-body-ink;
   line-height: 1.5;
 }
 
 .link {
   margin-top: $sp-3;
   font-weight: 500;
+  color: var(--primary-fg);
 }

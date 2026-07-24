@@ -7,12 +7,12 @@ import { Input } from '@/components/Input/Input'
 import { Select } from '@/components/Select/Select'
 import { SideList } from '@/components/SideList/SideList'
 import { Toggle } from '@/components/Toggle/Toggle'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { useBankAccounts, useSaveBankAccount } from '@/hooks/useFinance'
 import { ACCOUNT_TYPE_OPTIONS, ACCOUNT_TYPE_LABEL } from '@/constants'
 import { parseBRL } from '@/utils/format'
 import type { BankAccountType } from '@/types/domain'
-import shared from '@/pages/Finance/shared/finance.module.scss'
+import shared from '../shared/finance.module.scss'
 
 interface AccountFormState {
   name: string

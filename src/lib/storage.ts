@@ -1,4 +1,4 @@
-import { supabase, isMockMode } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
 
 /** Bucket PRIVADO das imagens da clínica (logo, avatar, fotos de material/sala).
@@ -62,18 +62,14 @@ async function compressImage(file: File): Promise<File> {
 /**
  * Sobe uma imagem e devolve o PATH persistido no Storage (não a URL).
  *
- * - Modo mock (sem .env): cai no `createObjectURL` — preview só na sessão. Como
- *   o valor guardado é uma URL blob:, `signAssetUrl` a devolve intacta.
- * - Modo real: comprime (ver compressImage), grava em
- *   `clinic-assets/{clinic_id}/{folder}/{uuid}.{ext}` (a policy exige que a
- *   1ª pasta seja a clínica do usuário) e devolve o PATH; a leitura assina
- *   esse path na hora de exibir.
+ * Comprime (ver compressImage), grava em
+ * `clinic-assets/{clinic_id}/{folder}/{uuid}.{ext}` (a policy exige que a
+ * 1ª pasta seja a clínica do usuário) e devolve o PATH; a leitura assina
+ * esse path na hora de exibir.
  *
  * @param folder subpasta por entidade — ex.: 'professionals', 'clinic', 'materials'.
  */
 export async function uploadImage(file: File, folder: string): Promise<string> {
-  if (isMockMode) return URL.createObjectURL(file)
-
   const toUpload = await compressImage(file)
   const clinicId = getCurrentClinicId()
   const path = `${clinicId}/${folder}/${crypto.randomUUID()}.${fileExtension(toUpload.name)}`

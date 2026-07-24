@@ -5,6 +5,11 @@ export function toIsoDate(d: Date) {
   return `${d.getFullYear()}-${m}-${day}`
 }
 
+/** Date → 'aaaa-mm' (chave do mês de referência dos gráficos). */
+export function toIsoMonth(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
 /** Date → 'dd/mm' (rótulos curtos de data na UI). */
 export function toShortDate(d: Date) {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -41,6 +46,14 @@ export function isoToBrDate(iso: string | null | undefined): string | undefined 
   return toShortDateWithYear(localDate(iso))
 }
 
+/** '07:30' + 30min → '08:00' (hora do fim a partir da duração; vira ao passar
+ *  da meia-noite). */
+export function addMinutes(start: string, minutes: number) {
+  const [h, m] = start.split(':').map(Number)
+  const total = h * 60 + m + minutes
+  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
 /** Soma dias corridos a uma data — usado para prever a data de repasse
  *  (data da venda + D+N dias da adquirente). */
 export function addDays(d: Date, days: number) {
@@ -56,4 +69,10 @@ export function addMonths(d: Date, months: number) {
   const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
   target.setDate(Math.min(d.getDate(), lastDay))
   return target
+}
+
+/** Dias corridos entre duas datas (b - a), arredondado pra baixo — usado no
+ *  alerta de "lead parado há X dias" no Kanban. */
+export function daysBetween(a: Date, b: Date) {
+  return Math.floor((b.getTime() - a.getTime()) / 86_400_000)
 }

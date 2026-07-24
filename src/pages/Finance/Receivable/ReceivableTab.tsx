@@ -10,7 +10,7 @@ import { Pagination } from '@/components/Pagination/Pagination'
 import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { IconCheck, IconUndo, IconX } from '@/components/icons'
 import {
   useReceivables, useSettleReceivable, useCancelReceivable, useReverseReceivable,

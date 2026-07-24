@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './styles/global.scss'
 import { SessionProvider } from './context/SessionProvider'
 import { ThemeProvider } from './context/ThemeProvider'
-import { ToastProvider } from './components/Toast/useToast'
+import { ToastProvider } from './components/Toast/Toast'
 import { ErrorBoundary } from './components/ErrorBoundary/ErrorBoundary'
 import App from './App.tsx'
 

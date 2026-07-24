@@ -4783,6 +4783,23 @@ export type Database = {
           old_data: Json
         }[]
       }
+      list_leads: {
+        Args: never
+        Returns: {
+          clinic_id: string
+          created_at: string
+          email: string
+          id: string
+          interest: string
+          name: string
+          notes: string
+          patient_id: string
+          phone: string
+          source: string
+          stage_since: string
+          status: Database["public"]["Enums"]["lead_status"]
+        }[]
+      }
       my_session: { Args: { p_clinic?: string }; Returns: Json }
       my_subscription: { Args: { p_clinic?: string }; Returns: Json }
       next_code: {
@@ -4982,7 +4999,15 @@ export type Database = {
         | "appointments_completed"
         | "revenue"
         | "expenses"
-      lead_status: "new" | "negotiating" | "scheduling" | "converted" | "lost"
+      lead_status:
+        | "new"
+        | "qualifying"
+        | "qualified"
+        | "negotiating"
+        | "scheduling"
+        | "attended"
+        | "converted"
+        | "lost"
       membership_status: "invited" | "active" | "suspended"
       payment_method:
         | "cash"
@@ -5179,7 +5204,16 @@ export const Constants = {
         "revenue",
         "expenses",
       ],
-      lead_status: ["new", "negotiating", "scheduling", "converted", "lost"],
+      lead_status: [
+        "new",
+        "qualifying",
+        "qualified",
+        "negotiating",
+        "scheduling",
+        "attended",
+        "converted",
+        "lost",
+      ],
       membership_status: ["invited", "active", "suspended"],
       payment_method: [
         "cash",

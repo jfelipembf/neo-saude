@@ -7,9 +7,9 @@ import { capitalizeName, cepToDb, phoneToDb, emailToDb, ufToDb } from '@/utils/t
 import { brToIsoDate, isoToBrDate } from '@/utils/date'
 import type { Professional, EducationItem, ExperienceItem, ProfessionalEarning, ProfessionalQuoteConversion } from '@/types/domain'
 
-/** Núcleo do profissional (sem currículo). Exportado porque o responsável
- *  técnico é lido da MESMA tabela por outro recorte (ver clinicService). */
-export const PROFESSIONAL_CORE_COLUMNS =
+/** Núcleo do profissional (sem currículo) — interno ao módulo. `ProfessionalRow`
+ *  segue exportado porque userService monta a linha a partir do mesmo recorte. */
+const PROFESSIONAL_CORE_COLUMNS =
   'id, clinic_id, code, name, specialty, description, rating, license, color, photo_url, status, sex, birth_date, email, phone, whatsapp, cep, state, city, neighborhood, number, specializations, courses, languages'
 
 export type ProfessionalRow = {
@@ -39,7 +39,7 @@ export type ProfessionalRow = {
   languages: string[]
 }
 
-export function toProfessionalCore(row: ProfessionalRow): Professional {
+function toProfessionalCore(row: ProfessionalRow): Professional {
   return {
     id: row.id,
     clinicId: row.clinic_id,

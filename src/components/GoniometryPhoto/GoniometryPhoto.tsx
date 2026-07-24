@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { uploadImage, signAssetUrl } from '@/lib/storage'
 import { IconCamera, IconX } from '@/components/icons'
 import { goniometryAngle } from '@/utils/goniometry'

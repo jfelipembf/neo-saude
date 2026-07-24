@@ -12,7 +12,7 @@ import { Select } from '@/components/Select/Select'
 import { AddressFields } from '@/components/AddressFields/AddressFields'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { Pagination } from '@/components/Pagination/Pagination'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { usePatients, useCreatePatient } from '@/hooks/usePatients'
 import { useLeads } from '@/hooks/useLeads'
 import { IconPatients, IconEye, IconPlus, IconSearch, IconPhone, IconMessage } from '@/components/icons'
@@ -220,7 +220,7 @@ export function PatientsPage() {
            { key: 'stage', label: 'Etapa', render: etapaCell },
            actionsCol]
         : [nameCol, phoneCol,
-           { key: 'tipo', label: 'Tipo', render: tipoCell },
+           { key: 'type', label: 'Tipo', render: tipoCell },
            actionsCol]
 
   return (

@@ -2,9 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
 import { signAssetUrl } from '@/lib/storage'
 import { cepToDb, cnpjToDb, emailToDb, phoneToDb, ufToDb } from '@/utils/text'
-import { PROFESSIONAL_CORE_COLUMNS, toProfessionalCore } from '@/services/professionalsService'
-import type { ProfessionalRow } from '@/services/professionalsService'
-import type { ClinicData, Professional } from '@/types/domain'
+import type { ClinicData } from '@/types/domain'
 
 // Colunas lidas/escritas na tabela `clinic`. `logo_url` ↔ domínio `photo`.
 const CLINIC_COLUMNS = 'id, specialty, logo_url, name, cnpj, email, phone, cep, state, city, neighborhood, street, number'
@@ -77,34 +75,5 @@ export async function updateClinic(payload: ClinicData): Promise<void> {
       number: payload.number,
     })
     .eq('id', getCurrentClinicId())
-  if (error) throw error
-}
-
-// ── Responsável técnico ──────────────────────────────────────────────────────
-// O RT NÃO é um cadastro à parte: pela norma do conselho ele é inscrito no CRO,
-// logo já é uma linha de `professional` — marcada com `is_technical_manager`.
-// Um índice único parcial garante um RT por clínica, e um CHECK exige que ele
-// esteja ativo. Editar os dados do RT = editar o profissional (updateProfessional).
-
-/** O profissional que responde tecnicamente pela clínica, ou `null` quando
- *  ainda não foi designado (estado de uma clínica recém-criada). */
-export async function getTechnicalManager(): Promise<Professional | null> {
-  const { data, error } = await supabase
-    .from('professional')
-    .select(PROFESSIONAL_CORE_COLUMNS)
-    .eq('clinic_id', getCurrentClinicId())
-    .eq('is_technical_manager', true)
-    .maybeSingle()
-  if (error) throw error
-  if (!data) return null
-  const rt = toProfessionalCore(data as ProfessionalRow)
-  rt.photo = await signAssetUrl((data as ProfessionalRow).photo_url)
-  return rt
-}
-
-/** Promove um profissional a RT. A RPC desmarca o anterior e marca o novo na
- *  mesma transação — sem ela o índice único barraria a troca. */
-export async function setTechnicalManager(professionalId: string): Promise<void> {
-  const { error } = await supabase.rpc('set_technical_manager', { p_professional: professionalId })
   if (error) throw error
 }

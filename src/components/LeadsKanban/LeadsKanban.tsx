@@ -2,18 +2,22 @@ import { useState } from 'react'
 import type { DragEvent } from 'react'
 import { Button } from '@/components/Button/Button'
 import { Spinner } from '@/components/Spinner/Spinner'
-import { IconClock, IconPhone, IconPlus } from '@/components/icons'
+import { IconAlert, IconClock, IconPhone, IconPlus } from '@/components/icons'
 import { useLeads, useSetLeadStatus } from '@/hooks/useLeads'
-import { LEAD_STATUS_LABEL } from '@/constants'
+import { LEAD_STAGE_SLA_DAYS, LEAD_STATUS_LABEL } from '@/constants'
 import { initials } from '@/utils/text'
+import { daysBetween } from '@/utils/date'
 import type { Lead, LeadStatus } from '@/types/domain'
 import { LeadDetailDrawer } from './LeadDetailDrawer'
-import { NewLeadModal } from './NewLeadModal'
+import { NewLeadDrawer } from './NewLeadDrawer'
 import styles from './LeadsKanban.module.scss'
 
 // Funil de contatos no desenho do Pipeline do projeto neo: kicker por coluna e
 // textos próprios de coluna vazia. O título vem de LEAD_STATUS_LABEL (fonte
 // única, compartilhada com o Select "O que aconteceu" do painel do lead).
+// As 8 colunas seguem a ordem do funil pesquisado (captação → qualificação →
+// agendamento → comparecimento → negociação → conversão), com "Perdidos"
+// como saída lateral em qualquer etapa.
 const COLUMNS: {
   status: LeadStatus
   kicker: string
@@ -25,12 +29,24 @@ const COLUMNS: {
     emptyTitle: 'Nenhum contato novo', emptyHint: 'Novos interessados entram aqui.',
   },
   {
-    status: 'negotiating', kicker: 'Proposta',
-    emptyTitle: 'Ninguém em negociação', emptyHint: 'Contatos conversando sobre valores e planos ficam aqui.',
+    status: 'qualifying', kicker: 'Contato feito',
+    emptyTitle: 'Ninguém em qualificação', emptyHint: 'Contatos já respondidos, confirmando interesse, ficam aqui.',
+  },
+  {
+    status: 'qualified', kicker: 'Pronto pra agendar',
+    emptyTitle: 'Nenhum qualificado', emptyHint: 'Interesse confirmado — falta marcar a avaliação.',
   },
   {
     status: 'scheduling', kicker: 'Agenda',
     emptyTitle: 'Nada em agendamento', emptyHint: 'Mova um contato para cá ao marcar a avaliação.',
+  },
+  {
+    status: 'attended', kicker: 'Avaliação feita',
+    emptyTitle: 'Ninguém compareceu ainda', emptyHint: 'Contatos que já vieram à avaliação ficam aqui.',
+  },
+  {
+    status: 'negotiating', kicker: 'Proposta',
+    emptyTitle: 'Ninguém em negociação', emptyHint: 'Contatos conversando sobre valores e planos ficam aqui.',
   },
   {
     status: 'converted', kicker: 'Fechados',
@@ -116,7 +132,7 @@ export function LeadsKanban() {
         })}
       </div>
 
-      {creating && <NewLeadModal onClose={() => setCreating(false)} />}
+      {creating && <NewLeadDrawer onClose={() => setCreating(false)} />}
       {selected && <LeadDetailDrawer lead={selected} onClose={() => setSelected(null)} />}
     </>
   )
@@ -128,6 +144,9 @@ interface LeadCardProps {
 }
 
 function LeadCard({ lead, onOpen }: LeadCardProps) {
+  const daysInStage = daysBetween(new Date(lead.stageSince), new Date())
+  const isStalled = daysInStage >= LEAD_STAGE_SLA_DAYS[lead.status]
+
   return (
     <article
       className={styles.card}
@@ -154,6 +173,11 @@ function LeadCard({ lead, onOpen }: LeadCardProps) {
         <span className={styles.cardFootInfo}>
           <IconClock /> {lead.createdAt}
         </span>
+        {isStalled && (
+          <span className={styles.parado} title={`Parado há ${daysInStage} dia(s) nesta etapa`}>
+            <IconAlert /> {daysInStage}d parado
+          </span>
+        )}
       </div>
     </article>
   )

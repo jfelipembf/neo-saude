@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ChangeEvent, CSSProperties } from 'react'
 import { Button } from '@/components/Button/Button'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { useUpdateProfessional } from '@/hooks/useProfessionals'
 import { uploadImage } from '@/lib/storage'
 import { COLOR_PALETTE } from '@/constants'

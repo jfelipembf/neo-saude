@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { SegmentedControl } from '@/components/SegmentedControl/SegmentedControl'
 import { IconSchedule, IconPhone, IconMessage, IconEye } from '@/components/icons'
 import { buildRoute, DAY_OF_WEEK_LONG } from '@/constants'
-import { useAgendaAppointments } from '@/hooks/useSchedule'
+import { useScheduleAppointments } from '@/hooks/useSchedule'
 import { usePatients } from '@/hooks/usePatients'
 import { toIsoDate, localDate } from '@/utils/date'
 import { digitsOnly } from '@/utils/text'
@@ -34,7 +34,7 @@ export function ScheduleTab({ professional }: ScheduleTabProps) {
   const today = new Date()
   const fromIso = toIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 182))
   const toIso = toIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 182))
-  const { data: appointments } = useAgendaAppointments(fromIso, toIso)
+  const { data: appointments } = useScheduleAppointments(fromIso, toIso)
   const { data: patients } = usePatients()
 
   const [selectedDate, setSelectedDate] = useState(() => toIsoDate(new Date()))

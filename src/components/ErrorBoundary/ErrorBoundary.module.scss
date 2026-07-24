@@ -58,16 +58,16 @@
 }
 
 // Cores fixas escuras: a ilustração é sempre clara, então o texto precisa ler
-// bem em cima dela nos dois temas (claro e escuro).
+// bem em cima dela nos dois temas (claro e escuro) — ver $illustration-*-ink.
 .title {
   font-size: $fs-2xl;
   font-weight: 700;
-  color: #1f2a37;
+  color: $illustration-title-ink;
 }
 
 .description {
   font-size: $fs-base;
-  color: #4b5563;
+  color: $illustration-body-ink;
   line-height: 1.5;
 }
 

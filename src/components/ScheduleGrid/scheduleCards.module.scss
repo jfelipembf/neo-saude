@@ -1,5 +1,10 @@
 @use '../../styles/mixins' as *;
 
+// Folha COMPARTILHADA pelos dois cards da grade: ClassCard (consulta individual)
+// e ClassGroupCard (turma coletiva). 10 das 13 classes são idênticas nos dois,
+// por isso uma folha só — o nome não leva "ClassCard" justamente para não
+// sugerir que o ClassGroupCard está pegando emprestado do irmão.
+
 // ── Card: preenchido na COR da atividade sob uma máscara leve que segue o tema
 // (--grade-card-scrim: pasteliza no claro, escurece no escuro); texto adapta à
 // luminância da cor JÁ mascarada (card--onLight) — cálculo em ClassCard.tsx. ──

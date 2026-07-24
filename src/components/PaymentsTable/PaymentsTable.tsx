@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { useState } from 'react'
 import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
@@ -6,10 +6,12 @@ import { Pagination } from '@/components/Pagination/Pagination'
 import { PaymentModal } from '@/components/PaymentModal/PaymentModal'
 import { Select } from '@/components/Select/Select'
 import { Spinner } from '@/components/Spinner/Spinner'
-import { IconChevronRight, IconPrint, IconFinance, IconLock } from '@/components/icons'
+import { Table } from '@/components/Table/Table'
+import type { TableColumn } from '@/components/Table/Table'
+import { IconPrint, IconFinance, IconLock } from '@/components/icons'
 import { useSession } from '@/context/SessionProvider'
 import { usePatientReceivables, useSettleReceivable, useBankAccounts, useAcquirers } from '@/hooks/useFinance'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { esc } from '@/utils/printDocument'
 import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
@@ -111,7 +113,6 @@ export function PaymentsTable({ patientId, patientName, patientCpf }: PaymentsTa
   const toast = useToast()
   const printDocument = usePrintDocument()
 
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [toSettle, setToSettle] = useState<Receivable | null>(null)
   const [filter, setFilter] = useState<'all' | PaymentStatus>('all')
   const [page, setPage] = useState(1)
@@ -167,14 +168,67 @@ export function PaymentsTable({ patientId, patientName, patientCpf }: PaymentsTa
   )
   const totalTransfers = pendingTransfers.reduce((sum, r) => sum + remainingOf(r), 0)
 
-  function toggle(id: string) {
-    setExpanded(current => {
-      const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
+  const isUnpaid = (r: Receivable) => r.status === 'pending' || r.status === 'overdue'
+  /** Cartão: quem deve é a adquirente e a baixa acontece sozinha na data do
+   *  repasse. Por isso não há botão de "receber" aqui — oferecê-lo convidaria a
+   *  recepção a cobrar o paciente por uma venda que a maquininha já garantiu. */
+  const isByAcquirer = (r: Receivable) => r.debtor === 'acquirer'
+  /** Pro PACIENTE a linha de cartão está paga desde a venda: recibo liberado. */
+  const isPaidByPatient = (r: Receivable) =>
+    r.status === 'paid' || (isByAcquirer(r) && r.status !== 'canceled')
+
+  const columns: TableColumn<Receivable>[] = [
+    { key: 'competenceDate', label: 'Data', render: charge => charge.competenceDate },
+    { key: 'code', label: 'Código', className: styles.colCodigo, render: charge => charge.code },
+    { key: 'description', label: 'Descrição', render: charge => charge.description },
+    {
+      key: 'grossAmount',
+      label: 'Valor',
+      className: styles.colValor,
+      // Valor BRUTO da cobrança — bruto/taxa/líquido abrem no detalhe.
+      render: charge => formatBRL(charge.grossAmount),
+    },
+    { key: 'status', label: 'Status', render: charge => <Badge status={patientStatus(charge)} /> },
+    {
+      key: 'actions',
+      label: 'Ação',
+      className: styles.colAcoes,
+      // Os stopPropagation() são obrigatórios: sem eles, clicar no botão também
+      // alterna a expansão da linha.
+      render: charge => (
+        <>
+          {isUnpaid(charge) && !isByAcquirer(charge) && canEdit('finance') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              iconLeft={<IconFinance />}
+              title="Receber pagamento"
+              aria-label={`Receber pagamento de ${charge.description}`}
+              onClick={e => { e.stopPropagation(); setToSettle(charge) }}
+            />
+          )}
+          {isPaidByPatient(charge) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              iconLeft={<IconPrint />}
+              title="Imprimir recibo"
+              aria-label={`Imprimir recibo de ${charge.description}`}
+              onClick={e => {
+                e.stopPropagation()
+                printDocument({
+                  title: 'Recibo de pagamento',
+                  subtitle: charge.description,
+                  body: receiptBody(charge, patientName),
+                  width: 520,
+                })
+              }}
+            />
+          )}
+        </>
+      ),
+    },
+  ]
 
   return (
     <div className={styles.root}>
@@ -188,129 +242,28 @@ export function PaymentsTable({ patientId, patientName, patientCpf }: PaymentsTa
         </span>
       </p>
 
-      <div className={styles.wrapper}>
-        <div className={styles.toolbar}>
-          <PerPageSelect perPage={perPage} onChange={n => { setPerPage(n); setPage(1) }} />
-          <Select
-            size="sm"
-            options={FILTER_OPTIONS}
-            value={filter}
-            onChange={e => { setFilter(e.target.value as 'all' | PaymentStatus); setPage(1) }}
-            aria-label="Filtrar cobranças por status"
-            className={styles.filtro}
-          />
-        </div>
-
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th className={styles.thSeta} aria-label="Expandir" />
-              <th>Data</th>
-              <th>Código</th>
-              <th>Descrição</th>
-              <th className={styles.thValor}>Valor</th>
-              <th>Status</th>
-              <th className={styles.thAcoes}>Ação</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.length === 0 && (
-              <tr>
-                <td className={styles.vazio} colSpan={7}>Nenhuma cobrança com esse status.</td>
-              </tr>
-            )}
-            {visible.map(charge => {
-              const isOpen = expanded.has(charge.id)
-              const unpaid = charge.status === 'pending' || charge.status === 'overdue'
-              // Cartão: quem deve é a adquirente e a baixa acontece sozinha na
-              // data do repasse. Oferecer "receber" aqui convidaria a recepção a
-              // cobrar o paciente por uma venda que a maquininha já garantiu —
-              // pro PACIENTE a linha está paga (recibo liberado).
-              const byAcquirer = charge.debtor === 'acquirer'
-              const paidByPatient = charge.status === 'paid' || (byAcquirer && charge.status !== 'canceled')
-              return (
-                <Fragment key={charge.id}>
-                  <tr className={styles.linha} onClick={() => toggle(charge.id)}>
-                    <td className={styles.tdSeta}>
-                      <button
-                        type="button"
-                        className={`${styles.setaBtn} ${isOpen ? styles['setaBtn--aberta'] : ''}`}
-                        onClick={e => { e.stopPropagation(); toggle(charge.id) }}
-                        aria-expanded={isOpen}
-                        aria-label={`${isOpen ? 'Recolher' : 'Ver'} detalhes de ${charge.description}`}
-                      >
-                        <IconChevronRight />
-                      </button>
-                    </td>
-                    <td>{charge.competenceDate}</td>
-                    <td className={styles.tdFormas}>{charge.code}</td>
-                    <td>{charge.description}</td>
-                    {/* Valor BRUTO da cobrança — bruto/taxa/líquido abrem no detalhe. */}
-                    <td className={styles.tdValor}>{formatBRL(charge.grossAmount)}</td>
-                    <td><Badge status={patientStatus(charge)} /></td>
-                    <td className={styles.tdAcoes}>
-                      {unpaid && !byAcquirer && canEdit('finance') && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          iconLeft={<IconFinance />}
-                          title="Receber pagamento"
-                          aria-label={`Receber pagamento de ${charge.description}`}
-                          onClick={e => { e.stopPropagation(); setToSettle(charge) }}
-                        />
-                      )}
-                      {paidByPatient && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          iconLeft={<IconPrint />}
-                          title="Imprimir recibo"
-                          aria-label={`Imprimir recibo de ${charge.description}`}
-                          onClick={e => {
-                            e.stopPropagation()
-                            printDocument({
-                              title: 'Recibo de pagamento',
-                              subtitle: charge.description,
-                              body: receiptBody(charge, patientName),
-                              width: 520,
-                            })
-                          }}
-                        />
-                      )}
-                    </td>
-                  </tr>
-
-                  {isOpen && (
-                    <tr className={styles.detalheRow}>
-                      <td colSpan={7}>
-                        <div className={styles.detalhe}>
-                          <div className={styles.forma}>
-                            <dl className={styles.formaDados}>
-                              {details(charge, acquirerName(charge.acquirerId)).map(pair => (
-                                <div key={pair.label} className={styles.par}>
-                                  <dt>{pair.label}</dt>
-                                  <dd>{pair.amount}</dd>
-                                </div>
-                              ))}
-                            </dl>
-                            {byAcquirer && unpaid && (
-                              <p className={styles.semFormas}>
-                                Repasse da adquirente previsto para {charge.dueDate} — baixa automática.
-                              </p>
-                            )}
-                            {charge.notes && <p className={styles.semFormas}>{charge.notes}</p>}
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              )
-            })}
-          </tbody>
-        </table>
-
-        <div className={styles.rodape}>
+      <Table
+        columns={columns}
+        data={visible}
+        rowKey={charge => charge.id}
+        // Texto de quando o FILTRO não casa — o histórico vazio já saiu no
+        // EmptyState acima.
+        emptyMessage="Nenhuma cobrança com esse status."
+        expandedLabel={charge => charge.description}
+        toolbar={
+          <>
+            <PerPageSelect perPage={perPage} onChange={n => { setPerPage(n); setPage(1) }} />
+            <Select
+              size="sm"
+              options={FILTER_OPTIONS}
+              value={filter}
+              onChange={e => { setFilter(e.target.value as 'all' | PaymentStatus); setPage(1) }}
+              aria-label="Filtrar cobranças por status"
+              className={styles.filtro}
+            />
+          </>
+        }
+        footer={
           <Pagination
             page={currentPage}
             totalPages={totalPages}
@@ -318,8 +271,26 @@ export function PaymentsTable({ patientId, patientName, patientCpf }: PaymentsTa
             totalItems={filtered.length}
             itemsPerPage={perPage}
           />
-        </div>
-      </div>
+        }
+        renderExpanded={charge => (
+          <div className={styles.forma}>
+            <dl className={styles.formaDados}>
+              {details(charge, acquirerName(charge.acquirerId)).map(pair => (
+                <div key={pair.label} className={styles.par}>
+                  <dt>{pair.label}</dt>
+                  <dd>{pair.amount}</dd>
+                </div>
+              ))}
+            </dl>
+            {isByAcquirer(charge) && isUnpaid(charge) && (
+              <p className={styles.semFormas}>
+                Repasse da adquirente previsto para {charge.dueDate} — baixa automática.
+              </p>
+            )}
+            {charge.notes && <p className={styles.semFormas}>{charge.notes}</p>}
+          </div>
+        )}
+      />
 
       {/* Mesma baixa da aba Contas a Receber — inclusive parcial, que mantém a
           cobrança em aberto pelo restante. */}

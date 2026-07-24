@@ -2,7 +2,7 @@ import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
 import { FormSection } from '@/components/FormSection/FormSection'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { IconCheck, IconX } from '@/components/icons'
 import {
   useWhatsAppConnection, useConnectWhatsApp, useDisconnectWhatsApp, useRefreshWhatsAppQr,

@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId, type ClientPayload } from '@/lib/tenant'
 import type { Insert, ClientInsert } from '@/lib/db'
 import { brToIsoDate, isoToBrDate, localDate, toIsoDate, addMonths, addDays } from '@/utils/date'
+import { formatBRL } from '@/utils/format'
 import type {
   Acquirer, BankAccount, Payable, Receivable, ReceivableDebtor,
   CashFlowDay, ChartPeriod, CollectionAttempt, FinancePoint, PaymentMethod, PaymentStatus, InstallmentRate,
@@ -401,10 +402,6 @@ export async function settleReceivable(id: string, s: SettlementInput): Promise<
   if (error) throw error
 }
 
-function formatBRLPlain(n: number) {
-  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
 export async function reversePayable(id: string): Promise<void> {
   const { data, error } = await supabase.from('payable').select('status, due_date, paid_at, notes').eq('id', id).single()
   if (error) throw error
@@ -421,7 +418,7 @@ export async function reverseReceivable(id: string): Promise<void> {
   const { data, error } = await supabase.from('receivable').select('status, due_date, received_amount, notes, acquirer_id').eq('id', id).single()
   if (error) throw error
   if (data.status !== 'paid' && !data.received_amount) return
-  const trail = `Recebimento de ${formatBRLPlain(Number(data.received_amount ?? 0))} estornado em ${new Date().toLocaleDateString('pt-BR')}.`
+  const trail = `Recebimento de ${formatBRL(Number(data.received_amount ?? 0))} estornado em ${new Date().toLocaleDateString('pt-BR')}.`
   // Estorno de título de CARTÃO volta para 'pending', nunca 'overdue': quem deve
   // é a adquirente, e o CHECK receivable_acquirer_never_overdue_ck recusaria o
   // UPDATE inteiro — o estorno falharia em vez de estornar.

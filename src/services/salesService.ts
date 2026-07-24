@@ -59,12 +59,12 @@ export async function listSales(range: DashboardRange): Promise<Receivable[]> {
 
 // ── Fechar uma venda do PDV (checkout_sale) ─────────────────────────────────
 
-export interface CartLine {
+interface CartLine {
   serviceId: string
   quantity: number
 }
 
-export interface PaymentPlanLine {
+interface PaymentPlanLine {
   method: PaymentMethod
   amount: number
   /** Só relevante em 'credit' — os demais métodos são sempre à vista (ver

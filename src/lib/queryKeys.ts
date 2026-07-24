@@ -27,14 +27,12 @@ export const queryKeys = {
   },
   appointments: {
     all:    ['appointments'] as const,
-    byDay:  (isoDate: string) => ['appointments', 'day', isoDate] as const,
     detail: (id: string) => ['appointments', id] as const,
     // Prefixada por 'appointments' de propósito: invalidar a agenda (marcar
     // presença/falta) tem de refazer os cartões do topo junto, e o prefixo
     // garante isso sem uma segunda invalidação que alguém esqueceria.
     stats:  ['appointments', 'stats'] as const,
     series:  (period: string, isoMonth: string) => ['appointments', 'series', period, isoMonth] as const,
-    history: (patientId: string) => ['appointments', 'history', patientId] as const,
     /** Consultas do intervalo visível da Agenda (semana da grade, janela da aba do profissional). */
     range:  (fromIso: string, toIso: string) => ['appointments', 'range', fromIso, toIso] as const,
   },
@@ -192,6 +190,8 @@ export const queryKeys = {
   // Prontuário por SESSÃO (aba Prontuários do perfil, fisioterapia) — datas
   // marcadas no calendário + conteúdo do dia selecionado.
   clinicalNotes: {
+    // Prefixo do paciente: invalida `dates` e todos os `byDate` de uma vez.
+    byPatient: (patientId: string) => ['clinicalNotes', patientId] as const,
     dates:  (patientId: string) => ['clinicalNotes', patientId, 'dates'] as const,
     byDate: (patientId: string, dateIso: string) => ['clinicalNotes', patientId, 'date', dateIso] as const,
   },
@@ -200,7 +200,6 @@ export const queryKeys = {
   },
   clinic: {
     data:    ['clinic', 'data'] as const,
-    manager: ['clinic', 'manager'] as const,
   },
   materials: {
     all: ['materials'] as const,

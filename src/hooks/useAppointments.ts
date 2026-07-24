@@ -1,12 +1,8 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
-import { listDayAppointments, listPatientHistory, getDashboardStats, getAppointmentSeries, setAppointmentStatus } from '@/services/appointmentsService'
+import { getDashboardStats, getAppointmentSeries, setAppointmentStatus } from '@/services/appointmentsService'
 import type { ChartPeriod, AppointmentStatus } from '@/types/domain'
 import type { DashboardRange } from '@/utils/period'
-
-export function useDayAppointments() {
-  return useQuery({ queryKey: queryKeys.appointments.all, queryFn: listDayAppointments })
-}
 
 /** Série do gráfico por período/mês; mantém a série anterior no ar durante a troca. */
 export function useAppointmentSeries(period: ChartPeriod, monthIso: string) {
@@ -14,14 +10,6 @@ export function useAppointmentSeries(period: ChartPeriod, monthIso: string) {
     queryKey: queryKeys.appointments.series(period, monthIso),
     queryFn: () => getAppointmentSeries(period, monthIso),
     placeholderData: keepPreviousData,
-  })
-}
-
-/** Histórico de consultas do paciente (timeline do perfil). */
-export function useAppointmentHistory(patientId: string) {
-  return useQuery({
-    queryKey: queryKeys.appointments.history(patientId),
-    queryFn: () => listPatientHistory(patientId),
   })
 }
 

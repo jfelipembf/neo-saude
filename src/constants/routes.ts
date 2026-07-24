@@ -11,18 +11,18 @@ export const AUTH_ROUTES = {
 
 /** Rotas autenticadas (dentro do AppLayout, atrás do AuthGuard). */
 export const APP_ROUTES = {
-  DASHBOARD:       '/',
-  SCHEDULE:          '/agenda',
-  PATIENTS:       '/pacientes',
-  PATIENT_PROFILE: '/pacientes/:id',
+  DASHBOARD:            '/',
+  SCHEDULE:             '/agenda',
+  PATIENTS:             '/pacientes',
+  PATIENT_PROFILE:      '/pacientes/:id',
   // Perfil do lead (mesmo visual do paciente, sem abas + "Converter em paciente").
-  LEAD_PROFILE:   '/leads/:id',
-  PROFESSIONALS:   '/profissionais',
+  LEAD_PROFILE:         '/leads/:id',
+  PROFESSIONALS:        '/profissionais',
   PROFESSIONAL_PROFILE: '/profissionais/:id',
-  FINANCE:      '/financeiro',
+  FINANCE:              '/financeiro',
   // Página única com abas: Dados do consultório · Salas · Materiais.
-  ADMIN:  '/administrativo',
-  SETTINGS:   '/configuracoes',
+  ADMIN:                '/administrativo',
+  SETTINGS:             '/configuracoes',
 } as const
 
 /** Rotas de sistema (erro, acesso negado…). */
@@ -33,18 +33,21 @@ export const SYSTEM_ROUTES = {
 
 /** Páginas do app para o controle de acesso por cargo (aba Cargos). */
 export const APP_PAGES: { value: import('@/types/domain').AppPage; label: string }[] = [
-  { value: 'dashboard',      label: 'Dashboard' },
-  { value: 'schedule',         label: 'Agenda' },
+  { value: 'dashboard',     label: 'Dashboard' },
+  { value: 'schedule',      label: 'Agenda' },
   { value: 'patients',      label: 'Pacientes' },
-  { value: 'professionals',  label: 'Profissionais' },
-  { value: 'finance',     label: 'Financeiro' },
-  { value: 'admin', label: 'Administrativo' },
-  { value: 'settings',  label: 'Configurações' },
+  { value: 'professionals', label: 'Profissionais' },
+  { value: 'finance',       label: 'Financeiro' },
+  { value: 'admin',         label: 'Administrativo' },
+  { value: 'settings',      label: 'Configurações' },
 ]
+
+/** Troca o ':id' do path pelo valor real — mantém os segmentos só em APP_ROUTES. */
+const withId = (path: string, id: string) => path.replace(':id', id)
 
 /** Helpers para rotas com parâmetro — evita template string espalhada no app. */
 export const buildRoute = {
-  patientProfile: (id: string) => `/pacientes/${id}`,
-  leadProfile: (id: string) => `/leads/${id}`,
-  professionalProfile: (id: string) => `/profissionais/${id}`,
+  patientProfile: (id: string) => withId(APP_ROUTES.PATIENT_PROFILE, id),
+  leadProfile: (id: string) => withId(APP_ROUTES.LEAD_PROFILE, id),
+  professionalProfile: (id: string) => withId(APP_ROUTES.PROFESSIONAL_PROFILE, id),
 }

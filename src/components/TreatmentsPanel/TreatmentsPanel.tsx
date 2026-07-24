@@ -10,7 +10,7 @@ import { Modal } from '@/components/Modal/Modal'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { Toggle } from '@/components/Toggle/Toggle'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import {
   usePatientTreatments, useCreateTreatment, useAddTreatmentSession, useSessionBillingPreview,
 } from '@/hooks/useTreatments'

@@ -16,9 +16,10 @@ npm install
 npm run dev
 ```
 
-Sem `.env` o app sobe em **modo demonstração** (dados mock, já logado).
-Para ligar no Supabase real: `cp .env.example .env` e preencher
-`VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
+O `.env` é **obrigatório** — o app fala só com o Supabase real, não existe modo
+de demonstração. Antes de `npm run dev`: `cp .env.example .env` e preencher
+`VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`. Sem essas duas variáveis o app
+não sobe.
 
 Outros comandos: `npm run build` (produção), `npm run lint`, `npm run preview`.
 
@@ -34,8 +35,7 @@ src/
 ├── constants/     # Rotas e opções fixas (fonte única)
 ├── context/       # Providers globais (sessão, tema)
 ├── hooks/         # Hooks reutilizáveis (useQuery sobre services)
-├── lib/           # Cliente Supabase (+ isMockMode), queryKeys
-├── mocks/         # Dados de demonstração (modo mock)
+├── lib/           # Cliente Supabase, queryKeys, clínica atual (tenant), storage
 ├── pages/         # 1 pasta por domínio → 1 pasta por página
 ├── routes/        # AppRouter (lazy), AppLayout, guards
 ├── styles/        # Sistema de estilos CENTRALIZADO (tokens, temas, mixins)

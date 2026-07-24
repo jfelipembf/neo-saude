@@ -8,7 +8,7 @@ import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { Select } from '@/components/Select/Select'
 import { SideList } from '@/components/SideList/SideList'
 import type { SideListItem } from '@/components/SideList/SideList'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { IconEdit, IconPlus, IconTasks, IconTrash } from '@/components/icons'
 import { useTests } from '@/hooks/useTests'
 import {

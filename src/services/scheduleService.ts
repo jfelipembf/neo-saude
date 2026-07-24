@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId, type ClientPayload } from '@/lib/tenant'
-import type { AgendaAppointment, AppointmentStatus } from '@/types/domain'
+import type { ScheduledAppointment, AppointmentStatus } from '@/types/domain'
+import { addMinutes } from '@/utils/date'
 
 // A Agenda trabalha com consultas DATADAS na tabela `appointment` — a mesma
 // que o Dashboard conta em dashboard_stats() e que "Consultas de hoje" lista.
@@ -30,13 +31,6 @@ type AppointmentRow = {
 // 'HH:MM:SS' (banco) → 'HH:MM' (domínio).
 const hhmm = (t: string) => t.slice(0, 5)
 
-/** '07:30' + 30min → '08:00' (fim exibido nos cards). */
-function addMinutes(start: string, minutes: number) {
-  const [h, m] = start.split(':').map(Number)
-  const total = h * 60 + m + minutes
-  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
-}
-
 /** Duração (min) entre '07:30' e '08:00' — o banco guarda duração, não o fim. */
 function minutesBetween(start: string, end: string) {
   const [startH, startM] = start.split(':').map(Number)
@@ -58,7 +52,7 @@ async function roomMaps(clinicId: string): Promise<{ byId: Map<string, string>; 
 }
 
 /** Consultas do intervalo [fromIso, toIso] (a semana visível da grade). */
-export async function listAgendaAppointments(fromIso: string, toIso: string): Promise<AgendaAppointment[]> {
+export async function listScheduleAppointments(fromIso: string, toIso: string): Promise<ScheduledAppointment[]> {
   const clinicId = getCurrentClinicId()
   const [{ byId }, { data, error }] = await Promise.all([
     roomMaps(clinicId),
@@ -92,9 +86,9 @@ export async function listAgendaAppointments(fromIso: string, toIso: string): Pr
 }
 
 /** Dados do modal de agendamento (criação e edição usam o mesmo shape). */
-export type EditAgendaAppointment = ClientPayload<AgendaAppointment>
+export type EditScheduledAppointment = ClientPayload<ScheduledAppointment>
 
-async function toRow(clinicId: string, payload: EditAgendaAppointment) {
+async function toRow(clinicId: string, payload: EditScheduledAppointment) {
   const { byName } = await roomMaps(clinicId)
   return {
     patient_id: payload.patientId,
@@ -111,7 +105,7 @@ async function toRow(clinicId: string, payload: EditAgendaAppointment) {
   }
 }
 
-export async function addAgendaAppointment(payload: EditAgendaAppointment): Promise<void> {
+export async function addScheduleAppointment(payload: EditScheduledAppointment): Promise<void> {
   const clinicId = getCurrentClinicId()
   const { error } = await supabase.from('appointment').insert({
     clinic_id: clinicId,
@@ -123,7 +117,7 @@ export async function addAgendaAppointment(payload: EditAgendaAppointment): Prom
   if (error) throw error
 }
 
-export async function updateAgendaAppointment(id: string, payload: EditAgendaAppointment): Promise<void> {
+export async function updateScheduleAppointment(id: string, payload: EditScheduledAppointment): Promise<void> {
   const clinicId = getCurrentClinicId()
   const { error } = await supabase.from('appointment').update(await toRow(clinicId, payload)).eq('id', id)
   if (error) throw error

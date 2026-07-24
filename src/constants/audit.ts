@@ -6,7 +6,7 @@ import type { AuditAction } from '@/types/domain'
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** table_name (Supabase) → rótulo pt exibido na trilha. */
-export const AUDIT_TABLE_LABELS: Record<string, string> = {
+const AUDIT_TABLE_LABELS: Record<string, string> = {
   patient: 'Paciente',
   patient_document: 'Documento do paciente',
   professional: 'Profissional',
@@ -71,7 +71,7 @@ export const AUDIT_HIDDEN_FIELDS = new Set([
 ])
 
 /** Nome cru de coluna → rótulo pt no diff (fallback: o próprio nome). */
-export const AUDIT_FIELD_LABELS: Record<string, string> = {
+const AUDIT_FIELD_LABELS: Record<string, string> = {
   name: 'Nome',
   full_name: 'Nome',
   description: 'Descrição',

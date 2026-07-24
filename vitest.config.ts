@@ -23,7 +23,6 @@ export default defineConfig({
       // Sem meta de percentual: cobertura alta em mock não prova nada. O que
       // importa é o que está coberto — services, regras de dinheiro e RLS.
       exclude: [
-        'src/mocks/**',
         'src/types/database.types.ts',
         'src/**/*.module.scss',
         'src/main.tsx',

@@ -7,7 +7,7 @@ import { FormSection } from '@/components/FormSection/FormSection'
 import { IconPlus } from '@/components/icons'
 import { formatBRL } from '@/utils/format'
 import type { CatalogItem } from './types'
-import styles from './SalesPointPage.module.scss'
+import styles from './SalesPointModal.module.scss'
 
 interface Props {
   catalog:    CatalogItem[]

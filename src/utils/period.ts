@@ -61,12 +61,3 @@ export function dashboardRange(preset: PeriodPreset, customFrom?: string, custom
     }
   }
 }
-
-export const PERIOD_PRESETS: { key: PeriodPreset; label: string }[] = [
-  { key: 'today',     label: 'Hoje' },
-  { key: 'yesterday', label: 'Ontem' },
-  { key: 'week',      label: 'Semana' },
-  { key: 'month',     label: 'Mês' },
-  { key: 'year',      label: 'Ano' },
-  { key: 'custom',    label: 'Personalizado' },
-]

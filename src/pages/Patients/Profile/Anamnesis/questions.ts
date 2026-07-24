@@ -19,9 +19,9 @@ import type { ClinicSpecialty } from '@/types/domain'
  *  do paciente, o carimbo de data nem o tenant, que não são perguntas.
  *  Derivar de `EditAnamnesis` mantém isto correto sozinho quando o domínio muda.
  *  Todos guardam string (opção escolhida ou texto digitado). */
-export type AnamnesisField = keyof EditAnamnesis
+type AnamnesisField = keyof EditAnamnesis
 
-export interface AnamnesisQuestion {
+interface AnamnesisQuestion {
   field: AnamnesisField
   question: string
   /** Resposta fechada (botões) ou campo aberto. */

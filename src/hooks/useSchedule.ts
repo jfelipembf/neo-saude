@@ -1,31 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import {
-  addAgendaAppointment,
-  listAgendaAppointments,
-  updateAgendaAppointment,
+  addScheduleAppointment,
+  listScheduleAppointments,
+  updateScheduleAppointment,
   updateClinicalNote,
 } from '@/services/scheduleService'
-import type { EditAgendaAppointment } from '@/services/scheduleService'
+import type { EditScheduledAppointment } from '@/services/scheduleService'
 
 /** Consultas do intervalo visível (semana da grade / janela do calendário). */
-export function useAgendaAppointments(fromIso: string, toIso: string) {
+export function useScheduleAppointments(fromIso: string, toIso: string) {
   return useQuery({
     queryKey: queryKeys.appointments.range(fromIso, toIso),
-    queryFn: () => listAgendaAppointments(fromIso, toIso),
+    queryFn: () => listScheduleAppointments(fromIso, toIso),
   })
 }
 
 // Invalidar `appointments.all` pega TODAS as leituras de consulta de uma vez:
-// a grade (range), "Consultas de hoje" (byDay), o gráfico (series) e os cartões
-// do Dashboard (stats) — agendar tem de refletir em todos, sem lista para
-// alguém esquecer de manter.
+// a grade (range), o gráfico (series) e os cartões do Dashboard (stats) —
+// agendar tem de refletir em todos, sem lista para alguém esquecer de manter.
 
 /** Cria uma consulta datada (modal da Agenda). */
-export function useCreateAgendaAppointment() {
+export function useCreateScheduleAppointment() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (payload: EditAgendaAppointment) => addAgendaAppointment(payload),
+    mutationFn: (payload: EditScheduledAppointment) => addScheduleAppointment(payload),
     onSuccess: (_data, payload) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all })
       // Agendada num pacote: tg_debit_entitlement já reservou a sessão no
@@ -39,10 +38,10 @@ export function useCreateAgendaAppointment() {
 }
 
 /** Edita uma consulta existente (clique no card da grade). */
-export function useUpdateAgendaAppointment() {
+export function useUpdateScheduleAppointment() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: EditAgendaAppointment }) => updateAgendaAppointment(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: EditScheduledAppointment }) => updateScheduleAppointment(id, payload),
     onSuccess: (_data, { payload }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all })
       // Mudar a situação (compareceu/faltou/cancelar) desloca sessão entre
@@ -62,7 +61,7 @@ export function useUpdateClinicalNote() {
       updateClinicalNote(appointmentId, html),
     onSuccess: (_data, { patientId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all })
-      queryClient.invalidateQueries({ queryKey: ['clinicalNotes', patientId] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.clinicalNotes.byPatient(patientId) })
     },
   })
 }

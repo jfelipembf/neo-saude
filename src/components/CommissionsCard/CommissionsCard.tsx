@@ -3,13 +3,10 @@ import type { CSSProperties } from 'react'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { IconChevronLeft, IconChevronRight } from '@/components/icons'
 import { useProfessionalQuoteConversion } from '@/hooks/useProfessionals'
+import { toIsoMonth } from '@/utils/date'
 import { formatBRL } from '@/utils/format'
 import { initials } from '@/utils/text'
 import styles from './CommissionsCard.module.scss'
-
-function toIsoMonth(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
 
 /**
  * Card "Comissões" do Dashboard: por profissional, quanto foi orçado no mês e

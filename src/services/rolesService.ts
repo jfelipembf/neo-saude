@@ -1,9 +1,11 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId, type ClientPayload } from '@/lib/tenant'
+import { APP_PAGES } from '@/constants'
 import type { AppPage, Role } from '@/types/domain'
 
-// As "páginas" do cargo são exatamente as features de categoria `module`.
-const MODULE_KEYS: AppPage[] = ['dashboard', 'schedule', 'patients', 'professionals', 'finance', 'admin', 'settings']
+// As "páginas" do cargo são exatamente as features de categoria `module` —
+// derivadas de APP_PAGES para não haver duas listas para manter em sincronia.
+const MODULE_KEYS: AppPage[] = APP_PAGES.map(p => p.value)
 
 /**
  * Cargos da clínica. Lidos da VIEW `role`, que já agrega

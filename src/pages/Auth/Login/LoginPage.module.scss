@@ -18,12 +18,3 @@
   font-weight: 500;
 }
 
-.demoNotice {
-  padding: $sp-2 $sp-3;
-  font-size: $fs-xs;
-  text-align: center;
-  color: var(--info-fg);
-  background: rgba(var(--secondary-rgb), 0.10);
-  border: 1px solid rgba(var(--secondary-rgb), 0.30);
-  border-radius: $radius-md;
-}

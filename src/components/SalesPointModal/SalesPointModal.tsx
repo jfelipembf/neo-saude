@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Modal } from '@/components/Modal/Modal'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { useServices } from '@/hooks/useServices'
 import { useCheckoutSale } from '@/hooks/useSales'
 import { userMessage } from '@/lib/errors'
@@ -9,7 +9,7 @@ import { SalesSelectionPanel } from './SalesSelectionPanel'
 import { SalesCartPanel } from './SalesCartPanel'
 import { PaymentForm } from './PaymentForm'
 import type { CartItem, CatalogItem, Payment } from './types'
-import styles from './SalesPointPage.module.scss'
+import styles from './SalesPointModal.module.scss'
 
 let seq = 0
 

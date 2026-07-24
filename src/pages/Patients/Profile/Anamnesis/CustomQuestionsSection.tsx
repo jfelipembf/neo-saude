@@ -3,7 +3,7 @@ import { Button } from '@/components/Button/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { Input } from '@/components/Input/Input'
 import { Textarea } from '@/components/Textarea/Textarea'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { IconPlus, IconEdit, IconTrash, IconCheck } from '@/components/icons'
 import {
   usePatientCustomQuestions, useAddPatientCustomQuestion,

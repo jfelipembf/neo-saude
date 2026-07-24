@@ -7,7 +7,7 @@ import { Button } from '@/components/Button/Button'
 import { Select } from '@/components/Select/Select'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { Textarea } from '@/components/Textarea/Textarea'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { useLeads, useLeadHistory, useUpdateLeadDetails, useConvertLead } from '@/hooks/useLeads'
 import {
   AUDIT_HIDDEN_FIELDS, LEAD_STATUS_LABEL, LEAD_STATUS_OPTIONS, auditFieldLabel, buildRoute,

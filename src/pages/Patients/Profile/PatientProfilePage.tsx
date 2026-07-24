@@ -1,7 +1,6 @@
 import { lazy, Suspense, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
@@ -21,23 +20,21 @@ import { AnamnesisTab } from './Anamnesis/AnamnesisTab'
 import { PatientTestsPanel } from './Tests/PatientTestsPanel'
 import { PatientClinicalNotesPanel } from './ClinicalNotes/PatientClinicalNotesPanel'
 import { PatientEnrollmentsPanel } from './Enrollments/PatientEnrollmentsPanel'
-import { SalesPointModal } from '@/pages/Sales/SalesPoint/SalesPointModal'
+import { SalesPointModal } from '@/components/SalesPointModal/SalesPointModal'
 import { BudgetsPanel } from '@/components/BudgetsPanel/BudgetsPanel'
 import { PrescriptionsPanel } from '@/components/PrescriptionsPanel/PrescriptionsPanel'
 import { EntitlementPickerModal } from '@/components/EntitlementPickerModal/EntitlementPickerModal'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { SEX_OPTIONS, SEX_LABEL, APP_ROUTES } from '@/constants'
 import { useInsuranceOptions } from '@/hooks/useInsurances'
 import { usePatientEntitlements } from '@/hooks/usePatientEntitlements'
-import { queryKeys } from '@/lib/queryKeys'
-import { getPatient } from '@/services/patientsService'
-import { useUpdatePatient, useUpdatePatientPhoto } from '@/hooks/usePatients'
+import { usePatient, useUpdatePatient, useUpdatePatientPhoto } from '@/hooks/usePatients'
 import { uploadImage } from '@/lib/storage'
 import { IconUser, IconEdit, IconPhone, IconMessage, IconEmail, IconCamera, IconCart, IconPlus } from '@/components/icons'
 import { initials, digitsOnly } from '@/utils/text'
 import { isEntitlementActive } from '@/utils/entitlements'
 import { useSession } from '@/context/SessionProvider'
-import { appliesToSpecialty } from '@/constants/specialty'
+import { appliesToSpecialty } from '@/constants'
 import type { Patient, Gender, ClinicSpecialty, PatientServiceEntitlement } from '@/types/domain'
 import styles from './PatientProfilePage.module.scss'
 
@@ -48,18 +45,20 @@ type TabKey =
 // `specialties`/`excludeSpecialties` restringem a aba a certos ramos (ver
 // constants/specialty). Ausente = núcleo (todo ramo). Tratamento hoje é o
 // odontograma → só odontologia. Orçamentos não faz sentido em fisioterapia
-// (vira a aba Testes, com os testes/escalas de avaliação do paciente).
+// (vira a aba Testes, com os testes/escalas de avaliação do paciente), e
+// Prescrições também não: o fisioterapeuta prescreve conduta no prontuário
+// da sessão, não receituário.
 const TABS: { key: TabKey; label: string; specialties?: ClinicSpecialty[]; excludeSpecialties?: ClinicSpecialty[] }[] = [
-  { key: 'personal',       label: 'Dados pessoais' },
-  { key: 'anamnesis',    label: 'Anamnese' },
-  { key: 'treatment',  label: 'Tratamento', specialties: ['dentistry'] },
-  { key: 'quotes',  label: 'Orçamentos', excludeSpecialties: ['physiotherapy'] },
-  { key: 'tests',  label: 'Testes', specialties: ['physiotherapy'] },
-  { key: 'clinicalNotes',  label: 'Prontuários', specialties: ['physiotherapy'] },
-  { key: 'enrollments',  label: 'Matrículas', specialties: ['physiotherapy'] },
-  { key: 'prescriptions', label: 'Prescrições' },
-  { key: 'payments',  label: 'Pagamentos' },
-  { key: 'documents',  label: 'Documentos' },
+  { key: 'personal',      label: 'Dados pessoais' },
+  { key: 'anamnesis',     label: 'Anamnese' },
+  { key: 'treatment',     label: 'Tratamento',  specialties: ['dentistry'] },
+  { key: 'quotes',        label: 'Orçamentos',  excludeSpecialties: ['physiotherapy'] },
+  { key: 'tests',         label: 'Testes',      specialties: ['physiotherapy'] },
+  { key: 'clinicalNotes', label: 'Prontuários', specialties: ['physiotherapy'] },
+  { key: 'enrollments',   label: 'Matrículas',  specialties: ['physiotherapy'] },
+  { key: 'prescriptions', label: 'Prescrições', excludeSpecialties: ['physiotherapy'] },
+  { key: 'payments',      label: 'Pagamentos' },
+  { key: 'documents',     label: 'Documentos' },
 ]
 
 interface PatientFormState {
@@ -105,11 +104,7 @@ export function PatientProfilePage() {
   const navigate = useNavigate()
   const toast = useToast()
 
-  const { data: patient, isLoading } = useQuery({
-    queryKey: queryKeys.patients.detail(id ?? ''),
-    queryFn: () => getPatient(id ?? ''),
-    enabled: Boolean(id),
-  })
+  const { data: patient, isLoading } = usePatient(id)
   const { mutate: save, isPending: saving } = useUpdatePatient()
   const { mutate: savePhoto } = useUpdatePatientPhoto()
   const insuranceOptions = useInsuranceOptions()
@@ -124,6 +119,11 @@ export function PatientProfilePage() {
   const activeEntitlements = (entitlements ?? []).filter(isEntitlementActive)
 
   const [tab, setTab] = useState<TabKey>('personal')
+  // Aba ATIVA é derivada, não o estado cru: enquanto a sessão carrega, `specialty`
+  // é undefined e appliesToSpecialty libera TODAS as abas. Quem clicasse numa aba
+  // restrita nessa janela continuaria vendo o conteúdo dela depois que o ramo
+  // resolvesse e a aba sumisse da barra. Derivar mata a incoerência sem efeito.
+  const activeTab: TabKey = visibleTabs.some(t => t.key === tab) ? tab : 'personal'
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<PatientFormState | null>(null)
   const [nameError, setNameError] = useState('')
@@ -147,7 +147,7 @@ export function PatientProfilePage() {
   const header = (
     <header className={styles.topo}>
       <PageHeader title="Perfil do paciente" icon={<IconUser />} />
-      <Tabs tabs={visibleTabs} active={tab} onChange={changeTab} />
+      <Tabs tabs={visibleTabs} active={activeTab} onChange={changeTab} />
     </header>
   )
 
@@ -427,7 +427,7 @@ export function PatientProfilePage() {
 
         {/* ── Painel da direita: conteúdo da aba ativa ── */}
         <div className={styles.painel}>
-          {tab === 'personal' && (editing && form ? (
+          {activeTab === 'personal' && (editing && form ? (
           <section className={styles.formCard} aria-label="Editar cadastro">
             <h2 className={styles.formTitulo}>Editar cadastro</h2>
 
@@ -511,34 +511,34 @@ export function PatientProfilePage() {
           </section>
           ))}
 
-          {tab === 'anamnesis' && (
+          {activeTab === 'anamnesis' && (
             <AnamnesisTab patientId={patient.id} patientName={patient.name} />
           )}
 
-          {tab === 'treatment' && (
+          {activeTab === 'treatment' && (
             <Suspense fallback={<PageLoader />}>
               <TreatmentsPanel patientId={patient.id} patientName={patient.name} />
             </Suspense>
           )}
-          {tab === 'quotes' && (
+          {activeTab === 'quotes' && (
             <BudgetsPanel patientId={patient.id} patientName={patient.name} />
           )}
-          {tab === 'tests' && (
+          {activeTab === 'tests' && (
             <PatientTestsPanel patientId={patient.id} />
           )}
-          {tab === 'clinicalNotes' && (
+          {activeTab === 'clinicalNotes' && (
             <PatientClinicalNotesPanel patientId={patient.id} />
           )}
-          {tab === 'enrollments' && (
+          {activeTab === 'enrollments' && (
             <PatientEnrollmentsPanel patientId={patient.id} />
           )}
-          {tab === 'prescriptions' && (
+          {activeTab === 'prescriptions' && (
             <PrescriptionsPanel patientId={patient.id} patientName={patient.name} />
           )}
-          {tab === 'payments' && (
+          {activeTab === 'payments' && (
             <PaymentsTable patientId={patient.id} patientName={patient.name} patientCpf={patient.cpf} />
           )}
-          {tab === 'documents' && <DocumentsUpload patientId={patient.id} />}
+          {activeTab === 'documents' && <DocumentsUpload patientId={patient.id} />}
         </div>
       </div>
 

@@ -1,10 +1,9 @@
 import type { CSSProperties } from 'react'
 import { useState } from 'react'
 import { IconChevronLeft, IconChevronRight } from '@/components/icons'
+import { DAY_OF_WEEK_SHORT } from '@/constants'
 import { toIsoDate } from '@/utils/date'
 import styles from './Calendar.module.scss'
-
-const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
 interface CalendarProps {
   /** Datas (aaaa-mm-dd) que ganham um ponto de marcação (ex.: dias com consulta). */
@@ -55,7 +54,7 @@ export function Calendar({ markedDates = [], selected, onSelect, size = 'md', ma
       </header>
 
       <div className={styles.weekdays}>
-        {WEEKDAYS.map(w => <span key={w}>{w}</span>)}
+        {Object.values(DAY_OF_WEEK_SHORT).map(w => <span key={w}>{w}</span>)}
       </div>
 
       <div className={styles.grid}>

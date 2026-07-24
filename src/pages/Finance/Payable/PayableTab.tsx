@@ -6,7 +6,7 @@ import { Pagination } from '@/components/Pagination/Pagination'
 import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
 import { Table } from '@/components/Table/Table'
 import type { TableColumn } from '@/components/Table/Table'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { Button } from '@/components/Button/Button'
 import { IconCheck, IconUndo, IconX, IconPlus } from '@/components/icons'
 import { AccountFormModal } from '../shared/AccountFormModal'
@@ -40,15 +40,15 @@ export function PayableTab() {
   const paid  = list.filter(c => c.status === 'paid').reduce((s, c) => s + (c.paidAmount ?? c.amount), 0)
 
   const columns: TableColumn<Payable>[] = [
-    { key: 'descricao',  label: 'Descrição', render: c => <span className={shared.celulaForte}>{c.description}</span> },
+    { key: 'description',  label: 'Descrição', render: c => <span className={shared.celulaForte}>{c.description}</span> },
     { key: 'category',  label: 'Categoria' },
     { key: 'dueDate', label: 'Vencimento' },
-    { key: 'pagamento',  label: 'Pagamento', render: c => c.paidAt ?? '—' },
+    { key: 'payment',  label: 'Pagamento', render: c => c.paidAt ?? '—' },
     { key: 'supplier', label: 'Fornecedor' },
-    { key: 'valor',      label: 'Valor', render: c => <span className={shared.valor}>{formatBRL(c.amount)}</span> },
+    { key: 'amount',      label: 'Valor', render: c => <span className={shared.valor}>{formatBRL(c.amount)}</span> },
     { key: 'status',     label: 'Status', render: c => <Badge status={c.status} /> },
     {
-      key: 'acoes', label: 'Ação',
+      key: 'actions', label: 'Ação',
       render: c => (
         <span className={shared.acoes}>
           {isOpen(c) && (

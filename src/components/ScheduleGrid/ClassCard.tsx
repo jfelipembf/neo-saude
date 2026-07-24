@@ -2,13 +2,13 @@ import type { CSSProperties } from 'react'
 import { useTheme } from '@/context/ThemeProvider'
 import { usePatientName, useProfessionalName, useProfessionalColor } from '@/hooks/useDisplayNames'
 import { IconBan, IconCheck, IconChevronRight, IconX } from '@/components/icons'
-import type { AgendaAppointment, AppointmentStatus } from '@/types/domain'
+import type { ScheduledAppointment, AppointmentStatus } from '@/types/domain'
 import { firstName, stripTitle } from '@/utils/text'
 import { maskedLuminance } from '@/utils/cardColor'
-import styles from './ClassCard.module.scss'
+import styles from './scheduleCards.module.scss'
 
 interface ClassCardProps {
-  appointment: AgendaAppointment
+  appointment: ScheduledAppointment
   onClick?: () => void
   /** Registra o desfecho da consulta (compareceu/faltou/cancelou) direto no card. */
   onSetStatus?: (status: AppointmentStatus) => void

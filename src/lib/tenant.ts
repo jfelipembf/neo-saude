@@ -46,15 +46,3 @@ export function getCurrentClinicId(): string {
  * assim o compilador impede o formulário de mandar o tenant.
  */
 export type ClientPayload<T> = Omit<T, 'id' | 'clinicId' | 'code'>
-
-/**
- * Próximo código humano da entidade: PAC-000001, PAC-000002…
- * Calcula a partir do que já existe — serve para o mock; no banco é a sequence.
- */
-export function nextCode(prefix: string, existing: { code?: string }[]) {
-  const max = existing.reduce((max, item) => {
-    const n = Number(item.code?.split('-')[1] ?? 0)
-    return Number.isFinite(n) && n > max ? n : max
-  }, 0)
-  return `${prefix}-${String(max + 1).padStart(6, '0')}`
-}

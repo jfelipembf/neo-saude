@@ -5,10 +5,10 @@ import { ScheduleBoard } from '@/components/ScheduleBoard/ScheduleBoard'
 import { AppointmentModal } from '@/components/AppointmentModal/AppointmentModal'
 import { usePatientName } from '@/hooks/useDisplayNames'
 import { IconSchedule } from '@/components/icons'
-import type { AgendaAppointment } from '@/types/domain'
+import type { ScheduledAppointment } from '@/types/domain'
 
 interface ModalState {
-  slot?: AgendaAppointment
+  slot?: ScheduledAppointment
   /** Pré-preenchimento vindo do "+" da grade (profissional/dia/hora já
    *  escolhidos) — só faz sentido numa consulta NOVA (sem `slot`). */
   initial?: { professionalId?: string; dateIso?: string; time?: string }
@@ -17,7 +17,7 @@ interface ModalState {
 // Sem botão "Nova consulta": o agendamento nasce SÓ do "+" na grade (célula
 // vazia dentro da disponibilidade do profissional) — decisão do dono para
 // impedir marcar fora do horário dele por um caminho que não passa pela grade.
-export function AgendaPage() {
+export function SchedulePage() {
   // Modal de agendamento: null = fechado; { slot } = edição; { initial } =
   // novo, pré-preenchido pelo "+" da grade.
   const [modal, setModal] = useState<ModalState | null>(null)

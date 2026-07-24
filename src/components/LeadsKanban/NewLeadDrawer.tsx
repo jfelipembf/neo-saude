@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
 import { Drawer } from '@/components/Drawer/Drawer'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { useCreateLead } from '@/hooks/useLeads'
-import styles from './NewLeadModal.module.scss'
+import styles from './NewLeadDrawer.module.scss'
 
-interface NewLeadModalProps {
+interface NewLeadDrawerProps {
   onClose: () => void
 }
 
@@ -19,7 +19,7 @@ interface NewLeadModalProps {
  * com um. Telefone e interesse são obrigatórios porque a tabela `lead` os
  * exige (NOT NULL + CHECK de não-vazio).
  */
-export function NewLeadModal({ onClose }: NewLeadModalProps) {
+export function NewLeadDrawer({ onClose }: NewLeadDrawerProps) {
   const toast = useToast()
   const { mutate: createLead, isPending: saving } = useCreateLead()
 

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { APP_ROUTES } from '@/constants'
-import { IconAdmin } from '@/components/icons'
+import unauthorizedImage from '@/assets/images/401.png'
 import styles from './UnauthorizedPage.module.scss'
 
 /**
@@ -10,13 +10,15 @@ import styles from './UnauthorizedPage.module.scss'
 export function UnauthorizedPage() {
   return (
     <div className={styles.page}>
-      <span className={styles.icon}><IconAdmin /></span>
-      <h1 className={styles.title}>Acesso restrito</h1>
-      <p className={styles.description}>
-        Seu cargo não tem permissão para esta página. Fale com o administrador
-        da clínica se precisar de acesso.
-      </p>
-      <Link to={APP_ROUTES.DASHBOARD} className={styles.link}>Voltar para o início</Link>
+      <img src={unauthorizedImage} alt="" className={styles.image} />
+      <div className={styles.content}>
+        <h1 className={styles.title}>Acesso restrito</h1>
+        <p className={styles.description}>
+          Seu cargo não tem permissão para esta página. Fale com o administrador
+          da clínica se precisar de acesso.
+        </p>
+        <Link to={APP_ROUTES.DASHBOARD} className={styles.link}>Voltar para o início</Link>
+      </div>
     </div>
   )
 }

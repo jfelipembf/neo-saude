@@ -8,7 +8,7 @@ import { useAcquirers } from '@/hooks/useFinance'
 import { AVAILABLE_CARD_BRANDS } from '@/constants/finance'
 import { PAY_METHOD_OPTIONS } from './types'
 import type { PayMethod, Payment } from './types'
-import styles from './SalesPointPage.module.scss'
+import styles from './SalesPointModal.module.scss'
 
 let seq = 0
 

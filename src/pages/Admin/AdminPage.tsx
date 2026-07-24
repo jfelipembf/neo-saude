@@ -14,7 +14,7 @@ import { InsurancesTab } from './Insurances/InsurancesTab'
 import { GoalsTab } from './Goals/GoalsTab'
 import { AuditTab } from './Audit/AuditTab'
 import { useSession } from '@/context/SessionProvider'
-import { appliesToSpecialty } from '@/constants/specialty'
+import { appliesToSpecialty } from '@/constants'
 import type { ClinicSpecialty } from '@/types/domain'
 import styles from './AdminPage.module.scss'
 

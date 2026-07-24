@@ -3,30 +3,17 @@ import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
 import { Modal } from '@/components/Modal/Modal'
 import { Select } from '@/components/Select/Select'
-import { PAYMENT_METHOD_LABEL } from '@/constants'
+import { AVAILABLE_CARD_BRANDS, PAYMENT_METHOD_LABEL } from '@/constants'
 import { useProfessionalName } from '@/hooks/useDisplayNames'
+import { toIsoDate } from '@/utils/date'
+import { formatBRL, parseBRL } from '@/utils/format'
 import { stripTitle } from '@/utils/text'
 import type { BilledTreatment, PaymentMethod } from '@/types/domain'
 import styles from './PaymentModal.module.scss'
 
 const PAYMENT_METHODS = Object.keys(PAYMENT_METHOD_LABEL) as PaymentMethod[]
 
-const CARD_BRAND_OPTIONS = ['Visa', 'Mastercard', 'Elo', 'Amex', 'Hipercard'].map(b => ({ value: b, label: b }))
-
-function formatBRL(v: number) {
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
-/** '100,00' | '1.250,50' → número (NaN se inválido). */
-function parseAmount(text: string) {
-  return Number(text.replace(/\./g, '').replace(',', '.'))
-}
-
-/** Date → 'aaaa-mm-dd' local, para o input de data. */
-function todayIso() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+const CARD_BRAND_OPTIONS = AVAILABLE_CARD_BRANDS.map(b => ({ value: b, label: b }))
 
 /** O que o modal devolve ao confirmar — quem chama decide onde persistir. */
 export interface PaymentModalResult {
@@ -78,7 +65,7 @@ function PaymentForm({ charge, patient, contas: accounts, confirmando: confirmin
   const [amountText, setAmountText] = useState(() =>
     charge.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 }),
   )
-  const [dateIso, setDateIso] = useState(todayIso())
+  const [dateIso, setDateIso] = useState(toIsoDate(new Date()))
   const [amountError, setAmountError] = useState('')
   const [accountId, setAccountId] = useState('')
   // Campos exclusivos de cartão (crédito/débito).
@@ -91,7 +78,7 @@ function PaymentForm({ charge, patient, contas: accounts, confirmando: confirmin
   const isCard = method === 'credit' || method === 'debit'
 
   // "3× de R$ 50,00" calculado sobre o valor digitado.
-  const currentAmount = parseAmount(amountText)
+  const currentAmount = parseBRL(amountText)
   const installmentOptions = Array.from({ length: 12 }, (_, i) => {
     const n = i + 1
     const perInstallment = Number.isFinite(currentAmount) && currentAmount > 0
@@ -106,7 +93,7 @@ function PaymentForm({ charge, patient, contas: accounts, confirmando: confirmin
     : [{ name: charge.description, amount: charge.amount, professionalId: undefined }]
 
   function handleConfirm() {
-    const amount = parseAmount(amountText)
+    const amount = parseBRL(amountText)
     if (!Number.isFinite(amount) || amount <= 0) {
       setAmountError('Informe um valor válido.')
       return

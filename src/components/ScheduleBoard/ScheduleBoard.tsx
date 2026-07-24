@@ -8,9 +8,9 @@ import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { ScheduleGrid } from '@/components/ScheduleGrid/ScheduleGrid'
 import type { ScheduleView } from '@/components/ScheduleGrid/ScheduleGrid'
-import { SCHEDULE_VIEW_OPTIONS } from '@/components/ScheduleGrid/scheduleOptions'
 import { ClassAttendanceModal } from '@/components/ClassAttendanceModal/ClassAttendanceModal'
-import { useAgendaAppointments } from '@/hooks/useSchedule'
+import { SCHEDULE_VIEW_OPTIONS } from '@/constants'
+import { useScheduleAppointments } from '@/hooks/useSchedule'
 import { useSetAppointmentStatus } from '@/hooks/useAppointments'
 import { useProfessionals } from '@/hooks/useProfessionals'
 import { useAvailabilityTemplate, useBlockedSlots, useSaveBlockedSlots, useAbsences } from '@/hooks/useProfessionalAvailability'
@@ -23,14 +23,14 @@ import { useRooms } from '@/hooks/useRooms'
 import { useDebounce } from '@/hooks/useDebounce'
 import { usePatientName } from '@/hooks/useDisplayNames'
 import { useOutsideClick } from '@/hooks/useOutsideClick'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { useSession } from '@/context/SessionProvider'
 import { getCurrentClinicId } from '@/lib/tenant'
 import { matchesSearch } from '@/utils/search'
 import { toIsoDate } from '@/utils/date'
 import { materializeClassGroupOccurrences } from '@/utils/classGroupOccurrences'
 import { IconSearch, IconFilter } from '@/components/icons'
-import type { AgendaAppointment, ClassGroupOccurrence } from '@/types/domain'
+import type { ScheduledAppointment, ClassGroupOccurrence } from '@/types/domain'
 import styles from './ScheduleBoard.module.scss'
 
 /** Domingo da semana de `d` (a grade vai de Dom a Sáb; colunas começam na Seg). */
@@ -61,12 +61,12 @@ interface EnrollTarget {
 
 interface ScheduleBoardProps {
   /** Ação ao clicar num horário (opcional — sem ela os cards ficam só de leitura). */
-  onSelect?: (appointment: AgendaAppointment) => void
+  onSelect?: (appointment: ScheduledAppointment) => void
   /** Clique no "+" de uma célula vazia e disponível — só aparece com um
    *  profissional filtrado (é ele quem entra pré-preenchido no modal). */
   onQuickAdd?: (professionalId: string, dateIso: string, time: string) => void
   /** Modo "Matricular" (veio do botão no perfil do paciente, via ?enroll=&
-   *  entitlement= — ver AgendaPage): clicar numa turma matricula esse
+   *  entitlement= — ver SchedulePage): clicar numa turma matricula esse
    *  paciente direto, sem abrir a chamada. */
   enrollTarget?: EnrollTarget
   /** Matrícula concluída OU "Cancelar" no modo enrollTarget. */
@@ -137,7 +137,7 @@ export function ScheduleBoard({ onSelect, onQuickAdd, enrollTarget, onEnrollDone
   const start = weekStart(refDate)
   const fromIso = toIsoDate(start)
   const toIso = toIsoDate(new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6))
-  const { data: appointments = [], isLoading } = useAgendaAppointments(fromIso, toIso)
+  const { data: appointments = [], isLoading } = useScheduleAppointments(fromIso, toIso)
   const toast = useToast()
 
   // Turmas coletivas materializadas na semana visível — mesma cor do
@@ -156,7 +156,7 @@ export function ScheduleBoard({ onSelect, onQuickAdd, enrollTarget, onEnrollDone
   // Multi-seleção: clicar numa turma ALTERNA ela na seleção (sombra/selo no
   // card, ver ClassGroupCard) — só matricula de fato ao clicar "Matricular
   // (N)". Turma que o paciente já cursa nem entra na seleção (aviso).
-  const { mutateAsync: enrollAsync, isPending: enrollingFromAgenda } = useEnrollPatient()
+  const { mutateAsync: enrollAsync, isPending: enrollingFromSchedule } = useEnrollPatient()
   const { data: currentEnrollments = [] } = usePatientClassGroupEnrollments(enrollTarget?.patientId ?? '')
   const { data: weeklyLimit } = useEntitlementWeeklyLimit(enrollTarget?.entitlementId ?? '')
   const [selectedClassGroupIds, setSelectedClassGroupIds] = useState<Set<string>>(new Set())
@@ -350,7 +350,7 @@ export function ScheduleBoard({ onSelect, onQuickAdd, enrollTarget, onEnrollDone
               <Button variant="ghost" disabled={confirmingEnroll} onClick={handleCancelEnroll}>Cancelar</Button>
               <Button
                 disabled={selectedClassGroupIds.size === 0}
-                loading={confirmingEnroll || enrollingFromAgenda}
+                loading={confirmingEnroll || enrollingFromSchedule}
                 onClick={handleConfirmEnroll}
               >
                 Matricular{selectedClassGroupIds.size > 0 ? ` (${selectedClassGroupIds.size})` : ''}

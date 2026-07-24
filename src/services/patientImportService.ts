@@ -14,7 +14,7 @@ import type { Gender } from '@/types/domain'
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Colunas do modelo, na ordem em que aparecem na planilha de exemplo. */
-export const IMPORT_TEMPLATE_HEADERS = [
+const IMPORT_TEMPLATE_HEADERS = [
   'nome', 'cpf', 'telefone', 'whatsapp', 'email',
   'data_nascimento', 'sexo', 'cep', 'estado', 'cidade', 'bairro', 'numero',
 ] as const
@@ -59,7 +59,7 @@ export interface PatientImportRow {
 }
 
 /** Linha que não pôde ser importada, com o motivo. */
-export interface InvalidRow {
+interface InvalidRow {
   line: number      // linha da planilha (2 = 1ª de dados, contando o cabeçalho)
   name: string
   reason: string

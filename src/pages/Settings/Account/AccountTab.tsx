@@ -5,10 +5,10 @@ import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { FormSection } from '@/components/FormSection/FormSection'
 import { PhotoInput } from '@/components/PhotoInput/PhotoInput'
 import { Toggle } from '@/components/Toggle/Toggle'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { useClinic, useSaveClinic } from '@/hooks/useClinic'
 import { IconEdit } from '@/components/icons'
-import { ClinicFormModal } from './ClinicForm'
+import { ClinicFormModal } from './ClinicFormModal'
 import styles from './AccountTab.module.scss'
 
 // UI only por enquanto — sem persistência (nem service, nem coluna no banco).

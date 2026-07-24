@@ -1,10 +1,8 @@
-import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useDialogBehavior } from '@/hooks/useDialogBehavior'
 import { IconX } from '@/components/icons'
 import styles from './Drawer.module.scss'
-
-const FOCUSABLE = 'a[href],button:not([disabled]),textarea,input,select,[tabindex]:not([tabindex="-1"])'
 
 interface DrawerProps {
   open: boolean
@@ -24,39 +22,8 @@ interface DrawerProps {
  * a tela inteira.
  */
 export function Drawer({ open, onClose, title, children, footer, size = 'md' }: DrawerProps) {
-  const panelRef   = useRef<HTMLDivElement>(null)
-  const onCloseRef = useRef(onClose)
-  useEffect(() => { onCloseRef.current = onClose })
-
-  useEffect(() => {
-    if (!open) return
-    const panel = panelRef.current
-
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') { onCloseRef.current(); return }
-      // Trap de foco: Tab/Shift+Tab circulam só dentro do painel.
-      if (e.key === 'Tab' && panel) {
-        const items = panel.querySelectorAll<HTMLElement>(FOCUSABLE)
-        if (!items.length) { e.preventDefault(); return }
-        const first = items[0]
-        const last = items[items.length - 1]
-        const active = document.activeElement
-        if (e.shiftKey && (active === first || !panel.contains(active))) {
-          e.preventDefault(); last.focus()
-        } else if (!e.shiftKey && (active === last || !panel.contains(active))) {
-          e.preventDefault(); first.focus()
-        }
-      }
-    }
-
-    document.addEventListener('keydown', onKey)
-    // Trava o scroll da página atrás enquanto o painel está aberto.
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [open])
+  // Trap de foco + ESC + trava do scroll de trás (compartilhado com o Modal).
+  const panelRef = useDialogBehavior<HTMLDivElement>(open, onClose)
 
   if (!open) return null
 

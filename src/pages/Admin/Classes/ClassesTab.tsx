@@ -7,13 +7,13 @@ import { Input } from '@/components/Input/Input'
 import { Select } from '@/components/Select/Select'
 import { SideList } from '@/components/SideList/SideList'
 import type { SideListItem } from '@/components/SideList/SideList'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { IconInfo, IconTrash } from '@/components/icons'
 import { useClassGroups, useCreateClassGroups, useDeleteClassGroup, useUpdateClassGroup } from '@/hooks/useClassGroups'
 import { useProfessionals } from '@/hooks/useProfessionals'
 import { useRooms } from '@/hooks/useRooms'
 import { DAY_OF_WEEK_SHORT } from '@/constants/dates'
-import { brToIsoDate, toIsoDate } from '@/utils/date'
+import { addMinutes, brToIsoDate, toIsoDate } from '@/utils/date'
 import type { ClassGroupFields } from '@/services/classGroupsService'
 import type { ClassGroup } from '@/types/domain'
 import styles from './ClassesTab.module.scss'
@@ -27,12 +27,6 @@ import styles from './ClassesTab.module.scss'
 // DESSA sessão (DayPicker em modo de seleção única). Mesmo modelo de
 // formulário do módulo de turmas do projeto Neo (academia), com "Nome"
 // digitado direto em vez de derivado de uma Atividade separada.
-
-function addMinutes(start: string, minutes: number) {
-  const [h, m] = start.split(':').map(Number)
-  const total = h * 60 + m + minutes
-  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
-}
 
 interface ClassFormState {
   name: string

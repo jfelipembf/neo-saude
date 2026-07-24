@@ -26,8 +26,8 @@
   min-width: 0;
 }
 
-// Perfil + indicadores lado a lado. Por serem itens da MESMA linha deste grid,
-// o statsGrid estica até a altura do ResumeProfile — as colunas terminam juntas.
+// Indicadores + gráficos lado a lado. Por serem itens da MESMA linha deste
+// grid, as duas colunas esticam juntas e terminam na mesma altura.
 .widgets {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);

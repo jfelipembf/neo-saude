@@ -1,7 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Etiquetas da agenda: tipo de atendimento + cor do card na grade.
-// Mesma paleta dos mocks da grade — fonte única para o modal de agendamento.
+// Fonte única da paleta: grade da agenda e modal de agendamento leem daqui.
 // ─────────────────────────────────────────────────────────────────────────────
+import type { ScheduleView } from '@/components/ScheduleGrid/ScheduleGrid'
 
 export const SCHEDULE_TAGS: { label: string; color: string }[] = [
   { label: 'Consulta clínica',      color: '#3B82F6' },
@@ -13,3 +14,9 @@ export const SCHEDULE_TAGS: { label: string; color: string }[] = [
   { label: 'Retorno',               color: '#64748B' },
 ]
 
+/** Modos de exibição da grade (SegmentedControl do topo da Agenda). O tipo
+ *  `ScheduleView` é prop do componente e continua morando em ScheduleGrid.tsx. */
+export const SCHEDULE_VIEW_OPTIONS: { value: ScheduleView; label: string }[] = [
+  { value: 'week', label: 'Semana' },
+  { value: 'day',  label: 'Dia' },
+]

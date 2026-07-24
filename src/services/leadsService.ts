@@ -21,14 +21,14 @@ type LeadRow = {
   status: LeadStatus
   created_at: string
   patient_id: string | null
+  stage_since: string
 }
 
+/** Lista os leads da clínica (RPC list_leads) — já vem com stage_since, o
+ *  timestamp da última troca de status (ou created_at, se nunca mudou),
+ *  que alimenta o alerta de "parado há X dias" no Kanban. */
 export async function listLeads(): Promise<Lead[]> {
-  const { data, error } = await supabase
-    .from('lead')
-    .select('id, clinic_id, name, email, phone, source, interest, notes, status, created_at, patient_id')
-    .eq('clinic_id', getCurrentClinicId())
-    .order('created_at', { ascending: false })
+  const { data, error } = await supabase.rpc('list_leads')
   if (error) throw error
   return (data as LeadRow[]).map(row => ({
     id: row.id,
@@ -41,6 +41,7 @@ export async function listLeads(): Promise<Lead[]> {
     notes: row.notes ?? undefined,
     createdAt: toShortDate(new Date(row.created_at)),
     status: row.status,
+    stageSince: row.stage_since,
     patientId: row.patient_id ?? undefined,
   }))
 }
@@ -100,7 +101,7 @@ export async function listLeadHistory(leadId: string): Promise<LeadHistoryEntry[
 }
 
 /** Dados do formulário de novo contato (botão "Novo contato" do Kanban). */
-export interface NewLead {
+interface NewLead {
   firstName: string
   lastName: string
   email?: string

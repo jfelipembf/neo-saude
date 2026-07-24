@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { IconChevronLeft, IconChevronRight } from '@/components/icons'
 import { useFinanceSeries } from '@/hooks/useFinance'
+import { toIsoMonth } from '@/utils/date'
 import type { ChartPeriod } from '@/types/domain'
 import styles from './FinanceChart.module.scss'
 
@@ -16,7 +17,9 @@ function axisCeiling(max: number) {
   return Math.max(400, Math.ceil(max / 400) * 400)
 }
 
-function formatBRL(v: number) {
+/** Moeda SEM centavos — o gráfico só mostra ordem de grandeza, e os centavos
+ *  espremeriam os rótulos do eixo/tooltip. Difere do `formatBRL` de utils. */
+function formatBRLRounded(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 }
 
@@ -24,10 +27,6 @@ function formatBRL(v: number) {
 function compactTick(v: number) {
   if (v < 1000) return String(v)
   return `${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}k`
-}
-
-function toIsoMonth(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
 /** Gráfico de linhas de ganhos × gastos, com filtro semana/mês/ano e seletor de mês. */
@@ -71,7 +70,7 @@ export function FinanceChart() {
       <header className={styles.header}>
         <div>
           <h2 className={styles.title}>Financeiro</h2>
-          <p className={styles.subtitle}>Saldo de {formatBRL(balance)} no período</p>
+          <p className={styles.subtitle}>Saldo de {formatBRLRounded(balance)} no período</p>
         </div>
 
         <div className={styles.filtro} role="group" aria-label="Período do gráfico">
@@ -170,7 +169,7 @@ export function FinanceChart() {
                   onPointerEnter={() => setActive(i)}
                   onFocus={() => setActive(i)}
                   onBlur={() => setActive(null)}
-                  aria-label={`${p.label}: ganhos ${formatBRL(p.income)}, gastos ${formatBRL(p.expenses)}`}
+                  aria-label={`${p.label}: ganhos ${formatBRLRounded(p.income)}, gastos ${formatBRLRounded(p.expenses)}`}
                 />
               ))}
             </div>
@@ -183,11 +182,11 @@ export function FinanceChart() {
                 <span className={styles.tooltipTitulo}>{points[active].label}</span>
                 <span className={styles.tooltipRow}>
                   <span className={`${styles.chave} ${styles['chave--ganhos']}`} />
-                  <strong>{formatBRL(points[active].income)}</strong> Ganhos
+                  <strong>{formatBRLRounded(points[active].income)}</strong> Ganhos
                 </span>
                 <span className={styles.tooltipRow}>
                   <span className={`${styles.chave} ${styles['chave--gastos']}`} />
-                  <strong>{formatBRL(points[active].expenses)}</strong> Gastos
+                  <strong>{formatBRLRounded(points[active].expenses)}</strong> Gastos
                 </span>
               </div>
             )}

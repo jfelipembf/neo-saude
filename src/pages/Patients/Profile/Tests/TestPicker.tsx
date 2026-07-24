@@ -6,7 +6,7 @@ import { Select } from '@/components/Select/Select'
 import { IconSearch } from '@/components/icons'
 import { useDebounce } from '@/hooks/useDebounce'
 import { matchesSearch } from '@/utils/search'
-import { TEST_SPECIALTY_OPTIONS } from '@/constants/testSpecialty'
+import { TEST_SPECIALTY_OPTIONS } from '@/constants'
 import type { PhysioTest } from '@/types/domain'
 import styles from './TestPicker.module.scss'
 

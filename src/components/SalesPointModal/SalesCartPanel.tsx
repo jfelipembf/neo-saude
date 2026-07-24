@@ -3,7 +3,7 @@ import { IconX } from '@/components/icons'
 import { formatBRL } from '@/utils/format'
 import { PAY_METHOD_LABEL } from './types'
 import type { CartItem, Payment } from './types'
-import styles from './SalesPointPage.module.scss'
+import styles from './SalesPointModal.module.scss'
 
 interface Props {
   cart:      CartItem[]

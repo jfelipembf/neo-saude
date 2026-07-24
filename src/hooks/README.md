@@ -4,17 +4,18 @@ Hooks reutilizáveis entre páginas — em geral wrappers de `useQuery`/`useMuta
 sobre os services, usando as keys de `@/lib/queryKeys`.
 
 Regras:
-- Hook usado por UMA página só? Fica na pasta da página, não aqui.
-- Nomes: `usePacientes.ts`, `useConsultasDoDia.ts`…
+- TUDO fica centralizado aqui — inclusive o hook que hoje só uma página usa
+  (mesma decisão de `components/`: nada de hook na pasta da página).
+- Nomes em inglês: `usePatients.ts`, `useAppointments.ts`, `useSchedule.ts`…
 
 Exemplo de esqueleto:
 
 ```ts
 import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
-import { listPacientes } from '@/services/pacientesService'
+import { listPatients } from '@/services/patientsService'
 
-export function usePacientes() {
-  return useQuery({ queryKey: queryKeys.pacientes.all, queryFn: listPacientes })
+export function usePatients() {
+  return useQuery({ queryKey: queryKeys.patients.all, queryFn: listPatients })
 }
 ```

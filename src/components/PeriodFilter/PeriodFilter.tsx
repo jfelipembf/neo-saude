@@ -1,5 +1,5 @@
 import { Input } from '@/components/Input/Input'
-import { PERIOD_PRESETS } from '@/utils/period'
+import { PERIOD_PRESETS } from '@/constants'
 import type { PeriodPreset } from '@/utils/period'
 import styles from './PeriodFilter.module.scss'
 

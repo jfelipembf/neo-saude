@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
-import { useToast } from '@/components/Toast/useToast'
+import { useToast } from '@/components/Toast/Toast'
 import { DAY_OF_WEEK_SHORT, DAY_OF_WEEK_LONG } from '@/constants'
 import {
   useAvailabilityTemplate,

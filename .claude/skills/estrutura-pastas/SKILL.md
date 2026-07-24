@@ -12,19 +12,49 @@ Alias de import: `@` → `src/` (sempre prefira `@/…` a caminhos relativos lon
 
 ```
 src/
-├── components/    # Componentes REUTILIZÁVEIS (usados por 2+ páginas)
-├── constants/     # Rotas, opções fixas, enums de UI — fonte única
+├── assets/        # Imagens do app (fundos de login/erro, logo) importadas pelo código
+├── components/    # TODO componente de UI — sempre aqui, nunca na pasta da página
+├── constants/     # Rotas, opções fixas, enums de UI — fonte única (barrel em index.ts)
 ├── context/       # Providers globais (SessionProvider, ThemeProvider)
-├── hooks/         # Hooks reutilizáveis (wrappers de useQuery sobre services)
-├── lib/           # Infra: supabase.ts (cliente único + isMockMode), queryKeys.ts
-├── mocks/         # Dados de demonstração — consumidos pelos services no modo mock
-├── pages/         # 1 pasta por domínio; dentro, 1 pasta por página
-├── routes/        # AppRouter, layouts (AppLayout) e guards (AuthGuard)
+├── hooks/         # TODO hook — inclusive os de uma página só
+├── lib/           # Infra (ver detalhe abaixo): supabase, queryKeys, tenant, storage, db, errors
+├── pages/         # 1 pasta por domínio; dentro, sub-páginas e abas (ver detalhe abaixo)
+├── routes/        # AppRouter, layouts (AppLayout) e guards (AuthGuard, FeatureGuard)
 ├── services/      # Acesso a dados — 1 arquivo por entidade
 ├── styles/        # SISTEMA DE ESTILOS CENTRALIZADO (ver seção abaixo)
+├── test/          # setup.ts do Vitest (os testes ficam ao lado do que testam)
 ├── types/         # database.types.ts (GERADO) + domain.ts (tipos do domínio)
 └── utils/         # Funções puras (datas, máscaras, formatação)
 ```
+
+### `src/lib/` em detalhe
+
+Não é só o cliente do Supabase — quem não souber que estes existem vai recriá-los:
+
+| Arquivo             | O que é                                                        |
+|---------------------|----------------------------------------------------------------|
+| `supabase.ts`       | ÚNICA instância do cliente. `.env` é obrigatório (faz `throw` sem ele) |
+| `queryKeys.ts`      | Fonte única das query keys do TanStack Query                    |
+| `tenant.ts`         | Resolve a clínica corrente — os services usam em toda query/insert |
+| `storage.ts`        | Upload/compressão de imagem e URL assinada do Storage           |
+| `errors.ts`         | Traduz erro do Postgres em mensagem de usuário (`userMessage`)  |
+| `db.ts`             | Atalhos de tipo sobre o schema gerado                           |
+| `odontogramShell/`  | Bundle de TERCEIRO (odontograma). Não editar à mão — vem do `scripts/atualizar-odontograma.sh`, que aplica os patches de `vendor/odontogram-modul/PATCHES-NEOSAUDE.md`. É a única exceção legítima a `export default` fora do `App.tsx`, e o único nome kebab-case do `src/`. |
+
+### `src/pages/` em detalhe — os TRÊS níveis
+
+```
+pages/Dominio/DominioPage.tsx            # página-índice do domínio (roteada)
+pages/Dominio/NomeDaPagina/…Page.tsx     # sub-página roteada (ex.: Patients/Profile/)
+pages/Dominio/Feature/FeatureTab.tsx     # ABA de uma página-índice (NÃO é roteada)
+pages/Dominio/AlgoModal.tsx              # componente exclusivo do domínio, ao lado da página-índice
+pages/Dominio/shared/dominio.module.scss # folha compartilhada pelas abas do domínio
+```
+
+- **Aba** (`*Tab.tsx`) é o padrão dominante: `Admin/` tem 11, `Finance/` 9,
+  `Settings/` 5. Elas NÃO entram no `AppRouter` — quem entra é a página-índice
+  (`AdminPage`, `FinancePage`…), que as troca por `<Tabs>`.
+- Pasta de aba não precisa de `*Page.tsx`. Não crie um só para "fechar o padrão".
 
 ## Responsividade (OBRIGATÓRIO) e PWA
 
@@ -46,34 +76,59 @@ src/
 O layout é **HORIZONTAL**: navegação no `Header` (barra do topo —
 `components/Header/`), NUNCA menu lateral. O `AppLayout` empilha
 Header + conteúdo em coluna, com conteúdo centralizado (max-width 1280px).
-Opção de menu nova → adicionar em `NAV_ITEMS` no `Header.tsx`.
+Opção de menu nova → adicionar em `NAV_ITEMS` no `Header.tsx`. **Atenção:**
+`NAV_ITEMS` tem 6 dos 7 valores de `AppPage` — `settings` fica DE FORA de
+propósito (Configurações é alcançada pelo `ProfileMenu`, no avatar). Não
+"conserte" isso adicionando Configurações à barra.
 
-## Modo mock (enquanto não há Supabase)
+## Supabase é obrigatório
 
-- `lib/supabase.ts` exporta `isMockMode` (true sem `.env`) — o app NUNCA pode
-  quebrar sem `.env`: sessão fake entra logada direto e services retornam
-  dados de `mocks/`.
-- Dados de demonstração vivem em `mocks/` (1 arquivo por entidade), tipados
-  com `types/domain.ts`.
-- Ao ligar o Supabase real: trocar SÓ o corpo dos services (mesma assinatura)
-  — páginas e hooks não mudam.
+Não existe modo mock. `lib/supabase.ts` faz `throw` no import quando faltam
+`VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` — sem `.env` o app não sobe, e o
+erro aparece na hora, não na primeira query. Copie o `.env.example`.
 
 ## Onde cada coisa mora (decisão rápida)
 
 | Vou criar…                              | Vai para…                                          |
 |-----------------------------------------|----------------------------------------------------|
-| Componente usado por 2+ páginas         | `components/NomeDoComponente/`                     |
-| Componente usado por 1 página só        | Dentro da pasta da própria página                  |
+| Componente de UI (QUALQUER um)          | `components/NomeDoComponente/` — ver regra abaixo  |
 | Página nova                             | `pages/Dominio/NomeDaPagina/NomeDaPaginaPage.tsx`  |
-| Acesso a dados (mock ou Supabase)       | `services/entidadeService.ts` (NUNCA na página)    |
-| Dados de demonstração                   | `mocks/entidade.ts` tipado com `types/domain.ts`   |
-| Hook com useQuery/useMutation           | `hooks/` (se reutilizável) ou na pasta da página   |
+| Aba de uma página com `<Tabs>`          | `pages/Dominio/Feature/FeatureTab.tsx`             |
+| Acesso a dados                          | `services/entidadeService.ts` (NUNCA na página)    |
+| Hook com useQuery/useMutation           | `hooks/useAlgo.ts` (SEMPRE, mesmo de uma página só)|
+| Teste                                   | `X.test.ts` AO LADO de `X.ts` (setup em `src/test/`)|
 | Path de rota                            | `constants/routes.ts` (NUNCA string literal)       |
 | Query key                               | `lib/queryKeys.ts` (NUNCA inline no useQuery)      |
+| Opção fixa de UI / mapa de rótulo       | `constants/` (NUNCA na pasta do componente)        |
 | Cor, tamanho, raio, fonte, espaçamento  | `styles/_tokens.scss` / `styles/_themes.scss`      |
 | Padrão visual repetido (campo, cartão…) | Mixin em `styles/_mixins.scss`                     |
 | Media query                             | Mixins `mobile`/`phone`/`desktop` (NUNCA ad-hoc)   |
 | Função pura (formatar CPF, data…)       | `utils/`                                           |
+
+### Componente vai SEMPRE em `components/` — inclusive o de uma página só
+
+Decisão explícita do dono do projeto: **não existe componente dentro de pasta
+de página.** Mesmo um painel usado por uma única tela (`BudgetsPanel`,
+`TreatmentsPanel`, `PrescriptionsPanel`, `DocumentsUpload`, `LeadsKanban`…)
+mora em `components/`. Vale o mesmo para hooks: todos em `hooks/`.
+
+A exceção é o componente EXCLUSIVO de um domínio que só faz sentido ao lado da
+página-índice dele (ex.: `pages/Professionals/ProfessionalFormModal.tsx`) —
+formulário/modal que só aquele domínio abre e que não é reaproveitável.
+
+### Sub-componente e arquivo auxiliar
+
+- **Sub-componente com consumidor único** fica na pasta do componente pai, e
+  não ganha pasta própria: `BudgetsPanel/ApproveQuoteDialog.tsx`,
+  `LeadsKanban/{LeadDetailDrawer,NewLeadDrawer}.tsx`,
+  `TreatmentsPanel/SessionBillingLine.tsx`, `ScheduleGrid/{ClassCard,ClassGroupCard}.tsx`.
+- **Auxiliar de escopo único** (`.ts` sem componente) fica junto do consumidor:
+  `Badge/statusMap.ts`, `Anamnesis/questions.ts`, `Earnings/buckets.ts`,
+  `Automation/automations.ts`. Se passar a ter 2+ consumidores, vira `constants/`.
+- **Folha compartilhada** por vários irmãos: nomeie em camelCase pelo escopo, não
+  pelo componente — `Finance/shared/finance.module.scss`,
+  `ScheduleGrid/scheduleCards.module.scss`. Importe sempre pelo caminho
+  RELATIVO (`../shared/finance.module.scss`), nunca pelo alias `@/pages/…`.
 
 ## Sistema de estilos (CENTRALIZADO — regra de ouro)
 
@@ -100,8 +155,12 @@ Regras:
   variação visual vira classe/variante no `.module.scss`
   (ex.: Spinner usa `spinner--sm/md/lg`, não `style={{width}}`).
 - **Ícones** vivem SÓ em `components/icons/index.tsx` (named exports `Icon*`,
-  stroke 2, tamanho definido pelo CSS de quem usa). Nunca declare `<svg>`
-  dentro de outro componente ou página.
+  stroke 2, tamanho definido pelo CSS de quem usa). Nunca declare um `<svg>`
+  DECORATIVO fora de lá.
+  A exceção é o SVG **data-driven** — aquele cujas coordenadas vêm de props ou
+  estado e que portanto não é um ícone: gráfico (`FinanceChart`,
+  `AppointmentsChart`), sobreposição de goniometria (`GoniometryPhoto`),
+  desenho de teste (`PatientTestsPanel`). Não tem o que extrair para `icons/`.
 - **NUNCA** hex/px mágico em componente. Cor nova → `_tokens.scss` +
   `_themes.scss`; medida nova → `_tokens.scss`.
 - Cores que mudam entre claro/escuro → CSS var em `_themes.scss`
@@ -136,10 +195,14 @@ components/Button/
 pages/Patients/
 ├── PatientsPage.tsx             # página de listagem
 └── Profile/
-    └── PatientProfilePage.tsx   # sub-página (detalhe)
+    ├── PatientProfilePage.tsx   # sub-página (detalhe)
+    └── Tests/PatientTestsPanel.tsx   # painel de uma aba do perfil
 ```
 
-- Sufixo `Page` no nome do arquivo e da função (`PatientsPage`).
+- Sufixo `Page` no nome do arquivo e da função (`PatientsPage`). O sufixo
+  `Page` é uma PROMESSA de rota: nada que não esteja no `AppRouter` pode
+  usá-lo — inclusive `.module.scss` (um `AlgoPage.module.scss` sem
+  `AlgoPage.tsx` é sinal de arquivo órfão).
 - Toda página nova entra no `routes/AppRouter.tsx` com `lazy()` (code-splitting)
   e path vindo de `constants/routes.ts`.
 - Página protegida fica DENTRO de `<AuthGuard>` → `<AppLayout>`; pública
@@ -165,8 +228,9 @@ Regra única: **código em inglês, produto em português.**
 
 - **Inglês** — TODO identificador: arquivos, componentes, funções, variáveis,
   campos de tipo (`name`, `amount`, `patientId`), literais de union
-  ARMAZENADOS (`'active'`, `'paid'`, `'todo'`), query keys, ids de tab e
-  tabelas/colunas do Supabase (`patients`, `schedule_slots`).
+  ARMAZENADOS (`'active'`, `'paid'`, `'todo'`), query keys, ids de tab,
+  **chaves de coluna de tabela** (`key: 'amount'`, nunca `key: 'valor'`) e
+  tabelas/colunas do Supabase.
 - **Português** — o que o usuário vê ou lê: texto de UI, rótulos
   (via `STATUS_MAP`/options: chave en → `label` pt), mensagens, rotas
   (`/pacientes`) e comentários.
@@ -174,3 +238,18 @@ Regra única: **código em inglês, produto em português.**
   `pix` — termos brasileiros sem tradução útil, ficam como estão.
 - Um valor novo de status entra em inglês no domínio e ganha rótulo pt no
   `STATUS_MAP` — nunca aparece cru na tela.
+- **Atenção ao singular/plural do Supabase:** o arquivo e o service são plural
+  (`patientsService.ts`, `listPatients`), mas a TABELA é singular
+  (`from('patient')`). Confira em `types/database.types.ts` antes de escrever
+  uma query.
+
+### Nomes de classe CSS
+
+Devem ser em inglês (são identificador de código), mas **~40% da base ainda
+está em português** (`.corpo`, `.rotulo`, `.cabecalho`, `.situacaoChip`…) —
+herança dos painéis de domínio. Os primitivos do design system (`Button`,
+`Input`, `Table`, `Modal`…) já são 100% inglês.
+
+Regra prática: **inglês em classe NOVA e em arquivo que você já está mexendo.**
+NÃO faça migração em massa — nome de classe é referenciado via `styles.X` sem
+checagem de tipo, então renomear em lote é churn de alto risco e ganho zero.

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { isMockMode } from '@/lib/supabase'
 import { useSession } from '@/context/SessionProvider'
 import { APP_ROUTES, AUTH_ROUTES } from '@/constants'
 import { AuthLayout } from '@/components/AuthLayout/AuthLayout'
@@ -43,12 +42,6 @@ export function LoginPage() {
   return (
     <AuthLayout title="Bem-vindo de volta" subtitle="Acesse sua conta para continuar">
       <form className={styles.form} onSubmit={handleSubmit}>
-        {isMockMode && (
-          <p className={styles.demoNotice}>
-            Modo demonstração: qualquer e-mail e senha entram.
-          </p>
-        )}
-
         <Input
           label="E-mail"
           type="email"

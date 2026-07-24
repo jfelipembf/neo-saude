@@ -27,9 +27,9 @@
 }
 
 .coluna {
-  // As 5 colunas são fixas (não é board configurável pelo usuário), então
+  // As 8 colunas são fixas (não é board configurável pelo usuário), então
   // crescem em partes IGUAIS até preencher a largura inteira do card — sem
-  // teto de largura. Abaixo de 5×280px o flex-shrink cede e o `.board` rola
+  // teto de largura. Abaixo de 8×280px o flex-shrink cede e o `.board` rola
   // na horizontal em vez de espremer os cards a ponto de ficarem ilegíveis.
   flex: 1 1 280px;
   min-width: 280px;
@@ -206,6 +206,24 @@
   white-space: nowrap;
 
   svg { width: 14px; height: 14px; flex-shrink: 0; }
+}
+
+// Alerta de "lead parado há X dias" na etapa atual (LEAD_STAGE_SLA_DAYS).
+.parado {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: $radius-sm;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border-strong);
+  color: var(--warning-fg);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+
+  svg { width: 12px; height: 12px; flex-shrink: 0; }
 }
 
 .vazio {
