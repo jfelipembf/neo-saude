@@ -2091,36 +2091,39 @@ export type Database = {
           clinic_id: string
           expires_at: string | null
           id: string
+          kind: Database["public"]["Enums"]["entitlement_kind"]
           patient_id: string
           purchased_at: string
           sale_item_id: string
           scheduled_sessions: number
           service_id: string
-          total_sessions: number
+          total_sessions: number | null
           used_sessions: number
         }
         Insert: {
           clinic_id: string
           expires_at?: string | null
           id?: string
+          kind?: Database["public"]["Enums"]["entitlement_kind"]
           patient_id: string
           purchased_at?: string
           sale_item_id: string
           scheduled_sessions?: number
           service_id: string
-          total_sessions: number
+          total_sessions?: number | null
           used_sessions?: number
         }
         Update: {
           clinic_id?: string
           expires_at?: string | null
           id?: string
+          kind?: Database["public"]["Enums"]["entitlement_kind"]
           patient_id?: string
           purchased_at?: string
           sale_item_id?: string
           scheduled_sessions?: number
           service_id?: string
-          total_sessions?: number
+          total_sessions?: number | null
           used_sessions?: number
         }
         Relationships: [
@@ -4993,6 +4996,7 @@ export type Database = {
       commission_payout: "fixed_day" | "per_visit"
       commission_type: "percentage" | "fixed"
       duration_unit: "days" | "weeks" | "months"
+      entitlement_kind: "package" | "recurring"
       gender: "male" | "female"
       goal_metric:
         | "appointments_scheduled"
@@ -5197,6 +5201,7 @@ export const Constants = {
       commission_payout: ["fixed_day", "per_visit"],
       commission_type: ["percentage", "fixed"],
       duration_unit: ["days", "weeks", "months"],
+      entitlement_kind: ["package", "recurring"],
       gender: ["male", "female"],
       goal_metric: [
         "appointments_scheduled",

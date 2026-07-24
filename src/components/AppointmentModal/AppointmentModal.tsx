@@ -21,6 +21,7 @@ import { userMessage } from '@/lib/errors'
 import { addMinutes, toIsoDate, localDate, parseBrDate } from '@/utils/date'
 import { digitsOnly, initials } from '@/utils/text'
 import { isImageFile } from '@/utils/files'
+import { isEntitlementActive } from '@/utils/entitlements'
 import { IconDocument, IconEmail, IconImage, IconPhone, IconTrash, IconWhatsApp } from '@/components/icons'
 import type { ScheduledAppointment, AppointmentStatus } from '@/types/domain'
 import styles from './AppointmentModal.module.scss'
@@ -96,7 +97,7 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
   const [status, setStatus] = useState<AppointmentStatus>('scheduled')
   const [error, setError] = useState('')
   const [confirmingCancel, setConfirmingCancel] = useState(false)
-  // Pacote de sessões do qual esta consulta desconta — só entra na consulta
+  // Pacote ou contrato ao qual esta consulta se pendura — só entra na consulta
   // NOVA (imutável depois de criada, ver appointment.entitlement_id).
   const [entitlementId, setEntitlementId] = useState('')
   // Prontuário da SESSÃO (coluna direita, fisioterapia) — salvo à parte do
@@ -176,15 +177,23 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
 
   const currentPatient = (patients ?? []).find(p => p.name === patientSearch.trim())
 
-  // Pacotes do paciente — só busca em fisioterapia. Numa consulta NOVA serve
-  // pro seletor (só os com saldo); numa já existente, só pra mostrar o nome
-  // do pacote vinculado (entitlementId é imutável depois de criada).
+  // Pacotes e contratos do paciente — só busca em fisioterapia. Numa consulta
+  // NOVA serve pro seletor (só os ativos); numa já existente, só pra mostrar o
+  // nome do vinculado (entitlementId é imutável depois de criada).
   const { data: entitlements } = usePatientEntitlements(
     clinicSpecialty === 'physiotherapy' ? ((slot?.patientId ?? currentPatient?.id) ?? '') : '',
   )
-  const availableEntitlements = (entitlements ?? []).filter(e => e.remaining > 0)
+  // Mesmo critério da matrícula em turma, e não `remaining > 0`: no pacote é
+  // saldo E validade; no contrato é só a validade (ver utils/entitlements).
+  const availableEntitlements = (entitlements ?? []).filter(isEntitlementActive)
 
-  // Pré-seleciona o pacote numa consulta NOVA: com um só, carrega ele; com
+  // Fisioterapia fatura por PACOTE ou CONTRATO: consulta nova exige um ativo. A
+  // trava real é o trigger tr_debit_entitlement; aqui a tela só evita que o
+  // usuário preencha tudo para levar um erro de banco no final.
+  const requiresEntitlement = clinicSpecialty === 'physiotherapy' && !slot
+  const missingEntitlement = requiresEntitlement && Boolean(currentPatient) && availableEntitlements.length === 0
+
+  // Pré-seleciona o pacote/contrato numa consulta NOVA: com um só, carrega ele; com
   // mais de um, o mais antigo primeiro (purchasedAt). Refaz se o paciente
   // trocar (busca resolveu pra outro cadastro) — mesmo padrão de
   // roomAutoFilledFor acima, ajuste de estado durante o render.
@@ -254,6 +263,14 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
     }
     if (!isWithinAvailability()) {
       setError('Fora do horário de disponibilidade deste profissional.')
+      return
+    }
+    if (requiresEntitlement && !entitlementId) {
+      // Mesma frase que o trigger tg_debit_entitlement devolve — quem trombar na
+      // trava do banco (outra aba, corrida) lê exatamente o mesmo texto.
+      setError(availableEntitlements.length === 0
+        ? 'Este paciente não tem pacote ou contrato ativo. Registre a venda no Ponto de Venda antes de agendar.'
+        : 'Selecione o pacote ou contrato que vai custear esta sessão.')
       return
     }
 
@@ -462,21 +479,32 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
         </div>
         )}
 
-        {/* Pacote de sessões: só numa consulta NOVA, fisioterapia, e quando o
-            paciente tem pelo menos um pacote com saldo. Some com a lista se o
-            paciente escolhido não tiver nenhum — não força "sessão avulsa". O
-            saldo (total/restantes) não vai no rótulo do Select — aparece no
-            card assim que escolhe, ver abaixo. */}
-        {!slot && availableEntitlements.length > 0 && (
+        {/* Pacote ou contrato: obrigatório numa consulta NOVA de fisioterapia —
+            não existe mais "sessão avulsa". Sem um direito ativo o paciente não
+            ocupa a agenda; a venda entra antes, pelo Ponto de Venda. */}
+        {requiresEntitlement && availableEntitlements.length > 0 && (
           <Select
-            label="Pacote"
-            options={[
-              { value: '', label: 'Sessão avulsa (sem pacote)' },
-              ...availableEntitlements.map(e => ({ value: e.id, label: e.serviceName })),
-            ]}
+            label="Pacote ou contrato"
+            options={availableEntitlements.map(e => ({
+              value: e.id,
+              // Contrato não tem saldo (remaining é null): o que identifica o
+              // direito dele é até quando vale, não quantas sessões sobraram.
+              label: e.kind === 'recurring'
+                ? `${e.serviceName} — contrato${e.expiresAt ? ` até ${e.expiresAt}` : ''}`
+                : `${e.serviceName} — ${e.remaining} ${e.remaining === 1 ? 'sessão' : 'sessões'}`,
+            }))}
             value={entitlementId}
             onChange={e => setEntitlementId(e.target.value)}
           />
+        )}
+
+        {/* Paciente escolhido e sem direito ativo: diz o motivo e o caminho, em
+            vez de deixar salvar e devolver o erro do trigger. */}
+        {missingEntitlement && (
+          <p className={styles.semPacote}>
+            <strong>{currentPatient?.name}</strong> não tem pacote ou contrato ativo.
+            Registre a venda no Ponto de Venda (perfil do paciente → carrinho) antes de agendar.
+          </p>
         )}
         <div className={styles.grid3}>
           <Input

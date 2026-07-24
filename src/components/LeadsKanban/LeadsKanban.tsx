@@ -167,6 +167,7 @@ function LeadCard({ lead, onOpen }: LeadCardProps) {
 
       <div className={styles.chips}>
         <span className={styles.chip}>{lead.interest}</span>
+        <span className={styles.chip}>{lead.source}</span>
       </div>
 
       <div className={styles.cardFoot}>

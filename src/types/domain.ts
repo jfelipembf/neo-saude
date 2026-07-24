@@ -176,18 +176,43 @@ export interface Sale {
 }
 
 /**
- * Direito de UM paciente a N sessões de um pacote comprado (checkout_sale).
- * `remaining` já vem calculado do banco (não é mantido por trigger — ver
+ * O que o direito comprado dá ao paciente — cópia de `service.modality` no
+ * momento da venda (enum public.entitlement_kind). Editar o serviço depois NÃO
+ * muda direito já vendido, por isso é cópia e não join.
+ *   · package   = pacote de N sessões: o teto é a quantidade.
+ *   · recurring = Contrato Comum (a mensalidade): o teto é a VALIDADE, contido
+ *                 por `service.weeklyLimit` na matrícula em turma. Converter a
+ *                 mensalidade em sessões daria um número arbitrário (erra em
+ *                 mês de 5 semanas) — por isso é um tipo próprio, não um pacote.
+ */
+export type EntitlementKind = 'package' | 'recurring'
+
+/**
+ * Direito de UM paciente a sessões de um serviço comprado (checkout_sale).
+ * `remaining` já vem calculado no service (não é mantido por trigger — ver
  * comment da tabela): total - used - scheduled.
  */
 export interface PatientServiceEntitlement {
   id: string
   serviceId: string
   serviceName: string
-  totalSessions: number
+  kind: EntitlementKind
+  /**
+   * null no `recurring`: a mensalidade não compra uma quantidade de sessões, e
+   * o banco grava total_sessions NULL (CHECK entitlement_kind_shape_ck). Zero
+   * seria mentira — diria "pacote sem sessão nenhuma".
+   */
+  totalSessions: number | null
+  /** Contam nos DOIS tipos: quantas sessões o paciente já fez / tem marcadas é
+   *  informação útil mesmo no recorrente, onde não são teto. */
   usedSessions: number
   scheduledSessions: number
-  remaining: number
+  /**
+   * null no `recurring` pelo mesmo motivo de totalSessions: sem teto não existe
+   * "saldo restante". Quem diz se o direito ainda vale é `expiresAt` (ver
+   * utils/entitlements.isEntitlementActive).
+   */
+  remaining: number | null
   purchasedAt: string   // dd/mm/aaaa
   expiresAt?: string     // dd/mm/aaaa — undefined = sem validade de uso
 }

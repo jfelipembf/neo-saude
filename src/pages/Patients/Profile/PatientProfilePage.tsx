@@ -380,14 +380,22 @@ export function PatientProfilePage() {
 
           {showCart && entitlements && entitlements.length > 0 && (
             <div className={styles.bloco}>
-              <h3 className={styles.blocoTitulo}>Pacotes</h3>
+              {/* "Pacotes e contratos": a lista deixou de ser só de pacotes —
+                  contrato comum (mensalidade) também gera direito e cai aqui. */}
+              <h3 className={styles.blocoTitulo}>Pacotes e contratos</h3>
               <ul className={styles.contatos}>
                 {entitlements.map(e => (
                   <li key={e.id} className={styles.contato}>
                     <span className={styles.contatoTexto}>
                       <span className={styles.contatoLabel}>{e.serviceName}</span>
                       <span className={styles.contatoValor}>
-                        {e.remaining > 0 ? `${e.remaining} de ${e.totalSessions} restantes` : 'Esgotado'}
+                        {/* Contrato não esgota nem tem saldo: quem o encerra é a
+                            validade — mostrar "0 de null restantes" seria falso. */}
+                        {e.kind === 'recurring'
+                          ? 'Contrato'
+                          : (e.remaining ?? 0) > 0
+                            ? `${e.remaining} de ${e.totalSessions} restantes`
+                            : 'Esgotado'}
                         {e.expiresAt ? ` · válido até ${e.expiresAt}` : ''}
                       </span>
                     </span>

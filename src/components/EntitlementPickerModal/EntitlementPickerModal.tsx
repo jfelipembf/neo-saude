@@ -38,7 +38,10 @@ export function EntitlementPickerModal({ open, patientId, onClose, onPick }: Ent
               <button type="button" className={styles.item} onClick={() => onPick(e)}>
                 <span className={styles.itemName}>{e.serviceName}</span>
                 <span className={styles.itemMeta}>
-                  {e.remaining} de {e.totalSessions} restantes
+                  {/* Contrato (mensalidade) não tem saldo pra mostrar — o que
+                      diz até quando ele vale é a validade, e ela já vem
+                      formatada em dd/mm/aaaa do service. */}
+                  {e.kind === 'recurring' ? 'Contrato' : `${e.remaining} de ${e.totalSessions} restantes`}
                   {e.expiresAt ? ` · válido até ${e.expiresAt}` : ' · sem validade'}
                 </span>
               </button>

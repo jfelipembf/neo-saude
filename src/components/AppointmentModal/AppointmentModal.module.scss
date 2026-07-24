@@ -174,6 +174,21 @@
   color: var(--danger-fg);
 }
 
+// Paciente sem pacote com saldo: explica por que a consulta não pode ser
+// agendada e para onde ir. Tom de aviso, não de erro — nada quebrou ainda.
+.semPacote {
+  padding: $sp-3 $sp-4;
+  border: 1px solid var(--glass-border);
+  border-left: 3px solid var(--warning-fg);
+  border-radius: $radius-md;
+  background: var(--glass-bg);
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  line-height: 1.5;
+
+  strong { color: var(--text-primary); }
+}
+
 // Aviso no topo do modal quando a consulta está cancelada.
 .avisoCancelada {
   padding: $sp-3 $sp-4;
