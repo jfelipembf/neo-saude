@@ -230,7 +230,7 @@ export function ClassesTab() {
               <div className={styles.acoesBarDireita}>
                 <Button variant="ghost" onClick={handleCancel}>Cancelar</Button>
                 <Button onClick={handleSave} loading={saving}>
-                  {isNew ? 'Criar turma' : 'Salvar alterações'}
+                  {isNew ? 'Criar turma' : 'Salvar'}
                 </Button>
               </div>
             </div>

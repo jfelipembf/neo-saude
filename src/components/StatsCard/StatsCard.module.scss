@@ -14,6 +14,36 @@
   &:hover {
     border-color: var(--glass-border-strong);
   }
+
+  // SÓ o valor muda — ícone e rótulo continuam no `.top` exatamente como
+  // sempre (mesmo tamanho, mesma posição, canto superior). O `.card` é
+  // `justify-content: space-between`, que com só 2 filhos empurra o segundo
+  // (.value) pro fim — por isso `flex: 1` aqui, pra ele ocupar o espaço que
+  // sobra abaixo do `.top` e centralizar o número NESSE espaço (vertical E
+  // horizontal), não só o texto dentro da própria linha.
+  &--lg .value {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 192px;    // ~4x os 48px anteriores
+    font-weight: 800;
+    line-height: 1;
+
+    // 192px só cabe folgado em desktop. No `mobile` (≤768px) o grid de quem
+    // usa isto (ex.: TodayPage) ainda força os cards quadrados em 2 colunas —
+    // card fica com metade da largura da tela, então o número precisa
+    // encolher bem mais. No `phone` (≤480px) o grid solta o quadrado (1
+    // coluna, altura livre), então dá pra respirar um pouco mais que no
+    // mobile mesmo com menos largura.
+    @include mobile {
+      font-size: 72px;
+    }
+
+    @include phone {
+      font-size: 96px;
+    }
+  }
 }
 
 .top {
@@ -36,6 +66,22 @@
   font-weight: 600;
   color: var(--text-primary);
   line-height: 1.1;
+
+  // Cor suave = PASTELIZAR, mesma técnica do --grade-card-scrim (ClassCard):
+  // mistura com a SUPERFÍCIE do tema (branco no claro, escuro no escuro), não
+  // com o texto — misturar com texto (quase preto) escurece/suja a cor em vez
+  // de suavizar. Aqui é o inverso do scrim (que pasteliza um FUNDO forte);
+  // pasteliza um TEXTO grande, então a proporção de cor fica maior (65%,
+  // contra ~62% de superfície no scrim do claro) — precisa continuar legível.
+  // + opacity leve por cima: pedido explícito de "um pouco translúcido, mas
+  // não muito" — 0.88 deixa ver de leve o fundo atrás do número sem lavar o
+  // contraste.
+  &--success { color: color-mix(in srgb, var(--success-fg) 65%, var(--bg-surface)); opacity: 0.88; }
+  &--warning { color: color-mix(in srgb, var(--warning-fg) 65%, var(--bg-surface)); opacity: 0.88; }
+  &--danger  { color: color-mix(in srgb, var(--danger-fg) 65%, var(--bg-surface)); opacity: 0.88; }
+  &--info    { color: color-mix(in srgb, var(--info-fg) 65%, var(--bg-surface)); opacity: 0.88; }
+  &--accent  { color: color-mix(in srgb, var(--accent-fg) 65%, var(--bg-surface)); opacity: 0.88; }
+  &--gray    { color: var(--text-secondary); }
 }
 
 .hint {
@@ -109,4 +155,12 @@
   color: var(--primary-fg);
 
   svg { width: 20px; height: 20px; }
+
+  // Mesma fórmula de cor do Badge (fundo translúcido a 12%, texto sólido).
+  &--success { background: rgba($success, 0.14); color: var(--success-fg); }
+  &--warning { background: rgba($warning, 0.14); color: var(--warning-fg); }
+  &--danger  { background: rgba($danger, 0.14); color: var(--danger-fg); }
+  &--info    { background: rgba(var(--secondary-rgb), 0.14); color: var(--info-fg); }
+  &--accent  { background: rgba(var(--accent-rgb), 0.14); color: var(--accent-fg); }
+  &--gray    { background: rgba($neutral, 0.14); color: var(--text-secondary); }
 }

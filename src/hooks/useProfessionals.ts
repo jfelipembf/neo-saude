@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import {
   addProfessional,
+  getCurrentProfessionalId,
   getProfessional,
   linkProfessionalToUser,
   listProfessionalEarnings,
@@ -13,6 +14,14 @@ import type { EditProfessional, NewProfessional } from '@/services/professionals
 
 export function useProfessionals() {
   return useQuery({ queryKey: queryKeys.professionals.all, queryFn: listProfessionals })
+}
+
+/** Id do professional ligado ao login atual, ou null se o usuário logado (ex.:
+ *  recepção, dono sem cadastro clínico) não tiver vínculo algum — ver
+ *  getCurrentProfessionalId. Quem consome decide o que fazer com null (a
+ *  página "Hoje" simplesmente não mostra a lista pessoal de atendimentos). */
+export function useCurrentProfessionalId() {
+  return useQuery({ queryKey: queryKeys.professionals.current, queryFn: getCurrentProfessionalId })
 }
 
 export function useProfessional(id: string) {

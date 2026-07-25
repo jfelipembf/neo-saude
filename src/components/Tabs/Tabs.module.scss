@@ -23,19 +23,20 @@
 .tab {
   @include focus-ring;
   position: relative;
-  padding: 10px 18px;
+  display: inline-flex;
+  align-items: center;
   font-family: inherit;
-  font-size: $fs-sm;
   font-weight: 500;
   white-space: nowrap;
   color: var(--text-muted);
   background: transparent;
   border: none;
-  border-radius: 4px 4px 0 0;
+  // $radius-sm (5px) e não o "4px" fixo de antes — projeto proíbe px mágico
+  // em componente; só os cantos de cima porque a aba encosta na borda inferior
+  // da barra (a régua de abas), que fica reta.
+  border-radius: $radius-sm $radius-sm 0 0;
   cursor: pointer;
   transition: color 0.15s ease, background 0.15s ease;
-
-  @include mobile { padding: 8px 12px; font-size: $fs-xs; }
 
   &:hover {
     color: var(--text-secondary);
@@ -56,6 +57,26 @@
       border-radius: 2px 2px 0 0;
     }
   }
+}
+
+// Altura explícita por porte — MESMOS tokens de Button ($ctrl-h-*), e o mesmo
+// ritmo de padding horizontal do Button por tier (12/18/24px), para uma barra
+// de abas ficar exatamente do tamanho de um Input/Button vizinho na mesma
+// linha. `align-items: center` no `.tab` centraliza o texto dentro da altura
+// fixa — sem isso, a altura viria de novo do padding vertical + line-height,
+// que é o que causava a imprecisão original.
+.tab--sm { height: $ctrl-h-sm; padding: 0 12px; font-size: $fs-xs; }
+.tab--md { height: $ctrl-h-md; padding: 0 18px; font-size: $fs-sm; }
+.tab--lg { height: $ctrl-h-lg; padding: 0 24px; font-size: $fs-md; }
+
+@include mobile {
+  // Só o respiro horizontal encolhe — a altura continua a do `size` escolhido.
+  // Achatar a altura no mobile derrubaria o alvo de toque abaixo do
+  // recomendável, e os controles vizinhos (Input/Button) não encolhem no
+  // mobile por porte, então a barra não podia ser a exceção.
+  .tab--sm { padding: 0 10px; }
+  .tab--md { padding: 0 12px; font-size: $fs-xs; }
+  .tab--lg { padding: 0 16px; font-size: $fs-sm; }
 }
 
 // Contador de pendências da aba (ex.: "A faturar"). Cor de alerta porque é

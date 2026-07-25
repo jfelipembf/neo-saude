@@ -1,8 +1,8 @@
 import type { CSSProperties } from 'react'
 import { useTheme } from '@/context/ThemeProvider'
 import { usePatientName, useProfessionalName, useProfessionalColor } from '@/hooks/useDisplayNames'
-import { IconBan, IconCheck, IconChevronRight, IconX } from '@/components/icons'
-import type { ScheduledAppointment, AppointmentStatus } from '@/types/domain'
+import { IconChevronRight } from '@/components/icons'
+import type { ScheduledAppointment } from '@/types/domain'
 import { firstName, stripTitle } from '@/utils/text'
 import { maskedLuminance } from '@/utils/cardColor'
 import styles from './scheduleCards.module.scss'
@@ -10,8 +10,6 @@ import styles from './scheduleCards.module.scss'
 interface ClassCardProps {
   appointment: ScheduledAppointment
   onClick?: () => void
-  /** Registra o desfecho da consulta (compareceu/faltou/cancelou) direto no card. */
-  onSetStatus?: (status: AppointmentStatus) => void
   /** Mostra uma setinha no hover indicando que o card abre uma ação. */
   showArrow?: boolean
   /** Oculta a linha de sala/local. */
@@ -23,7 +21,7 @@ interface ClassCardProps {
  *  profissional fica consistente e acompanha sozinho se a cor mudar depois.
  *  `slot.color` (atividade) só entra como reserva, se o profissional não
  *  tiver cor definida. Horário inicial em evidência. */
-export function ClassCard({ appointment: slot, onClick, onSetStatus, showArrow, hideArea }: ClassCardProps) {
+export function ClassCard({ appointment: slot, onClick, showArrow, hideArea }: ClassCardProps) {
   const { theme } = useTheme()
   const patientName = usePatientName()
   const professionalName = useProfessionalName()
@@ -34,14 +32,6 @@ export function ClassCard({ appointment: slot, onClick, onSetStatus, showArrow, 
   const canceled = slot.status === 'canceled'
   // Cancelada vira cinza (texto claro); nas demais o texto segue a luminância da cor mascarada.
   const light = !canceled && maskedLuminance(cardColor, theme) > 0.6
-
-  // Mesma semântica dos círculos do Dashboard: clicar no desfecho já ativo
-  // DESFAZ a marcação (volta para "agendada"). Não fecha sobre o onClick do
-  // card — o stopPropagation impede que o registro abra o modal junto.
-  function mark(e: React.MouseEvent, target: AppointmentStatus) {
-    e.stopPropagation()
-    onSetStatus?.(slot.status === target ? 'scheduled' : target)
-  }
 
   return (
     <div
@@ -70,8 +60,8 @@ export function ClassCard({ appointment: slot, onClick, onSetStatus, showArrow, 
         )}
       </div>
 
-      {/* ── Corpo: paciente em destaque numa linha própria — Dr(a) e o chip de
-          desfecho cada um na sua linha, sem disputar espaço com o nome. ── */}
+      {/* ── Corpo: paciente em destaque numa linha própria; Dr(a) na sua,
+          sem disputar espaço com o nome. ── */}
       <div className={styles.body}>
         <div className={styles.topline}>
           <span className={styles.title} title={`${patient} · ${slot.activity}`}>
@@ -84,42 +74,6 @@ export function ClassCard({ appointment: slot, onClick, onSetStatus, showArrow, 
             <span className={styles.prof} title={`Dr(a) ${stripTitle(professional)}`}>
               Dr(a) {firstName(professional)}
             </span>
-          </div>
-        )}
-
-        {/* ── Desfecho da consulta, direto no card ── */}
-        {onSetStatus && (
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={`${styles.action} ${slot.status === 'completed' ? styles['action--ativa'] : ''}`}
-              title={slot.status === 'completed' ? 'Desfazer presença' : 'Compareceu'}
-              aria-label={`Marcar que ${patient} compareceu`}
-              aria-pressed={slot.status === 'completed'}
-              onClick={e => mark(e, 'completed')}
-            >
-              <IconCheck />
-            </button>
-            <button
-              type="button"
-              className={`${styles.action} ${slot.status === 'no_show' ? styles['action--ativa'] : ''}`}
-              title={slot.status === 'no_show' ? 'Desfazer falta' : 'Faltou'}
-              aria-label={`Marcar que ${patient} faltou`}
-              aria-pressed={slot.status === 'no_show'}
-              onClick={e => mark(e, 'no_show')}
-            >
-              <IconX />
-            </button>
-            <button
-              type="button"
-              className={`${styles.action} ${canceled ? styles['action--ativa'] : ''}`}
-              title={canceled ? 'Reativar consulta' : 'Cancelar consulta'}
-              aria-label={canceled ? `Reativar a consulta de ${patient}` : `Cancelar a consulta de ${patient}`}
-              aria-pressed={canceled}
-              onClick={e => mark(e, 'canceled')}
-            >
-              <IconBan />
-            </button>
           </div>
         )}
       </div>

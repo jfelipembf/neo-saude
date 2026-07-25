@@ -11,7 +11,6 @@ import type { ScheduleView } from '@/components/ScheduleGrid/ScheduleGrid'
 import { ClassAttendanceModal } from '@/components/ClassAttendanceModal/ClassAttendanceModal'
 import { SCHEDULE_VIEW_OPTIONS } from '@/constants'
 import { useScheduleAppointments } from '@/hooks/useSchedule'
-import { useSetAppointmentStatus } from '@/hooks/useAppointments'
 import { useProfessionals } from '@/hooks/useProfessionals'
 import { useAvailabilityTemplate, useBlockedSlots, useSaveBlockedSlots, useAbsences } from '@/hooks/useProfessionalAvailability'
 import { useClassGroups } from '@/hooks/useClassGroups'
@@ -29,6 +28,7 @@ import { getCurrentClinicId } from '@/lib/tenant'
 import { matchesSearch } from '@/utils/search'
 import { toIsoDate } from '@/utils/date'
 import { materializeClassGroupOccurrences } from '@/utils/classGroupOccurrences'
+import { isMobileViewport } from '@/utils/viewport'
 import { IconSearch, IconFilter } from '@/components/icons'
 import type { ScheduledAppointment, ClassGroupOccurrence } from '@/types/domain'
 import styles from './ScheduleBoard.module.scss'
@@ -79,7 +79,12 @@ export function ScheduleBoard({ onSelect, onQuickAdd, enrollTarget, onEnrollDone
   // já resolvida) — evita lidar com o `info` ainda-nulo do SessionProvider.
   const clinicId = getCurrentClinicId()
   const { specialty } = useSession()
-  const [view, setView] = useState<ScheduleView>('week')
+  // No celular a grade abre no DIA. Sete colunas num aparelho estreito deixam
+  // cada consulta com poucos pixels de largura — ilegível, e a rolagem
+  // horizontal esconde metade da semana. Lido UMA vez na montagem
+  // (inicializador preguiçoso): trocar de visualização depois é escolha de quem
+  // está usando, e girar o aparelho não pode desfazer essa escolha.
+  const [view, setView] = useState<ScheduleView>(() => (isMobileViewport() ? 'day' : 'week'))
   const [refDate, setRefDate] = useState(() => new Date())
   const [search, setSearch] = useState('')
   // '' = todos os profissionais (sem filtro).
@@ -275,7 +280,7 @@ export function ScheduleBoard({ onSelect, onQuickAdd, enrollTarget, onEnrollDone
   const blockActionLabel = onlyUnblocking
     ? 'Desbloquear agendamento'
     : newBlocks > 0 && unblocks > 0
-      ? 'Salvar alterações'
+      ? 'Salvar'
       : 'Bloquear agendamento'
 
   /** Clique no botão: 1ª vez liga o modo, 2ª vez abre a confirmação. */
@@ -314,8 +319,6 @@ export function ScheduleBoard({ onSelect, onQuickAdd, enrollTarget, onEnrollDone
       },
     )
   }
-
-  const { mutate: setStatus } = useSetAppointmentStatus()
 
   const patientName = usePatientName()
 
@@ -410,23 +413,27 @@ export function ScheduleBoard({ onSelect, onQuickAdd, enrollTarget, onEnrollDone
                 2º clique pede o motivo. */}
             {professionalId && (
               <>
-                <Button variant={blockMode && !onlyUnblocking ? 'danger' : 'secondary'} onClick={handleBlockButtonClick}>
+                <Button size="md" variant={blockMode && !onlyUnblocking ? 'danger' : 'secondary'} onClick={handleBlockButtonClick}>
                   {blockMode ? blockActionLabel : 'Selecionar'}
                 </Button>
                 {blockMode && (
-                  <Button variant="ghost" onClick={handleCancelBlockMode}>Cancelar</Button>
+                  <Button size="md" variant="ghost" onClick={handleCancelBlockMode}>Cancelar</Button>
                 )}
               </>
             )}
 
             <WeekNavigator date={refDate} view={view} onChange={setRefDate} />
           </div>
-          <Button variant="secondary" onClick={() => setRefDate(new Date())}>Hoje</Button>
-          <SegmentedControl options={SCHEDULE_VIEW_OPTIONS} value={view} onChange={setView} />
+          {/* size="md" explícito nos quatro — Input/Select da barra já eram
+              explícitos, e sem a mesma prop aqui Button/SegmentedControl
+              dependiam do default coincidir por acaso. */}
+          <Button size="md" variant="secondary" onClick={() => setRefDate(new Date())}>Hoje</Button>
+          <SegmentedControl size="md" options={SCHEDULE_VIEW_OPTIONS} value={view} onChange={setView} />
 
           {/* Mostrar/esconder Sáb e Dom na grade da semana. */}
           <div className={styles.filtro} ref={filterRef}>
             <Button
+              size="md"
               variant="secondary"
               iconLeft={<IconFilter />}
               onClick={() => setFilterOpen(o => !o)}
@@ -477,20 +484,6 @@ export function ScheduleBoard({ onSelect, onQuickAdd, enrollTarget, onEnrollDone
         onQuickAdd={onQuickAdd && professionalId && !blockMode ? (dateIso, time) => onQuickAdd(professionalId, dateIso, time) : undefined}
         blockEditing={blockMode ? { selected: blockSelection ?? new Set(), onToggle: toggleBlockCell } : undefined}
         onSelect={onSelect}
-        onSetStatus={(a, status) => setStatus(
-          { id: a.id, status },
-          {
-            onSuccess: () => toast.success({
-              completed: 'Presença registrada!',
-              no_show: 'Falta registrada.',
-              canceled: 'Consulta cancelada.',
-              scheduled: 'Marcação desfeita — consulta agendada.',
-              confirmed: 'Consulta confirmada.',
-              in_service: 'Consulta em atendimento.',
-            }[status]),
-            onError: () => toast.error('Não foi possível registrar. Tente novamente.'),
-          },
-        )}
         showArrow={!!onSelect}
       />
 

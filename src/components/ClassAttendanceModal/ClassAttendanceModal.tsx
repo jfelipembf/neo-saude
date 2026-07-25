@@ -355,7 +355,10 @@ export function ClassAttendanceModal({ occurrence, onClose }: ClassAttendanceMod
                             </span>
                           </div>
                           <div className={styles.rowControls}>
+                            {/* size="md" explícito nos dois — o Button já era,
+                                a SegmentedControl caía no md por acaso. */}
                             <SegmentedControl
+                              size="md"
                               options={PRESENCE_OPTIONS}
                               value={status}
                               onChange={v => setAtt(a => ({ ...a, [entry.patientId]: v }))}

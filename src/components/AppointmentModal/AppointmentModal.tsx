@@ -357,7 +357,7 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
     const payload = buildPayload(status)
     const options = {
       onSuccess: () => {
-        // O prontuário tem botão próprio, mas quem aperta "Salvar alterações"
+        // O prontuário tem botão próprio, mas quem aperta "Salvar"
         // espera que o modal INTEIRO seja salvo — fechar aqui com evolução
         // digitada e não salva era o mesmo texto perdido do confirmOnClose.
         if (slot && noteDirty) {
@@ -522,7 +522,7 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
           )}
           <Button variant="ghost" onClick={requestClose} disabled={creating || saving}>Fechar</Button>
           <Button loading={creating || saving} onClick={handleSave}>
-            {slot ? 'Salvar alterações' : 'Agendar'}
+            {slot ? 'Salvar' : 'Agendar'}
           </Button>
         </>
       )}

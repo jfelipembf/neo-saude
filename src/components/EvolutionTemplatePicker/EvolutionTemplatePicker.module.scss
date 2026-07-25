@@ -97,12 +97,31 @@
 }
 
 @include mobile {
-  // No celular o menu ocupa a largura do container em vez de estourar a tela.
-  .root { position: static; }
-
+  // No celular o menu deixa de pender do botão e vira uma FOLHA na borda de
+  // baixo. Duas tentativas anteriores falharam, e as duas por ancoramento:
+  //
+  //  1. `.root { position: static }` — tirou o contexto de posicionamento, o
+  //     `bottom: calc(100% + …)` passou a valer contra o painel do modal e o
+  //     menu saltou para FORA do card, cortado no topo da tela.
+  //  2. manter `relative` e ancorar em `right: 0` — o menu cresce para a
+  //     esquerda a partir da direita do BOTÃO; com 4 modelos ele fica mais
+  //     largo que o espaço à esquerda e sai pela lateral, cortado ao meio.
+  //
+  // O que os dois têm em comum é depender de onde o botão está. `fixed` não
+  // depende: as bordas são as do bloco de contenção, então não há como
+  // transbordar. Aqui o bloco é o `.panel` do modal, que tem
+  // `backdrop-filter` (filtro cria bloco de contenção para `fixed`) — e se um
+  // dia esse blur sair, o `fixed` cai na janela, que também é uma folha
+  // inferior correta. O desenho não quebra em nenhum dos dois casos.
   .menu {
-    left: $sp-2;
-    right: $sp-2;
+    position: fixed;
+    top: auto;
+    left: $sp-3;
+    right: $sp-3;
+    bottom: $sp-3;
+    width: auto;
     min-width: 0;
+    max-width: none;
+    max-height: 50vh;
   }
 }

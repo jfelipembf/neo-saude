@@ -91,7 +91,18 @@ export async function listPayables(): Promise<Payable[]> {
 /** Campos do modal "Nova conta a pagar". */
 export interface NewPayable {
   description: string
+  /**
+   * RÓTULO da categoria ("Despesas › Aluguel"). Vai CONGELADO na conta: se
+   * amanhã a clínica renomear a categoria, esta conta continua mostrando o nome
+   * que tinha no dia do lançamento. Ver o comment da coluna no banco.
+   */
   category: string
+  /** Categoria do plano de contas. Undefined só em conta antiga/importada — o
+   *  formulário sempre manda, e o banco recusa categoria de RECEITA aqui. */
+  categoryId?: string
+  /** Recorte da clínica (setor/sala/profissional). Opcional de verdade: a
+   *  clínica pode nunca ter criado nenhum, e aí o campo nem aparece na tela. */
+  costCenterId?: string
   supplier: string
   dueDate: string       // dd/mm/aaaa
   amount: number
@@ -102,11 +113,14 @@ export async function addPayable(p: NewPayable): Promise<void> {
     clinic_id: clinic(),
     description: p.description,
     category: p.category,
+    category_id: p.categoryId ?? null,
+    cost_center_id: p.costCenterId ?? null,
     supplier: p.supplier,
     due_date: brToIsoDate(p.dueDate)!,
     amount: p.amount,
     notes: p.notes ?? null,
     // status → default 'pending'; code → trigger tr_code.
+    // category_kind → default 'expense' (nem está no GRANT do cliente).
   }
   const { error } = await supabase.from('payable').insert(row as Insert<'payable'>)
   if (error) throw error
@@ -160,6 +174,8 @@ export async function addPayableSeries(p: RecurringPayableInput): Promise<number
     clinic_id: clinic(),
     description: p.description,
     category: p.category,
+    category_id: p.categoryId ?? null,
+    cost_center_id: p.costCenterId ?? null,
     supplier: p.supplier,
     due_date: due,
     amount: p.amount,

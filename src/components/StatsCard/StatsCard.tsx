@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
+import type { BadgeVariant } from '@/components/Badge/statusMap'
 import styles from './StatsCard.module.scss'
 
 interface StatsCardProps {
@@ -23,9 +24,18 @@ interface StatsCardProps {
   meta?: string | number | null
   /** Progresso da meta em % (0–100). Se omitido e value/meta forem numéricos, é calculado. */
   progress?: number
+  /** Cor do ícone — mesma paleta do Badge. Omitido mantém o tom neutro
+   *  padrão (usado no grid de metas do Dashboard). Independente de `valueTone`
+   *  — dá pra ter ícones todos na mesma cor com número colorido por cartão. */
+  iconTone?: BadgeVariant
+  /** Cor do valor — mesma paleta do Badge, independente de `iconTone`. */
+  valueTone?: BadgeVariant
+  /** 'lg': valor grande e centralizado, sem disputar espaço com hint/meta —
+   *  pensado pra grades de poucos números só (ex.: página "Hoje"). */
+  size?: 'md' | 'lg'
 }
 
-export function StatsCard({ label, value, icon, hint, trend = 'neutral', meta, progress }: StatsCardProps) {
+export function StatsCard({ label, value, icon, hint, trend = 'neutral', meta, progress, iconTone, valueTone, size = 'md' }: StatsCardProps) {
   // `undefined` some, `null` fica: ver a doc de `meta` acima.
   const tracksGoal = meta !== undefined
   const hasGoal = meta !== undefined && meta !== null
@@ -40,12 +50,12 @@ export function StatsCard({ label, value, icon, hint, trend = 'neutral', meta, p
   const barPct = Math.min(100, pct)
 
   return (
-    <div className={styles.card}>
+    <div className={`${styles.card} ${size === 'lg' ? styles['card--lg'] : ''}`}>
       <div className={styles.top}>
         <span className={styles.label}>{label}</span>
-        {icon && <div className={styles.icon}>{icon}</div>}
+        {icon && <div className={`${styles.icon} ${iconTone ? styles[`icon--${iconTone}`] : ''}`}>{icon}</div>}
       </div>
-      <span className={styles.value}>{value}</span>
+      <span className={`${styles.value} ${valueTone ? styles[`value--${valueTone}`] : ''}`}>{value}</span>
       {hint && <span className={`${styles.hint} ${styles[`hint--${trend}`]}`}>{hint}</span>}
 
       {tracksGoal && (

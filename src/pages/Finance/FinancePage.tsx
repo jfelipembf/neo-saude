@@ -10,17 +10,21 @@ import { ReceivableTab } from './Receivable/ReceivableTab'
 import { DelinquencyTab } from './Delinquency/DelinquencyTab'
 import { BanksTab } from './Banks/BanksTab'
 import { AcquirersTab } from './Acquirers/AcquirersTab'
+import { CategoriesTab } from './Categories/CategoriesTab'
+import { CostCentersTab } from './CostCenters/CostCentersTab'
 import styles from './FinancePage.module.scss'
 
 // "A faturar" vive DENTRO de Contas a Receber (tudo que é dinheiro a entrar num
-// lugar só — desenho enxuto validado contra o modelo da EVO). Contas bancárias
-// e Adquirentes são CADASTRO de apoio do Financeiro (onde o dinheiro entra e
-// quem processa o cartão): moram aqui, no fim das abas.
+// lugar só — desenho enxuto validado contra o modelo da EVO). Categorias (o
+// plano de contas), Contas bancárias e Adquirentes são CADASTRO de apoio do
+// Financeiro (as DUAS dimensões de classificação do lançamento — categoria diz
+// o que foi, centro de custo diz de qual parte da clínica foi —, onde o
+// dinheiro entra e quem processa o cartão): moram aqui, no fim das abas.
 // NÃO existe aba "Caixa" (sessão abrir/fechar): nada gravava movimento nela, e a
 // referência do segmento (Simples Dental) resolve conferência diária com
 // relatório sobre os lançamentos — não com ritual de sessão (isso é para
 // operação com várias recepcionistas no dinheiro físico, caso Feegow).
-type TabKey = 'cashFlow' | 'sales' | 'payables' | 'receivables' | 'delinquency' | 'banks' | 'acquirers'
+type TabKey = 'cashFlow' | 'sales' | 'payables' | 'receivables' | 'delinquency' | 'categories' | 'costCenters' | 'banks' | 'acquirers'
 
 export function FinancePage() {
   const [tab, setTab] = useState<TabKey>('cashFlow')
@@ -35,6 +39,8 @@ export function FinancePage() {
     { key: 'payables',       label: 'Contas a Pagar' },
     { key: 'receivables',     label: 'Contas a Receber', badge: unbilled?.length ?? 0 },
     { key: 'delinquency',    label: 'Inadimplência' },
+    { key: 'categories',     label: 'Categorias' },
+    { key: 'costCenters',    label: 'Centros de custo' },
     { key: 'banks',          label: 'Contas bancárias' },
     { key: 'acquirers',      label: 'Adquirentes' },
   ]
@@ -52,6 +58,8 @@ export function FinancePage() {
       {tab === 'payables'       && <PayableTab />}
       {tab === 'receivables'     && <ReceivableTab />}
       {tab === 'delinquency'    && <DelinquencyTab />}
+      {tab === 'categories'     && <CategoriesTab />}
+      {tab === 'costCenters'    && <CostCentersTab />}
       {tab === 'banks'          && <BanksTab />}
       {tab === 'acquirers'      && <AcquirersTab />}
     </>

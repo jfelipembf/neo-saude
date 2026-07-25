@@ -263,7 +263,7 @@ export function ServicesTab() {
             <div className={styles.acoesBar}>
               <Button variant="ghost" onClick={handleCancel} disabled={creating || saving}>Cancelar</Button>
               <Button loading={creating || saving} onClick={handleSave}>
-                {isNew ? 'Cadastrar' : 'Salvar alterações'}
+                {isNew ? 'Cadastrar' : 'Salvar'}
               </Button>
             </div>
           </>

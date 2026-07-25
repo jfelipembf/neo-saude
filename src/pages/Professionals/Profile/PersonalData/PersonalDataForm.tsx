@@ -194,7 +194,7 @@ export function PersonalDataForm({ professional, pendingPhoto, onClose }: Person
 
         <div className={shared.formAcoes}>
           <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button type="submit" loading={saving}>Salvar alterações</Button>
+          <Button type="submit" loading={saving}>Salvar</Button>
         </div>
       </form>
     </section>

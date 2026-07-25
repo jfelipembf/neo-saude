@@ -193,7 +193,7 @@ export function InsurancesTab() {
           <>
             <Button variant="ghost" onClick={closeModal} disabled={creating || saving}>Cancelar</Button>
             <Button type="submit" form="form-insurance" loading={creating || saving}>
-              {modal?.insurance ? 'Salvar alterações' : 'Cadastrar'}
+              {modal?.insurance ? 'Salvar' : 'Cadastrar'}
             </Button>
           </>
         }

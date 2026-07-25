@@ -105,7 +105,10 @@ export function TestItemsEditor({
               <li key={item.key} className={styles.item}>
                 <div className={styles.itemCabecalho}>
                   <span className={styles.itemNum}>{i + 1}</span>
+                  {/* size="md" explícito nos dois — ambos já caíam nesse
+                      porte por padrão, mas sem a prop dependiam do acaso. */}
                   <Input
+                    size="md"
                     aria-label={`Enunciado do item ${i + 1}`}
                     placeholder="Enunciado do item (ex: Passar de sentado para de pé)"
                     value={item.label}
@@ -113,6 +116,7 @@ export function TestItemsEditor({
                     className={styles.itemLabel}
                   />
                   <SegmentedControl
+                    size="md"
                     options={INPUT_KIND_OPTIONS}
                     value={item.inputKind}
                     onChange={kind => patchItem(item.key, { inputKind: kind })}

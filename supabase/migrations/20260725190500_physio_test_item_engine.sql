@@ -295,6 +295,10 @@ comment on function private.tg_patient_test_result_item_freeze() is
   'executa um UPDATE de verdade — recongelar ali ou ressuscitaria o texto de um '
   'item recém-apagado, ou faria a limpeza do catálogo estourar exceção.';
 
+-- Função security definer nasce executável por PUBLIC; o trigger é disparado
+-- pelo dono da tabela, então o revoke não tira nada de quem precisa.
+revoke execute on function private.tg_patient_test_result_item_freeze() from public;
+
 create trigger tr_freeze before insert on public.patient_test_result_item
   for each row execute function private.tg_patient_test_result_item_freeze();
 

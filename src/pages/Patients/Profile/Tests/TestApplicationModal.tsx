@@ -164,7 +164,7 @@ export function TestApplicationModal({
               faltam. Num formulário de 24 itens, um botão morto não diz QUAIS
               ficaram para trás — obrigaria a conferir os 24 a olho. */}
           <Button onClick={handleSubmit} loading={saving}>
-            {result ? 'Salvar alterações' : 'Salvar aplicação'}
+            {result ? 'Salvar' : 'Salvar aplicação'}
           </Button>
         </>
       )}

@@ -1,0 +1,143 @@
+@use '../../../styles/mixins' as *;
+
+// Só o que é PRÓPRIO desta aba. A tabela, o cartão que a envolve, o cabeçalho e
+// a barra interna vêm do componente <Table>; os botões de ação e o estilo de
+// linha vêm de ../shared/finance.module.scss. Nada de arredondamento avulso
+// aqui: quem define o raio é o token via @include card, dentro do <Table>.
+
+.raiz {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+// ── Bloco explicativo ───────────────────────────────────────────────────────
+// Fica SEMPRE visível, e não só no estado vazio: das duas dimensões do
+// Financeiro, esta é a única que a clínica precisa desenhar sozinha (o plano de
+// contas já vem semeado), e quem volta aqui meses depois volta com a mesma
+// dúvida de como dividir.
+.explicacao {
+  display: flex;
+  gap: $sp-3;
+  padding: $sp-4;
+  border-radius: $radius-lg;   // mesmo raio do @include card, para o bloco
+  background: color-mix(in srgb, var(--primary) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.explicacaoIcone {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--primary);
+
+  svg { width: 20px; height: 20px; }
+}
+
+.explicacaoTexto {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  line-height: 1.55;
+
+  strong { color: var(--text-primary); font-weight: 600; }
+  p { margin: 0; }
+}
+
+.explicacaoTitulo {
+  margin: 0;
+  font-size: $fs-md;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.exemplos {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  margin: 0;
+  padding-left: $sp-4;
+
+  li { padding-left: $sp-1; }
+}
+
+.ressalva {
+  color: var(--text-muted);
+}
+
+// ── Conteúdo das células ────────────────────────────────────────────────────
+.busca {
+  width: 260px;
+
+  @include phone { width: 100%; }
+}
+
+// No estado vazio não existe <Table>, logo não existe a toolbar dele — o botão
+// precisa de um lugar próprio.
+.barraVazia {
+  display: flex;
+  justify-content: flex-end;
+}
+
+// Linha de centro inativo: apagada, não invisível — precisa ser lida para ser
+// reativada.
+.linhaInativa {
+  opacity: 0.55;
+}
+
+.celulaNome {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  min-width: 0;
+}
+
+// O nome É o botão de renomear — daí a cara de link (mesmo padrão de Categorias).
+.nome {
+  @include focus-ring;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: $radius-sm;
+  color: var(--primary);
+  font-family: inherit;
+  font-size: $fs-sm;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover { text-decoration: underline; }
+}
+
+.selo {
+  flex-shrink: 0;
+  padding: 1px 8px;
+  border-radius: $radius-pill;
+  background: var(--glass-bg-hover);
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.colAcoes {
+  width: 90px;
+  text-align: right;
+}
+
+// ── Formulário em linha ─────────────────────────────────────────────────────
+.formLinha {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  min-width: 0;
+}
+
+.campoNome {
+  flex: 1;
+  min-width: 160px;
+  max-width: 320px;
+}

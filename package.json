@@ -19,7 +19,6 @@
     "@tiptap/extension-font-family": "^3.29.0",
     "@tiptap/extension-text-align": "^3.29.0",
     "@tiptap/extension-text-style": "^3.29.0",
-    "@tiptap/extension-underline": "^3.29.0",
     "@tiptap/react": "^3.29.0",
     "@tiptap/starter-kit": "^3.29.0",
     "@types/dompurify": "^3.0.5",

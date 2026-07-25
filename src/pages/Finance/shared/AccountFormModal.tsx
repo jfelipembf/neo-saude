@@ -8,16 +8,14 @@ import { Textarea } from '@/components/Textarea/Textarea'
 import { Toggle } from '@/components/Toggle/Toggle'
 import { useToast } from '@/components/Toast/Toast'
 import { useAddPayable, useAddPayableSeries } from '@/hooks/useFinance'
+import { useFinanceCategories } from '@/hooks/useFinanceCategories'
+import { useCostCenters } from '@/hooks/useCostCenters'
 import { recurrenceDueDates } from '@/services/financeService'
+import { activeGroups, categoryPath } from '@/services/financeCategoryService'
+import { activeOnly } from '@/services/costCenterService'
 import { parseBRL } from '@/utils/format'
 import { toIsoDate, isoToBrDate } from '@/utils/date'
 import styles from './finance.module.scss'
-
-/** Categorias de despesa (conta a pagar). */
-const PAYABLE_CATEGORIES = [
-  'Fornecedores', 'Materiais e insumos', 'Aluguel', 'Salários e encargos',
-  'Impostos e taxas', 'Água, luz e internet', 'Manutenção', 'Marketing', 'Outros',
-]
 
 const TIPO_OPTIONS = [
   { value: 'single', label: 'Única' },
@@ -50,11 +48,49 @@ export function AccountFormModal({ onClose }: AccountFormModalProps) {
 
   const [description, setDescription] = useState('')
   const [supplier, setSupplier] = useState('')
-  const [category, setCategory] = useState(PAYABLE_CATEGORIES[0])
+  // Guarda o ID, não o texto: o texto é derivado na hora de salvar (rótulo
+  // congelado). '' = ainda não escolheu.
+  const [categoryId, setCategoryId] = useState('')
+  const [costCenterId, setCostCenterId] = useState('')
   const [dueDateIso, setDueDateIso] = useState(() => toIsoDate(new Date()))
   const [amountText, setAmountText] = useState('')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
+
+  // Plano de contas, lado DESPESA. O banco recusaria uma categoria de receita
+  // aqui (FK composta com category_kind), então o filtro da tela e a trava do
+  // banco dizem a mesma coisa — a tela só evita oferecer o que seria recusado.
+  const { data: tree } = useFinanceCategories()
+  const expenseGroups = activeGroups(tree ?? [], 'expense')
+
+  // Opções em dois níveis: o grupo vira <optgroup>, as subcategorias viram as
+  // opções. Grupo SEM subcategoria continua selecionável (é uma categoria
+  // válida, só não detalhada) — senão ele apareceria como cabeçalho morto.
+  const categoryOptions = expenseGroups.flatMap(group =>
+    group.children.length > 0
+      ? group.children.map(child => ({
+          value: child.id,
+          label: child.name,
+          group: group.name,
+        }))
+      : [{ value: group.id, label: group.name, group: group.name }],
+  )
+
+  // Centros de custo ATIVOS. Clínica que nunca criou nenhum não vê o campo:
+  // dimensão opcional que aparece como um seletor vazio só ensina que existe
+  // algo faltando, e não há o que escolher.
+  const { data: costCenters } = useCostCenters()
+  const costCenterOptions = activeOnly(costCenters ?? [])
+
+  /** Rótulo que vai CONGELADO na conta ("Despesas › Aluguel"). */
+  function labelFor(id: string): string {
+    for (const group of expenseGroups) {
+      if (group.id === id) return categoryPath(group)
+      const child = group.children.find(c => c.id === id)
+      if (child) return categoryPath(group, child)
+    }
+    return ''
+  }
 
   // Recorrência.
   const [tipo, setTipo] = useState<'single' | 'recurring'>('single')
@@ -75,8 +111,20 @@ export function AccountFormModal({ onClose }: AccountFormModalProps) {
     const amount = parseBRL(amountText)
     if (!amountText.trim() || Number.isNaN(amount) || amount <= 0) { setError('Informe o valor.'); return }
     if (!supplier.trim()) { setError('Informe o fornecedor.'); return }
+    if (!categoryId) { setError('Escolha a categoria.'); return }
 
-    const base = { description: description.trim(), category, supplier: supplier.trim(), amount, notes: notes.trim() || undefined }
+    const base = {
+      description: description.trim(),
+      // Os DOIS: o id classifica, o texto fica congelado para o dia em que a
+      // categoria for renomeada.
+      categoryId,
+      category: labelFor(categoryId),
+      // '' = "Nenhum" no seletor; a coluna aceita NULL.
+      costCenterId: costCenterId || undefined,
+      supplier: supplier.trim(),
+      amount,
+      notes: notes.trim() || undefined,
+    }
     const startBr = toBr(dueDateIso)
 
     if (recurring) {
@@ -134,11 +182,25 @@ export function AccountFormModal({ onClose }: AccountFormModalProps) {
           />
           <Select
             label="Categoria"
-            options={PAYABLE_CATEGORIES.map(c => ({ value: c, label: c }))}
-            value={category}
-            onChange={e => setCategory(e.target.value)}
+            placeholder={categoryOptions.length > 0 ? 'Selecione...' : 'Nenhuma categoria de despesa ativa'}
+            options={categoryOptions}
+            value={categoryId}
+            onChange={e => { setCategoryId(e.target.value); setError('') }}
           />
         </div>
+
+        {costCenterOptions.length > 0 && (
+          <Select
+            label="Centro de custo"
+            hint="Opcional — de qual parte da clínica é esta despesa."
+            options={[
+              { value: '', label: 'Nenhum' },
+              ...costCenterOptions.map(c => ({ value: c.id, label: c.name })),
+            ]}
+            value={costCenterId}
+            onChange={e => setCostCenterId(e.target.value)}
+          />
+        )}
 
         <div className={styles.formLinha2}>
           <Input

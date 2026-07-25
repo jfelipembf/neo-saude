@@ -1,0 +1,351 @@
+@use '../../../styles/mixins' as *;
+
+// Recuo da subcategoria. Vale para o CHECKBOX e para o NOME — nos sistemas
+// contábeis do mercado a hierarquia aparece nas duas colunas, e recuar só o
+// texto deixa as caixas de seleção numa coluna reta que não diz nada.
+// Composto de tokens (não é px mágico) e declarado UMA vez: as três regras que
+// dependem dele (célula de seleção, célula do nome, faixa de adicionar) têm de
+// se mover juntas, senão o conector aponta para o lugar errado.
+$recuo-filho: $sp-8 + $sp-2;   // 40px
+
+.raiz {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+// ── Barra de filtros ────────────────────────────────────────────────────────
+.barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  flex-wrap: wrap;
+}
+
+.barraDireita {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+
+  @include phone {
+    // Busca + botão ocupam a linha inteira: com o SegmentedControl de três
+    // opções acima, não sobra largura para os três lado a lado.
+    width: 100%;
+  }
+}
+
+.busca {
+  width: 240px;
+
+  @include phone {
+    width: auto;
+    flex: 1;
+  }
+}
+
+// ── Barra de seleção em massa ───────────────────────────────────────────────
+.lote {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  flex-wrap: wrap;
+  padding: $sp-2 $sp-3;
+  border-radius: $radius-md;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
+.loteTexto {
+  font-size: $fs-sm;
+  color: var(--text-primary);
+
+  strong { font-weight: 700; }
+}
+
+.loteAcoes {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  flex-wrap: wrap;
+}
+
+// ── Tabela ──────────────────────────────────────────────────────────────────
+.cartao {
+  @include card;
+  // Recorta qualquer fundo que encoste na borda (o cabeçalho da tabela tinha
+  // um antes — ver comentário abaixo — e as linhas .linhaRaiz/.linhaAdicionar
+  // ainda têm) pelo raio do cartão. Sem isto, um retângulo de canto reto colado
+  // exatamente na borda arredondada faz o cartão inteiro PARECER quadrado ali,
+  // mesmo com border-radius correto — foi o que aconteceu aqui.
+  overflow: hidden;
+}
+
+// A tabela rola aqui dentro em telas estreitas, sem estourar o cartão (mesmo
+// desenho do componente Table).
+.scroll {
+  overflow-x: auto;
+}
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: $fs-sm;
+
+  th {
+    padding: $sp-3 $sp-4;
+    text-align: left;
+    font-size: $fs-xs;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    // SEM fundo — nenhuma tabela do projeto sombreia o cabeçalho (nem o
+    // componente <Table> central). Um fundo aqui somaria ao bug de canto
+    // acima explicado, e a distinção do cabeçalho já vem do peso/maiúsculas.
+    border-bottom: 1px solid var(--glass-border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: $sp-2 $sp-4;
+    border-bottom: 1px solid var(--glass-border);
+    vertical-align: middle;
+  }
+}
+
+// Respiro ENTRE grupos sem repetir o cabeçalho: cada grupo é um <tbody> e ganha
+// uma borda superior grossa na cor do cartão. Borda em row-group só é pintada
+// com border-collapse: collapse — que é o modo usado aqui.
+// A alternativa seria uma <tr> vazia de espaçador, que o leitor de tela
+// anunciaria como "linha em branco" a cada bloco.
+.grupo + .grupo {
+  border-top: $sp-4 solid var(--bg-surface);
+}
+
+.linhaRaiz {
+  background: var(--glass-bg);
+
+  td { font-weight: 600; }
+}
+
+// Os botões de ação NÃO somem fora do hover, ao contrário do que esta aba fazia
+// antes: eles vêm de shared.acaoBtn, o mesmo de Contas a Pagar e a Receber, e lá
+// ficam sempre visíveis. Esconder só aqui deixaria a linha do Financeiro se
+// comportando de dois jeitos — sem contar que no touch não existe hover.
+
+// Inativa fica apagada, não invisível: ainda precisa ser lida para ser reativada.
+.linha--inativa {
+  opacity: 0.55;
+}
+
+.colSelecao {
+  // Sem `width` fixa: a largura da coluna é a da célula mais larga, que é a da
+  // SUBCATEGORIA (recuada abaixo). Fixar aqui esmagaria o recuo do filho.
+  width: 1%;
+  padding-right: 0 !important;
+  white-space: nowrap;
+}
+
+// O checkbox da subcategoria também é recuado — não só o nome. Sem isto o
+// filho e o pai ficam com a caixa na mesma coluna vertical e a hierarquia só
+// aparece no texto, que é metade da pista visual.
+.colSelecao--filho {
+  padding-left: $sp-4 + $recuo-filho !important;
+}
+
+.colTipo {
+  width: 140px;
+  color: var(--text-secondary);
+  font-weight: 400 !important;
+
+  @include phone { width: 100px; }
+}
+
+.colAcoes {
+  width: 56px;
+  text-align: right;
+}
+
+/** Rótulo só para leitor de tela (cabeçalho da coluna de ações). */
+.oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+
+// ── Célula do nome ──────────────────────────────────────────────────────────
+.celulaNome {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  min-width: 0;
+}
+
+.expandir {
+  @include focus-ring;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: $radius-sm;
+  color: var(--text-secondary);
+  cursor: pointer;
+
+  svg { width: 15px; height: 15px; }
+
+  &:hover { background: var(--glass-bg-hover); color: var(--text-primary); }
+}
+
+// O nome É o botão de renomear — daí a cara de link.
+.nome {
+  @include focus-ring;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: $radius-sm;
+  color: var(--primary);
+  font-family: inherit;
+  font-size: $fs-sm;
+  font-weight: inherit;
+  text-align: left;
+  cursor: pointer;
+  // Nome longo ("Assistência médica e odontológica") não pode empurrar as
+  // colunas de tipo e ações para fora.
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover { text-decoration: underline; }
+}
+
+.nome--raiz {
+  font-weight: 700;
+}
+
+// ── Conector da subcategoria ────────────────────────────────────────────────
+// Duas linhas de 1px desenhadas com pseudo-elementos: a vertical desce pela
+// altura da linha e a horizontal encosta no nome. É o "─" da árvore, e existe
+// para o recuo não ser a ÚNICA pista de que a linha pertence ao grupo acima.
+.celulaFilho {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  min-width: 0;
+  // Mesmo recuo do checkbox, para o nome do filho cair à DIREITA do nome da
+  // raiz. O da raiz já vem deslocado pela seta de expandir, então recuar menos
+  // que isto inverteria a hierarquia — o filho pareceria estar acima do pai.
+  padding-left: $recuo-filho + $sp-4;
+
+  // O "└─" da árvore: vertical descendo pela altura da linha, horizontal
+  // encostando no nome. Existe para o recuo não ser a ÚNICA pista de que a
+  // linha pertence ao grupo de cima.
+  &::before {
+    content: '';
+    position: absolute;
+    left: $sp-6;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--glass-border-strong);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: $sp-6;
+    top: 50%;
+    width: $sp-5;
+    height: 1px;
+    background: var(--glass-border-strong);
+  }
+}
+
+.selo {
+  flex-shrink: 0;
+  padding: 1px 8px;
+  border-radius: $radius-pill;
+  background: var(--glass-bg-hover);
+  font-size: $fs-xs;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+// ── Linha "adicionar subcategoria" ──────────────────────────────────────────
+.linhaAdicionar td {
+  padding: 0;
+  background: var(--glass-bg);
+}
+
+.adicionar {
+  @include focus-ring;
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  width: 100%;
+  // Alinha com o NOME DA RAIZ, não com o dos filhos: a faixa é a ação do
+  // grupo inteiro, e não mais um item da lista de subcategorias.
+  padding: $sp-2 $sp-4 $sp-2 $sp-8 + $sp-4;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: $fs-xs;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+
+  svg { width: 13px; height: 13px; }
+
+  &:hover {
+    background: var(--glass-bg-hover);
+    color: var(--primary);
+  }
+}
+
+// ── Formulário em linha ─────────────────────────────────────────────────────
+.linhaForm {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  min-width: 0;
+  padding: $sp-1 0;
+
+  // O campo de nome cresce; tipo e botões ficam no tamanho natural.
+  > :first-child { flex: 1; min-width: 120px; }
+
+  @include phone {
+    // Nome + tipo + salvar + cancelar não cabem lado a lado em 375px.
+    flex-wrap: wrap;
+    > :first-child { flex-basis: 100%; }
+  }
+}
+
+.novaRaiz {
+  padding: $sp-2 $sp-3;
+  border: 1px dashed var(--glass-border-strong);
+  border-radius: $radius-md;
+  background: var(--bg-surface);
+}
+
+@include mobile {
+  .tabela {
+    // Abaixo disto a tabela rola em vez de espremer o nome a duas letras.
+    min-width: 520px;
+  }
+}

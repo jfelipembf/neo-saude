@@ -39,6 +39,12 @@ export const queryKeys = {
   professionals: {
     all:    ['professionals'] as const,
     detail: (id: string) => ['professionals', id] as const,
+    /** O profissional ligado ao LOGIN atual (professional.user_id = auth.uid()).
+     *  Sob o prefixo ['professionals'] de propósito: ligar/desligar um vínculo
+     *  em Administrativo → Profissionais invalida `professionals.all` (RENOMEAR
+     *  ou trocar QUEM está vinculado ao MEU login também tem de refletir aqui),
+     *  e a invalidação por prefixo já pega esta key de brinde. */
+    current: ['professionals', 'current'] as const,
     /** Produção do profissional (aba Ganhos) — prefixada, cai junto na invalidação. */
     earnings: (id: string) => ['professionals', id, 'earnings'] as const,
     /** Orçado × convertido de TODOS os profissionais num mês (card Comissões
@@ -80,6 +86,14 @@ export const queryKeys = {
     sales:      ['finance', 'sales'] as const,
     banks:      ['finance', 'banks'] as const,
     acquirers: ['finance', 'acquirers'] as const,
+    // Plano de contas. Sob 'finance' como o resto do módulo, mas note que o
+    // caminho INVERSO não vale: renomear uma categoria não mexe em lançamento
+    // nenhum (o rótulo fica congelado no título), então as mutations desta aba
+    // invalidam só esta key — ver financeCategoryService.
+    categories: ['finance', 'categories'] as const,
+    // Centros de custo — mesma lógica das categorias: renomear um centro não
+    // altera lançamento nenhum, então esta key se invalida sozinha.
+    costCenters: ['finance', 'costCenters'] as const,
     collections: ['finance', 'collections'] as const,
     // Prefixada por 'finance' de propósito: faturar um procedimento parado cria
     // um recebível, então quem invalida a lista de contas a receber (prefixo

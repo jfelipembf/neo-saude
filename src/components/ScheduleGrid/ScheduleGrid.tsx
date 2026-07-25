@@ -5,7 +5,7 @@ import { ClassGroupCard } from './ClassGroupCard'
 import { DAY_OF_WEEK_SHORT } from '@/constants'
 import { IconPlus } from '@/components/icons'
 import { toIsoDate, toShortDate } from '@/utils/date'
-import type { ScheduledAppointment, AppointmentStatus, ClassGroupOccurrence, ProfessionalAvailabilitySlot } from '@/types/domain'
+import type { ScheduledAppointment, ClassGroupOccurrence, ProfessionalAvailabilitySlot } from '@/types/domain'
 import styles from './ScheduleGrid.module.scss'
 
 // Ordem das colunas na visão semana: Seg…Sáb, Dom (índices do getDay, 0 = Dom).
@@ -31,8 +31,6 @@ interface ScheduleGridProps {
   /** Data de referência: define a semana visível (e o dia, na visão "Dia"). */
   referenceDate: Date
   onSelect?: (appointment: ScheduledAppointment) => void
-  /** Registra o desfecho (compareceu/faltou/cancelou) pelos botões do card. */
-  onSetStatus?: (appointment: ScheduledAppointment, status: AppointmentStatus) => void
   /** Mostra a setinha de hover nos cards clicáveis. */
   showArrow?: boolean
   /** Oculta a linha de sala nos cards. */
@@ -117,7 +115,7 @@ function freeWindow(appointments: ScheduledAppointment[], dateIso: string, hourS
 /** Grade de horários: colunas por dia (datas reais), linhas por hora, cards na cor da atividade. */
 export function ScheduleGrid({
   appointments, classOccurrences, onSelectClass, selectedClassGroupIds, view, referenceDate,
-  onSelect, onSetStatus, showArrow, hideArea, hiddenWeekdays, availability, onQuickAdd, blockEditing,
+  onSelect, showArrow, hideArea, hiddenWeekdays, availability, onQuickAdd, blockEditing,
 }: ScheduleGridProps) {
   // weekday-hora → disponível, só quando um profissional está filtrado.
   // Bloqueio pontual e ausência VENCEM a regra recorrente (ver o comentário
@@ -200,7 +198,6 @@ export function ScheduleGrid({
                     appointment={s}
                     showArrow={showArrow}
                     onClick={onSelect ? () => onSelect(s) : undefined}
-                    onSetStatus={onSetStatus ? status => onSetStatus(s, status) : undefined}
                     hideArea={hideArea}
                   />
                 ))}

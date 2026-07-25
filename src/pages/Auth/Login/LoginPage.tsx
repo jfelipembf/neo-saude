@@ -2,14 +2,14 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useSession } from '@/context/SessionProvider'
-import { APP_ROUTES, AUTH_ROUTES } from '@/constants'
+import { AUTH_ROUTES, resolveLandingRoute } from '@/constants'
 import { AuthLayout } from '@/components/AuthLayout/AuthLayout'
 import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
 import styles from './LoginPage.module.scss'
 
 export function LoginPage() {
-  const { session, signIn } = useSession()
+  const { session, signIn, canView } = useSession()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -19,7 +19,9 @@ export function LoginPage() {
   const [loading, setLoading]   = useState(false)
 
   // Já logado → não mostra o login (ex.: usuário digitou /login na mão).
-  if (session) return <Navigate to={APP_ROUTES.DASHBOARD} replace />
+  // Manda pra primeira página que o cargo consegue ver, não direto pro
+  // Dashboard — um cargo sem Dashboard cairia num loop de /sem-acesso.
+  if (session) return <Navigate to={resolveLandingRoute(canView)} replace />
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -34,9 +36,9 @@ export function LoginPage() {
       return
     }
 
-    // Volta para a rota que o AuthGuard barrou (ou dashboard).
+    // Volta para a rota que o AuthGuard barrou (ou a primeira que o cargo vê).
     const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname
-    navigate(from ?? APP_ROUTES.DASHBOARD, { replace: true })
+    navigate(from ?? resolveLandingRoute(canView), { replace: true })
   }
 
   return (

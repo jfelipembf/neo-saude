@@ -217,7 +217,7 @@ export function MaterialsTab() {
           <>
             <Button variant="ghost" onClick={closeModal}>Cancelar</Button>
             <Button type="submit" form="form-new-material" loading={creating || saving}>
-              {editing ? 'Salvar alterações' : 'Cadastrar material'}
+              {editing ? 'Salvar' : 'Cadastrar material'}
             </Button>
           </>
         }

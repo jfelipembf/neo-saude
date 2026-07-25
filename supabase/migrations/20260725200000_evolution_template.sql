@@ -285,6 +285,12 @@ begin
 end;
 $fn$;
 
+-- Função security definer nasce executável por PUBLIC — sem estes revokes,
+-- qualquer sessão autenticada chamaria seed_evolution_templates(uuid) passando
+-- o id de OUTRA clínica. Mesmo tratamento de 20260725170000_higiene_seguranca.
+revoke execute on function private.seed_evolution_templates(uuid) from public;
+revoke execute on function private.tg_seed_evolution_templates() from public;
+
 create trigger tr_seed_evolution_templates
   after insert on public.clinic
   for each row

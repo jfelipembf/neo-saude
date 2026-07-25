@@ -6,7 +6,6 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import FontFamily from '@tiptap/extension-font-family'
 import TextAlign from '@tiptap/extension-text-align'
-import Underline from '@tiptap/extension-underline'
 import DOMPurify from 'dompurify'
 import { useOutsideClick } from '@/hooks/useOutsideClick'
 import {
@@ -47,12 +46,17 @@ export function RichTextEditor({ value, onChange, placeholder, disabled }: RichT
   const emojiRef = useOutsideClick<HTMLDivElement>(() => setEmojiOpen(false), emojiOpen)
 
   const editor = useEditor({
+    // Underline NÃO entra aqui: o StarterKit da v3 já registra
+    // `@tiptap/extension-underline`, e registrar de novo faz o TipTap avisar
+    // "Duplicate extension names found: ['underline']" no console. O botão
+    // continua funcionando — `toggleUnderline`/`isActive('underline')` vêm da
+    // extensão que o StarterKit traz. Antes de somar uma extensão nova aqui,
+    // confira se ela já não está na lista dele.
     extensions: [
       StarterKit,
       TextStyle,
       Color,
       FontFamily,
-      Underline,
       TextAlign.configure({ types: ['paragraph'] }),
     ],
     content: DOMPurify.sanitize(value),

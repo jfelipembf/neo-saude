@@ -1649,6 +1649,44 @@ export type Database = {
           },
         ]
       }
+      cost_center: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          status: Database["public"]["Enums"]["active_status"]
+          updated_at: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          status?: Database["public"]["Enums"]["active_status"]
+          updated_at?: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          status?: Database["public"]["Enums"]["active_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_center_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       counter: {
         Row: {
           clinic_id: string
@@ -1767,6 +1805,63 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      finance_category: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          id: string
+          is_root: boolean | null
+          is_seed: boolean
+          kind: Database["public"]["Enums"]["finance_category_kind"]
+          name: string
+          parent_id: string | null
+          parent_is_root: boolean | null
+          status: Database["public"]["Enums"]["active_status"]
+          updated_at: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          id?: string
+          is_root?: boolean | null
+          is_seed?: boolean
+          kind: Database["public"]["Enums"]["finance_category_kind"]
+          name: string
+          parent_id?: string | null
+          parent_is_root?: boolean | null
+          status?: Database["public"]["Enums"]["active_status"]
+          updated_at?: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          id?: string
+          is_root?: boolean | null
+          is_seed?: boolean
+          kind?: Database["public"]["Enums"]["finance_category_kind"]
+          name?: string
+          parent_id?: string | null
+          parent_is_root?: boolean | null
+          status?: Database["public"]["Enums"]["active_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_category_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "finance_category_parent_fk"
+            columns: ["parent_id", "clinic_id", "kind", "parent_is_root"]
+            isOneToOne: false
+            referencedRelation: "finance_category"
+            referencedColumns: ["id", "clinic_id", "kind", "is_root"]
+          },
+        ]
       }
       insurance: {
         Row: {
@@ -2444,8 +2539,11 @@ export type Database = {
           amount: number
           bank_account_id: string | null
           category: string
+          category_id: string | null
+          category_kind: Database["public"]["Enums"]["finance_category_kind"]
           clinic_id: string
           code: string
+          cost_center_id: string | null
           created_at: string
           description: string
           due_date: string
@@ -2462,8 +2560,11 @@ export type Database = {
           amount: number
           bank_account_id?: string | null
           category: string
+          category_id?: string | null
+          category_kind?: Database["public"]["Enums"]["finance_category_kind"]
           clinic_id: string
           code: string
+          cost_center_id?: string | null
           created_at?: string
           description: string
           due_date: string
@@ -2480,8 +2581,11 @@ export type Database = {
           amount?: number
           bank_account_id?: string | null
           category?: string
+          category_id?: string | null
+          category_kind?: Database["public"]["Enums"]["finance_category_kind"]
           clinic_id?: string
           code?: string
+          cost_center_id?: string | null
           created_at?: string
           description?: string
           due_date?: string
@@ -2510,11 +2614,25 @@ export type Database = {
             referencedColumns: ["bank_account_id", "clinic_id"]
           },
           {
+            foreignKeyName: "payable_category_fk"
+            columns: ["category_id", "clinic_id", "category_kind"]
+            isOneToOne: false
+            referencedRelation: "finance_category"
+            referencedColumns: ["id", "clinic_id", "kind"]
+          },
+          {
             foreignKeyName: "payable_clinic_id_fkey"
             columns: ["clinic_id"]
             isOneToOne: false
             referencedRelation: "clinic"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payable_cost_center_fk"
+            columns: ["cost_center_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "cost_center"
+            referencedColumns: ["id", "clinic_id"]
           },
         ]
       }
@@ -3697,9 +3815,12 @@ export type Database = {
           auto_settle_blocked: boolean
           bank_account_id: string | null
           card_brand: string | null
+          category_id: string | null
+          category_kind: Database["public"]["Enums"]["finance_category_kind"]
           clinic_id: string
           code: string
           competence_date: string
+          cost_center_id: string | null
           created_at: string
           debtor: Database["public"]["Enums"]["receivable_debtor"] | null
           description: string
@@ -3730,9 +3851,12 @@ export type Database = {
           auto_settle_blocked?: boolean
           bank_account_id?: string | null
           card_brand?: string | null
+          category_id?: string | null
+          category_kind?: Database["public"]["Enums"]["finance_category_kind"]
           clinic_id: string
           code: string
           competence_date?: string
+          cost_center_id?: string | null
           created_at?: string
           debtor?: Database["public"]["Enums"]["receivable_debtor"] | null
           description: string
@@ -3763,9 +3887,12 @@ export type Database = {
           auto_settle_blocked?: boolean
           bank_account_id?: string | null
           card_brand?: string | null
+          category_id?: string | null
+          category_kind?: Database["public"]["Enums"]["finance_category_kind"]
           clinic_id?: string
           code?: string
           competence_date?: string
+          cost_center_id?: string | null
           created_at?: string
           debtor?: Database["public"]["Enums"]["receivable_debtor"] | null
           description?: string
@@ -3813,11 +3940,25 @@ export type Database = {
             referencedColumns: ["bank_account_id", "clinic_id"]
           },
           {
+            foreignKeyName: "receivable_category_fk"
+            columns: ["category_id", "clinic_id", "category_kind"]
+            isOneToOne: false
+            referencedRelation: "finance_category"
+            referencedColumns: ["id", "clinic_id", "kind"]
+          },
+          {
             foreignKeyName: "receivable_clinic_id_fkey"
             columns: ["clinic_id"]
             isOneToOne: false
             referencedRelation: "clinic"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receivable_cost_center_fk"
+            columns: ["cost_center_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "cost_center"
+            referencedColumns: ["id", "clinic_id"]
           },
           {
             foreignKeyName: "receivable_patient_fk"
@@ -5267,6 +5408,7 @@ export type Database = {
       commission_type: "percentage" | "fixed"
       duration_unit: "days" | "weeks" | "months"
       entitlement_kind: "package" | "recurring"
+      finance_category_kind: "revenue" | "expense"
       gender: "male" | "female"
       goal_metric:
         | "appointments_scheduled"
@@ -5474,6 +5616,7 @@ export const Constants = {
       commission_type: ["percentage", "fixed"],
       duration_unit: ["days", "weeks", "months"],
       entitlement_kind: ["package", "recurring"],
+      finance_category_kind: ["revenue", "expense"],
       gender: ["male", "female"],
       goal_metric: [
         "appointments_scheduled",

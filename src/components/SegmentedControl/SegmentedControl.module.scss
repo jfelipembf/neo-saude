@@ -3,13 +3,20 @@
 .group {
   display: flex;
   align-items: center;
-  height: $ctrl-h-md;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: $radius-md;
   overflow: hidden;
   flex-shrink: 0;
 }
+
+// Mesmos 3 portes de Button/Input/Select ($ctrl-h-*) — `.segment` herda a
+// altura via `height: 100%`, então só o grupo precisa da regra de altura; o
+// padding/fonte de cada tier é escalado logo abaixo, na mesma proporção que
+// Button usa entre sm/md/lg.
+.group--sm { height: $ctrl-h-sm; }
+.group--md { height: $ctrl-h-md; }
+.group--lg { height: $ctrl-h-lg; }
 
 .segment {
   display: inline-flex;
@@ -28,6 +35,9 @@
   white-space: nowrap;
 
   @include mobile { padding: 0 10px; font-size: $fs-xs; }
+
+  .group--sm & { padding: 0 10px; font-size: $fs-xs; }
+  .group--lg & { padding: 0 18px; font-size: $fs-md; }
 
   svg { width: 15px; height: 15px; }
 

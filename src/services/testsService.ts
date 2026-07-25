@@ -301,7 +301,7 @@ async function answeredItemLabels(itemIds: string[]): Promise<string[]> {
  *   · o nível é lido do resultado por TEXTO CONGELADO, então recriar a linha
  *     não custa nada ao prontuário;
  *   · o item é APONTADO pela resposta (patient_test_result_item.item_id, ON
- *     DELETE SET NULL). Apagar e recriar tudo a cada "Salvar alterações"
+ *     DELETE SET NULL). Apagar e recriar tudo a cada "Salvar"
  *     zeraria o ponteiro de TODAS as respostas já gravadas — o texto sobrevive,
  *     mas a aplicação deixa de ser reabrível para correção e o item some dos
  *     relatórios por item. Corrigir uma vírgula no enunciado do item 3 do Berg

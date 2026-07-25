@@ -52,7 +52,7 @@ export function RoomFormModal({ room, onClose }: RoomFormModalProps) {
         <>
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button type="submit" form="form-sala" loading={creating || saving}>
-            {room ? 'Salvar alterações' : 'Cadastrar sala'}
+            {room ? 'Salvar' : 'Cadastrar sala'}
           </Button>
         </>
       }

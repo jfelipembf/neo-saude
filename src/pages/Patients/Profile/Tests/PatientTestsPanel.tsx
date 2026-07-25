@@ -442,7 +442,7 @@ function TestResults({ patientId, test }: TestResultsProps) {
               Cancelar
             </Button>
             <Button type="submit" size="sm" loading={submitting}>
-              {editingId ? 'Salvar alterações' : 'Salvar'}
+              {editingId ? 'Salvar' : 'Salvar'}
             </Button>
           </div>
         </form>

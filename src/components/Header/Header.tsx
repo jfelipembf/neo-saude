@@ -7,14 +7,14 @@ import { useSession } from '@/context/SessionProvider'
 import { HeaderSearch } from '@/components/HeaderSearch/HeaderSearch'
 import { ProfileMenu } from '@/components/ProfileMenu/ProfileMenu'
 import {
-  IconLogo, IconDashboard, IconSchedule, IconPatients, IconProfessionals, IconFinance,
+  IconLogo, IconDashboard, IconToday, IconSchedule, IconPatients, IconProfessionals, IconFinance,
   IconAdmin, IconTheme,
 } from '@/components/icons'
 import styles from './Header.module.scss'
 
 // `feature` casa 1:1 com a chave do mapa de permissões (my_session) e com a aba
 // Cargos: o item some do menu quando o cargo não pode ver aquela página.
-// São 6 das 7 páginas de AppPage — 'settings' NÃO entra aqui de propósito:
+// São 7 das 8 páginas de AppPage — 'settings' NÃO entra aqui de propósito:
 // Configurações é alcançada pelo ProfileMenu (avatar), não pela barra.
 interface NavItem {
   to:       string
@@ -25,6 +25,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { to: APP_ROUTES.TODAY,         label: 'Hoje',           icon: <IconToday />,         feature: 'today' },
   { to: APP_ROUTES.DASHBOARD,     label: 'Dashboard',      icon: <IconDashboard />,     feature: 'dashboard', end: true },
   { to: APP_ROUTES.SCHEDULE,      label: 'Agenda',         icon: <IconSchedule />,      feature: 'schedule' },
   { to: APP_ROUTES.PATIENTS,      label: 'Pacientes',      icon: <IconPatients />,      feature: 'patients' },

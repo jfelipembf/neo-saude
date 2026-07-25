@@ -704,7 +704,7 @@ export interface Prescription {
 
 // ── Cargos e acesso às páginas (aba do Administrativo) ───────────────────────
 export type AppPage =
-  | 'dashboard' | 'schedule' | 'patients' | 'professionals'
+  | 'dashboard' | 'today' | 'schedule' | 'patients' | 'professionals'
   | 'finance' | 'admin' | 'settings'
 
 export interface Role {
@@ -1391,6 +1391,52 @@ export interface CollectionAttempt {
   /** Total em aberto no momento da cobrança (congela o contexto histórico). */
   amountCharged: number
   notes?: string
+}
+
+// ── Plano de contas ─────────────────────────────────────────────────────────
+/** Lado do plano de contas: entra dinheiro (Receber) ou sai (Pagar). */
+export type FinanceCategoryKind = 'revenue' | 'expense'
+
+/**
+ * Nó do plano de contas. A árvore tem NO MÁXIMO dois níveis — o banco recusa um
+ * terceiro (ver finance_category_parent_fk), então quem consome pode tratar
+ * `parentId` como "é subcategoria?" sem se preocupar com recursão.
+ */
+export interface FinanceCategory {
+  id: string
+  clinicId: string
+  /** undefined = categoria de primeiro nível; preenchido = subcategoria. */
+  parentId?: string
+  name: string
+  /** Subcategoria SEMPRE tem o mesmo tipo do pai — garantido por FK. */
+  kind: FinanceCategoryKind
+  /** Veio no plano de referência: pode renomear e inativar, não excluir. */
+  isSeed: boolean
+  status: ActiveStatus
+}
+
+/** Categoria de primeiro nível com as subcategorias já aninhadas — é assim que
+ *  a tela desenha e como os seletores montam os grupos. */
+export interface FinanceCategoryNode extends FinanceCategory {
+  children: FinanceCategory[]
+}
+
+/**
+ * Recorte da clínica (setor, sala, unidade, profissional) para saber de ONDE
+ * vem cada despesa e receita.
+ *
+ * É dimensão INDEPENDENTE do plano de contas, não um nível a mais dele: a
+ * categoria diz o que foi o lançamento ("Aluguel"), o centro de custo diz de
+ * quem foi ("Unidade Centro"). Um lançamento pode ter os dois, um só ou nenhum.
+ *
+ * Sem `isSeed`, ao contrário de [FinanceCategory]: nasce vazio porque não
+ * existe divisão de referência que sirva para toda clínica.
+ */
+export interface CostCenter {
+  id: string
+  clinicId: string
+  name: string
+  status: ActiveStatus
 }
 
 export type BankAccountType = 'checking' | 'savings' | 'cash'

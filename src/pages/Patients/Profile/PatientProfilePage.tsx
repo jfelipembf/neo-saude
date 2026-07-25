@@ -490,7 +490,7 @@ export function PatientProfilePage() {
 
               <div className={styles.formAcoes}>
                 <Button variant="ghost" onClick={closeEdit} disabled={saving}>Cancelar</Button>
-                <Button type="submit" loading={saving}>Salvar alterações</Button>
+                <Button type="submit" loading={saving}>Salvar</Button>
               </div>
             </form>
           </section>

@@ -1,0 +1,37 @@
+@use '../../styles/mixins' as *;
+
+.secao {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  margin-top: $sp-5;
+}
+
+// Mesmo tamanho/peso do título do TasksCard (o cartão titulado mais próximo em
+// espírito: um bloco de conteúdo pessoal do dia, não um card de estatística).
+.titulo {
+  font-size: $fs-lg;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.colHorario {
+  width: 120px;
+  white-space: nowrap;
+
+  @include phone { width: 90px; }
+}
+
+.horario {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.paciente {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.colStatus {
+  width: 140px;
+}

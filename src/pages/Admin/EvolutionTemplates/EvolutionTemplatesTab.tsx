@@ -206,7 +206,7 @@ export function EvolutionTemplatesTab() {
               <div className={styles.acoesBarDireita}>
                 <Button variant="ghost" onClick={handleCancel}>Cancelar</Button>
                 <Button onClick={handleSave} loading={creating || updating} disabled={isBlankSoap(form.note) && !form.name}>
-                  {isNew ? 'Cadastrar' : 'Salvar alterações'}
+                  {isNew ? 'Cadastrar' : 'Salvar'}
                 </Button>
               </div>
             </div>

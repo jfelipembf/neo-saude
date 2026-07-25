@@ -11,6 +11,7 @@ import { PageLoader } from '@/components/PageLoader/PageLoader'
 const LoginPage          = lazy(() => import('@/pages/Auth/Login/LoginPage').then(m => ({ default: m.LoginPage })))
 const ForgotPasswordPage = lazy(() => import('@/pages/Auth/ForgotPassword/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })))
 const DashboardPage      = lazy(() => import('@/pages/Dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })))
+const TodayPage          = lazy(() => import('@/pages/Today/TodayPage').then(m => ({ default: m.TodayPage })))
 const SchedulePage       = lazy(() => import('@/pages/Schedule/SchedulePage').then(m => ({ default: m.SchedulePage })))
 const PatientsPage       = lazy(() => import('@/pages/Patients/PatientsPage').then(m => ({ default: m.PatientsPage })))
 const PatientProfilePage = lazy(() => import('@/pages/Patients/Profile/PatientProfilePage').then(m => ({ default: m.PatientProfilePage })))
@@ -40,6 +41,7 @@ export function AppRouter() {
                   feature, senão cai em /sem-acesso. As páginas de perfil herdam
                   a feature da lista (paciente→patients, profissional→professionals). */}
               <Route path={APP_ROUTES.DASHBOARD}            element={<FeatureGuard feature="dashboard"><DashboardPage /></FeatureGuard>} />
+              <Route path={APP_ROUTES.TODAY}                element={<FeatureGuard feature="today"><TodayPage /></FeatureGuard>} />
               <Route path={APP_ROUTES.SCHEDULE}             element={<FeatureGuard feature="schedule"><SchedulePage /></FeatureGuard>} />
               <Route path={APP_ROUTES.PATIENTS}             element={<FeatureGuard feature="patients"><PatientsPage /></FeatureGuard>} />
               <Route path={APP_ROUTES.PATIENT_PROFILE}      element={<FeatureGuard feature="patients"><PatientProfilePage /></FeatureGuard>} />

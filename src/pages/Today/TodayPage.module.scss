@@ -1,0 +1,29 @@
+@use '../../styles/mixins' as *;
+
+// 4 quadrados ocupando a largura inteira da tela — colapsa em 2 no tablet e 1
+// no phone (mesmo critério de breakpoint usado no resto do app).
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: $sp-4;
+
+  // O StatsCard por si é retangular baixo (sem meta, o conteúdo é curto) — o
+  // pedido foi QUADRADO, então o formato vem de fora, no próprio grid item,
+  // sem mexer no componente compartilhado (o Dashboard usa ele retangular).
+  > * {
+    aspect-ratio: 1 / 1;
+  }
+
+  @include mobile {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @include phone {
+    grid-template-columns: 1fr;
+    // Quadrado 1-coluna no phone ficaria alto demais (a largura já é a tela
+    // toda) — solta o formato só nesse breakpoint.
+    > * {
+      aspect-ratio: auto;
+    }
+  }
+}

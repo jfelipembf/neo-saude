@@ -433,7 +433,7 @@ export function TestsTab() {
               <div className={styles.acoesBarDireita}>
                 <Button variant="ghost" onClick={handleCancel}>Cancelar</Button>
                 <Button onClick={handleSave} loading={creating || updating}>
-                  {isNew ? 'Cadastrar' : 'Salvar alterações'}
+                  {isNew ? 'Cadastrar' : 'Salvar'}
                 </Button>
               </div>
             </div>
