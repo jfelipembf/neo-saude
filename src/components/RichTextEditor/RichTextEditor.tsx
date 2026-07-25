@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -36,12 +36,18 @@ interface RichTextEditorProps {
   onChange: (html: string) => void
   placeholder?: string
   disabled?: boolean
+  /** Slot livre no canto direito da toolbar (ex.: botão de imprimir) — o
+   *  editor não sabe o que é, só reserva o lugar. Ditado e "Aprimorar com IA"
+   *  ficam fora daqui, em <AiNoteActions> perto do "Salvar" (ver
+   *  AppointmentModal); isto é só pra ação que faz sentido junto da toolbar. */
+  toolbarEnd?: ReactNode
 }
 
 /** Editor de texto rico genérico (fonte, negrito/itálico, alinhamento, cor) —
- *  sem conhecimento de anexo ou de sessão; HTML sempre sanitizado (DOMPurify),
- *  tanto ao gravar (aqui) quanto ao exibir (leitor usa a mesma sanitização). */
-export function RichTextEditor({ value, onChange, placeholder, disabled }: RichTextEditorProps) {
+ *  sem conhecimento de anexo, sessão ou IA; HTML sempre sanitizado
+ *  (DOMPurify), tanto ao gravar (aqui) quanto ao exibir (leitor usa a mesma
+ *  sanitização). */
+export function RichTextEditor({ value, onChange, placeholder, disabled, toolbarEnd }: RichTextEditorProps) {
   const [emojiOpen, setEmojiOpen] = useState(false)
   const emojiRef = useOutsideClick<HTMLDivElement>(() => setEmojiOpen(false), emojiOpen)
 
@@ -62,9 +68,10 @@ export function RichTextEditor({ value, onChange, placeholder, disabled }: RichT
     },
   })
 
-  // `value` pode trocar de fora (ex.: trocar de sessão no modal) — TipTap não
-  // é um input controlado, então sincroniza manualmente quando o HTML difere
-  // do que está na tela (evita loop com onUpdate, que já manda o mesmo HTML).
+  // `value` pode trocar de fora (ex.: trocar de sessão no modal, ou o botão
+  // "Aprimorar com IA" reescrevendo o campo) — TipTap não é um input
+  // controlado, então sincroniza manualmente quando o HTML difere do que está
+  // na tela (evita loop com onUpdate, que já manda o mesmo HTML).
   useEffect(() => {
     const clean = DOMPurify.sanitize(value)
     if (editor && clean !== editor.getHTML()) editor.commands.setContent(clean)
@@ -196,6 +203,8 @@ export function RichTextEditor({ value, onChange, placeholder, disabled }: RichT
             </div>
           )}
         </div>
+
+        {toolbarEnd && <div className={styles.toolbarEnd}>{toolbarEnd}</div>}
       </div>
 
       <EditorContent editor={editor} className={styles.editorWrapper} />

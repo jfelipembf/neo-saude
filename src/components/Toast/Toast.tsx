@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './Toast.module.scss'
@@ -31,11 +31,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setTimeout(() => setToasts(list => list.filter(t => t.id !== id)), TOAST_DURATION)
   }, [])
 
-  const value: ToastContextValue = {
+  // Memoizado: sem isto, `value` é um objeto novo a cada render do provider
+  // (ex.: sempre que um toast aparece/some), e qualquer consumidor que ponha
+  // `toast` numa dependência de useEffect entra em loop (o efeito dispara de
+  // novo a cada toast, porque a referência "mudou").
+  const value: ToastContextValue = useMemo(() => ({
     success: msg => push('success', msg),
     error:   msg => push('error', msg),
     info:    msg => push('info', msg),
-  }
+  }), [push])
 
   return (
     <ToastContext.Provider value={value}>

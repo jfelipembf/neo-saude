@@ -8,18 +8,13 @@ import { usePatientAnamnesis } from '@/hooks/useAnamnesis'
 import { usePatientCustomQuestions } from '@/hooks/usePatientCustomQuestions'
 import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { esc } from '@/utils/printDocument'
+import { PROFESSIONAL_SIGNATURE_LABEL } from '@/constants'
 import type { Anamnesis, ClinicSpecialty, PatientCustomQuestion } from '@/types/domain'
 import { AnamnesisForm } from './AnamnesisForm'
 import { CustomQuestionsSection } from './CustomQuestionsSection'
 import { sectionsForSpecialty, answerLabel, isAlert } from './questions'
 import type { AnamnesisSection } from './questions'
 import styles from './Anamnesis.module.scss'
-
-/** Quem assina a ficha, no rodapé impresso — varia por ramo. */
-const SIGNATURE_LABEL: Partial<Record<ClinicSpecialty, string>> = {
-  dentistry: 'Cirurgião-dentista',
-  physiotherapy: 'Fisioterapeuta',
-}
 
 /** Miolo impresso da ficha — mesma ordem das perguntas da tela. As perguntas
  *  personalizadas do paciente entram como uma seção a mais, no fim. */
@@ -46,7 +41,7 @@ function anamnesisBody(
     return `<h2 class="secao">Personalizado</h2><table>${rows}</table>`
   })()
 
-  const signature = specialty ? (SIGNATURE_LABEL[specialty] ?? 'Profissional responsável') : 'Profissional responsável'
+  const signature = specialty ? (PROFESSIONAL_SIGNATURE_LABEL[specialty] ?? 'Profissional responsável') : 'Profissional responsável'
 
   return `
     ${patientName ? `<p><strong>Paciente:</strong> ${esc(patientName)}</p>` : ''}

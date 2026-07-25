@@ -98,6 +98,14 @@
   display: flex;
 }
 
+// Slot livre no canto direito da toolbar (ver prop `toolbarEnd`) — empurra
+// pro fim da linha; se a toolbar quebrar linha (telas estreitas), some pro
+// início da linha seguinte, que já é o comportamento esperado de flex-wrap.
+.toolbarEnd {
+  display: flex;
+  margin-left: auto;
+}
+
 .emojiPanel {
   position: absolute;
   z-index: 10;

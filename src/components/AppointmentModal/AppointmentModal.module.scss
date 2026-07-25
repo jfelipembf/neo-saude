@@ -55,7 +55,11 @@
 
 .prontuarioAcoes {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: $sp-2;
+
+  @include phone { flex-wrap: wrap; }
 }
 
 // ── Anexos da sessão (imagem em anexo, separado do texto) ────────────────────

@@ -1,0 +1,176 @@
+@use '../../styles/mixins' as *;
+
+// Gráfico de evolução de UM teste (aba Testes do perfil). Série ÚNICA, então
+// não há legenda: o título nomeia o que está plotado. Cor da linha em
+// --primary-fg (e não --primary) porque é o token que TROCA por tema e passa
+// em contraste nos dois: #047857 no claro (≥3:1 sobre branco) e #34D399 no
+// escuro. O --primary cru dá 2,47:1 sobre branco — ilegível como traço fino.
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding: $sp-4;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $sp-3;
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  margin: 0;
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.vazio {
+  margin: 0;
+  padding: $sp-4;
+  border: 1px dashed var(--glass-border);
+  border-radius: $radius-md;
+  font-size: $fs-sm;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+// ── Plano ────────────────────────────────────────────────────────────────────
+.plot {
+  display: flex;
+  gap: $sp-2;
+  height: 180px;
+
+  @include mobile { height: 150px; }
+}
+
+.yAxis {
+  position: relative;
+  width: 92px;
+  flex-shrink: 0;
+
+  // Numérico (graus) é curto e cabe à direita; nome de nível é longo, então
+  // quebra em até 2 linhas em vez de esticar a coluna.
+  @include mobile { width: 68px; }
+}
+
+.yTick {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  max-width: 100%;
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--text-muted);
+  text-align: right;
+  // 2 linhas no máximo: nome de nível pode ser "150° – 180°" ou uma frase.
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  // Respiro para o marcador e o rótulo não serem cortados nas bordas.
+  margin: $sp-2 $sp-3;
+}
+
+.gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--glass-border);
+  // Grade recessiva: presente para dar referência, nunca competindo com a linha.
+  opacity: 0.6;
+}
+
+.svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.linha {
+  fill: none;
+  stroke: var(--primary-fg);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+// Área sob a linha: só dá peso visual à série, não codifica magnitude —
+// por isso some quase por completo na base.
+.areaTop    { stop-color: var(--primary-fg); stop-opacity: 0.18; }
+.areaBottom { stop-color: var(--primary-fg); stop-opacity: 0; }
+
+// ── Marcadores ───────────────────────────────────────────────────────────────
+.ponto {
+  @include focus-ring;
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  transform: translate(-50%, 50%);
+  border-radius: 50%;
+  background: var(--primary-fg);
+  // Anel na cor da superfície: com medições em datas próximas os pontos se
+  // encostam, e sem o anel virariam uma mancha só.
+  border: 2px solid var(--bg-elevated);
+  cursor: pointer;
+
+  &::after {
+    // Alvo de clique/toque maior que o marcador (o desenho fica fino de
+    // propósito; o alvo não pode ficar).
+    content: '';
+    position: absolute;
+    inset: -9px;
+  }
+
+  &:hover, &:focus-visible { background: var(--primary); }
+
+  &[data-tooltip]:hover::before,
+  &[data-tooltip]:focus-visible::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+    padding: $sp-1 $sp-2;
+    border-radius: $radius-sm;
+    background: var(--text-primary);
+    color: var(--bg-elevated);
+    font-size: 11px;
+    line-height: 1.3;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+}
+
+.xAxis {
+  display: flex;
+  justify-content: space-between;
+  padding-left: 92px;
+  font-size: 10px;
+  color: var(--text-muted);
+
+  @include mobile { padding-left: 68px; }
+}

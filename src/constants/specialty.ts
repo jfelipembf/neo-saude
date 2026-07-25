@@ -30,3 +30,11 @@ export function appliesToSpecialty(specialty: ClinicSpecialty | undefined, item:
   if (item.specialties) return item.specialties.includes(specialty)
   return true
 }
+
+/** Quem assina um documento impresso, por ramo (rodapé de anamnese,
+ *  prontuário…) — ex.: "Fisioterapeuta" para justificar o CREFITO na
+ *  assinatura, como o modelo oficial do conselho exibe. */
+export const PROFESSIONAL_SIGNATURE_LABEL: Partial<Record<ClinicSpecialty, string>> = {
+  dentistry: 'Cirurgião-dentista',
+  physiotherapy: 'Fisioterapeuta',
+}

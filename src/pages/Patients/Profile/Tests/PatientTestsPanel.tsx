@@ -19,6 +19,7 @@ import { brToIsoDate, toIsoDate } from '@/utils/date'
 import { GONIOMETRY_DEFAULT_POINTS } from '@/utils/goniometry'
 import type { PhysioTest, PatientTestResult, GoniometryPoints } from '@/types/domain'
 import { GoniometryPhoto } from '@/components/GoniometryPhoto/GoniometryPhoto'
+import { TestEvolutionChart } from '@/components/TestEvolutionChart/TestEvolutionChart'
 import { TestPicker } from './TestPicker'
 import styles from './PatientTestsPanel.module.scss'
 
@@ -322,6 +323,12 @@ function TestResults({ patientId, test }: TestResultsProps) {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Evolução no tempo, abaixo do histórico: os cards acima dão o valor de
+          CADA aplicação, o gráfico dá a trajetória entre elas. */}
+      {!isLoading && results.length > 0 && (
+        <TestEvolutionChart test={test} results={results} />
       )}
 
       <ConfirmDialog

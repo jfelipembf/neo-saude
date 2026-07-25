@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AiNoteActions } from '@/components/AiNoteActions/AiNoteActions'
 import { Modal } from '@/components/Modal/Modal'
 import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
@@ -8,16 +9,52 @@ import { RichTextEditor } from '@/components/RichTextEditor/RichTextEditor'
 import { SegmentedControl } from '@/components/SegmentedControl/SegmentedControl'
 import type { SegmentOption } from '@/components/SegmentedControl/SegmentedControl'
 import { useToast } from '@/components/Toast/Toast'
-import { IconClock, IconDocument, IconPlus, IconRoom, IconSearch, IconUser, IconX } from '@/components/icons'
+import { IconClock, IconDocument, IconPlus, IconPrint, IconRoom, IconSearch, IconUser, IconX } from '@/components/icons'
 import { useClassGroupRoster, useEnrollPatient, useSaveAttendance, useSaveAttendanceNote } from '@/hooks/useClassGroupRoster'
 import { usePatients } from '@/hooks/usePatients'
+import { useProfessionals } from '@/hooks/useProfessionals'
 import { useProfessionalName } from '@/hooks/useDisplayNames'
+import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { useDebounce } from '@/hooks/useDebounce'
 import { matchesSearch } from '@/utils/search'
 import { initials } from '@/utils/text'
 import { isoToBrDate } from '@/utils/date'
+import { esc } from '@/utils/printDocument'
+import { PROFESSIONAL_SIGNATURE_LABEL } from '@/constants'
 import type { ClassAttendanceStatus, ClassGroupOccurrence, ClassGroupRosterEntry, PatientServiceEntitlement } from '@/types/domain'
 import styles from './ClassAttendanceModal.module.scss'
+
+/** CSS específico do prontuário — o resto (cabeçalho da clínica, assinatura)
+ *  vem da base de impressão, mesmo padrão de AppointmentModal/PrescriptionsPanel.
+ *  Estrutura de assinatura (nome + conselho) segue o modelo oficial do
+ *  CREFITO: linha, nome, "Fisioterapeuta", registro. */
+const PRONTUARIO_PRINT_STYLES = `
+  .nota { margin-top: 12px; font-size: 13.5px; line-height: 1.65; }
+  .nota p { margin: 0 0 10px; }
+  .assinatura { margin-top: 72px; text-align: center; }
+  .assinatura .linha { display: inline-block; border-top: 1px solid #12211C; padding-top: 6px;
+                       min-width: 280px; font-size: 13px; }
+  .assinatura .cargo { display: block; margin-top: 2px; color: #667; font-size: 11.5px; }
+`
+
+/** Miolo do prontuário impresso — `html` já é HTML sanitizado (mesmo
+ *  conteúdo do RichTextEditor), não é texto solto: não passa por esc(). Campos
+ *  e ordem seguem o modelo oficial de prontuário fisioterapêutico do CREFITO
+ *  (Resolução COFFITO 414/2012) — turma só existe em fisioterapia, então o
+ *  cargo é sempre "Fisioterapeuta". */
+function prontuarioBody(html: string, patientNm: string, dateBr: string, professionalNm: string, license: string | undefined) {
+  const cargo = PROFESSIONAL_SIGNATURE_LABEL.physiotherapy
+  return `
+    <p><strong>Paciente:</strong> ${esc(patientNm)}</p>
+    <p><strong>Data:</strong> ${esc(dateBr)}</p>
+    <div class="nota">${html}</div>
+    <div class="assinatura">
+      <span class="linha">
+        ${esc(professionalNm)}
+        <span class="cargo">${esc(cargo)}${license ? ` — ${esc(license)}` : ''}</span>
+      </span>
+    </div>`
+}
 
 const PRESENCE_OPTIONS: SegmentOption<ClassAttendanceStatus>[] = [
   { value: 'present', label: 'Presente' },
@@ -45,6 +82,8 @@ export function ClassAttendanceModal({ occurrence, onClose }: ClassAttendanceMod
   const { data: roster, isLoading } = useClassGroupRoster(classGroupId, dateIso)
   const { data: patients = [] } = usePatients()
   const professionalName = useProfessionalName()
+  const { data: professionals } = useProfessionals()
+  const printDocument = usePrintDocument()
 
   const { mutate: enroll, isPending: enrolling } = useEnrollPatient()
   const { mutate: saveAttendance, isPending: saving } = useSaveAttendance(classGroupId, dateIso)
@@ -293,8 +332,31 @@ export function ClassAttendanceModal({ occurrence, onClose }: ClassAttendanceMod
                   value={noteHtml}
                   onChange={setNoteHtml}
                   placeholder="Descreva a evolução, condutas e observações desta sessão..."
+                  toolbarEnd={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      iconLeft={<IconPrint />}
+                      disabled={!noteHtml.trim()}
+                      title="Imprimir"
+                      aria-label="Imprimir prontuário da sessão"
+                      onClick={() => printDocument({
+                        title: 'Prontuário da sessão',
+                        subtitle: notePatient.patientName,
+                        body: prontuarioBody(
+                          noteHtml,
+                          notePatient.patientName,
+                          isoToBrDate(dateIso) ?? '',
+                          professionalName(occurrence?.professionalId),
+                          professionals?.find(p => p.id === occurrence?.professionalId)?.license,
+                        ),
+                        styles: PRONTUARIO_PRINT_STYLES,
+                      })}
+                    />
+                  }
                 />
                 <div className={styles.sideActions}>
+                  <AiNoteActions value={noteHtml} onChange={setNoteHtml} />
                   <Button size="sm" loading={savingNote} disabled={!noteDirty} onClick={handleSaveNote}>
                     Salvar prontuário
                   </Button>

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { AiNoteActions } from '@/components/AiNoteActions/AiNoteActions'
 import { Button } from '@/components/Button/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { Input } from '@/components/Input/Input'
@@ -15,16 +16,58 @@ import { useProfessionals } from '@/hooks/useProfessionals'
 import { useRooms } from '@/hooks/useRooms'
 import { useAvailabilityTemplate } from '@/hooks/useProfessionalAvailability'
 import { usePatientEntitlements } from '@/hooks/usePatientEntitlements'
-import { usePatientName } from '@/hooks/useDisplayNames'
+import { usePatientName, useProfessionalName } from '@/hooks/useDisplayNames'
+import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { useSession } from '@/context/SessionProvider'
 import { userMessage } from '@/lib/errors'
-import { addMinutes, toIsoDate, localDate, parseBrDate } from '@/utils/date'
+import { esc } from '@/utils/printDocument'
+import { addMinutes, toIsoDate, isoToBrDate, localDate, parseBrDate } from '@/utils/date'
 import { digitsOnly, initials } from '@/utils/text'
 import { isImageFile } from '@/utils/files'
 import { isEntitlementActive } from '@/utils/entitlements'
-import { IconDocument, IconEmail, IconImage, IconPhone, IconTrash, IconWhatsApp } from '@/components/icons'
-import type { ScheduledAppointment, AppointmentStatus } from '@/types/domain'
+import { PROFESSIONAL_SIGNATURE_LABEL } from '@/constants'
+import { IconDocument, IconEmail, IconImage, IconPhone, IconPrint, IconTrash, IconWhatsApp } from '@/components/icons'
+import type { ScheduledAppointment, AppointmentStatus, ClinicSpecialty } from '@/types/domain'
 import styles from './AppointmentModal.module.scss'
+
+/** CSS específico do prontuário — o resto (cabeçalho da clínica, tabela,
+ *  assinatura) vem da base de impressão, igual PrescriptionsPanel/BudgetsPanel.
+ *  Estrutura de assinatura (nome + conselho) segue o modelo oficial do
+ *  CREFITO: linha, nome, "Fisioterapeuta", registro. */
+const PRONTUARIO_PRINT_STYLES = `
+  .nota { margin-top: 12px; font-size: 13.5px; line-height: 1.65; }
+  .nota p { margin: 0 0 10px; }
+  .assinatura { margin-top: 72px; text-align: center; }
+  .assinatura .linha { display: inline-block; border-top: 1px solid #12211C; padding-top: 6px;
+                       min-width: 280px; font-size: 13px; }
+  .assinatura .cargo { display: block; margin-top: 2px; color: #667; font-size: 11.5px; }
+`
+
+/** Miolo do prontuário impresso — cabeçalho da clínica vem da base. `html` já
+ *  é HTML sanitizado (mesmo conteúdo do RichTextEditor), não é texto solto:
+ *  não passa por esc(). Campos e ordem (Paciente/Data → Evolução →
+ *  assinatura com conselho) seguem o modelo oficial de prontuário
+ *  fisioterapêutico do CREFITO (Resolução COFFITO 414/2012). */
+function prontuarioBody(
+  html: string,
+  patientNm: string | undefined,
+  dateBr: string,
+  professionalNm: string,
+  specialty: ClinicSpecialty | undefined,
+  license: string | undefined,
+) {
+  const cargo = specialty ? (PROFESSIONAL_SIGNATURE_LABEL[specialty] ?? 'Profissional responsável') : 'Profissional responsável'
+  return `
+    ${patientNm ? `<p><strong>Paciente:</strong> ${esc(patientNm)}</p>` : ''}
+    <p><strong>Data:</strong> ${esc(dateBr)}</p>
+    <div class="nota">${html}</div>
+    <div class="assinatura">
+      <span class="linha">
+        ${esc(professionalNm)}
+        <span class="cargo">${esc(cargo)}${license ? ` — ${esc(license)}` : ''}</span>
+      </span>
+    </div>`
+}
 
 // Situação da consulta editável direto no modal: agendada, compareceu (veio),
 // faltou ou cancelada. Os valores casam com o enum appointment_status e com os
@@ -83,6 +126,8 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
   const { mutate: saveNote, isPending: savingNote } = useUpdateClinicalNote()
 
   const patientName = usePatientName()
+  const professionalName = useProfessionalName()
+  const printDocument = usePrintDocument()
   const [professionalId, setProfessionalId] = useState('')
   // Disponibilidade do profissional escolhido — barra salvar fora do horário
   // dele (ver isWithinAvailability abaixo).
@@ -569,8 +614,32 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
                 value={noteHtml}
                 onChange={setNoteHtml}
                 placeholder="Descreva a evolução, condutas e observações desta sessão..."
+                toolbarEnd={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    iconLeft={<IconPrint />}
+                    disabled={!noteHtml.trim()}
+                    title="Imprimir"
+                    aria-label="Imprimir prontuário da sessão"
+                    onClick={() => printDocument({
+                      title: 'Prontuário da sessão',
+                      subtitle: slot ? patientName(slot.patientId) : undefined,
+                      body: prontuarioBody(
+                        noteHtml,
+                        slot && patientName(slot.patientId),
+                        isoToBrDate(slot?.date) ?? '',
+                        professionalName(professionalId),
+                        clinicSpecialty,
+                        professionals?.find(p => p.id === professionalId)?.license,
+                      ),
+                      styles: PRONTUARIO_PRINT_STYLES,
+                    })}
+                  />
+                }
               />
               <div className={styles.prontuarioAcoes}>
+                <AiNoteActions value={noteHtml} onChange={setNoteHtml} />
                 <Button size="sm" loading={savingNote} disabled={!noteDirty} onClick={handleSaveNote}>
                   Salvar prontuário
                 </Button>
