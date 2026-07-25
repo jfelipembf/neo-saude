@@ -15,7 +15,10 @@ import { IconPlus, IconTrash, IconX } from '@/components/icons'
 import { useCreateTest, useDeleteTest, useTests, useUpdateTest } from '@/hooks/useTests'
 import type { EditTest } from '@/services/testsService'
 import { TEST_SPECIALTY_OPTIONS, OTHER_TEST_SPECIALTY } from '@/constants'
-import type { PhysioTest, PhysioTestLevel, TestKind } from '@/types/domain'
+import type { PhysioTest, PhysioTestLevel, TestKind, TestScoringKind } from '@/types/domain'
+import { TestItemsEditor } from './TestItemsEditor'
+import { itemToForm, itemsToPayload, validateItems } from './testItemsForm'
+import type { ItemFormState } from './testItemsForm'
 import styles from './TestsTab.module.scss'
 
 // Um "teste" de fisioterapia = nome + especialização + imagem + instruções +
@@ -35,10 +38,31 @@ const KIND_OPTIONS: { value: TestKind; label: string }[] = [
   { value: 'goniometry', label: 'Ângulo' },
 ]
 
+/** Um nível no formulário. Os limites ficam como TEXTO enquanto se edita:
+ *  guardados como número, apagar o campo para redigitar viraria 0 — e 0 é um
+ *  limite legítimo em quase toda escala, então o engano passaria despercebido. */
+interface LevelFormState {
+  id: string
+  name: string
+  description: string
+  minScore: string
+  maxScore: string
+}
+
 let levelSeq = 0
-// `id` local só para key/edição em tela — o save envia só name/description,
-// o banco sempre gera um id novo (replaceLevels é delete-then-insert).
-const newLevel = (name = '', description = ''): PhysioTestLevel => ({ id: `lv-${++levelSeq}`, name, description })
+// `id` local só para key/edição em tela — o banco sempre gera um id novo
+// (replaceLevels é delete-then-insert).
+const newLevel = (): LevelFormState => ({ id: `lv-${++levelSeq}`, name: '', description: '', minScore: '', maxScore: '' })
+
+/** Campo de limite vazio = faixa ABERTA daquele lado, não zero. */
+function parseLimit(text: string): number | undefined {
+  const raw = text.trim().replace(',', '.')
+  if (!raw) return undefined
+  const value = Number(raw)
+  return Number.isFinite(value) ? value : undefined
+}
+
+const limitToText = (value?: number) => (value == null ? '' : String(value))
 
 interface TestFormState {
   name: string
@@ -54,13 +78,36 @@ interface TestFormState {
   /** Texto digitado quando specialty === OTHER_TEST_SPECIALTY. */
   customSpecialty: string
   instructions: string
-  levels: PhysioTestLevel[]
+  levels: LevelFormState[]
+  /**
+   * Motor de escore e itens do instrumento (ver TestItemsEditor). Os itens
+   * viajam SEMPRE no formulário, mesmo com a pontuação em 'manual': o syncItems
+   * trata o payload como a lista inteira, então salvar um Berg para corrigir o
+   * nome com `items: []` apagaria os 14 itens semeados.
+   */
+  scoringKind: TestScoringKind
+  items: ItemFormState[]
 }
 
 const EMPTY_FORM: TestFormState = {
   name: '', kind: 'scale', image: undefined, imagePath: undefined, specialty: '', customSpecialty: '', instructions: '',
   levels: [newLevel()],
+  // Teste novo nasce com escore digitado à mão: sem item cadastrado, 'sum_items'
+  // abriria um formulário sem nada a responder (ver isItemScored).
+  scoringKind: 'manual', items: [],
 }
+
+/** Um nível do catálogo vira linha do formulário. Carregar min/max aqui não é
+ *  detalhe: replaceLevels é delete-then-insert, então o que NÃO estiver no
+ *  formulário na hora de salvar deixa de existir — editar só um nome apagaria
+ *  as faixas semeadas dos outros níveis. */
+const levelToForm = (l: PhysioTestLevel): LevelFormState => ({
+  id: l.id,
+  name: l.name,
+  description: l.description,
+  minScore: limitToText(l.minScore),
+  maxScore: limitToText(l.maxScore),
+})
 
 /** A especialização já é uma das opções fixas, ou entra como "outra" digitada. */
 function formFromTest(t: PhysioTest): TestFormState {
@@ -73,7 +120,9 @@ function formFromTest(t: PhysioTest): TestFormState {
     specialty: known ? t.specialty : OTHER_TEST_SPECIALTY,
     customSpecialty: known ? '' : t.specialty,
     instructions: t.instructions ?? '',
-    levels: t.levels.length ? t.levels.map(l => ({ ...l })) : [newLevel()],
+    levels: t.levels.length ? t.levels.map(levelToForm) : [newLevel()],
+    scoringKind: t.scoringKind,
+    items: t.items.map(itemToForm),
   }
 }
 
@@ -91,6 +140,7 @@ export function TestsTab() {
   const [form, setForm] = useState<TestFormState>(EMPTY_FORM)
   const [nameError, setNameError] = useState('')
   const [specialtyError, setSpecialtyError] = useState('')
+  const [itemsError, setItemsError] = useState('')
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   // Filtro do menu suspenso da lista lateral ('' = todas as especialidades).
   const [specialtyFilter, setSpecialtyFilter] = useState('')
@@ -114,29 +164,35 @@ export function TestsTab() {
   // Sem avatar aqui de propósito: a foto do teste aparece no FORMULÁRIO
   // (preview de imagem), não faz sentido repetir/recortar no sidemenu.
   const items: SideListItem[] = filteredTests.map(t => {
-    const sublabel = t.kind === 'goniometry'
-      ? `${t.specialty} · Ângulo`
-      : `${t.specialty} · ${t.levels.length} ${t.levels.length === 1 ? 'nível' : 'níveis'}`
-    return { id: t.id, label: t.name, sublabel }
+    // O que o teste É, em uma linha: o instrumento somado por itens se anuncia
+    // pelos ITENS (é o que o profissional vai responder), não pelas faixas.
+    const detail = t.kind === 'goniometry'
+      ? 'Ângulo'
+      : t.scoringKind === 'sum_items'
+        ? `${t.items.length} ${t.items.length === 1 ? 'item' : 'itens'}`
+        : `${t.levels.length} ${t.levels.length === 1 ? 'nível' : 'níveis'}`
+    return { id: t.id, label: t.name, sublabel: `${t.specialty} · ${detail}` }
   })
+
+  function clearErrors() { setNameError(''); setSpecialtyError(''); setItemsError('') }
 
   function handleSelect(id: string | number) {
     const t = tests.find(x => x.id === String(id))
     if (!t) return
-    setSelectedId(String(id)); setIsNew(false); setForm(formFromTest(t)); setNameError(''); setSpecialtyError('')
+    setSelectedId(String(id)); setIsNew(false); setForm(formFromTest(t)); clearErrors()
   }
   function handleNew() {
     setSelectedId(null); setIsNew(true)
     setForm({ ...EMPTY_FORM, levels: [newLevel()] })
-    setNameError(''); setSpecialtyError('')
+    clearErrors()
   }
-  function handleCancel() { setSelectedId(null); setIsNew(false); setForm(EMPTY_FORM); setNameError(''); setSpecialtyError('') }
+  function handleCancel() { setSelectedId(null); setIsNew(false); setForm(EMPTY_FORM); clearErrors() }
 
   // ── Níveis (lista dinâmica) ──
   const addLevel = () => setForm(f => ({ ...f, levels: [...f.levels, newLevel()] }))
   const removeLevel = (id: string) =>
     setForm(f => ({ ...f, levels: f.levels.length > 1 ? f.levels.filter(l => l.id !== id) : f.levels }))
-  const updateLevel = (id: string, field: 'name' | 'description', value: string) =>
+  const updateLevel = (id: string, field: 'name' | 'description' | 'minScore' | 'maxScore', value: string) =>
     setForm(f => ({ ...f, levels: f.levels.map(l => (l.id === id ? { ...l, [field]: value } : l)) }))
 
   function handleSave() {
@@ -145,6 +201,8 @@ export function TestsTab() {
     if (isOtherSpecialty && !form.customSpecialty.trim()) {
       setSpecialtyError('Digite a especialização.'); return
     }
+    const itemsProblem = validateItems(form.scoringKind, form.items)
+    if (itemsProblem) { setItemsError(itemsProblem); return }
     const specialty = isOtherSpecialty ? form.customSpecialty.trim() : form.specialty
     const payload: EditTest = {
       name: form.name.trim(),
@@ -154,15 +212,30 @@ export function TestsTab() {
       instructions: form.instructions.trim() || undefined,
       levels: form.levels
         .filter(l => l.name.trim() || l.description.trim())
-        .map(l => ({ name: l.name.trim(), description: l.description.trim() })),
+        .map(l => ({
+          name: l.name.trim(),
+          description: l.description.trim(),
+          minScore: parseLimit(l.minScore),
+          maxScore: parseLimit(l.maxScore),
+        })),
+      scoringKind: form.scoringKind,
+      items: itemsToPayload(form.items),
     }
+    // O syncItems recusa apagar item JÁ RESPONDIDO em alguma aplicação, e a
+    // mensagem dele diz QUAL item e o que fazer. Só `Error` de verdade é
+    // repassado (mesmo critério do excluir, abaixo): o erro cru do Postgres é
+    // um objeto simples, e o texto dele é técnico e expõe o schema.
+    const onError = (err: unknown) =>
+      setItemsError(err instanceof Error ? err.message : 'Não foi possível salvar o teste.')
     if (selectedId) {
       update({ id: selectedId, payload }, {
-        onSuccess: () => { toast.success('Teste atualizado!'); setIsNew(false) },
+        onSuccess: () => { toast.success('Teste atualizado!'); setIsNew(false); setItemsError('') },
+        onError,
       })
     } else {
       create(payload, {
-        onSuccess: newId => { toast.success('Teste criado!'); setSelectedId(newId); setIsNew(false) },
+        onSuccess: newId => { toast.success('Teste criado!'); setSelectedId(newId); setIsNew(false); setItemsError('') },
+        onError,
       })
     }
   }
@@ -220,7 +293,13 @@ export function TestsTab() {
                   <SegmentedControl
                     options={KIND_OPTIONS}
                     value={form.kind}
-                    onChange={v => setForm(f => ({ ...f, kind: v }))}
+                    // Ângulo NÃO se responde item a item: o escore é o que o
+                    // goniômetro mede na foto. Virar para 'goniometry' devolve a
+                    // pontuação a 'manual' — os itens ficam guardados no
+                    // formulário e voltam se o tipo voltar a Escala.
+                    onChange={v => setForm(f => ({
+                      ...f, kind: v, scoringKind: v === 'goniometry' ? 'manual' : f.scoringKind,
+                    }))}
                   />
                 </div>
 
@@ -266,7 +345,9 @@ export function TestsTab() {
               <FormSection
                 title="Níveis"
                 description={
-                  form.kind === 'goniometry' ? 'A interpretação da faixa de graus (ex.: "0° – 90°" → "Amplitude limitada").' : undefined
+                  form.kind === 'goniometry'
+                    ? 'A interpretação da faixa de graus (ex.: "0° – 90°" → "Amplitude limitada"). Mín./Máx. classificam o ângulo medido automaticamente.'
+                    : 'Mín./Máx. são a faixa de resultado do nível — é por eles que o resultado medido no paciente cai sozinho no nível certo. Deixe em branco o lado ABERTO ("< 10 segundos" só tem Máx.) e os dois em branco quando o nível não tiver corte numérico.'
                 }
                 actions={<Button size="sm" variant="ghost" iconLeft={<IconPlus />} onClick={addLevel}>Adicionar nível</Button>}
               >
@@ -288,6 +369,28 @@ export function TestsTab() {
                         onChange={e => updateLevel(lv.id, 'description', e.target.value)}
                         className={styles.nivelDesc}
                       />
+                      {/* Mín. e Máx. numa célula só do grid — assim o par não
+                          se separa quando o layout empilha no celular. */}
+                      <div className={styles.nivelFaixa}>
+                        <Input
+                          aria-label={`Resultado mínimo do nível ${i + 1}`}
+                          type="number"
+                          step="any"
+                          inputMode="decimal"
+                          placeholder="Mín."
+                          value={lv.minScore}
+                          onChange={e => updateLevel(lv.id, 'minScore', e.target.value)}
+                        />
+                        <Input
+                          aria-label={`Resultado máximo do nível ${i + 1}`}
+                          type="number"
+                          step="any"
+                          inputMode="decimal"
+                          placeholder="Máx."
+                          value={lv.maxScore}
+                          onChange={e => updateLevel(lv.id, 'maxScore', e.target.value)}
+                        />
+                      </div>
                       <button
                         type="button"
                         className={styles.nivelRemover}
@@ -302,6 +405,19 @@ export function TestsTab() {
                   ))}
                 </ol>
               </FormSection>
+
+              {/* ── Itens e pontuação ── */}
+              {/* Só na Escala: no Ângulo o escore é o que o goniômetro mede. */}
+              {form.kind === 'scale' && (
+                <TestItemsEditor
+                  scoringKind={form.scoringKind}
+                  onScoringKindChange={kind => { setForm(f => ({ ...f, scoringKind: kind })); setItemsError('') }}
+                  items={form.items}
+                  onChange={items => { setForm(f => ({ ...f, items })); setItemsError('') }}
+                  isSeed={Boolean(selectedTest?.isSeed)}
+                  error={itemsError || undefined}
+                />
+              )}
             </div>
 
             <div className={styles.acoesBar}>

@@ -1,0 +1,264 @@
+@use '../../../../styles/mixins' as *;
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.instrucoes {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+// ── Placar (progresso + total + faixa) ───────────────────────────────────────
+// Grudado no topo do corpo do modal: com 24 itens, conferir o total exigiria
+// rolar de volta a cada resposta.
+.placar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) auto minmax(0, 1.4fr);
+  align-items: center;
+  gap: $sp-3;
+  padding: $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-sm);
+
+  @include mobile {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: $sp-2;
+  }
+
+  @include phone {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.placarProgresso,
+.placarTotal,
+.placarFaixa {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.placarFaixa {
+  // Ocupa a linha inteira quando o placar quebra em duas colunas — a descrição
+  // da faixa é uma frase, não cabe numa coluna estreita.
+  @include mobile {
+    grid-column: 1 / -1;
+  }
+}
+
+.placarRotulo {
+  font-size: $fs-xs;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.barra {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 6px;
+  margin-top: $sp-1;
+  border-radius: $radius-pill;
+  background: var(--glass-bg);
+  overflow: hidden;
+}
+
+.barraPreenchida {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--answered-progress, 0%);
+  border-radius: $radius-pill;
+  background: var(--primary);
+  transition: width 0.2s ease;
+}
+
+.totalValor {
+  font-size: $fs-xl;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.faixaNome {
+  font-size: $fs-sm;
+  font-weight: 700;
+  color: var(--primary-fg, var(--primary));
+}
+
+.faixaDesc {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.faixaVazia {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+// ── Itens ────────────────────────────────────────────────────────────────────
+.itens {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  margin: 0;
+  padding: 0;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  padding: $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  background: var(--glass-bg);
+
+  // Só aparece depois de uma tentativa de salvar: marcar de vermelho o que
+  // ainda nem foi lido transformaria um formulário de 24 itens numa parede
+  // de erro logo na abertura.
+  &--faltando {
+    border-color: var(--danger-fg);
+  }
+}
+
+.itemCabecalho {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: $sp-2;
+}
+
+.itemNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: $radius-pill;
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary-dark, var(--primary));
+  font-size: $fs-xs;
+  font-weight: 700;
+}
+
+.itemTexto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.itemLabel {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.itemHelp {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+// Quanto ESTE item somou — a parcela do total, ao lado do enunciado.
+.itemPontos {
+  min-width: 28px;
+  padding: 1px $sp-2;
+  border-radius: $radius-pill;
+  background: var(--glass-bg-hover);
+  color: var(--text-secondary);
+  font-size: $fs-xs;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.opcoes {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  padding-left: calc(24px + #{$sp-2});
+
+  @include phone {
+    padding-left: 0;
+  }
+}
+
+.opcao {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: $sp-2;
+  padding: $sp-2;
+  border: 1px solid transparent;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover { background: var(--glass-bg-hover); }
+
+  &--marcada {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+  }
+}
+
+.radio {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.opcaoLabel {
+  font-size: $fs-xs;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.opcaoPontos {
+  font-size: $fs-xs;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.campoNumero {
+  max-width: 160px;
+  margin-left: calc(24px + #{$sp-2});
+
+  @include phone {
+    max-width: none;
+    margin-left: 0;
+  }
+}
+
+.avisoIncompleto {
+  font-size: $fs-xs;
+  color: var(--danger-fg);
+  line-height: 1.4;
+}
+
+.campoData {
+  max-width: 220px;
+
+  @include phone {
+    max-width: none;
+  }
+}

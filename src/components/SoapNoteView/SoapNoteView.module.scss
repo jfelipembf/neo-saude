@@ -1,0 +1,51 @@
+@use '../../styles/mixins' as *;
+
+// Leitura de um prontuário SOAP: rótulo da seção + o texto rico como foi
+// escrito. Sem barra de ferramentas — é documento, não campo.
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  min-width: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  min-width: 0;
+}
+
+// Rótulo discreto e sempre acima do texto: quem lê a evolução procura a seção
+// primeiro ("o que foi o Plano?"), então ela precisa saltar sem virar título.
+.label {
+  margin: 0;
+  font-size: $fs-xs;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.body {
+  font-size: $fs-sm;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  word-break: break-word;
+
+  p { margin: 0 0 $sp-2; }
+  p:last-child { margin-bottom: 0; }
+  strong { color: var(--text-primary); }
+  ul, ol { margin: 0 0 $sp-2; padding-left: $sp-5; }
+}
+
+// Compacto: dentro de outro painel (a "Última sessão", que já mora num modal).
+.root--sm {
+  gap: $sp-2;
+
+  .body { font-size: $fs-xs; }
+}
+
+@include mobile {
+  .root { gap: $sp-2; }
+}

@@ -298,11 +298,52 @@
   &:hover { background: var(--glass-bg-hover); color: var(--text-primary); }
 }
 
+// Barra de ações do prontuário: modelo, ditado/IA, imprimir e salvar. Com o
+// SOAP são cinco controles, então ela ENVOLVE já no tablet — no celular, em
+// pé, botão espremido é botão errado apertado.
+// Qual modelo originou o texto do editor — procedência, não estado de sistema:
+// discreto, e nome longo corta com reticências em vez de esticar a coluna.
+// (Gêmeo do .modeloAplicado do AppointmentModal — a coluna lateral daqui é mais
+//  estreita, por isso ele ocupa a linha inteira em vez de dividir com o título.)
+.modeloAplicado {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: $sp-1;
+  max-width: 100%;
+  padding: 2px $sp-2;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: var(--glass-bg);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  svg { width: 11px; height: 11px; flex-shrink: 0; color: var(--text-muted); }
+}
+
 .sideActions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: $sp-2;
+  flex-wrap: wrap;
+}
 
-  @include phone { flex-wrap: wrap; }
+// Aviso de evolução igual à da sessão anterior — informa; a confirmação de
+// verdade vem no ConfirmDialog ao salvar.
+.carbono {
+  margin: 0;
+  padding: $sp-2 $sp-3;
+  border-radius: $radius-md;
+  border: 1px solid color-mix(in srgb, var(--warning-fg) 35%, transparent);
+  background: color-mix(in srgb, var(--warning-fg) 10%, transparent);
+  color: var(--warning-fg);
+  font-size: $fs-xs;
+  line-height: 1.5;
+
+  strong { font-weight: 700; }
 }

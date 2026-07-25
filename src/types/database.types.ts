@@ -594,7 +594,7 @@ export type Database = {
       appointment: {
         Row: {
           clinic_id: string
-          clinical_note_html: string | null
+          clinical_note: Json | null
           color: string | null
           created_at: string
           date: string
@@ -616,7 +616,7 @@ export type Database = {
         }
         Insert: {
           clinic_id: string
-          clinical_note_html?: string | null
+          clinical_note?: Json | null
           color?: string | null
           created_at?: string
           date: string
@@ -638,7 +638,7 @@ export type Database = {
         }
         Update: {
           clinic_id?: string
-          clinical_note_html?: string | null
+          clinical_note?: Json | null
           color?: string | null
           created_at?: string
           date?: string
@@ -1235,7 +1235,7 @@ export type Database = {
         Row: {
           class_group_id: string
           clinic_id: string
-          clinical_note_html: string | null
+          clinical_note: Json | null
           created_at: string
           id: string
           justification: string | null
@@ -1247,7 +1247,7 @@ export type Database = {
         Insert: {
           class_group_id: string
           clinic_id: string
-          clinical_note_html?: string | null
+          clinical_note?: Json | null
           created_at?: string
           id?: string
           justification?: string | null
@@ -1259,7 +1259,7 @@ export type Database = {
         Update: {
           class_group_id?: string
           clinic_id?: string
-          clinical_note_html?: string | null
+          clinical_note?: Json | null
           created_at?: string
           id?: string
           justification?: string | null
@@ -1680,6 +1680,60 @@ export type Database = {
             columns: ["clinic_id"]
             isOneToOne: false
             referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evolution_template: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_seed: boolean
+          name: string
+          note: Json
+          status: Database["public"]["Enums"]["active_status"]
+          updated_at: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_seed?: boolean
+          name: string
+          note: Json
+          status?: Database["public"]["Enums"]["active_status"]
+          updated_at?: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_seed?: boolean
+          name?: string
+          note?: Json
+          status?: Database["public"]["Enums"]["active_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evolution_template_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evolution_template_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profile"
             referencedColumns: ["id"]
           },
         ]
@@ -2217,6 +2271,7 @@ export type Database = {
           patient_id: string
           performed_at: string
           professional_id: string | null
+          score: number | null
           test_id: string
         }
         Insert: {
@@ -2232,6 +2287,7 @@ export type Database = {
           patient_id: string
           performed_at: string
           professional_id?: string | null
+          score?: number | null
           test_id: string
         }
         Update: {
@@ -2247,6 +2303,7 @@ export type Database = {
           patient_id?: string
           performed_at?: string
           professional_id?: string | null
+          score?: number | null
           test_id?: string
         }
         Relationships: [
@@ -2291,6 +2348,94 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "physio_test"
             referencedColumns: ["id", "clinic_id"]
+          },
+        ]
+      }
+      patient_test_result_item: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          id: string
+          item_code: string
+          item_id: string | null
+          item_label: string
+          option_id: string | null
+          option_label: string | null
+          points: number
+          result_id: string
+          sort_order: number
+          test_id: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          id?: string
+          item_code: string
+          item_id?: string | null
+          item_label: string
+          option_id?: string | null
+          option_label?: string | null
+          points: number
+          result_id: string
+          sort_order?: number
+          test_id: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          id?: string
+          item_code?: string
+          item_id?: string | null
+          item_label?: string
+          option_id?: string | null
+          option_label?: string | null
+          points?: number
+          result_id?: string
+          sort_order?: number
+          test_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_test_result_item_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_test_result_item_item_fk"
+            columns: ["item_id", "test_id"]
+            isOneToOne: false
+            referencedRelation: "physio_test_item"
+            referencedColumns: ["id", "test_id"]
+          },
+          {
+            foreignKeyName: "patient_test_result_item_option_fk"
+            columns: ["option_id", "item_id"]
+            isOneToOne: false
+            referencedRelation: "physio_test_item_option"
+            referencedColumns: ["id", "item_id"]
+          },
+          {
+            foreignKeyName: "patient_test_result_item_option_orphan_fk"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "physio_test_item_option"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_test_result_item_result_clinic_fk"
+            columns: ["result_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "patient_test_result"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "patient_test_result_item_result_test_fk"
+            columns: ["result_id", "test_id"]
+            isOneToOne: false
+            referencedRelation: "patient_test_result"
+            referencedColumns: ["id", "test_id"]
           },
         ]
       }
@@ -2497,6 +2642,7 @@ export type Database = {
           is_seed: boolean
           kind: Database["public"]["Enums"]["physio_test_kind"]
           name: string
+          scoring_kind: Database["public"]["Enums"]["physio_scoring_kind"]
           specialty: string
           updated_at: string
         }
@@ -2509,6 +2655,7 @@ export type Database = {
           is_seed?: boolean
           kind?: Database["public"]["Enums"]["physio_test_kind"]
           name: string
+          scoring_kind?: Database["public"]["Enums"]["physio_scoring_kind"]
           specialty: string
           updated_at?: string
         }
@@ -2521,6 +2668,7 @@ export type Database = {
           is_seed?: boolean
           kind?: Database["public"]["Enums"]["physio_test_kind"]
           name?: string
+          scoring_kind?: Database["public"]["Enums"]["physio_scoring_kind"]
           specialty?: string
           updated_at?: string
         }
@@ -2534,12 +2682,116 @@ export type Database = {
           },
         ]
       }
+      physio_test_item: {
+        Row: {
+          clinic_id: string
+          code: string
+          created_at: string
+          help: string | null
+          id: string
+          input_kind: Database["public"]["Enums"]["physio_item_input_kind"]
+          label: string
+          sort_order: number
+          test_id: string
+          updated_at: string
+        }
+        Insert: {
+          clinic_id: string
+          code: string
+          created_at?: string
+          help?: string | null
+          id?: string
+          input_kind?: Database["public"]["Enums"]["physio_item_input_kind"]
+          label: string
+          sort_order?: number
+          test_id: string
+          updated_at?: string
+        }
+        Update: {
+          clinic_id?: string
+          code?: string
+          created_at?: string
+          help?: string | null
+          id?: string
+          input_kind?: Database["public"]["Enums"]["physio_item_input_kind"]
+          label?: string
+          sort_order?: number
+          test_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "physio_test_item_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "physio_test_item_test_fk"
+            columns: ["test_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "physio_test"
+            referencedColumns: ["id", "clinic_id"]
+          },
+        ]
+      }
+      physio_test_item_option: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          id: string
+          item_id: string
+          label: string
+          points: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          id?: string
+          item_id: string
+          label: string
+          points: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          label?: string
+          points?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "physio_test_item_option_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "physio_test_item_option_item_fk"
+            columns: ["item_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "physio_test_item"
+            referencedColumns: ["id", "clinic_id"]
+          },
+        ]
+      }
       physio_test_level: {
         Row: {
           clinic_id: string
           created_at: string
           description: string
           id: string
+          max_score: number | null
+          min_score: number | null
           name: string
           sort_order: number
           test_id: string
@@ -2550,6 +2802,8 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
+          max_score?: number | null
+          min_score?: number | null
           name: string
           sort_order?: number
           test_id: string
@@ -2560,6 +2814,8 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
+          max_score?: number | null
+          min_score?: number | null
           name?: string
           sort_order?: number
           test_id?: string
@@ -4917,6 +5173,20 @@ export type Database = {
         Args: { p_answers: Json; p_patient: string }
         Returns: string
       }
+      save_patient_test_result: {
+        Args: {
+          p_image_url?: string
+          p_items?: Json
+          p_level?: string
+          p_measured_points?: Json
+          p_patient: string
+          p_performed_at: string
+          p_result: string
+          p_score?: number
+          p_test: string
+        }
+        Returns: string
+      }
       set_clinic_goals_year: {
         Args: { p_clinic: string; p_goals: Json; p_year: number }
         Returns: undefined
@@ -5022,6 +5292,8 @@ export type Database = {
         | "pix"
         | "wire"
       payment_status: "paid" | "pending" | "overdue" | "canceled"
+      physio_item_input_kind: "options" | "number"
+      physio_scoring_kind: "manual" | "sum_items"
       physio_test_kind: "scale" | "goniometry" | "line" | "distance"
       prescription_type:
         | "prescription"
@@ -5230,6 +5502,8 @@ export const Constants = {
         "wire",
       ],
       payment_status: ["paid", "pending", "overdue", "canceled"],
+      physio_item_input_kind: ["options", "number"],
+      physio_scoring_kind: ["manual", "sum_items"],
       physio_test_kind: ["scale", "goniometry", "line", "distance"],
       prescription_type: [
         "prescription",

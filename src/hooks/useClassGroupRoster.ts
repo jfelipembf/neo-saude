@@ -5,6 +5,7 @@ import {
   listPatientClassGroupEnrollments, saveAttendance, saveAttendanceNote, unenrollPatient,
 } from '@/services/classGroupRosterService'
 import type { AttendanceEntry } from '@/services/classGroupRosterService'
+import type { SoapNote } from '@/types/domain'
 
 /** Nº de matriculados por turma — o badge de lotação da Agenda. */
 export function useClassGroupEnrollmentCounts() {
@@ -90,7 +91,15 @@ export function useSaveAttendance(classGroupId: string, dateIso: string) {
 export function useSaveAttendanceNote(classGroupId: string, dateIso: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ patientId, html }: { patientId: string; html: string }) => saveAttendanceNote(classGroupId, patientId, dateIso, html),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.classGroupRoster.byOccurrence(classGroupId, dateIso) }),
+    mutationFn: ({ patientId, note }: { patientId: string; note: SoapNote | undefined }) =>
+      saveAttendanceNote(classGroupId, patientId, dateIso, note),
+    onSuccess: (_data, { patientId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.classGroupRoster.byOccurrence(classGroupId, dateIso) })
+      // A evolução da turma também alimenta a aba Prontuários do perfil e o
+      // painel "Última sessão" (as duas fontes viram uma lista só, ver
+      // patientClinicalNotesService) — sem isto, o prontuário recém-escrito
+      // numa aula não aparecia lá até recarregar a página.
+      queryClient.invalidateQueries({ queryKey: queryKeys.clinicalNotes.byPatient(patientId) })
+    },
   })
 }

@@ -1,0 +1,142 @@
+@use '../../styles/mixins' as *;
+
+// Sanfona das quatro seções do prontuário SOAP. Recolhida, cada seção é uma
+// linha de leitura rápida; aberta, vira o editor rico inteiro.
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  min-width: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  background: var(--glass-bg);
+  overflow: hidden;
+}
+
+.section--open {
+  border-color: rgba(var(--primary-rgb), 0.35);
+}
+
+// Alvo de toque: o caso de uso é o profissional em pé, com o celular na mão —
+// a linha inteira é clicável e nunca fica abaixo de 44px de altura.
+.header {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  width: 100%;
+  min-height: 44px;
+  padding: $sp-2 $sp-3;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover { background: var(--glass-bg-hover); }
+}
+
+.initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: $radius-pill;
+  background: var(--glass-bg-hover);
+  color: var(--text-muted);
+  font-size: $fs-xs;
+  font-weight: 700;
+}
+
+// Seção já escrita: a inicial acende — é o "quanto falta" das quatro de relance.
+.initial--filled {
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  color: var(--primary);
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+// Marca do conteúdo que veio COPIADO (modelo ou sessão anterior) e ainda não
+// foi editado — quem assina precisa ver que aquilo não foi escrito agora.
+.copiedTag {
+  padding: 1px $sp-2;
+  border-radius: $radius-pill;
+  background: color-mix(in srgb, var(--warning-fg) 16%, transparent);
+  color: var(--warning-fg);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+// Prévia em UMA linha: o que a seção diz, sem abrir. Texto puro (sem a
+// marcação do editor) para não vazar tag na linha de resumo.
+.preview {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preview--empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.chevron {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+
+  svg { width: 14px; height: 14px; }
+}
+
+.chevron--open {
+  transform: rotate(180deg);
+}
+
+.body {
+  padding: 0 $sp-3 $sp-3;
+  border-top: 1px solid var(--glass-border);
+  padding-top: $sp-3;
+}
+
+// Faixa lateral no conteúdo copiado — mesma leitura do selo do cabeçalho,
+// visível também com a seção aberta (que é quando se edita por cima).
+.body--copied {
+  border-left: 3px solid color-mix(in srgb, var(--warning-fg) 55%, transparent);
+}
+
+@include mobile {
+  .header {
+    gap: $sp-2;
+    padding: $sp-2;
+  }
+
+  .body {
+    padding: $sp-3 $sp-2 $sp-2;
+  }
+}

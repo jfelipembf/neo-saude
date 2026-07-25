@@ -38,10 +38,44 @@
   }
 }
 
+// Cabeçalho da coluna: título à esquerda, procedência do texto à direita.
+.prontuarioCabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+  min-width: 0;
+}
+
 .prontuarioRotulo {
   font-size: $fs-sm;
   font-weight: 600;
   color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+// Qual modelo originou o texto que está no editor. Discreto de propósito: é
+// procedência, não estado de sistema — não pode competir com o título nem
+// parecer um botão. Nome longo ("Reabilitação pós-operatória") corta com
+// reticências em vez de empurrar o título para fora.
+.modeloAplicado {
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-1;
+  min-width: 0;
+  max-width: 60%;
+  padding: 2px $sp-2;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: var(--glass-bg);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  svg { width: 11px; height: 11px; flex-shrink: 0; color: var(--text-muted); }
 }
 
 .prontuarioVazio {
@@ -53,13 +87,30 @@
   text-align: center;
 }
 
+// Barra de ações do prontuário: modelo, ditado/IA, imprimir e salvar. Com o
+// SOAP são cinco controles, então ela ENVOLVE já no tablet — no celular, em
+// pé, botão espremido é botão errado apertado.
 .prontuarioAcoes {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: $sp-2;
+  flex-wrap: wrap;
+}
 
-  @include phone { flex-wrap: wrap; }
+// Aviso de evolução idêntica à da sessão anterior — informa, não bloqueia
+// (a confirmação de verdade vem no ConfirmDialog ao salvar).
+.prontuarioCarbono {
+  margin: 0;
+  padding: $sp-2 $sp-3;
+  border-radius: $radius-md;
+  border: 1px solid color-mix(in srgb, var(--warning-fg) 35%, transparent);
+  background: color-mix(in srgb, var(--warning-fg) 10%, transparent);
+  color: var(--warning-fg);
+  font-size: $fs-xs;
+  line-height: 1.5;
+
+  strong { font-weight: 700; }
 }
 
 // ── Anexos da sessão (imagem em anexo, separado do texto) ────────────────────
@@ -146,31 +197,6 @@
   @include phone {
     grid-template-columns: 1fr;
   }
-}
-
-.confirmacao {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: $sp-3;
-  padding: $sp-2 0;
-
-  @include phone {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-
-.confirmacaoRotulo {
-  font-size: $fs-sm;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-// Cancelar/Reativar consulta: encostado à esquerda do rodapé (separado das
-// ações de fechar/salvar, à direita).
-.cancelarConsulta {
-  margin-right: auto;
 }
 
 .erro {

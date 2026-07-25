@@ -190,10 +190,22 @@ export const queryKeys = {
   // Prontuário por SESSÃO (aba Prontuários do perfil, fisioterapia) — datas
   // marcadas no calendário + conteúdo do dia selecionado.
   clinicalNotes: {
-    // Prefixo do paciente: invalida `dates` e todos os `byDate` de uma vez.
+    // Prefixo do paciente: invalida `dates`, `byDate` e `previous` de uma vez.
     byPatient: (patientId: string) => ['clinicalNotes', patientId] as const,
     dates:  (patientId: string) => ['clinicalNotes', patientId, 'dates'] as const,
     byDate: (patientId: string, dateIso: string) => ['clinicalNotes', patientId, 'date', dateIso] as const,
+    // Sessão anterior a um ponto no tempo (painel "Última sessão" do modal da
+    // Agenda). Data e hora entram na key porque a resposta MUDA com elas: a
+    // anterior à sessão de terça não é a anterior à de quinta.
+    previous: (patientId: string, beforeDateIso: string, beforeStartTime: string) =>
+      ['clinicalNotes', patientId, 'previous', beforeDateIso, beforeStartTime] as const,
+  },
+  // Modelos de evolução SOAP (Administrativo → Modelos de evolução). Uma key
+  // só, sem recorte por status: o catálogo é curto e as duas telas que o usam
+  // (o CRUD e o seletor do prontuário) filtram ativo/inativo em memória — dois
+  // recortes no cache só criariam a chance de um ficar velho depois do outro.
+  evolutionTemplates: {
+    all: ['evolutionTemplates'] as const,
   },
   rooms: {
     all: ['rooms'] as const,

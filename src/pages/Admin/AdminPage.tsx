@@ -6,6 +6,7 @@ import { RoomsTab } from './Rooms/RoomsTab'
 import { MaterialsTab } from './Materials/MaterialsTab'
 import { ServicesTab } from './Services/ServicesTab'
 import { TestsTab } from './Tests/TestsTab'
+import { EvolutionTemplatesTab } from './EvolutionTemplates/EvolutionTemplatesTab'
 import { ClassesTab } from './Classes/ClassesTab'
 import { CommissionsTab } from './Commissions/CommissionsTab'
 import { RolesTab } from './Roles/RolesTab'
@@ -18,7 +19,7 @@ import { appliesToSpecialty } from '@/constants'
 import type { ClinicSpecialty } from '@/types/domain'
 import styles from './AdminPage.module.scss'
 
-type TabKey = 'rooms' | 'materials' | 'services' | 'tests' | 'classes' | 'insurances' | 'commissions' | 'roles' | 'collaborators' | 'goals' | 'audit'
+type TabKey = 'rooms' | 'materials' | 'services' | 'tests' | 'evolutionTemplates' | 'classes' | 'insurances' | 'commissions' | 'roles' | 'collaborators' | 'goals' | 'audit'
 
 // `specialties`/`excludeSpecialties` filtram a aba por ramo (ver constants/specialty).
 // Serviços/Contratos não se aplicam à odontologia (que trabalha por procedimentos
@@ -30,6 +31,9 @@ const TABS: { key: TabKey; label: string; specialties?: ClinicSpecialty[]; exclu
   { key: 'services',  label: 'Serviços', excludeSpecialties: ['dentistry'] },
   // Testes/escalas de avaliação — específico de fisioterapia.
   { key: 'tests',     label: 'Testes', specialties: ['physiotherapy'] },
+  // Modelos de evolução SOAP (o "usar modelo" do prontuário) — o prontuário
+  // por sessão só existe em fisioterapia, a aba acompanha.
+  { key: 'evolutionTemplates', label: 'Modelos de evolução', specialties: ['physiotherapy'] },
   { key: 'classes',   label: 'Turmas' },
   { key: 'insurances', label: 'Convênios' },
   { key: 'commissions', label: 'Comissões' },
@@ -56,6 +60,7 @@ export function AdminPage() {
       {tab === 'materials' && <MaterialsTab />}
       {tab === 'services'  && <ServicesTab />}
       {tab === 'tests'     && <TestsTab />}
+      {tab === 'evolutionTemplates' && <EvolutionTemplatesTab />}
       {tab === 'classes'   && <ClassesTab />}
       {tab === 'insurances' && <InsurancesTab />}
       {tab === 'commissions' && <CommissionsTab />}

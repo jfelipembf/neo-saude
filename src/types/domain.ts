@@ -222,6 +222,17 @@ export interface PhysioTestLevel {
   id: string
   name: string
   description: string
+  /**
+   * Faixa de escore do nível — [minScore, maxScore] FECHADA dos dois lados;
+   * `undefined` é lado ABERTO, não zero ("< 10 segundos" só tem maxScore,
+   * "≥ 30 segundos" só tem minScore).
+   *
+   * Nível SEM nenhum dos dois é qualitativo (GMFCS, PEDI, PERFECT, Índice de
+   * Ritchie): não existe corte numérico publicado, então ninguém classifica
+   * sozinho — quem escolhe o nível é o profissional.
+   */
+  minScore?: number
+  maxScore?: number
 }
 
 /** scale = interpretação por pontuação/tempo (a maioria dos testes). goniometry
@@ -235,6 +246,63 @@ export type TestKind = 'scale' | 'goniometry'
  *  para acompanhar a foto em qualquer tamanho de tela (ver utils/goniometry). */
 export interface GoniometryPoint { x: number; y: number }
 export type GoniometryPoints = [GoniometryPoint, GoniometryPoint, GoniometryPoint]
+
+/**
+ * De onde sai o escore da aplicação (enum `physio_scoring_kind`):
+ *   · manual    = a tela informa o valor medido — segundos no TUG, metros no
+ *                 TC6, o total que o profissional somou no papel. É o DEFAULT, e
+ *                 é o que mantém funcionando todo teste que não tem item.
+ *   · sum_items = o BANCO soma as respostas item a item e deriva a faixa
+ *                 sozinho, ignorando o escore e a faixa que a tela mandar. Aqui
+ *                 a aplicação precisa vir COMPLETA: 13 dos 14 itens do Berg
+ *                 somam menos e classificariam o paciente numa faixa de risco
+ *                 diferente da real, então o banco recusa.
+ */
+export type TestScoringKind = 'manual' | 'sum_items'
+
+/**
+ * Como o item recebe resposta (enum `physio_item_input_kind`). A distinção é de
+ * SEGURANÇA, não de desenho de tela: em 'options' os pontos saem do catálogo e
+ * o banco sobrescreve o que o cliente enviar (senão daria para inflar o próprio
+ * escore); em 'number' quem decide o valor é o profissional que digita.
+ */
+export type TestItemInputKind = 'options' | 'number'
+
+/** Uma alternativa de resposta fechada de um item do instrumento. */
+export interface PhysioTestItemOption {
+  id: string
+  label: string          // "Capaz de permanecer em pé com segurança por 2 minutos"
+  /** Quanto esta alternativa soma no escore. Fracionário existe: o "1+" da
+   *  Ashworth vale 1,5 para caber entre 1 e 2 sem quebrar a ordem numérica —
+   *  por isso `points` é numeric no banco e number aqui, nunca inteiro. */
+  points: number
+}
+
+/**
+ * Uma pergunta do instrumento — os 14 itens do Berg, as 24 afirmações do
+ * Roland-Morris. Instrumento que classifica UM segmento por aplicação (Ashworth,
+ * Oxford) tem UM item só: o "somatório" é o próprio grau, e somar graus de
+ * músculos diferentes inventaria um número que o instrumento não define.
+ *
+ * A ORDEM DO ARRAY é o `sort_order` do banco — mesma convenção de
+ * PhysioTestLevel: o service lê ordenado e regrava o índice. Um campo
+ * `sortOrder` aqui seria um segundo lugar para a mesma verdade divergir.
+ */
+export interface PhysioTestItem {
+  id: string
+  /** Identificador estável do item DENTRO do teste ("berg_01"). É a chave do
+   *  payload de respostas (ver TestItemAnswers) justamente para a redação do
+   *  label poder ser corrigida sem quebrar tela nem histórico. */
+  code: string
+  label: string
+  /** Instrução de aplicação do item (como cronometrar, que distância usar) —
+   *  ausente quando o enunciado já basta sozinho. */
+  help?: string
+  inputKind: TestItemInputKind
+  /** Vazio quando inputKind = 'number': não há alternativa a escolher, o
+   *  profissional digita o valor. */
+  options: PhysioTestItemOption[]
+}
 
 export interface PhysioTest {
   id: string
@@ -252,6 +320,14 @@ export interface PhysioTest {
   specialty: string
   instructions?: string
   levels: PhysioTestLevel[]
+  /** Motor de escore do teste — ver TestScoringKind. */
+  scoringKind: TestScoringKind
+  /**
+   * Perguntas do instrumento, em ordem. VAZIO é o caso comum e não é falha de
+   * cadastro: TUG, TC6 e toda a goniometria pontuam pelo valor medido, sem item
+   * nenhum. Só teste com item pode ser 'sum_items'.
+   */
+  items: PhysioTestItem[]
   /** true = teste de referência que veio pronto no sistema — só edita, não
    *  exclui. false = teste personalizado da própria clínica, pode excluir
    *  (se ainda não tiver sido aplicado a nenhum paciente). */
@@ -264,6 +340,59 @@ export interface PatientTest {
   testId: string
 }
 
+/**
+ * UMA resposta de uma aplicação, com o texto do catálogo CONGELADO no momento
+ * da gravação (o banco copia por trigger; não é join).
+ *
+ * O congelamento é o ponto do desenho: o catálogo é editável e vive mais que o
+ * prontuário. Lendo por join, corrigir a redação de um item em 2027 reescreveria
+ * o que o paciente respondeu em 2026, e repontuar uma opção reescreveria
+ * retroativamente a curva de evolução dele.
+ *
+ * A ORDEM DO ARRAY é a do item no teste (o sort_order também vem congelado).
+ */
+export interface PatientTestResultItem {
+  id: string
+  /** "berg_01" — congelado junto, para o relatório continuar agrupando por item
+   *  mesmo depois de o item sair do catálogo. */
+  itemCode: string
+  /** Enunciado como estava NO DIA da aplicação. */
+  itemLabel: string
+  /** Alternativa escolhida, como estava no dia. Ausente no item numérico, que
+   *  não tem opção — o que ele registrou está inteiro em `points`. */
+  optionLabel?: string
+  /** Quanto ESTA resposta valeu. É a parcela que compõe PatientTestResult.score
+   *  e precisa continuar somando o mesmo total depois de o catálogo mudar. */
+  points: number
+  /**
+   * Ponteiros VIVOS para o catálogo — servem só para pré-selecionar a resposta
+   * ao corrigir a aplicação. Ficam undefined quando o item (ou a opção) foi
+   * apagado do catálogo depois desta aplicação: as FKs são ON DELETE SET NULL,
+   * porque apagar item do catálogo não pode apagar nem travar prontuário. A
+   * tela nunca deve depender deles para EXIBIR — para isso existe o texto
+   * congelado acima.
+   */
+  itemId?: string
+  optionId?: string
+}
+
+/**
+ * Resposta a UM item no ENVIO da aplicação (RPC save_patient_test_result).
+ * União e não um objeto com os dois campos opcionais porque o par é exclusivo,
+ * e a exclusividade é a regra de segurança: item 'options' manda só a opção
+ * escolhida (mandar `points` junto não adianta — o banco sobrescreve pelo valor
+ * do catálogo), item 'number' manda só o valor digitado.
+ */
+export type TestItemAnswer = { optionId: string } | { points: number }
+
+/**
+ * As respostas de uma aplicação inteira, indexadas pelo `code` do item — não
+ * pelo id: o code é a referência estável e é por ele que o banco procura.
+ * O envio é SEMPRE a aplicação completa: item que não vier no mapa é apagado da
+ * aplicação, e em teste 'sum_items' faltar item é erro (não silêncio).
+ */
+export type TestItemAnswers = Record<string, TestItemAnswer>
+
 /** Uma aplicação registrada de um teste a um paciente, com o nível atingido —
  *  nome/descrição do nível vêm CONGELADOS (não mudam se o catálogo mudar depois). */
 export interface PatientTestResult {
@@ -273,8 +402,22 @@ export interface PatientTestResult {
   levelId?: string
   levelName: string
   levelDescription: string
-  /** Só testes kind='goniometry': o ângulo cru medido nesta aplicação. */
-  measuredAngle?: number
+  /**
+   * Valor CRU medido nesta aplicação, na unidade do instrumento: segundos
+   * (TUG), pontos (Berg), metros (TC6), graus (goniometria). É o escore de
+   * QUALQUER kind — `measured_angle` virou espelho depreciado, mantido no
+   * banco por trigger só enquanto a coluna existir, e a tela não lê mais.
+   * Ausente nas aplicações antigas (registradas antes do campo de resultado)
+   * e nos testes qualitativos, onde só existe o nível.
+   */
+  score?: number
+  /**
+   * Respostas item a item desta aplicação, em ordem. VAZIO nos testes de escore
+   * direto (TUG, TC6, goniometria), que não têm item, e nas aplicações
+   * registradas antes do motor de itens existir. Em teste 'sum_items' é o
+   * detalhamento de `score`: a soma de `points` das linhas é o próprio escore.
+   */
+  items: PatientTestResultItem[]
   /** Foto usada na medição desta aplicação (já assinada) — mostrada no card
    *  de resultado, acima do valor medido. */
   imageUrl?: string
@@ -423,6 +566,55 @@ export interface PatientCustomQuestion {
   answerText?: string
   createdAt: string   // dd/mm/aaaa
   updatedAt: string   // dd/mm/aaaa
+}
+
+// ── Prontuário SOAP (a evolução da sessão) ───────────────────────────────────
+// SOAP é o padrão de registro clínico: Subjetivo (o que o paciente relata),
+// Objetivo (o que o profissional mede), Avaliação (a interpretação) e Plano (a
+// conduta). Era UM campo de HTML solto e virou objeto porque a seção passou a
+// ser ENDEREÇO consultável: dá para perguntar ao banco "o que foi planejado nas
+// últimas 5 sessões" sem varrer texto (ver appointment.clinical_note).
+
+/**
+ * As 4 seções, nesta ordem — é a ordem em que a evolução se escreve e se lê.
+ * As chaves são em inglês porque são exatamente as do jsonb no banco; o rótulo
+ * em português é da tela, não do tipo.
+ */
+export type SoapSection = 'subjective' | 'objective' | 'assessment' | 'plan'
+
+/**
+ * Uma evolução SOAP. Valor = HTML rico da seção, sanitizado antes de gravar E
+ * antes de exibir.
+ *
+ * Parcial de propósito: seção não preenchida é chave AUSENTE, nunca `''` — o
+ * CHECK `private.is_soap_note` recusa seção em branco justamente para que
+ * "tem plano" não fique verdadeiro num plano vazio. Pelo mesmo motivo o objeto
+ * nunca é `{}`: evolução inexistente é o campo inteiro `undefined` (coluna
+ * NULL), e não um objeto sem chaves.
+ */
+export type SoapNote = Partial<Record<SoapSection, string>>
+
+/**
+ * Modelo de evolução (`evolution_template`) — o esqueleto que o profissional
+ * escolhe no editor para não começar do zero. O conteúdo do modelo é COPIADO
+ * para a nota, nunca referenciado: prontuário é documento assinado, e editar o
+ * modelo em 2027 não pode reescrever o que foi registrado em 2026.
+ */
+export interface EvolutionTemplate {
+  id: string
+  clinicId: string
+  name: string
+  /** Uma linha dizendo quando usar — aparece no menu de modelos, ao lado do nome. */
+  description?: string
+  /** Sempre com ao menos uma seção: o banco recusa modelo vazio (NOT NULL + o
+   *  mesmo is_soap_note do prontuário). */
+  note: SoapNote
+  /** true = modelo de referência que veio pronto no sistema — edita e inativa,
+   *  nunca exclui (a policy de delete exige isSeed = false). */
+  isSeed: boolean
+  /** inactive = some do menu sem sair do catálogo. É como a clínica "remove" um
+   *  modelo de referência, já que excluir é proibido. */
+  status: ActiveStatus
 }
 
 // ── Assinatura do SaaS (Configurações) ───────────────────────────────────────
@@ -654,8 +846,10 @@ export interface ClassGroupRosterEntry {
   status: ClassAttendanceStatus
   /** Só relevante quando status='absent'. */
   justification?: string
-  /** Prontuário da sessão deste paciente nesta turma+data — painel lateral. */
-  clinicalNoteHtml?: string
+  /** Evolução SOAP deste paciente nesta turma+data — painel lateral.
+   *  undefined = ninguém escreveu prontuário desta aula ainda (ver
+   *  class_group_attendance.clinical_note). */
+  clinicalNote?: SoapNote
   /** Pacote/plano que originou a matrícula (só exibição — ver domain.ts
    *  PatientServiceEntitlement / classGroupRosterService.ts). */
   entitlementServiceName?: string
@@ -715,8 +909,10 @@ export interface ScheduledAppointment {
   /** Pacote de sessões do qual esta consulta desconta — IMUTÁVEL depois de
    *  criada (ver appointment.entitlement_id). undefined = consulta avulsa. */
   entitlementId?: string
-  /** Prontuário da SESSÃO — HTML rico, sanitizado (ver appointment.clinical_note_html). */
-  clinicalNoteHtml?: string
+  /** Evolução SOAP da SESSÃO (ver appointment.clinical_note). undefined = sessão
+   *  sem prontuário escrito. Não confundir com `notes`, que é a observação
+   *  simples da agenda. */
+  clinicalNote?: SoapNote
 }
 
 // ── Documentos do paciente (aba do perfil) ───────────────────────────────────

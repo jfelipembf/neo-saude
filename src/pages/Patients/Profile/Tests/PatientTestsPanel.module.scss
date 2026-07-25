@@ -75,6 +75,61 @@
   gap: $sp-2;
 }
 
+// ── Resultado medido + a faixa que ele cai ───────────────────────────────────
+// Lado a lado no desktop (o número muda, a leitura muda junto); empilhado no
+// mobile, onde duas colunas espremeriam a descrição da faixa a uma palavra
+// por linha.
+.scoreLinha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  align-items: stretch;
+  gap: $sp-3;
+
+  @include form-grid-collapse;
+}
+
+.faixaBox {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: $sp-2 $sp-3;
+  // Tracejado: é leitura DERIVADA do escore, não um campo que se preenche.
+  border: 1px dashed var(--glass-border);
+  border-radius: $radius-sm;
+}
+
+.faixaLabel {
+  font-size: $fs-xs;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.faixaNome {
+  font-size: $fs-sm;
+  font-weight: 700;
+  color: var(--primary-fg, var(--primary));
+}
+
+.faixaDesc {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.faixaVazia {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+// Na goniometria não há campo de número, então o erro do escore não tem onde
+// aparecer (o Input carrega o seu) — cai aqui.
+.faixaErro {
+  font-size: $fs-xs;
+  color: var(--danger-fg);
+}
+
 // ── Medição de goniometria (foto + pontos) dentro do "Novo teste" ────────────
 .goniometriaCampo {
   display: flex;
@@ -98,7 +153,7 @@
 }
 
 // Um único card por resultado: a foto da medição em cima (quando houver),
-// o resultado (nível/ângulo/data) embaixo — tudo dentro do card maior (.detail).
+// o resultado (escore/nível/data) embaixo — tudo dentro do card maior (.detail).
 .resultCard {
   position: relative;
   flex: 0 0 auto;
@@ -226,6 +281,19 @@
   font-size: $fs-sm;
   font-weight: 700;
   color: var(--primary-fg, var(--primary));
+}
+
+// Marca a aplicação cujo nível NÃO é o da faixa do escore. Cor de atenção, não
+// de erro: override é uma decisão legítima do profissional (ponto de corte por
+// idade/sexo que o banco não calcula), só precisa ficar visível.
+.resultOverride {
+  align-self: flex-start;
+  padding: 1px $sp-2;
+  border-radius: $radius-pill;
+  background: color-mix(in srgb, var(--warning-fg) 14%, transparent);
+  color: var(--warning-fg);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .resultDescription {

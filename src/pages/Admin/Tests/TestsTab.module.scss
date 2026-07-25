@@ -94,7 +94,7 @@
 
 .nivel {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(0, 2fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 2fr) minmax(0, 160px) auto;
   align-items: center;
   gap: $sp-2;
 
@@ -102,7 +102,8 @@
     grid-template-columns: auto 1fr auto;
     grid-template-areas:
       'num nome remover'
-      'num desc desc';
+      'num desc desc'
+      'num faixa faixa';
     row-gap: $sp-2;
   }
 }
@@ -124,6 +125,17 @@
 
 .nivelNome { @include phone { grid-area: nome; } }
 .nivelDesc { @include phone { grid-area: desc; } }
+
+// Mín. + Máx. do nível: um par, sempre juntos (o intervalo só faz sentido
+// inteiro), por isso ocupam UMA célula do grid em vez de duas colunas.
+.nivelFaixa {
+  display: flex;
+  gap: $sp-2;
+
+  > * { flex: 1 1 0; min-width: 0; }
+
+  @include phone { grid-area: faixa; }
+}
 
 .nivelRemover {
   display: inline-flex;

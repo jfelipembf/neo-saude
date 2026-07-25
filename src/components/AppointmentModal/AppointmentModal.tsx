@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react'
-import { AiNoteActions } from '@/components/AiNoteActions/AiNoteActions'
 import { Button } from '@/components/Button/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { Input } from '@/components/Input/Input'
+import { LastSessionNote } from '@/components/LastSessionNote/LastSessionNote'
 import { Modal } from '@/components/Modal/Modal'
-import { RichTextEditor } from '@/components/RichTextEditor/RichTextEditor'
+import { EvolutionTemplatePicker } from '@/components/EvolutionTemplatePicker/EvolutionTemplatePicker'
 import { Select } from '@/components/Select/Select'
+import { SoapEditor } from '@/components/SoapEditor/SoapEditor'
 import { Textarea } from '@/components/Textarea/Textarea'
 import { useToast } from '@/components/Toast/Toast'
 import { SCHEDULE_TAGS } from '@/constants'
@@ -17,17 +18,23 @@ import { useRooms } from '@/hooks/useRooms'
 import { useAvailabilityTemplate } from '@/hooks/useProfessionalAvailability'
 import { usePatientEntitlements } from '@/hooks/usePatientEntitlements'
 import { usePatientName, useProfessionalName } from '@/hooks/useDisplayNames'
+import { usePreviousSessionNote } from '@/hooks/usePatientClinicalNotes'
 import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { useSession } from '@/context/SessionProvider'
 import { userMessage } from '@/lib/errors'
 import { esc } from '@/utils/printDocument'
 import { addMinutes, toIsoDate, isoToBrDate, localDate, parseBrDate } from '@/utils/date'
 import { digitsOnly, initials } from '@/utils/text'
+import {
+  isBlankSoap, isSameSoapNote, normalizeSoapNote, soapPlainText, soapToHtml,
+} from '@/utils/soap'
 import { isImageFile } from '@/utils/files'
 import { isEntitlementActive } from '@/utils/entitlements'
 import { PROFESSIONAL_SIGNATURE_LABEL } from '@/constants'
 import { IconDocument, IconEmail, IconImage, IconPhone, IconPrint, IconTrash, IconWhatsApp } from '@/components/icons'
-import type { ScheduledAppointment, AppointmentStatus, ClinicSpecialty } from '@/types/domain'
+import type {
+  ScheduledAppointment, AppointmentStatus, ClinicSpecialty, EvolutionTemplate, SoapNote, SoapSection,
+} from '@/types/domain'
 import styles from './AppointmentModal.module.scss'
 
 /** CSS específico do prontuário — o resto (cabeçalho da clínica, tabela,
@@ -37,6 +44,9 @@ import styles from './AppointmentModal.module.scss'
 const PRONTUARIO_PRINT_STYLES = `
   .nota { margin-top: 12px; font-size: 13.5px; line-height: 1.65; }
   .nota p { margin: 0 0 10px; }
+  /* Rótulo da seção SOAP (soapToHtml gera um <p><strong>Plano:</strong></p>
+     antes do conteúdo): cola no parágrafo que ele nomeia. */
+  .nota p strong { display: inline-block; margin-top: 4px; }
   .assinatura { margin-top: 72px; text-align: center; }
   .assinatura .linha { display: inline-block; border-top: 1px solid #12211C; padding-top: 6px;
                        min-width: 280px; font-size: 13px; }
@@ -145,9 +155,20 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
   // Pacote ou contrato ao qual esta consulta se pendura — só entra na consulta
   // NOVA (imutável depois de criada, ver appointment.entitlement_id).
   const [entitlementId, setEntitlementId] = useState('')
-  // Prontuário da SESSÃO (coluna direita, fisioterapia) — salvo à parte do
-  // resto do agendamento (ver handleSaveNote).
-  const [noteHtml, setNoteHtml] = useState('')
+  // Prontuário SOAP da SESSÃO (coluna direita, fisioterapia) — salvo à parte
+  // do resto do agendamento (ver handleSaveNote).
+  const [clinicalNote, setClinicalNote] = useState<SoapNote>({})
+  // O que entrou COPIADO no editor (modelo ou sessão anterior). Guardar o
+  // conteúdo, e não um booleano, é o que faz a marca "copiado" sumir sozinha
+  // quando o profissional edita a seção — sem estado a sincronizar.
+  const [copiedFrom, setCopiedFrom] = useState<SoapNote>({})
+  // Nome do modelo aplicado, mostrado no topo da coluna. É só um RÓTULO de
+  // procedência — não vira vínculo: o texto já foi copiado e editar o modelo
+  // depois não pode mexer no que foi registrado. Some quando o profissional
+  // esvazia a nota, senão continuaria anunciando um modelo que não está mais lá.
+  const [appliedTemplate, setAppliedTemplate] = useState<string | null>(null)
+  // Evolução idêntica à da sessão anterior: pergunta antes de salvar.
+  const [confirmingCarbon, setConfirmingCarbon] = useState<null | 'note' | 'all'>(null)
   // Renomeado pra não colidir com a `specialty` LOCAL de buildPayload (a do
   // profissional escolhido, não a da clínica).
   const { specialty: clinicSpecialty } = useSession()
@@ -179,7 +200,9 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
         setNotes(slot.notes ?? '')
         setStatus(slot.status)
         setEntitlementId('')
-        setNoteHtml(slot.clinicalNoteHtml ?? '')
+        setClinicalNote(slot.clinicalNote ?? {})
+        setCopiedFrom({})
+        setAppliedTemplate(null)
       } else {
         setProfessionalId(initial?.professionalId ?? '')
         setPatientSearch('')
@@ -190,7 +213,9 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
         setNotes('')
         setStatus('scheduled')
         setEntitlementId('')
-        setNoteHtml('')
+        setClinicalNote({})
+        setCopiedFrom({})
+        setAppliedTemplate(null)
       }
     }
   }
@@ -319,10 +344,34 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
       return
     }
 
+    // Evolução idêntica à da sessão anterior: pergunta ANTES de gravar
+    // qualquer coisa (perguntar depois de salvar a consulta deixaria metade
+    // do modal salvo enquanto a pergunta está na tela).
+    if (slot && noteDirty && isCarbonCopy) { setConfirmingCarbon('all'); return }
+    submitAppointment()
+  }
+
+  /** Grava a consulta e, se houver evolução nova, o prontuário junto. */
+  function submitAppointment() {
     // Salvar mantém a situação atual (a situação muda pelos botões dedicados).
     const payload = buildPayload(status)
     const options = {
       onSuccess: () => {
+        // O prontuário tem botão próprio, mas quem aperta "Salvar alterações"
+        // espera que o modal INTEIRO seja salvo — fechar aqui com evolução
+        // digitada e não salva era o mesmo texto perdido do confirmOnClose.
+        if (slot && noteDirty) {
+          saveNote(
+            { appointmentId: slot.id, note: noteToSave, patientId: slot.patientId },
+            {
+              onSuccess: () => { toast.success('Agendamento e prontuário salvos!'); onClose() },
+              // A consulta já foi salva; só o prontuário falhou. O modal fica
+              // aberto com o texto na tela em vez de fechar e descartá-lo.
+              onError: (e: unknown) => setError(userMessage(e, 'A consulta foi salva, mas o prontuário não. Tente salvar o prontuário novamente.')),
+            },
+          )
+          return
+        }
         toast.success(slot ? 'Agendamento atualizado!' : 'Consulta agendada!')
         onClose()
       },
@@ -371,14 +420,62 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
   const { data: attachments } = useAppointmentAttachments(slot?.id)
   const { mutate: uploadAttachment, isPending: uploadingAttachment } = useUploadDocument()
   const { mutate: removeAttachment } = useDeleteDocument()
-  const noteDirty = noteHtml !== (slot?.clinicalNoteHtml ?? '')
+
+  // Mesma query (e mesma entrada de cache) do painel "Última sessão" logo
+  // abaixo: aqui ela serve para comparar a evolução digitada com a anterior na
+  // hora de salvar.
+  const { data: previousSession } = usePreviousSessionNote(slot?.patientId, slot?.date, slot?.startTime)
+
+  // Seção em branco não é seção: o editor devolve '<p></p>' quando o campo é
+  // limpo, então uma sessão SEM prontuário nascia "suja" (salvar aceso e a
+  // pergunta ao fechar) só por abrir o modal. normalizeSoapNote põe as duas
+  // formas de vazio na mesma forma — `undefined` — antes de qualquer comparação.
+  const savedNote = normalizeSoapNote(slot?.clinicalNote)
+  const noteToSave = normalizeSoapNote(clinicalNote)
+  const noteDirty = JSON.stringify(noteToSave ?? null) !== JSON.stringify(savedNote ?? null)
+
+  // Marca "copiado" só enquanto a seção continuar IGUAL ao que foi colado
+  // (modelo ou sessão anterior). Derivado, não estado: editar a seção apaga a
+  // marca sozinho, sem nenhum listener para manter em dia.
+  // Rótulo do modelo some sozinho quando a nota é esvaziada — DERIVADO, e não
+  // um segundo estado a manter em dia (mesma escolha do copiedFrom acima).
+  const shownTemplate = appliedTemplate && !isBlankSoap(clinicalNote) ? appliedTemplate : null
+
+  const copiedSections = (Object.keys(copiedFrom) as SoapSection[])
+    .filter(section => soapPlainText(clinicalNote[section]) === soapPlainText(copiedFrom[section]))
+
+  /** Evolução que ficou igualzinha à da sessão anterior — carbono, o que um
+   *  fiscal lê como atendimento não registrado. Não bloqueia: pergunta. */
+  const isCarbonCopy = Boolean(
+    previousSession && !isBlankSoap(noteToSave) && isSameSoapNote(noteToSave, previousSession.note),
+  )
+
+  function persistNote(after: () => void) {
+    if (!slot) return
+    saveNote({ appointmentId: slot.id, note: noteToSave, patientId: slot.patientId }, {
+      onSuccess: after,
+      onError: (e: unknown) => setError(userMessage(e, 'Não foi possível salvar o prontuário. Tente novamente.')),
+    })
+  }
 
   function handleSaveNote() {
     if (!slot) return
-    saveNote(
-      { appointmentId: slot.id, html: noteHtml, patientId: slot.patientId },
-      { onSuccess: () => toast.success('Prontuário da sessão salvo!') },
-    )
+    if (isCarbonCopy) { setConfirmingCarbon('note'); return }
+    persistNote(() => toast.success('Prontuário da sessão salvo!'))
+  }
+
+  /** Copia Objetivo e Plano da sessão anterior por cima do que houver neles.
+   *  Subjetivo e Avaliação NÃO vêm de propósito (ver REPEATABLE_SOAP_SECTIONS). */
+  function handleRepeatPrevious(previous: SoapNote) {
+    setClinicalNote(current => ({ ...current, ...previous }))
+    setCopiedFrom(previous)
+  }
+
+  function handleApplyTemplate(templateNote: SoapNote, template: EvolutionTemplate) {
+    setClinicalNote(templateNote)
+    setCopiedFrom(templateNote)
+    setAppliedTemplate(template.name)
+    toast.success('Modelo aplicado — edite as seções antes de salvar.')
   }
 
   function handleAttachFile(file: File) {
@@ -401,7 +498,12 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
           : (slot ? 'Editar agendamento' : 'Nova consulta')
       }
       size={clinicSpecialty === 'physiotherapy' ? 'xl' : 'lg'}
-      footer={
+      // Evolução digitada e ainda não salva: ESC, clique no fundo, "×" e o
+      // "Fechar" do rodapé passam a perguntar antes de descartar.
+      confirmOnClose={noteDirty}
+      confirmOnCloseTitle="Sair sem salvar o prontuário?"
+      confirmOnCloseMessage="O que você escreveu no prontuário desta sessão ainda não foi salvo. Fechar agora descarta a evolução."
+      footer={requestClose => (
         <>
           {/* WhatsApp: abre a conversa com o paciente (usa o WhatsApp se houver,
               senão o telefone). Substitui o antigo seletor de confirmação. */}
@@ -418,12 +520,12 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
               WhatsApp
             </Button>
           )}
-          <Button variant="ghost" onClick={onClose} disabled={creating || saving}>Fechar</Button>
+          <Button variant="ghost" onClick={requestClose} disabled={creating || saving}>Fechar</Button>
           <Button loading={creating || saving} onClick={handleSave}>
             {slot ? 'Salvar alterações' : 'Agendar'}
           </Button>
         </>
-      }
+      )}
     >
       <div className={styles.layout}>
       <div className={styles.corpo}>
@@ -602,7 +704,18 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
           (o anexo/nota precisam de um appointment_id real). */}
       {clinicSpecialty === 'physiotherapy' && (
         <div className={styles.colDireita}>
-          <span className={styles.prontuarioRotulo}>Prontuário da sessão</span>
+          <div className={styles.prontuarioCabecalho}>
+            <span className={styles.prontuarioRotulo}>Prontuário da sessão</span>
+            {/* Procedência do texto: qual modelo foi aplicado. Fica no topo
+                porque o editor tem 4 seções e o profissional rola — o rótulo
+                junto do botão lá embaixo sairia de vista. */}
+            {shownTemplate && (
+              <span className={styles.modeloAplicado} title={`Modelo aplicado: ${shownTemplate}`}>
+                <IconDocument />
+                {shownTemplate}
+              </span>
+            )}
+          </div>
 
           {!slot ? (
             <p className={styles.prontuarioVazio}>
@@ -610,36 +723,56 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
             </p>
           ) : (
             <>
-              <RichTextEditor
-                value={noteHtml}
-                onChange={setNoteHtml}
-                placeholder="Descreva a evolução, condutas e observações desta sessão..."
-                toolbarEnd={
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    iconLeft={<IconPrint />}
-                    disabled={!noteHtml.trim()}
-                    title="Imprimir"
-                    aria-label="Imprimir prontuário da sessão"
-                    onClick={() => printDocument({
-                      title: 'Prontuário da sessão',
-                      subtitle: slot ? patientName(slot.patientId) : undefined,
-                      body: prontuarioBody(
-                        noteHtml,
-                        slot && patientName(slot.patientId),
-                        isoToBrDate(slot?.date) ?? '',
-                        professionalName(professionalId),
-                        clinicSpecialty,
-                        professionals?.find(p => p.id === professionalId)?.license,
-                      ),
-                      styles: PRONTUARIO_PRINT_STYLES,
-                    })}
-                  />
-                }
+              {/* Evolução da sessão anterior, recolhida — conferir o que foi
+                  feito da última vez sem sair do modal (sair perde o que está
+                  digitado). Ancorada na data/hora SALVAS da sessão, não nos
+                  campos em edição. */}
+              <LastSessionNote
+                patientId={slot.patientId}
+                beforeDateIso={slot.date}
+                beforeStartTime={slot.startTime}
+                onRepeat={handleRepeatPrevious}
               />
+
+              <SoapEditor value={clinicalNote} onChange={setClinicalNote} copiedSections={copiedSections} />
+
+              {isCarbonCopy && (
+                <p className={styles.prontuarioCarbono} role="status">
+                  Esta evolução está <strong>idêntica à da sessão anterior</strong>. Ajuste o Subjetivo e a
+                  Avaliação — é o que muda de uma sessão para a outra.
+                </p>
+              )}
+
               <div className={styles.prontuarioAcoes}>
-                <AiNoteActions value={noteHtml} onChange={setNoteHtml} />
+                <EvolutionTemplatePicker current={clinicalNote} onApply={handleApplyTemplate} />
+                {/* Ditado e "Aprimorar com IA" foram RETIRADOS a pedido do dono
+                    ("por hora"). O componente <AiNoteActions>, os hooks
+                    useAudioDictation/useNoteEnhancement e a edge function
+                    transcribe-audio seguem no repositório INTACTOS — voltar é
+                    reinserir estas linhas. A ponte soapToHtml/parseSoapHtml
+                    continua existindo em utils/soap (com teste), que é o que
+                    traduz o HTML corrido da IA para as quatro seções. */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  iconLeft={<IconPrint />}
+                  disabled={isBlankSoap(clinicalNote)}
+                  title="Imprimir"
+                  aria-label="Imprimir prontuário da sessão"
+                  onClick={() => printDocument({
+                    title: 'Prontuário da sessão',
+                    subtitle: slot ? patientName(slot.patientId) : undefined,
+                    body: prontuarioBody(
+                      soapToHtml(clinicalNote),
+                      slot && patientName(slot.patientId),
+                      isoToBrDate(slot?.date) ?? '',
+                      professionalName(professionalId),
+                      clinicSpecialty,
+                      professionals?.find(p => p.id === professionalId)?.license,
+                    ),
+                    styles: PRONTUARIO_PRINT_STYLES,
+                  })}
+                />
                 <Button size="sm" loading={savingNote} disabled={!noteDirty} onClick={handleSaveNote}>
                   Salvar prontuário
                 </Button>
@@ -695,6 +828,27 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
         </div>
       )}
       </div>
+
+      {/*
+        Evolução idêntica à da sessão anterior. NÃO bloqueia — há quadro que de
+        fato repete, e travar empurraria o profissional a mudar uma palavra só
+        para o sistema deixar salvar. Obriga o "sim": quem assina decide, e
+        decide sabendo.
+      */}
+      <ConfirmDialog
+        open={confirmingCarbon !== null}
+        onClose={() => setConfirmingCarbon(null)}
+        onConfirm={() => {
+          const target = confirmingCarbon
+          setConfirmingCarbon(null)
+          if (target === 'all') submitAppointment()
+          else persistNote(() => toast.success('Prontuário da sessão salvo!'))
+        }}
+        title="Evolução idêntica à da sessão anterior"
+        message="O texto desta evolução é igual ao da sessão anterior deste paciente, palavra por palavra. Prontuário repetido é lido como atendimento não registrado numa fiscalização. Confirma que a sessão foi assim mesmo?"
+        confirmLabel="Sim, salvar assim"
+        cancelLabel="Voltar e editar"
+      />
 
       <ConfirmDialog
         open={confirmingCancel}

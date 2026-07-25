@@ -1,0 +1,173 @@
+@use '../../../styles/mixins' as *;
+
+// Rótulo + controle — mesmo padrão do "Tipo de teste" em TestsTab.
+.motorLinha {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.motorLabel {
+  font-size: $fs-xs;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.seedNota,
+.vazio,
+.itemNumeroNota {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.erro {
+  font-size: $fs-xs;
+  color: var(--danger-fg);
+  line-height: 1.4;
+}
+
+// ── Itens ────────────────────────────────────────────────────────────────────
+.itens {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  margin: 0;
+  padding: 0;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  padding: $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  background: var(--glass-bg);
+}
+
+.itemCabecalho {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: $sp-2;
+
+  // No celular o enunciado ocupa a largura toda e o seletor de tipo cai para a
+  // linha de baixo — espremido ao lado do campo, ele viraria duas palavras
+  // quebradas por botão.
+  @include mobile {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'num label remover'
+      'num tipo  tipo';
+    row-gap: $sp-2;
+
+    > :nth-child(1) { grid-area: num; }
+    > :nth-child(2) { grid-area: label; }
+    > :nth-child(3) { grid-area: tipo; }
+    > :nth-child(4) { grid-area: remover; }
+  }
+}
+
+.itemNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: $radius-pill;
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary-dark, var(--primary));
+  font-size: $fs-xs;
+  font-weight: 700;
+}
+
+.itemLabel,
+.itemHelp {
+  min-width: 0;
+}
+
+.itemHelp {
+  padding-left: calc(24px + #{$sp-2});
+
+  @include phone {
+    padding-left: 0;
+  }
+}
+
+// ── Alternativas do item ─────────────────────────────────────────────────────
+.opcoesBloco {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: $sp-2;
+  padding-left: calc(24px + #{$sp-2});
+  // Fio à esquerda: amarra as alternativas ao item, sem precisar de outro card
+  // dentro do card.
+  border-left: 2px solid var(--glass-border);
+  margin-left: 11px;
+
+  @include phone {
+    padding-left: $sp-2;
+    margin-left: 0;
+  }
+}
+
+.opcoes {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.opcao {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 100px auto;
+  align-items: center;
+  gap: $sp-2;
+
+  @include phone {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'label  remover'
+      'pontos pontos';
+    row-gap: $sp-2;
+
+    > :nth-child(1) { grid-area: label; }
+    > :nth-child(2) { grid-area: pontos; }
+    > :nth-child(3) { grid-area: remover; }
+  }
+}
+
+.opcaoLabel,
+.opcaoPontos {
+  min-width: 0;
+}
+
+// ── Botão de remover (item e alternativa) ────────────────────────────────────
+.remover {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: $radius-sm;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--danger-fg) 12%, transparent);
+    color: var(--danger-fg);
+  }
+
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  svg { width: 16px; height: 16px; }
+}

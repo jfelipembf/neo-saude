@@ -374,17 +374,24 @@ export function ScheduleBoard({ onSelect, onQuickAdd, enrollTarget, onEnrollDone
       )}
 
       <div className={styles.controls}>
-        <Select
-          size="md"
-          value={professionalId}
-          onChange={e => setProfessionalId(e.target.value)}
-          options={[
-            { value: '', label: 'Todos os profissionais' },
-            ...professionals.map(p => ({ value: p.id, label: p.name })),
-          ]}
-          aria-label="Filtrar agenda por profissional"
-          className={styles.selectProfissional}
-        />
+        {/* Filtro por profissional só existe quando há QUEM filtrar: com um
+            profissional só (o consultório de uma pessoa), o seletor ofereceria
+            "Todos" e o nome dela — uma escolha sem consequência ocupando a
+            barra. Ele já vem pré-selecionado logo acima, então a grade mostra
+            a agenda dele de qualquer forma. */}
+        {professionals.length > 1 && (
+          <Select
+            size="md"
+            value={professionalId}
+            onChange={e => setProfessionalId(e.target.value)}
+            options={[
+              { value: '', label: 'Todos os profissionais' },
+              ...professionals.map(p => ({ value: p.id, label: p.name })),
+            ]}
+            aria-label="Filtrar agenda por profissional"
+            className={styles.selectProfissional}
+          />
+        )}
         <div className={styles.controlsRight}>
           {/* Busca colada à frente do "20/07 – 26/07" — não quebra de linha. */}
           <div className={styles.buscaSemana}>

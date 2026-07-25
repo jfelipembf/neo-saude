@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react'
-import { AiNoteActions } from '@/components/AiNoteActions/AiNoteActions'
 import { Modal } from '@/components/Modal/Modal'
 import { Button } from '@/components/Button/Button'
+import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { Input } from '@/components/Input/Input'
 import { EntitlementPickerModal } from '@/components/EntitlementPickerModal/EntitlementPickerModal'
+import { EvolutionTemplatePicker } from '@/components/EvolutionTemplatePicker/EvolutionTemplatePicker'
+import { LastSessionNote } from '@/components/LastSessionNote/LastSessionNote'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
-import { RichTextEditor } from '@/components/RichTextEditor/RichTextEditor'
 import { SegmentedControl } from '@/components/SegmentedControl/SegmentedControl'
+import { SoapEditor } from '@/components/SoapEditor/SoapEditor'
 import type { SegmentOption } from '@/components/SegmentedControl/SegmentedControl'
 import { useToast } from '@/components/Toast/Toast'
 import { IconClock, IconDocument, IconPlus, IconPrint, IconRoom, IconSearch, IconUser, IconX } from '@/components/icons'
 import { useClassGroupRoster, useEnrollPatient, useSaveAttendance, useSaveAttendanceNote } from '@/hooks/useClassGroupRoster'
+import { usePreviousSessionNote } from '@/hooks/usePatientClinicalNotes'
 import { usePatients } from '@/hooks/usePatients'
 import { useProfessionals } from '@/hooks/useProfessionals'
 import { useProfessionalName } from '@/hooks/useDisplayNames'
@@ -20,8 +23,14 @@ import { matchesSearch } from '@/utils/search'
 import { initials } from '@/utils/text'
 import { isoToBrDate } from '@/utils/date'
 import { esc } from '@/utils/printDocument'
+import {
+  isBlankSoap, isSameSoapNote, normalizeSoapNote, soapPlainText, soapToHtml,
+} from '@/utils/soap'
 import { PROFESSIONAL_SIGNATURE_LABEL } from '@/constants'
-import type { ClassAttendanceStatus, ClassGroupOccurrence, ClassGroupRosterEntry, PatientServiceEntitlement } from '@/types/domain'
+import type {
+  ClassAttendanceStatus, ClassGroupOccurrence, ClassGroupRosterEntry, EvolutionTemplate,
+  PatientServiceEntitlement, SoapNote, SoapSection,
+} from '@/types/domain'
 import styles from './ClassAttendanceModal.module.scss'
 
 /** CSS específico do prontuário — o resto (cabeçalho da clínica, assinatura)
@@ -31,6 +40,9 @@ import styles from './ClassAttendanceModal.module.scss'
 const PRONTUARIO_PRINT_STYLES = `
   .nota { margin-top: 12px; font-size: 13.5px; line-height: 1.65; }
   .nota p { margin: 0 0 10px; }
+  /* Rótulo da seção SOAP (soapToHtml gera um <p><strong>Plano:</strong></p>
+     antes do conteúdo): cola no parágrafo que ele nomeia. */
+  .nota p strong { display: inline-block; margin-top: 4px; }
   .assinatura { margin-top: 72px; text-align: center; }
   .assinatura .linha { display: inline-block; border-top: 1px solid #12211C; padding-top: 6px;
                        min-width: 280px; font-size: 13px; }
@@ -94,7 +106,15 @@ export function ClassAttendanceModal({ occurrence, onClose }: ClassAttendanceMod
   const [att, setAtt] = useState<Record<string, ClassAttendanceStatus>>({})
   const [just, setJust] = useState<Record<string, string>>({})
   const [notePatientId, setNotePatientId] = useState<string | null>(null)
-  const [noteHtml, setNoteHtml] = useState('')
+  const [note, setNote] = useState<SoapNote>({})
+  // O que entrou COPIADO no editor (modelo ou sessão anterior) — guardar o
+  // conteúdo, e não um booleano, faz a marca "copiado" sumir sozinha quando o
+  // profissional edita a seção.
+  const [copiedFrom, setCopiedFrom] = useState<SoapNote>({})
+  // Nome do modelo aplicado — rótulo de procedência no topo do painel. Ver a
+  // mesma escolha em AppointmentModal.
+  const [appliedTemplate, setAppliedTemplate] = useState<string | null>(null)
+  const [confirmingCarbon, setConfirmingCarbon] = useState(false)
   // Paciente escolhido na busca — falta só decidir QUAL pacote/plano ativo
   // dele justifica a matrícula (ver EntitlementPickerModal).
   const [enrollCandidate, setEnrollCandidate] = useState<{ id: string; name: string } | null>(null)
@@ -102,7 +122,8 @@ export function ClassAttendanceModal({ occurrence, onClose }: ClassAttendanceMod
   // Reabrir pra uma OUTRA ocorrência (turma ou data diferente) limpa a busca
   // e fecha o painel de prontuário — estado de uma turma não vaza pra outra.
   useEffect(() => {
-    setSearch(''); setSuggestionsOpen(false); setNotePatientId(null); setNoteHtml(''); setEnrollCandidate(null)
+    setSearch(''); setSuggestionsOpen(false); setNotePatientId(null)
+    setNote({}); setCopiedFrom({}); setAppliedTemplate(null); setEnrollCandidate(null)
   }, [occurrence?.id])
 
   // Semeia o rascunho de presença/justificativa a partir do servidor — roda de
@@ -155,19 +176,66 @@ export function ClassAttendanceModal({ occurrence, onClose }: ClassAttendanceMod
 
   function openNote(entry: ClassGroupRosterEntry) {
     setNotePatientId(entry.patientId)
-    setNoteHtml(entry.clinicalNoteHtml ?? '')
+    setNote(entry.clinicalNote ?? {})
+    setCopiedFrom({})
+    setAppliedTemplate(null)
   }
   function closeNote() {
     setNotePatientId(null)
-    setNoteHtml('')
+    setNote({})
+    setCopiedFrom({})
+    setAppliedTemplate(null)
   }
 
   const notePatient = (roster ?? []).find(r => r.patientId === notePatientId) ?? null
-  const noteDirty = noteHtml !== (notePatient?.clinicalNoteHtml ?? '')
+
+  // Mesma query (e mesma entrada de cache) do painel "Última sessão" ao lado:
+  // aqui serve para comparar a evolução digitada com a anterior ao salvar.
+  const { data: previousSession } = usePreviousSessionNote(
+    notePatientId ?? undefined, dateIso || undefined, occurrence?.startTime,
+  )
+
+  // Seção em branco não é seção: normalizeSoapNote põe '<p></p>', '' e chave
+  // ausente na mesma forma antes de qualquer comparação (é também o que o
+  // CHECK do banco exige na gravação).
+  // Some sozinho quando a nota é esvaziada — derivado, não um 2º estado.
+  const shownTemplate = appliedTemplate && !isBlankSoap(note) ? appliedTemplate : null
+
+  const savedNote = normalizeSoapNote(notePatient?.clinicalNote)
+  const noteToSave = normalizeSoapNote(note)
+  const noteDirty = JSON.stringify(noteToSave ?? null) !== JSON.stringify(savedNote ?? null)
+
+  // Derivado, não estado: editar a seção apaga a marca "copiado" sozinho.
+  const copiedSections = (Object.keys(copiedFrom) as SoapSection[])
+    .filter(section => soapPlainText(note[section]) === soapPlainText(copiedFrom[section]))
+
+  const isCarbonCopy = Boolean(
+    previousSession && !isBlankSoap(noteToSave) && isSameSoapNote(noteToSave, previousSession.note),
+  )
+
+  function persistNote() {
+    if (!notePatientId) return
+    saveNote({ patientId: notePatientId, note: noteToSave }, { onSuccess: () => toast.success('Prontuário salvo!') })
+  }
 
   function handleSaveNote() {
     if (!notePatientId) return
-    saveNote({ patientId: notePatientId, html: noteHtml }, { onSuccess: () => toast.success('Prontuário salvo!') })
+    if (isCarbonCopy) { setConfirmingCarbon(true); return }
+    persistNote()
+  }
+
+  /** Copia Objetivo e Plano da aula anterior deste aluno (ver
+   *  REPEATABLE_SOAP_SECTIONS: S e A são o que muda de sessão para sessão). */
+  function handleRepeatPrevious(previous: SoapNote) {
+    setNote(current => ({ ...current, ...previous }))
+    setCopiedFrom(previous)
+  }
+
+  function handleApplyTemplate(templateNote: SoapNote, template: EvolutionTemplate) {
+    setNote(templateNote)
+    setCopiedFrom(templateNote)
+    setAppliedTemplate(template.name)
+    toast.success('Modelo aplicado — edite as seções antes de salvar.')
   }
 
   const total = roster?.length ?? 0
@@ -328,35 +396,57 @@ export function ClassAttendanceModal({ occurrence, onClose }: ClassAttendanceMod
                     <IconX />
                   </button>
                 </div>
-                <RichTextEditor
-                  value={noteHtml}
-                  onChange={setNoteHtml}
-                  placeholder="Descreva a evolução, condutas e observações desta sessão..."
-                  toolbarEnd={
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      iconLeft={<IconPrint />}
-                      disabled={!noteHtml.trim()}
-                      title="Imprimir"
-                      aria-label="Imprimir prontuário da sessão"
-                      onClick={() => printDocument({
-                        title: 'Prontuário da sessão',
-                        subtitle: notePatient.patientName,
-                        body: prontuarioBody(
-                          noteHtml,
-                          notePatient.patientName,
-                          isoToBrDate(dateIso) ?? '',
-                          professionalName(occurrence?.professionalId),
-                          professionals?.find(p => p.id === occurrence?.professionalId)?.license,
-                        ),
-                        styles: PRONTUARIO_PRINT_STYLES,
-                      })}
-                    />
-                  }
+
+                {/* Procedência do texto. Em linha própria porque o título ao
+                    lado já carrega o nome do aluno e o botão de fechar. */}
+                {shownTemplate && (
+                  <span className={styles.modeloAplicado} title={`Modelo aplicado: ${shownTemplate}`}>
+                    <IconDocument />
+                    {shownTemplate}
+                  </span>
+                )}
+                {/* Evolução da aula anterior deste aluno, recolhida — mesma
+                    fonte dupla (consulta e turma) do painel da Agenda. */}
+                <LastSessionNote
+                  patientId={notePatient.patientId}
+                  beforeDateIso={dateIso}
+                  beforeStartTime={occurrence.startTime}
+                  onRepeat={handleRepeatPrevious}
                 />
+
+                <SoapEditor value={note} onChange={setNote} copiedSections={copiedSections} />
+
+                {isCarbonCopy && (
+                  <p className={styles.carbono} role="status">
+                    Esta evolução está <strong>idêntica à da sessão anterior</strong>. Ajuste o Subjetivo e a
+                    Avaliação — é o que muda de uma sessão para a outra.
+                  </p>
+                )}
+
                 <div className={styles.sideActions}>
-                  <AiNoteActions value={noteHtml} onChange={setNoteHtml} />
+                  <EvolutionTemplatePicker current={note} onApply={handleApplyTemplate} />
+                  {/* Ditado e "Aprimorar com IA" retirados a pedido do dono
+                      ("por hora") — ver a mesma nota em AppointmentModal. */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    iconLeft={<IconPrint />}
+                    disabled={isBlankSoap(note)}
+                    title="Imprimir"
+                    aria-label="Imprimir prontuário da sessão"
+                    onClick={() => printDocument({
+                      title: 'Prontuário da sessão',
+                      subtitle: notePatient.patientName,
+                      body: prontuarioBody(
+                        soapToHtml(note),
+                        notePatient.patientName,
+                        isoToBrDate(dateIso) ?? '',
+                        professionalName(occurrence?.professionalId),
+                        professionals?.find(p => p.id === occurrence?.professionalId)?.license,
+                      ),
+                      styles: PRONTUARIO_PRINT_STYLES,
+                    })}
+                  />
                   <Button size="sm" loading={savingNote} disabled={!noteDirty} onClick={handleSaveNote}>
                     Salvar prontuário
                   </Button>
@@ -372,6 +462,18 @@ export function ClassAttendanceModal({ occurrence, onClose }: ClassAttendanceMod
         patientId={enrollCandidate?.id ?? ''}
         onClose={() => setEnrollCandidate(null)}
         onPick={handlePickEntitlement}
+      />
+
+      {/* Evolução idêntica à da sessão anterior: obriga o "sim", não bloqueia
+          (mesma regra do AppointmentModal — há quadro que de fato repete). */}
+      <ConfirmDialog
+        open={confirmingCarbon}
+        onClose={() => setConfirmingCarbon(false)}
+        onConfirm={() => { setConfirmingCarbon(false); persistNote() }}
+        title="Evolução idêntica à da sessão anterior"
+        message="O texto desta evolução é igual ao da sessão anterior deste paciente, palavra por palavra. Prontuário repetido é lido como atendimento não registrado numa fiscalização. Confirma que a sessão foi assim mesmo?"
+        confirmLabel="Sim, salvar assim"
+        cancelLabel="Voltar e editar"
       />
     </>
   )

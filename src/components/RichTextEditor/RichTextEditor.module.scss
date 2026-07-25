@@ -98,14 +98,6 @@
   display: flex;
 }
 
-// Slot livre no canto direito da toolbar (ver prop `toolbarEnd`) — empurra
-// pro fim da linha; se a toolbar quebrar linha (telas estreitas), some pro
-// início da linha seguinte, que já é o comportamento esperado de flex-wrap.
-.toolbarEnd {
-  display: flex;
-  margin-left: auto;
-}
-
 .emojiPanel {
   position: absolute;
   z-index: 10;
@@ -142,6 +134,17 @@
 .editorWrapper {
   flex: 1;
   min-height: 0;
+  // O `overflow-y: auto` abaixo existia mas NUNCA agia: `flex: 1` num pai sem
+  // altura definida resolve para a altura do conteúdo, então não havia o que
+  // rolar e o editor esticava sem limite. Com uma seção longa (o "Aprimorar
+  // com IA" devolve 3-4 parágrafos de uma vez), isso empurrava para fora da
+  // tela os botões que ficam ABAIXO do editor — Usar modelo, Aprimorar,
+  // Salvar prontuário. O teto é o que liga a rolagem.
+  //
+  // 40vh e não um px fixo: em desktop dá ~350px (uns 4 parágrafos visíveis) e
+  // no celular acompanha a tela, que é onde o problema doía — profissional em
+  // pé, entre um paciente e outro.
+  max-height: 40vh;
   overflow-y: auto;
   border: 1px solid var(--field-border);
   border-radius: 0 0 $radius-sm $radius-sm;

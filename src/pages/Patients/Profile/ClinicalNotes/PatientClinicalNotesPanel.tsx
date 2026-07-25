@@ -2,26 +2,26 @@ import { useState } from 'react'
 import { Calendar } from '@/components/Calendar/Calendar'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
-import { RichTextEditor } from '@/components/RichTextEditor/RichTextEditor'
+import { SoapNoteView } from '@/components/SoapNoteView/SoapNoteView'
 import { IconDocument } from '@/components/icons'
 import { usePatientNoteDates, usePatientNotesByDate } from '@/hooks/usePatientClinicalNotes'
 import { useAppointmentAttachments } from '@/hooks/useDocuments'
 import { isImageFile } from '@/utils/files'
 import { isoToBrDate } from '@/utils/date'
-import type { DailyClinicalNote } from '@/services/patientClinicalNotesService'
+import type { SessionClinicalNote } from '@/services/patientClinicalNotesService'
 import styles from './PatientClinicalNotesPanel.module.scss'
 
 interface PatientClinicalNotesPanelProps {
   patientId: string
 }
 
-// Read-only: só mostra o que já foi escrito, não recebe onChange.
-function noop() {}
-
-/** Um prontuário do dia — mesmo RichTextEditor da Agenda, travado (`disabled`),
- *  pra exibir exatamente como foi escrito (fonte/cor/alinhamento) com a mesma
- *  barra de ferramentas — não uma renderização à parte que pode divergir. */
-function NoteCard({ note }: { note: DailyClinicalNote }) {
+/** Um prontuário do dia: as seções SOAP preenchidas, em leitura.
+ *
+ *  Antes isto era o RichTextEditor da Agenda travado (`disabled`), o que fazia
+ *  sentido com UM campo de HTML solto. Com quatro seções seriam quatro barras
+ *  de ferramentas desabilitadas só para exibir texto — e as seções vazias
+ *  virariam quatro títulos com nada embaixo. Leitura é SoapNoteView. */
+function NoteCard({ note }: { note: SessionClinicalNote }) {
   const { data: attachments } = useAppointmentAttachments(note.appointmentId)
   return (
     <article className={styles.nota}>
@@ -30,7 +30,7 @@ function NoteCard({ note }: { note: DailyClinicalNote }) {
         <span className={styles.notaAtividade}>{note.activity}</span>
       </header>
 
-      <RichTextEditor value={note.html} onChange={noop} disabled />
+      <SoapNoteView note={note.note} />
 
       {attachments && attachments.length > 0 && (
         <div className={styles.notaAnexos}>
@@ -92,7 +92,9 @@ export function PatientClinicalNotesPanel({ patientId }: PatientClinicalNotesPan
         ) : (
           <>
             <h3 className={styles.dataTitulo}>{isoToBrDate(selectedDate)}</h3>
-            {notes.map(note => <NoteCard key={note.appointmentId} note={note} />)}
+            {/* A chave é a da LINHA de origem: uma sessão de turma não tem
+                appointment_id (ver SessionClinicalNote). */}
+            {notes.map(note => <NoteCard key={note.id} note={note} />)}
           </>
         )}
       </div>

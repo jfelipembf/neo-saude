@@ -2,7 +2,8 @@ import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
 import { signAssetUrls } from '@/lib/storage'
 import { addDays, isoToBrDate, localDate, toIsoDate } from '@/utils/date'
-import type { ClassAttendanceStatus, ClassGroupRosterEntry } from '@/types/domain'
+import type { Json } from '@/types/database.types'
+import type { ClassAttendanceStatus, ClassGroupRosterEntry, SoapNote } from '@/types/domain'
 
 /**
  * Dias de tolerância após o pacote/plano vencer antes de a matrícula parar de
@@ -149,7 +150,10 @@ type AttendanceRow = {
   patient_id: string
   status: ClassAttendanceStatus
   justification: string | null
-  clinical_note_html: string | null
+  // O CHECK `class_group_attendance_clinical_note_shape_ck` garante a forma no
+  // banco (as quatro chaves do SOAP, valor string) — a linha já chega como
+  // SoapNote, sem revalidação na leitura.
+  clinical_note: SoapNote | null
 }
 type EntitlementDisplayRow = { id: string; service_id: string; expires_at: string | null }
 
@@ -182,7 +186,7 @@ export async function listClassGroupRoster(classGroupId: string, dateIso: string
     supabase.from('patient').select('id, name, photo_url').in('id', patientIds),
     supabase
       .from('class_group_attendance')
-      .select('patient_id, status, justification, clinical_note_html')
+      .select('patient_id, status, justification, clinical_note')
       .eq('class_group_id', classGroupId)
       .eq('clinic_id', clinicId)
       .eq('occurred_on', dateIso),
@@ -220,7 +224,7 @@ export async function listClassGroupRoster(classGroupId: string, dateIso: string
       patientPhoto: patient.photo_url ? signed.get(patient.photo_url) : undefined,
       status: att?.status ?? 'present',
       justification: att?.justification ?? undefined,
-      clinicalNoteHtml: att?.clinical_note_html ?? undefined,
+      clinicalNote: att?.clinical_note ?? undefined,
       entitlementServiceName: entitlement ? serviceNameById.get(entitlement.service_id) : undefined,
       entitlementExpiresAt: entitlement ? isoToBrDate(entitlement.expires_at) : undefined,
     })
@@ -258,7 +262,7 @@ export interface AttendanceEntry {
 
 /**
  * class_group_attendance só concede UPDATE em (status, justification,
- * clinical_note_html) — de propósito, mesmo motivo documentado em
+ * clinical_note) — de propósito, mesmo motivo documentado em
  * goalsService.ts: `.upsert()` do supabase-js monta o ON CONFLICT DO UPDATE
  * atribuindo TODAS as colunas do payload (inclusive as de identidade), e o
  * Postgres confere privilégio de coluna do SET no PLANO da instrução — um
@@ -295,16 +299,24 @@ export async function saveAttendance(classGroupId: string, dateIso: string, entr
   }).map(p => p.then(({ error }) => { if (error) throw error })))
 }
 
-/** Grava só o prontuário da sessão de UM paciente — ação separada do
- *  "Salvar presença" (mesmo desenho do "Salvar prontuário" da consulta). */
-export async function saveAttendanceNote(classGroupId: string, patientId: string, dateIso: string, html: string): Promise<void> {
+/** Grava só o prontuário SOAP da sessão de UM paciente — ação separada do
+ *  "Salvar presença" (mesmo desenho do "Salvar prontuário" da consulta).
+ *  `note` já chega normalizado: undefined grava NULL (nota apagada), seção em
+ *  branco não vira chave — é o que o CHECK do banco exige. */
+export async function saveAttendanceNote(
+  classGroupId: string,
+  patientId: string,
+  dateIso: string,
+  note: SoapNote | undefined,
+): Promise<void> {
   const existing = await findExistingAttendance(classGroupId, dateIso, [patientId])
   const existingId = existing.get(patientId)
+  const clinicalNote = (note ?? null) as Json
   const { error } = existingId
-    ? await supabase.from('class_group_attendance').update({ clinical_note_html: html }).eq('id', existingId)
+    ? await supabase.from('class_group_attendance').update({ clinical_note: clinicalNote }).eq('id', existingId)
     : await supabase.from('class_group_attendance').insert({
         clinic_id: getCurrentClinicId(), class_group_id: classGroupId, patient_id: patientId,
-        occurred_on: dateIso, clinical_note_html: html,
+        occurred_on: dateIso, clinical_note: clinicalNote,
       })
   if (error) throw error
 }

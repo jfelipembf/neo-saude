@@ -1,0 +1,108 @@
+@use '../../styles/mixins' as *;
+
+// Painel recolhido da evolução anterior — mora acima do editor do prontuário
+// (ver AppointmentModal) e não pode roubar a atenção dele: fundo discreto,
+// altura mínima fechado.
+.root {
+  display: flex;
+  flex-direction: column;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  width: 100%;
+  padding: $sp-2 $sp-3;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover:not(:disabled) { background: var(--glass-bg-hover); }
+  &:disabled { cursor: default; }
+}
+
+.info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: $sp-2;
+  row-gap: 2px;
+  min-width: 0;
+}
+
+.label {
+  font-size: $fs-xs;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.meta {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.chevron {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+
+  svg { width: 14px; height: 14px; }
+}
+
+.chevron--open {
+  transform: rotate(180deg);
+}
+
+// Conteúdo: as seções SOAP em leitura (SoapNoteView). Rola dentro do próprio
+// painel para não empurrar o editor da sessão atual para fora da tela.
+.body {
+  max-height: 220px;
+  padding: $sp-3;
+  overflow-y: auto;
+  border-top: 1px solid var(--glass-border);
+
+  @include mobile {
+    max-height: 180px;
+  }
+}
+
+// Rodapé com o "repetir": aparece mesmo com o painel recolhido, porque copiar
+// Objetivo e Plano é a ação mais frequente de quem abre este painel.
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: $sp-2 $sp-3;
+  border-top: 1px solid var(--glass-border);
+}
+
+.repeatBtn {
+  @include focus-ring;
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-2;
+  min-height: 32px;
+  padding: 0 $sp-2;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: $radius-sm;
+  color: var(--primary);
+  font-family: inherit;
+  font-size: $fs-xs;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover { background: var(--glass-bg-hover); border-color: var(--glass-border-strong); }
+}

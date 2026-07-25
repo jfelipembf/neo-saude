@@ -75,6 +75,20 @@ export function digitsOnly(text: string) {
   return text.replace(/\D/g, '')
 }
 
+/**
+ * HTML do editor rico que não tem conteúdo nenhum: '', '<p></p>' (o que o
+ * TipTap devolve quando o campo é LIMPO), '<p><br></p>', só espaços/&nbsp;.
+ *
+ * Existe porque `''` e `'<p></p>'` são a mesma coisa para quem lê e coisas
+ * diferentes para o banco: sem isto, um prontuário apagado continuava contando
+ * como nota (dia marcado no calendário abrindo em branco) e o botão "Salvar
+ * prontuário" acendia sozinho ao abrir uma sessão sem evolução.
+ */
+export function isBlankHtml(html: string | null | undefined): boolean {
+  if (!html) return true
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() === ''
+}
+
 // ── Normalizadores para os DOMÍNIOS do banco (evitam erro de constraint) ─────
 // O Postgres valida formato por domínio: CEP 8 díg., telefone 10–13, CPF 11,
 // CNPJ 14, e-mail por regex, UF numa lista fixa. O app manda com máscara/vazio,

@@ -25,6 +25,27 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`
 }
 
+// Espelho do que o bucket patient-documents aceita (ver a migration
+// 20260725170000_higiene_seguranca): allowed_mime_types e file_size_limit.
+// O storage recusa o resto, mas com erro cru em inglês e só DEPOIS de subir o
+// arquivo inteiro — barrar na escolha é o que dá a mensagem em português.
+const ACCEPTED_MIME = [
+  'image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif', 'application/pdf',
+]
+const MAX_FILE_BYTES = 20 * 1024 * 1024
+
+/** Motivo da recusa, ou '' quando o arquivo passa. */
+function fileRejection(file: File): string {
+  // O tipo vem vazio em arquivo sem extensão conhecida; deixa o storage decidir.
+  if (file.type && !ACCEPTED_MIME.includes(file.type)) {
+    return 'Só é possível enviar imagem (PNG, JPG, WEBP, HEIC) ou PDF.'
+  }
+  if (file.size > MAX_FILE_BYTES) {
+    return `Arquivo muito grande (${formatSize(file.size)}) — o limite é ${formatSize(MAX_FILE_BYTES)}.`
+  }
+  return ''
+}
+
 interface DocumentsUploadProps {
   patientId: string
 }
@@ -55,6 +76,15 @@ export function DocumentsUpload({ patientId }: DocumentsUploadProps) {
   const [perPage, setPerPage] = useState(5)
 
   function selectFile(file: File) {
+    // Passa aqui tanto o seletor quanto o arrastar-e-soltar — e o `accept` do
+    // <input> NÃO vale para o drop, então a checagem tem de ser neste ponto.
+    const rejection = fileRejection(file)
+    if (rejection) {
+      setFile(null)
+      setError(rejection)
+      if (inputRef.current) inputRef.current.value = ''
+      return
+    }
     setFile(file)
     setError('')
     // O nome do arquivo vira sugestão de título (editável).
@@ -168,6 +198,10 @@ export function DocumentsUpload({ patientId }: DocumentsUploadProps) {
         <input
           ref={inputRef}
           type="file"
+          // Filtro do seletor: `image/*` de propósito, mais largo que a
+          // allowlist, para o rolo de câmera do celular não vir vazio. Quem
+          // decide de verdade é fileRejection (o `accept` não vale no drop).
+          accept="image/*,application/pdf"
           className={styles.inputArquivo}
           onChange={e => { const f = e.target.files?.[0]; if (f) selectFile(f) }}
           tabIndex={-1}

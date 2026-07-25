@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId, type ClientPayload } from '@/lib/tenant'
-import type { ScheduledAppointment, AppointmentStatus } from '@/types/domain'
+import type { Json } from '@/types/database.types'
+import type { ScheduledAppointment, AppointmentStatus, SoapNote } from '@/types/domain'
 import { addMinutes } from '@/utils/date'
 
 // A Agenda trabalha com consultas DATADAS na tabela `appointment` — a mesma
@@ -8,7 +9,7 @@ import { addMinutes } from '@/utils/date'
 // (`schedule_slot` ficou reservada para regras recorrentes; a Agenda não a usa.)
 
 const COLUMNS =
-  'id, clinic_id, patient_id, professional_id, room_id, service, date, start_time, duration_minutes, status, notes, color, send_confirmation, entitlement_id, clinical_note_html'
+  'id, clinic_id, patient_id, professional_id, room_id, service, date, start_time, duration_minutes, status, notes, color, send_confirmation, entitlement_id, clinical_note'
 
 type AppointmentRow = {
   id: string
@@ -25,7 +26,10 @@ type AppointmentRow = {
   color: string | null
   send_confirmation: boolean
   entitlement_id: string | null
-  clinical_note_html: string | null
+  // O CHECK `appointment_clinical_note_shape_ck` já garante no BANCO que só
+  // existem as quatro chaves do SOAP, cada uma string — por isso a linha entra
+  // como SoapNote em vez de Json solto, sem validar de novo na leitura.
+  clinical_note: SoapNote | null
 }
 
 // 'HH:MM:SS' (banco) → 'HH:MM' (domínio).
@@ -81,7 +85,7 @@ export async function listScheduleAppointments(fromIso: string, toIso: string): 
     notes: row.notes ?? undefined,
     sendConfirmation: row.send_confirmation,
     entitlementId: row.entitlement_id ?? undefined,
-    clinicalNoteHtml: row.clinical_note_html ?? undefined,
+    clinicalNote: row.clinical_note ?? undefined,
   }))
 }
 
@@ -123,11 +127,19 @@ export async function updateScheduleAppointment(id: string, payload: EditSchedul
   if (error) throw error
 }
 
-/** Prontuário da SESSÃO — salvo à parte do resto do agendamento (ver AppointmentModal). */
-export async function updateClinicalNote(appointmentId: string, html: string): Promise<void> {
+/**
+ * Prontuário SOAP da SESSÃO — salvo à parte do resto do agendamento (ver
+ * AppointmentModal).
+ *
+ * `note` já chega normalizado (normalizeSoapNote): seção em branco não vira
+ * chave e nota inteiramente vazia chega como `undefined`, que grava NULL. É o
+ * que o CHECK do banco exige — ele recusa `'{}'` e seção `''` de propósito,
+ * para não existirem dois jeitos de dizer "não escrevi nada".
+ */
+export async function updateClinicalNote(appointmentId: string, note: SoapNote | undefined): Promise<void> {
   const { error } = await supabase
     .from('appointment')
-    .update({ clinical_note_html: html })
+    .update({ clinical_note: (note ?? null) as Json })
     .eq('id', appointmentId)
   if (error) throw error
 }

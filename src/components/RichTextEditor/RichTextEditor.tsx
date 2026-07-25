@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties } from 'react'
 import { useEffect, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -36,18 +36,13 @@ interface RichTextEditorProps {
   onChange: (html: string) => void
   placeholder?: string
   disabled?: boolean
-  /** Slot livre no canto direito da toolbar (ex.: botão de imprimir) — o
-   *  editor não sabe o que é, só reserva o lugar. Ditado e "Aprimorar com IA"
-   *  ficam fora daqui, em <AiNoteActions> perto do "Salvar" (ver
-   *  AppointmentModal); isto é só pra ação que faz sentido junto da toolbar. */
-  toolbarEnd?: ReactNode
 }
 
 /** Editor de texto rico genérico (fonte, negrito/itálico, alinhamento, cor) —
  *  sem conhecimento de anexo, sessão ou IA; HTML sempre sanitizado
  *  (DOMPurify), tanto ao gravar (aqui) quanto ao exibir (leitor usa a mesma
  *  sanitização). */
-export function RichTextEditor({ value, onChange, placeholder, disabled, toolbarEnd }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, placeholder, disabled }: RichTextEditorProps) {
   const [emojiOpen, setEmojiOpen] = useState(false)
   const emojiRef = useOutsideClick<HTMLDivElement>(() => setEmojiOpen(false), emojiOpen)
 
@@ -203,8 +198,6 @@ export function RichTextEditor({ value, onChange, placeholder, disabled, toolbar
             </div>
           )}
         </div>
-
-        {toolbarEnd && <div className={styles.toolbarEnd}>{toolbarEnd}</div>}
       </div>
 
       <EditorContent editor={editor} className={styles.editorWrapper} />

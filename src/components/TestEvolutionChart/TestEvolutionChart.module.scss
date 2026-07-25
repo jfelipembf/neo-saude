@@ -61,8 +61,8 @@
   width: 92px;
   flex-shrink: 0;
 
-  // Numérico (graus) é curto e cabe à direita; nome de nível é longo, então
-  // quebra em até 2 linhas em vez de esticar a coluna.
+  // Marca numérica (o escore) é curta e cabe à direita; nome de nível é longo,
+  // então quebra em até 2 linhas em vez de esticar a coluna.
   @include mobile { width: 68px; }
 }
 
@@ -163,6 +163,14 @@
     white-space: nowrap;
     pointer-events: none;
   }
+}
+
+// Legenda do "≈" — só aparece quando há ponto estimado pela faixa.
+.nota {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
 }
 
 .xAxis {

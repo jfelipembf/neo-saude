@@ -7,6 +7,7 @@ import {
   updateClinicalNote,
 } from '@/services/scheduleService'
 import type { EditScheduledAppointment } from '@/services/scheduleService'
+import type { SoapNote } from '@/types/domain'
 
 /** Consultas do intervalo visível (semana da grade / janela do calendário). */
 export function useScheduleAppointments(fromIso: string, toIso: string) {
@@ -53,12 +54,13 @@ export function useUpdateScheduleAppointment() {
   })
 }
 
-/** Salva o prontuário da SESSÃO — ação própria, independente do resto do agendamento. */
+/** Salva o prontuário SOAP da SESSÃO — ação própria, independente do resto do
+ *  agendamento. `note` undefined apaga a evolução (coluna NULL). */
 export function useUpdateClinicalNote() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ appointmentId, html }: { appointmentId: string; html: string; patientId: string }) =>
-      updateClinicalNote(appointmentId, html),
+    mutationFn: ({ appointmentId, note }: { appointmentId: string; note: SoapNote | undefined; patientId: string }) =>
+      updateClinicalNote(appointmentId, note),
     onSuccess: (_data, { patientId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.clinicalNotes.byPatient(patientId) })
