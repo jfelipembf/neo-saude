@@ -1653,7 +1653,6 @@ export type Database = {
         Row: {
           clinic_id: string
           created_at: string
-          description: string | null
           id: string
           name: string
           status: Database["public"]["Enums"]["active_status"]
@@ -1662,7 +1661,6 @@ export type Database = {
         Insert: {
           clinic_id: string
           created_at?: string
-          description?: string | null
           id?: string
           name: string
           status?: Database["public"]["Enums"]["active_status"]
@@ -1671,7 +1669,6 @@ export type Database = {
         Update: {
           clinic_id?: string
           created_at?: string
-          description?: string | null
           id?: string
           name?: string
           status?: Database["public"]["Enums"]["active_status"]
@@ -5255,6 +5252,16 @@ export type Database = {
           performed_on: string
           received_amount: number
           session_id: string
+        }[]
+      }
+      professional_physio_commission: {
+        Args: { p_month_iso: string }
+        Returns: {
+          commission: number
+          name: string
+          photo_url: string
+          professional_id: string
+          sold: number
         }[]
       }
       professional_quote_conversion: {

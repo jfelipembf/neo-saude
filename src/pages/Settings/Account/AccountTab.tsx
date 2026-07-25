@@ -4,21 +4,11 @@ import { Button } from '@/components/Button/Button'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { FormSection } from '@/components/FormSection/FormSection'
 import { PhotoInput } from '@/components/PhotoInput/PhotoInput'
-import { Toggle } from '@/components/Toggle/Toggle'
 import { useToast } from '@/components/Toast/Toast'
 import { useClinic, useSaveClinic } from '@/hooks/useClinic'
 import { IconEdit } from '@/components/icons'
 import { ClinicFormModal } from './ClinicFormModal'
 import styles from './AccountTab.module.scss'
-
-// UI only por enquanto — sem persistência (nem service, nem coluna no banco).
-const PRACTICE_AREAS = [
-  { key: 'medicine',       label: 'Medicina' },
-  { key: 'physiotherapy',  label: 'Fisioterapia' },
-  { key: 'dentistry',      label: 'Odontologia' },
-  { key: 'psychology',     label: 'Psicologia' },
-  { key: 'nutrition',      label: 'Nutrição' },
-]
 
 /** Aba "Conta": cadastro e logo da clínica (o que vai no cabeçalho dos
  *  documentos impressos). Tema e sair ficam no Header; o cadastro profissional
@@ -26,19 +16,14 @@ const PRACTICE_AREAS = [
 export function AccountTab() {
   const toast = useToast()
   const { data: clinic, isLoading } = useClinic()
-  const { mutate: saveClinic } = useSaveClinic()
+  const { mutate: saveClinic, isPending: savingLogo } = useSaveClinic()
 
   const [editingClinic, setEditingClinic] = useState(false)
-  const [practiceAreas, setPracticeAreas] = useState<Set<string>>(new Set())
-
-  function togglePracticeArea(key: string, enabled: boolean) {
-    setPracticeAreas(current => {
-      const next = new Set(current)
-      if (enabled) next.add(key)
-      else next.delete(key)
-      return next
-    })
-  }
+  // Logo só é editável depois de clicar "Editar" — o upload fica num rascunho
+  // (pendingLogo) até "Salvar" confirmar, em vez de trocar a logo da clínica
+  // no instante em que um arquivo é escolhido.
+  const [editingLogo, setEditingLogo] = useState(false)
+  const [pendingLogo, setPendingLogo] = useState<string | undefined>(undefined)
 
   if (isLoading) return <PageLoader />
 
@@ -63,11 +48,24 @@ export function AccountTab() {
       ]
     : []
 
-  /** Troca só a logo, preservando o resto do cadastro da clínica. */
-  function changeLogo(url: string | undefined) {
+  function startEditLogo() {
+    setPendingLogo(clinic?.photo)
+    setEditingLogo(true)
+  }
+
+  function cancelEditLogo() {
+    setEditingLogo(false)
+    setPendingLogo(undefined)
+  }
+
+  /** Confirma o rascunho: só agora a logo troca de fato na clínica. */
+  function saveLogo() {
     if (!clinic) return
-    saveClinic({ ...clinic, photo: url }, {
-      onSuccess: () => toast.success(url ? 'Logo atualizada!' : 'Logo removida.'),
+    saveClinic({ ...clinic, photo: pendingLogo }, {
+      onSuccess: () => {
+        toast.success(pendingLogo ? 'Logo atualizada!' : 'Logo removida.')
+        setEditingLogo(false)
+      },
     })
   }
 
@@ -109,25 +107,34 @@ export function AccountTab() {
       <FormSection
         title="Logo da clínica"
         description="Aparece no topo de todos os documentos impressos (recibos, orçamentos, receituários)."
+        actions={
+          clinic && (
+            editingLogo ? (
+              <div className={styles.acoesLogo}>
+                <Button variant="ghost" size="sm" onClick={cancelEditLogo} disabled={savingLogo}>
+                  Cancelar
+                </Button>
+                <Button size="sm" onClick={saveLogo} loading={savingLogo}>
+                  Salvar
+                </Button>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" iconLeft={<IconEdit />} onClick={startEditLogo}>
+                Editar
+              </Button>
+            )
+          )
+        }
       >
-        <PhotoInput label="Logo" value={clinic?.photo} onChange={changeLogo} folder="clinic" />
-      </FormSection>
-
-      <FormSection
-        title="Ramos de atuação"
-        description="Marque as áreas que a clínica atende."
-      >
-        <div className={styles.ramos}>
-          {PRACTICE_AREAS.map(area => (
-            <div key={area.key} className={styles.ramo}>
-              <Toggle
-                label={area.label}
-                checked={practiceAreas.has(area.key)}
-                onChange={enabled => togglePracticeArea(area.key, enabled)}
-              />
-            </div>
-          ))}
-        </div>
+        {editingLogo ? (
+          <PhotoInput label="Logo" value={pendingLogo} onChange={setPendingLogo} folder="clinic" size="lg" />
+        ) : clinic?.photo ? (
+          <div className={styles.logoPreview}>
+            <img src={clinic.photo} alt="Logo da clínica" className={styles.logoPreviewImg} />
+          </div>
+        ) : (
+          <div className={`${styles.logoPreview} ${styles.logoPreviewEmpty}`}>Nenhuma logo cadastrada.</div>
+        )}
       </FormSection>
 
       {/* Monta só quando aberto — o formulário nasce do cadastro salvo. */}

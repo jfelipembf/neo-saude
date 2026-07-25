@@ -2,29 +2,69 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { IconChevronLeft, IconChevronRight } from '@/components/icons'
-import { useProfessionalQuoteConversion } from '@/hooks/useProfessionals'
+import { useSession } from '@/context/SessionProvider'
+import { useProfessionalPhysioCommission, useProfessionalQuoteConversion } from '@/hooks/useProfessionals'
 import { toIsoMonth } from '@/utils/date'
 import { formatBRL } from '@/utils/format'
 import { initials } from '@/utils/text'
 import styles from './CommissionsCard.module.scss'
 
+/** Uma linha do card, no formato comum às duas especialidades: um total (a
+ *  barra inteira) e uma fatia dele (o preenchimento por cima). */
+interface CommissionRow {
+  professionalId: string
+  name: string
+  photoUrl?: string
+  total: number
+  slice: number
+}
+
 /**
- * Card "Comissões" do Dashboard: por profissional, quanto foi orçado no mês e
- * quanto disso já converteu (orçamento aprovado) — uma barra só, com as duas
- * cores: roxo é o orçado (o total da barra), verde é a fatia que converteu.
- * O seletor de mês segue o mesmo padrão do FinanceChart (setas + rótulo).
+ * Card "Comissões" do Dashboard — o que ele mostra depende da especialidade
+ * da clínica, porque as duas não vendem do mesmo jeito:
+ *
+ *   · Demais especialidades: orçado × convertido (professional_quote_conversion)
+ *     — plano de tratamento proposto → aprovado, o fluxo de orçamento.
+ *   · Fisioterapia: vendido × comissão (professional_physio_commission) —
+ *     não existe orçamento aqui, o paciente compra pacote/contrato direto no
+ *     Ponto de Venda. "Vendido" é produção por SESSÃO REALIZADA (não a venda
+ *     inteira de uma vez) e "Comissão" é vendido × percentual cadastrado no
+ *     profissional. Ver o comment da função no banco para a fórmula completa.
+ *
+ * A barra é a mesma peça visual nos dois casos — troca só o que ela mede: o
+ * total (roxo, a barra inteira) e a fatia (verde, o preenchimento).
  */
 export function CommissionsCard() {
+  const { specialty } = useSession()
+  const isPhysio = specialty === 'physiotherapy'
+
   const [refMonth, setRefMonth] = useState(() => {
     const today = new Date()
     return new Date(today.getFullYear(), today.getMonth(), 1)
   })
+  const monthIso = toIsoMonth(refMonth)
 
-  const { data, isLoading } = useProfessionalQuoteConversion(toIsoMonth(refMonth))
-  const rows = data ?? []
+  // Só UM dos dois busca de verdade — `enabled` desliga o outro (ver o
+  // comment do hook: sem isto ele chamaria a RPC errada a cada carregamento).
+  const quoteConversion = useProfessionalQuoteConversion(monthIso, !isPhysio)
+  const physioCommission = useProfessionalPhysioCommission(monthIso, isPhysio)
 
-  const totalQuoted    = rows.reduce((sum, r) => sum + r.quoted, 0)
-  const totalConverted = rows.reduce((sum, r) => sum + r.converted, 0)
+  const isLoading = isPhysio ? physioCommission.isLoading : quoteConversion.isLoading
+  const rows: CommissionRow[] = isPhysio
+    ? (physioCommission.data ?? []).map(r => ({
+        professionalId: r.professionalId, name: r.name, photoUrl: r.photoUrl,
+        total: r.sold, slice: r.commission,
+      }))
+    : (quoteConversion.data ?? []).map(r => ({
+        professionalId: r.professionalId, name: r.name, photoUrl: r.photoUrl,
+        total: r.quoted, slice: r.converted,
+      }))
+
+  const totalLabel = isPhysio ? 'vendidos' : 'orçados no total'
+  const sliceLabel  = isPhysio ? 'em comissão' : 'convertidos'
+
+  const grandTotal = rows.reduce((sum, r) => sum + r.total, 0)
+  const grandSlice = rows.reduce((sum, r) => sum + r.slice, 0)
 
   const monthLabel = refMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 
@@ -59,8 +99,8 @@ export function CommissionsCard() {
       </header>
 
       <p className={styles.totalGeral}>
-        <strong className={styles.totalOrcado}>{formatBRL(totalQuoted)}</strong> orçados no total ·{' '}
-        <strong className={styles.totalConvertido}>{formatBRL(totalConverted)}</strong> convertidos
+        <strong className={styles.totalOrcado}>{formatBRL(grandTotal)}</strong> {totalLabel} ·{' '}
+        <strong className={styles.totalConvertido}>{formatBRL(grandSlice)}</strong> {sliceLabel}
       </p>
 
       {isLoading ? (
@@ -70,7 +110,7 @@ export function CommissionsCard() {
       ) : (
         <ul className={styles.lista}>
           {rows.map(r => {
-            const pct = r.quoted > 0 ? Math.min(100, (r.converted / r.quoted) * 100) : 0
+            const pct = r.total > 0 ? Math.min(100, (r.slice / r.total) * 100) : 0
             return (
               <li key={r.professionalId} className={styles.item}>
                 <div className={styles.itemTop}>
@@ -83,13 +123,13 @@ export function CommissionsCard() {
                 </div>
 
                 <div className={styles.valores}>
-                  <span>{formatBRL(r.quoted)} / <strong>{formatBRL(r.converted)}</strong></span>
+                  <span>{formatBRL(r.total)} / <strong>{formatBRL(r.slice)}</strong></span>
                 </div>
 
                 <div
                   className={styles.bar}
                   role="img"
-                  aria-label={`${formatBRL(r.quoted)} orçados, ${formatBRL(r.converted)} convertidos`}
+                  aria-label={`${formatBRL(r.total)} ${totalLabel}, ${formatBRL(r.slice)} ${sliceLabel}`}
                   style={{ '--commission-progress': `${pct}%` } as CSSProperties}
                 >
                   <span className={styles.barFill} />

@@ -51,6 +51,8 @@ export const queryKeys = {
      *  do Dashboard). O mês faz parte da key — julho e agosto são dados
      *  diferentes, não a mesma lista com outro filtro. */
     quoteConversion: (monthIso: string) => ['professionals', 'quoteConversion', monthIso] as const,
+    // Versão fisioterapia do mesmo card — ver ProfessionalPhysioCommission.
+    physioCommission: (monthIso: string) => ['professionals', 'physioCommission', monthIso] as const,
     // Disponibilidade (aba Agenda do perfil) — prefixada por 'professionals'
     // de propósito, mesmo motivo de earnings: cai junto se algo invalidar o
     // perfil inteiro.

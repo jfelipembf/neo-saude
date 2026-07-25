@@ -36,32 +36,6 @@
   }
 }
 
-// Um switch por ramo de atuação, em duas colunas (uma no mobile) — mesmo
-// desenho do "Acesso às páginas" em Administrativo · Cargos.
-.ramos {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: $sp-2 $sp-6;
-
-  @include phone {
-    grid-template-columns: 1fr;
-  }
-}
-
-.ramo {
-  display: flex;
-  align-items: center;
-  padding: $sp-2 0;
-  border-bottom: 1px solid var(--glass-border);
-
-  > * {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-}
-
 // Campos em 2 colunas dos formulários (colapsa no phone).
 .grid2 {
   display: grid;
@@ -84,6 +58,40 @@
   font-size: $fs-xs;
   color: var(--text-muted);
   line-height: 1.5;
+}
+
+// ── Logo da clínica: preview somente-leitura (fora do modo de edição) ────────
+// Mesma altura do PhotoInput (size="lg") — trocar de modo não pula o layout.
+.logoPreview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 200px;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  background: var(--field-bg);
+  overflow: hidden;
+}
+
+.logoPreviewImg {
+  width: 100%;
+  height: 100%;
+  // contain (não cover, como no PhotoInput em edição): aqui é só conferir a
+  // logo tal como sai no cabeçalho impresso — não pode cortar nenhum canto.
+  object-fit: contain;
+  padding: $sp-4;
+}
+
+.logoPreviewEmpty {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}
+
+.acoesLogo {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
 }
 
 // ── Responsável técnico ──────────────────────────────────────────────────────

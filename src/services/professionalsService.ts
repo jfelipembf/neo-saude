@@ -5,7 +5,7 @@ import type { ClientPayload } from '@/lib/tenant'
 import type { ClientInsert, Insert, Update } from '@/lib/db'
 import { capitalizeName, cepToDb, phoneToDb, emailToDb, ufToDb } from '@/utils/text'
 import { brToIsoDate, isoToBrDate } from '@/utils/date'
-import type { Professional, EducationItem, ExperienceItem, ProfessionalEarning, ProfessionalQuoteConversion } from '@/types/domain'
+import type { Professional, EducationItem, ExperienceItem, ProfessionalEarning, ProfessionalQuoteConversion, ProfessionalPhysioCommission } from '@/types/domain'
 
 /** Núcleo do profissional (sem currículo) — interno ao módulo. `ProfessionalRow`
  *  segue exportado porque userService monta a linha a partir do mesmo recorte. */
@@ -362,5 +362,18 @@ export async function listProfessionalQuoteConversion(monthIso: string): Promise
     photoUrl: r.photo_url ?? undefined,
     quoted: Number(r.quoted),
     converted: Number(r.converted),
+  }))
+}
+
+/** Versão fisioterapia do card "Comissões" — ver domain.ts ProfessionalPhysioCommission. */
+export async function listProfessionalPhysioCommission(monthIso: string): Promise<ProfessionalPhysioCommission[]> {
+  const { data, error } = await supabase.rpc('professional_physio_commission', { p_month_iso: monthIso })
+  if (error) throw error
+  return (data ?? []).map(r => ({
+    professionalId: r.professional_id,
+    name: r.name,
+    photoUrl: r.photo_url ?? undefined,
+    sold: Number(r.sold),
+    commission: Number(r.commission),
   }))
 }

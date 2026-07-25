@@ -6,6 +6,7 @@ import {
   getProfessional,
   linkProfessionalToUser,
   listProfessionalEarnings,
+  listProfessionalPhysioCommission,
   listProfessionalQuoteConversion,
   listProfessionals,
   updateProfessional,
@@ -42,10 +43,24 @@ export function useProfessionalEarnings(professionalId: string) {
 }
 
 /** Orçado × convertido de todos os profissionais num mês (card Comissões do Dashboard). */
-export function useProfessionalQuoteConversion(monthIso: string) {
+/** `enabled` existe porque o card "Comissões" do Dashboard só usa UM dos dois
+ *  hooks por vez (por especialidade) — sem desligar o outro, ele chamaria a
+ *  RPC errada de qualquer forma e o banco rejeitaria (parse_month_iso não
+ *  aceita mês vazio), gerando erro toda hora sem necessidade. */
+export function useProfessionalQuoteConversion(monthIso: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.professionals.quoteConversion(monthIso),
     queryFn: () => listProfessionalQuoteConversion(monthIso),
+    enabled,
+  })
+}
+
+/** Versão fisioterapia do mesmo card — ver ProfessionalPhysioCommission. */
+export function useProfessionalPhysioCommission(monthIso: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.professionals.physioCommission(monthIso),
+    queryFn: () => listProfessionalPhysioCommission(monthIso),
+    enabled,
   })
 }
 

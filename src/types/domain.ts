@@ -1107,6 +1107,27 @@ export interface ProfessionalQuoteConversion {
 }
 
 /**
+ * Produção × comissão de UM profissional num mês, versão FISIOTERAPIA do card
+ * "Comissões" do Dashboard — RPC professional_physio_commission. Substitui
+ * ProfessionalQuoteConversion nessa especialidade porque fisioterapia não usa
+ * orçamento: o paciente compra pacote/contrato direto no Ponto de Venda.
+ *
+ * `sold` é produção atribuída por SESSÃO REALIZADA (pacote: venda ÷ teto de
+ * sessões; contrato recorrente: mensalidade recebida no mês, rateada pelas
+ * sessões que cada profissional deu) — não é o valor da venda inteira de uma
+ * vez. `commission` = sold × percentual cadastrado (só regra 'percentage'
+ * ativa; comissão de valor fixo não é proporcional a venda, fica de fora
+ * daqui e é tratada na aba Ganhos do perfil).
+ */
+export interface ProfessionalPhysioCommission {
+  professionalId: string
+  name: string
+  photoUrl?: string
+  sold: number
+  commission: number
+}
+
+/**
  * Tratamento = o GUARDA-CHUVA (1 por dente + procedimento), que pode atravessar
  * vários dias: cada dia é uma TreatmentSession (modelo Open Dental / evolução
  * clínica dos softwares odontológicos brasileiros). O dente no odontograma

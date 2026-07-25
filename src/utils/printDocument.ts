@@ -1,4 +1,5 @@
 import type { ClinicData } from '@/types/domain'
+import neoLogo from '@/assets/images/logo/logo.svg'
 
 /** Escapa texto que vai para dentro do HTML impresso (nome de paciente com
  *  "&", observação com "<"… não podem quebrar o documento). */
@@ -104,6 +105,14 @@ export function buildDocument(clinic: ClinicData | undefined, doc: PrintDocument
   .rodape { margin-top: 24px; padding-top: 8px; border-top: 1px solid #D8E2DE;
             font-size: 14px; color: #889; }
 
+  /* "Powered by" fixo no rodapé de TODO documento impresso, discreto no
+     canto inferior direito — mesmo lugar do Footer.tsx do app; a logo (que
+     é azul-marinho por padrão) vira cinza aqui via grayscale + opacity. */
+  .powered-by { display: flex; align-items: center; justify-content: flex-end;
+                gap: 6px; margin-top: 6px; }
+  .powered-by span { font-size: 14px; color: #889; }
+  .powered-by img { height: 12px; width: auto; filter: grayscale(1); opacity: 0.55; }
+
   @media print {
     body { margin: 0; }
     .clinica { break-inside: avoid; }
@@ -115,5 +124,9 @@ ${clinicHeader(clinic)}
 ${doc.subtitle ? `<p class="doc-sub">${esc(doc.subtitle)}</p>` : ''}
 ${doc.body}
 <p class="rodape">Documento gerado eletronicamente por ${esc(clinicName)}.</p>
+<footer class="powered-by">
+  <span>powered by</span>
+  <img src="${neoLogo}" alt="Neo">
+</footer>
 </body></html>`
 }
