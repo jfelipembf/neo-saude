@@ -178,8 +178,8 @@ export function PaymentsTable({ patientId, patientName, patientCpf }: PaymentsTa
     r.status === 'paid' || (isByAcquirer(r) && r.status !== 'canceled')
 
   const columns: TableColumn<Receivable>[] = [
-    { key: 'competenceDate', label: 'Data', render: charge => charge.competenceDate },
-    { key: 'code', label: 'Código', className: styles.colCodigo, render: charge => charge.code },
+    { key: 'competenceDate', label: 'Data', hideOnMobile: true, render: charge => charge.competenceDate },
+    { key: 'code', label: 'Código', className: styles.colCodigo, hideOnMobile: true, render: charge => charge.code },
     { key: 'description', label: 'Descrição', render: charge => charge.description },
     {
       key: 'grossAmount',

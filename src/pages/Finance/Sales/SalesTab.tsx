@@ -66,16 +66,16 @@ export function SalesTab() {
   const totalNet = list.reduce((s, c) => s + netOf(c), 0)
 
   const columns: TableColumn<Receivable>[] = [
-    { key: 'competenceDate', label: 'Data da venda', render: c => c.competenceDate || '—' },
+    { key: 'competenceDate', label: 'Data da venda', hideOnMobile: true, render: c => c.competenceDate || '—' },
     {
       key: 'patient', label: 'Paciente',
       // Venda sem paciente é legítima (repasse de convênio, aluguel) — traço, não vazio.
       render: c => c.patientId ? patientName(c.patientId) : <span className={shared.traco}>—</span>,
     },
     { key: 'description', label: 'Descrição', render: c => <span className={shared.celulaForte}>{c.description}</span> },
-    { key: 'method', label: 'Forma', render: c => c.method ? PAYMENT_METHOD_LABEL[c.method] : <span className={shared.traco}>—</span> },
-    { key: 'source', label: 'Origem' },
-    { key: 'gross', label: 'Bruto', render: c => <span className={shared.valor}>{formatBRL(c.grossAmount)}</span> },
+    { key: 'method', label: 'Forma', hideOnMobile: true, render: c => c.method ? PAYMENT_METHOD_LABEL[c.method] : <span className={shared.traco}>—</span> },
+    { key: 'source', label: 'Origem', hideOnMobile: true },
+    { key: 'gross', label: 'Bruto', hideOnMobile: true, render: c => <span className={shared.valor}>{formatBRL(c.grossAmount)}</span> },
     { key: 'net', label: 'Líquido', render: c => <span className={`${shared.valor} ${shared.pos}`}>{formatBRL(netOf(c))}</span> },
     // Cartão pendente de repasse: o PACIENTE já pagou (dívida é da adquirente)
     // — o rótulo diz isso, em vez de um "Pendente" que soaria como inadimplência.

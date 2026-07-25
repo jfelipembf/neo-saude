@@ -47,11 +47,11 @@ function typeLabel(p: Prescription) {
 /** CSS específico do receituário — o resto vem da base de impressão. */
 const PRESCRIPTION_STYLES = `
   .meds { margin: 16px 0 0 20px; padding: 0; } .meds li { margin: 12px 0; font-size: 14px; }
-  .pos { color: #334; font-size: 13px; }
-  .texto { margin-top: 16px; font-size: 13.5px; line-height: 1.6; }
-  .assinatura { margin-top: 72px; text-align: center; }
+  .pos { color: #334; font-size: 14px; }
+  .texto { margin-top: 16px; font-size: 14px; line-height: 1.6; }
+  .assinatura { margin-top: 64px; text-align: center; }
   .assinatura .linha { display: inline-block; border-top: 1px solid #12211C; padding-top: 6px;
-                       min-width: 260px; font-size: 13px; }
+                       min-width: 260px; font-size: 16px; font-weight: 700; }
 `
 
 /** Miolo da prescrição/documento — cabeçalho da clínica vem da base. */
@@ -192,10 +192,10 @@ export function PrescriptionsPanel({ patientId, patientName }: PrescriptionsPane
   }
 
   const columns: TableColumn<Prescription>[] = [
-    { key: 'date', label: 'Data', render: p => <span className={styles.data}>{p.date}</span> },
+    { key: 'date', label: 'Data', hideOnMobile: true, render: p => <span className={styles.data}>{p.date}</span> },
     { key: 'type', label: 'Tipo', render: p => <Badge status={p.type} /> },
     { key: 'title', label: 'Título', render: p => <span className={styles.titulo}>{p.title}</span> },
-    { key: 'professional', label: 'Profissional', render: p => professionalName(p.professionalId) },
+    { key: 'professional', label: 'Profissional', hideOnMobile: true, render: p => professionalName(p.professionalId) },
     {
       key: 'actions',
       label: 'Ação',

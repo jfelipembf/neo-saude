@@ -103,10 +103,11 @@ export function AuditTab() {
     // nome resolvido (ou o e-mail, quando o perfil ainda não tem nome).
     { key: 'who', label: 'Quem', render: e => <span className={styles.quem}>{e.actorId ? (e.actorName || 'Usuário') : 'Sistema'}</span> },
     { key: 'action', label: 'Ação', render: e => <Badge status={e.action} /> },
-    { key: 'entity', label: 'Entidade', render: e => auditTableLabel(e.tableName) },
+    { key: 'entity', label: 'Entidade', hideOnMobile: true, render: e => auditTableLabel(e.tableName) },
     {
       key: 'record',
       label: 'Registro',
+      hideOnMobile: true,
       render: e => (
         <span className={styles.registro} title={e.recordLabel}>
           {e.recordLabel || `#${e.recordId.slice(0, 8)}`}
@@ -116,6 +117,7 @@ export function AuditTab() {
     {
       key: 'changes',
       label: 'Alterações',
+      hideOnMobile: true,
       render: e => {
         const changed = e.changedFields.filter(f => !AUDIT_HIDDEN_FIELDS.has(f))
         if (e.action !== 'update' || changed.length === 0) return <span className={styles.semAlt}>—</span>

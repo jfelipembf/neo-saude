@@ -45,7 +45,7 @@ export function UnbilledTab() {
   if (isLoading) return <PageLoader />
 
   const columns: TableColumn<UnbilledSession>[] = [
-    { key: 'date', label: 'Executado em' },
+    { key: 'date', label: 'Executado em', hideOnMobile: true },
     { key: 'patient', label: 'Paciente', render: s => <span className={shared.celulaForte}>{s.patientName}</span> },
     {
       key: 'description', label: 'Procedimento',
@@ -57,7 +57,7 @@ export function UnbilledTab() {
       ),
     },
     {
-      key: 'professional', label: 'Profissional',
+      key: 'professional', label: 'Profissional', hideOnMobile: true,
       // Sessão sem autor existe (lançada pela recepção): traço, não vazio.
       render: s => s.professionalId ? professionalName(s.professionalId) : <span className={shared.traco}>—</span>,
     },

@@ -148,9 +148,9 @@ export function MaterialsTab() {
       ),
     },
     { key: 'inStock',  label: 'Em estoque',  render: m => <>{m.inStock}</> },
-    { key: 'minQuantity',  label: 'Qtd. mínima', render: m => <>{m.minQuantity}</> },
-    { key: 'expiryDate',   label: 'Validade',    render: m => <>{m.expiryDate ?? '—'}</> },
-    { key: 'notes', label: 'Observação',  render: m => <>{m.notes ?? '—'}</> },
+    { key: 'minQuantity',  label: 'Qtd. mínima', hideOnMobile: true, render: m => <>{m.minQuantity}</> },
+    { key: 'expiryDate',   label: 'Validade', hideOnMobile: true,    render: m => <>{m.expiryDate ?? '—'}</> },
+    { key: 'notes', label: 'Observação', hideOnMobile: true, render: m => <>{m.notes ?? '—'}</> },
     { key: 'status',     label: 'Status',      render: m => <Badge status={materialStatus(m)} /> },
     {
       key: 'actions',

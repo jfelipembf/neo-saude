@@ -38,15 +38,15 @@ import styles from './ClassAttendanceModal.module.scss'
  *  Estrutura de assinatura (nome + conselho) segue o modelo oficial do
  *  CREFITO: linha, nome, "Fisioterapeuta", registro. */
 const PRONTUARIO_PRINT_STYLES = `
-  .nota { margin-top: 12px; font-size: 13.5px; line-height: 1.65; }
+  .nota { margin-top: 10px; font-size: 14px; line-height: 1.6; }
   .nota p { margin: 0 0 10px; }
   /* Rótulo da seção SOAP (soapToHtml gera um <p><strong>Plano:</strong></p>
      antes do conteúdo): cola no parágrafo que ele nomeia. */
   .nota p strong { display: inline-block; margin-top: 4px; }
-  .assinatura { margin-top: 72px; text-align: center; }
+  .assinatura { margin-top: 64px; text-align: center; }
   .assinatura .linha { display: inline-block; border-top: 1px solid #12211C; padding-top: 6px;
-                       min-width: 280px; font-size: 13px; }
-  .assinatura .cargo { display: block; margin-top: 2px; color: #667; font-size: 11.5px; }
+                       min-width: 280px; font-size: 16px; font-weight: 700; }
+  .assinatura .cargo { display: block; margin-top: 2px; color: #667; font-size: 14px; font-weight: 400; }
 `
 
 /** Miolo do prontuário impresso — `html` já é HTML sanitizado (mesmo

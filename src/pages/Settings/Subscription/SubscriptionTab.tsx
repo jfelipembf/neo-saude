@@ -32,9 +32,9 @@ export function SubscriptionTab() {
       key: 'competence', label: 'Competência',
       render: f => <span className={styles.competencia}>{f.referenceMonth}</span>,
     },
-    { key: 'dueDate', label: 'Vencimento' },
-    { key: 'payment',  label: 'Pagamento', render: f => f.paidAt ?? '—' },
-    { key: 'method',      label: 'Forma', render: f => f.paymentMethod ?? '—' },
+    { key: 'dueDate', label: 'Vencimento', hideOnMobile: true },
+    { key: 'payment',  label: 'Pagamento', hideOnMobile: true, render: f => f.paidAt ?? '—' },
+    { key: 'method',      label: 'Forma', hideOnMobile: true, render: f => f.paymentMethod ?? '—' },
     {
       key: 'amount', label: 'Valor',
       render: f => <span className={styles.valor}>{formatBRL(f.amount)}</span>,

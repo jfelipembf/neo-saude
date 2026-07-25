@@ -41,10 +41,10 @@ export function PayableTab() {
 
   const columns: TableColumn<Payable>[] = [
     { key: 'description',  label: 'Descrição', render: c => <span className={shared.celulaForte}>{c.description}</span> },
-    { key: 'category',  label: 'Categoria' },
+    { key: 'category',  label: 'Categoria', hideOnMobile: true },
     { key: 'dueDate', label: 'Vencimento' },
-    { key: 'payment',  label: 'Pagamento', render: c => c.paidAt ?? '—' },
-    { key: 'supplier', label: 'Fornecedor' },
+    { key: 'payment',  label: 'Pagamento', hideOnMobile: true, render: c => c.paidAt ?? '—' },
+    { key: 'supplier', label: 'Fornecedor', hideOnMobile: true },
     { key: 'amount',      label: 'Valor', render: c => <span className={shared.valor}>{formatBRL(c.amount)}</span> },
     { key: 'status',     label: 'Status', render: c => <Badge status={c.status} /> },
     {

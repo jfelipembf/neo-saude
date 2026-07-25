@@ -101,7 +101,7 @@ export function DelinquencyTab() {
 
   const columns: TableColumn<DebtorGroup>[] = [
     { key: 'patient', label: 'Paciente', render: g => <span className={shared.celulaForte}>{g.patientName}</span> },
-    { key: 'count', label: 'Parcelas', render: g => <span className={shared.contagem}>{g.items.length}</span> },
+    { key: 'count', label: 'Parcelas', hideOnMobile: true, render: g => <span className={shared.contagem}>{g.items.length}</span> },
     { key: 'oldest', label: 'Vencida desde', render: g => g.oldestDueDate },
     { key: 'total', label: 'Total em aberto', render: g => <span className={`${shared.valor} ${shared.neg}`}>{formatBRL(g.total)}</span> },
     {

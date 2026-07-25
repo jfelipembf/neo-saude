@@ -53,7 +53,7 @@ function anamnesisBody(
 }
 
 const ANAMNESIS_STYLES = `
-  .secao { font-size: 13px; margin: 18px 0 4px; text-transform: uppercase;
+  .secao { font-size: 14px; font-weight: 700; margin: 18px 0 4px; text-transform: uppercase;
            letter-spacing: 0.05em; color: #334; }
   td:first-child { width: 58%; }
 `

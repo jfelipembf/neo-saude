@@ -44,7 +44,7 @@ export function TodayAppointmentsList({ appointments }: TodayAppointmentsListPro
       label: 'Paciente',
       render: a => <span className={styles.paciente}>{patientName(a.patientId)}</span>,
     },
-    { key: 'activity', label: 'Atendimento', render: a => a.activity },
+    { key: 'activity', label: 'Atendimento', hideOnMobile: true, render: a => a.activity },
     {
       key: 'status',
       label: 'Status',

@@ -13,6 +13,20 @@ export interface TableColumn<T> {
    *  fixar a largura da coluna de ações, etc. Sem ela, uma tabela com coluna de
    *  dinheiro precisava reimplementar a <table> inteira só pelo alinhamento. */
   className?: string
+  /**
+   * Some da tabela em telas ≤768px (mesmo corte de `@include mobile`) — CSS
+   * puro (`display: none`), não uma segunda árvore de colunas condicional.
+   * `colSpan` das linhas de "vazio"/detalhe continua contando TODAS as
+   * colunas (inclusive as ocultas) de propósito: uma coluna com `display:none`
+   * colapsa para 0px mas continua ocupando a posição no grid da tabela, então
+   * o colspan cheio ainda fecha exatamente na borda das colunas visíveis —
+   * testado antes de generalizar isto para as ~14 tabelas do projeto.
+   *
+   * Marque como básico (deixe DE FORA) só o que responde "o que é isto, quanto,
+   * e o que eu faço com isso" — datas secundárias, colunas de referência e
+   * detalhamento ficam para quem girar o aparelho ou abrir no desktop.
+   */
+  hideOnMobile?: boolean
 }
 
 interface TableProps<T> {
@@ -66,7 +80,12 @@ export function Table<T>({
             <tr>
               {expandable && <th className={styles.thSeta} aria-label="Expandir" />}
               {columns.map(col => (
-                <th key={col.key} className={col.className}>{col.label}</th>
+                <th
+                  key={col.key}
+                  className={[col.className, col.hideOnMobile ? styles.hideMobile : ''].filter(Boolean).join(' ')}
+                >
+                  {col.label}
+                </th>
               ))}
             </tr>
           </thead>
@@ -106,7 +125,10 @@ export function Table<T>({
                       </td>
                     )}
                     {columns.map(col => (
-                      <td key={col.key} className={col.className}>
+                      <td
+                        key={col.key}
+                        className={[col.className, col.hideOnMobile ? styles.hideMobile : ''].filter(Boolean).join(' ')}
+                      >
                         {col.render ? col.render(row) : (row as Record<string, ReactNode>)[col.key]}
                       </td>
                     ))}

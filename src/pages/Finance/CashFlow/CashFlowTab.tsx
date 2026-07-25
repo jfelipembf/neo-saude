@@ -60,8 +60,8 @@ export function CashFlowTab() {
         </span>
       ),
     },
-    { key: 'inflows', label: 'Entradas', render: d => d.inflows > 0 ? <span className={shared.pos}>{formatBRL(d.inflows)}</span> : <span className={shared.traco}>—</span> },
-    { key: 'outflows',   label: 'Saídas',   render: d => d.outflows > 0 ? <span className={shared.neg}>{formatBRL(d.outflows)}</span> : <span className={shared.traco}>—</span> },
+    { key: 'inflows', label: 'Entradas', hideOnMobile: true, render: d => d.inflows > 0 ? <span className={shared.pos}>{formatBRL(d.inflows)}</span> : <span className={shared.traco}>—</span> },
+    { key: 'outflows',   label: 'Saídas', hideOnMobile: true,   render: d => d.outflows > 0 ? <span className={shared.neg}>{formatBRL(d.outflows)}</span> : <span className={shared.traco}>—</span> },
     {
       key: 'net', label: 'Líquido',
       render: d => (

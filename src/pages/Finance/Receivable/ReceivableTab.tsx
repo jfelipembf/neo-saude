@@ -119,7 +119,7 @@ export function ReceivableTab() {
         />
       ),
     },
-    { key: 'description', label: 'Descrição', render: c => <span className={shared.celulaForte}>{c.description}</span> },
+    { key: 'description', label: 'Descrição', hideOnMobile: true, render: c => <span className={shared.celulaForte}>{c.description}</span> },
     {
       key: 'patient', label: 'Paciente',
       // Sem paciente é caso legítimo (aluguel de sala, repasse de convênio) —
@@ -129,11 +129,11 @@ export function ReceivableTab() {
         : <span className={shared.traco}>—</span>,
     },
     { key: 'dueDate',  label: 'Vencimento' },
-    { key: 'receivedAt', label: 'Recebimento', render: c => c.receivedAt ?? '—' },
-    { key: 'method',      label: 'Forma', render: c => c.method ? PAYMENT_METHOD_LABEL[c.method] : '—' },
-    { key: 'source',      label: 'Origem' },
-    { key: 'grossAmount', label: 'Bruto', render: c => <span className={shared.valor}>{formatBRL(c.grossAmount)}</span> },
-    { key: 'fee',        label: 'Taxa', render: c => c.fee > 0 ? <span className={shared.neg}>{formatBRL(c.fee)}</span> : <span className={shared.traco}>—</span> },
+    { key: 'receivedAt', label: 'Recebimento', hideOnMobile: true, render: c => c.receivedAt ?? '—' },
+    { key: 'method',      label: 'Forma', hideOnMobile: true, render: c => c.method ? PAYMENT_METHOD_LABEL[c.method] : '—' },
+    { key: 'source',      label: 'Origem', hideOnMobile: true },
+    { key: 'grossAmount', label: 'Bruto', hideOnMobile: true, render: c => <span className={shared.valor}>{formatBRL(c.grossAmount)}</span> },
+    { key: 'fee',        label: 'Taxa', hideOnMobile: true, render: c => c.fee > 0 ? <span className={shared.neg}>{formatBRL(c.fee)}</span> : <span className={shared.traco}>—</span> },
     {
       // "Em aberto", não "Líquido": a coluna mostra o RESTANTE a receber
       // (líquido − parciais) — o rótulo antigo mentia sobre a fórmula.

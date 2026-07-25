@@ -207,22 +207,29 @@ export function PatientsPage() {
   )
 
   const nameCol: TableColumn<ContactRow> = { key: 'name', label: 'Nome', render: nameCell }
-  const phoneCol: TableColumn<ContactRow> = { key: 'phone', label: 'Telefone', render: r => r.phone }
+  // Some no mobile: os botões de Ligar/WhatsApp em actionsCol já usam
+  // r.phone/r.whatsapp por baixo — o texto do número vira redundante quando
+  // o botão de discar já está ali do lado.
+  const phoneCol: TableColumn<ContactRow> = { key: 'phone', label: 'Telefone', hideOnMobile: true, render: r => r.phone }
   const actionsCol: TableColumn<ContactRow> = { key: 'actions', label: 'Ação', render: actionsCell }
 
   const columns: TableColumn<ContactRow>[] =
     view === 'patients'
       ? [nameCol, phoneCol,
-         { key: 'insurance', label: 'Convênio', render: r => r.insurance || '—' },
-         { key: 'lastVisit', label: 'Última visita', render: r => r.lastVisit || '—' },
+         { key: 'insurance', label: 'Convênio', hideOnMobile: true, render: r => r.insurance || '—' },
+         { key: 'lastVisit', label: 'Última visita', hideOnMobile: true, render: r => r.lastVisit || '—' },
          actionsCol]
       : view === 'leads'
         ? [nameCol, phoneCol,
-           { key: 'source', label: 'Origem', render: r => r.source || '—' },
-           { key: 'interest', label: 'Interesse', render: r => r.interest || '—' },
+           { key: 'source', label: 'Origem', hideOnMobile: true, render: r => r.source || '—' },
+           { key: 'interest', label: 'Interesse', hideOnMobile: true, render: r => r.interest || '—' },
+           // Etapa fica visível: é o único jeito de saber ONDE o lead está no
+           // funil sem abrir o contato — o mesmo papel que um Badge de status.
            { key: 'stage', label: 'Etapa', render: etapaCell },
            actionsCol]
         : [nameCol, phoneCol,
+           // Tipo fica visível na visão "Todos": é o que distingue um Lead de
+           // um Paciente numa lista mista — não é detalhe, é identidade da linha.
            { key: 'type', label: 'Tipo', render: tipoCell },
            actionsCol]
 

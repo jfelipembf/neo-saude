@@ -344,11 +344,12 @@ export function BudgetsPanel({ patientId, patientName }: BudgetsPanelProps) {
   // ── Modo LISTA ─────────────────────────────────────────────────────────────
   if (mode === 'list') {
     const columns: TableColumn<Quote>[] = [
-      { key: 'date', label: 'Data', render: o => <span className={styles.data}>{o.date}</span> },
+      { key: 'date', label: 'Data', hideOnMobile: true, render: o => <span className={styles.data}>{o.date}</span> },
       { key: 'name', label: 'Orçamento', render: o => <span className={styles.nomeCell}>{o.name}</span> },
       {
         key: 'items',
         label: 'Tratamentos',
+        hideOnMobile: true,
         render: o => `${o.items.length} ${o.items.length === 1 ? 'tratamento' : 'tratamentos'}`,
       },
       { key: 'total', label: 'Total', render: o => <span className={styles.valor}>{formatBRL(totalsOf(o).total)}</span> },

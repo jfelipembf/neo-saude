@@ -59,6 +59,16 @@
 
 .clickable { cursor: pointer; }
 
+// Coluna marcada `hideOnMobile` — some no mesmo corte do resto do app
+// (@include mobile, ≤768px). display:none e não visibility:hidden: a coluna
+// tem de deixar de OCUPAR espaço, senão a tabela continua larga e a rolagem
+// horizontal (.scroll) não vai a lugar nenhum.
+.hideMobile {
+  @include mobile {
+    display: none;
+  }
+}
+
 // ── Linhas expansíveis (renderExpanded) — desenho da tabela de pagamentos ────
 .thSeta { width: 40px; }
 

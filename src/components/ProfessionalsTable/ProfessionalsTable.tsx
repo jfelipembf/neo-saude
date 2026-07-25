@@ -65,6 +65,7 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
     {
       key: 'specialty',
       label: 'Especialidade',
+      hideOnMobile: true,
       render: p => (
         <span className={styles.espCell}>
           <span className={styles.especialidade}>{p.specialty}</span>
@@ -75,6 +76,7 @@ export function ProfessionalsTable({ onView }: ProfessionalsTableProps) {
     {
       key: 'rating',
       label: 'Nota',
+      hideOnMobile: true,
       render: p => (
         p.rating != null ? (
           <span className={styles.nota} title="Nota média de atendimento">

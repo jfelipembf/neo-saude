@@ -40,8 +40,8 @@ interface ReportRow {
 
 /** CSS específico do relatório — o resto vem da base de impressão. */
 const PROCEDURE_STYLES = `
-  h2 { font-size: 14px; margin: 16px 0 6px; }
-  ul { margin: 0 0 0 18px; padding: 0; font-size: 13px; } li { margin: 3px 0; }
+  h2 { font-size: 16px; font-weight: 700; margin: 16px 0 6px; }
+  ul { margin: 0 0 0 18px; padding: 0; font-size: 14px; } li { margin: 3px 0; }
 `
 
 /** Miolo do relatório do PROCEDIMENTO em edição — cabeçalho da clínica vem da base. */

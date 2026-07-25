@@ -71,9 +71,9 @@ export function ImportTab() {
   const validColumns: TableColumn<PatientImportRow>[] = [
     { key: 'name', label: 'Nome', render: r => r.name },
     { key: 'phone', label: 'Telefone', render: r => r.phone },
-    { key: 'cpf', label: 'CPF', render: r => r.cpf ?? '—' },
-    { key: 'email', label: 'E-mail', render: r => r.email ?? '—' },
-    { key: 'city', label: 'Cidade', render: r => r.city ?? '—' },
+    { key: 'cpf', label: 'CPF', hideOnMobile: true, render: r => r.cpf ?? '—' },
+    { key: 'email', label: 'E-mail', hideOnMobile: true, render: r => r.email ?? '—' },
+    { key: 'city', label: 'Cidade', hideOnMobile: true, render: r => r.city ?? '—' },
   ]
 
   return (

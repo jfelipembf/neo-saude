@@ -62,38 +62,47 @@ export function buildDocument(clinic: ClinicData | undefined, doc: PrintDocument
 <style>
   /* Documento impresso é SEMPRE claro: sem isto, um navegador em modo escuro
      pinta o fundo de preto e o texto (escuro) some na pré-visualização. */
+  /* Página real (A4) com margem física de verdade — sem isto, o tamanho do
+     papel e a margem ficavam 100% por conta do driver de impressão do SO,
+     então o mesmo documento imprimia diferente em cada máquina. */
+  @page { size: A4; margin: 15mm; }
+
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
+  /* Escala tipográfica de só DOIS tamanhos — 14px (texto) e 16px (destaque).
+     Ênfase vem de negrito/maiúsculas, nunca de um terceiro tamanho maior. */
   body { font-family: system-ui, sans-serif; color: #12211C; background: #fff;
          margin: 32px; font-size: 14px; }
 
   /* ── Cabeçalho da clínica (comum a todos os documentos) ── */
-  .clinica { display: flex; align-items: center; gap: 16px; padding-bottom: 12px;
+  .clinica { display: flex; align-items: center; gap: 14px; padding-bottom: 10px;
              border-bottom: 2px solid #12211C; }
-  .clinica-logo { width: 72px; height: 72px; object-fit: contain; flex-shrink: 0; }
-  .clinica-dados h1 { font-size: 19px; margin: 0 0 3px; }
-  .clinica-dados p { margin: 1px 0; font-size: 11.5px; color: #667; }
+  /* Tamanho final vem de ajustarLogoImpressa() (ver usePrintDocument.ts) —
+     este é só o valor antes da imagem carregar/JS rodar. */
+  .clinica-logo { height: 56px; width: auto; max-width: 160px; object-fit: contain; flex-shrink: 0; }
+  .clinica-dados h1 { font-size: 16px; font-weight: 700; margin: 0 0 3px; }
+  .clinica-dados p { margin: 1px 0; font-size: 14px; color: #667; }
 
   /* ── Título do documento ── */
-  .doc-titulo { font-size: 15px; margin: 18px 0 2px; text-transform: uppercase;
+  .doc-titulo { font-size: 16px; font-weight: 700; margin: 16px 0 2px; text-transform: uppercase;
                 letter-spacing: 0.06em; }
-  .doc-sub { color: #667; margin: 0 0 16px; font-size: 12px; }
+  .doc-sub { color: #667; margin: 0 0 14px; font-size: 14px; }
 
   /* ── Blocos reaproveitados pelos miolos ── */
-  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
-  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #D8E2DE; vertical-align: top; }
-  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #667; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #D8E2DE; vertical-align: top; }
+  th { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #667; }
   .num, .valor { text-align: right; white-space: nowrap; }
   small { color: #667; }
   .total td { font-weight: 700; border-bottom: none; }
-  .totais { margin-top: 12px; text-align: right; font-size: 13.5px; }
-  .totais strong { font-size: 15px; }
-  .clausula { margin-top: 18px; font-size: 12.5px; color: #334; line-height: 1.6; }
-  .assinaturas { display: flex; justify-content: space-between; gap: 24px; margin-top: 72px; }
+  .totais { margin-top: 10px; text-align: right; font-size: 14px; }
+  .totais strong { font-size: 16px; }
+  .clausula { margin-top: 16px; font-size: 14px; color: #334; line-height: 1.6; }
+  .assinaturas { display: flex; justify-content: space-between; gap: 24px; margin-top: 64px; }
   .assinaturas span { flex: 1; border-top: 1px solid #12211C; padding-top: 6px;
-                      text-align: center; font-size: 12px; }
-  .rodape { margin-top: 28px; padding-top: 8px; border-top: 1px solid #D8E2DE;
-            font-size: 11px; color: #889; }
+                      text-align: center; font-size: 14px; }
+  .rodape { margin-top: 24px; padding-top: 8px; border-top: 1px solid #D8E2DE;
+            font-size: 14px; color: #889; }
 
   @media print {
     body { margin: 0; }

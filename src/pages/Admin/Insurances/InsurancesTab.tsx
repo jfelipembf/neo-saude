@@ -124,11 +124,12 @@ export function InsurancesTab() {
 
   const columns: TableColumn<Insurance>[] = [
     { key: 'name', label: 'Convênio', render: c => <span className={styles.nome}>{c.name}</span> },
-    { key: 'ans', label: 'Registro ANS', render: c => c.ans ?? '—' },
-    { key: 'phone', label: 'Telefone', render: c => c.phone ?? '—' },
+    { key: 'ans', label: 'Registro ANS', hideOnMobile: true, render: c => c.ans ?? '—' },
+    { key: 'phone', label: 'Telefone', hideOnMobile: true, render: c => c.phone ?? '—' },
     {
       key: 'payoutDays',
       label: 'Prazo de repasse',
+      hideOnMobile: true,
       render: c => (c.payoutDays != null ? `${c.payoutDays} dias` : '—'),
     },
     { key: 'status', label: 'Status', render: c => <Badge status={c.status} /> },

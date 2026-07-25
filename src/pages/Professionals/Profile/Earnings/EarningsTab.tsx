@@ -132,9 +132,10 @@ export function EarningsTab({ professional }: EarningsTabProps) {
     {
       key: 'procedures',
       label: 'Procedimentos',
+      hideOnMobile: true,
       render: g => `${g.items.length} ${g.items.length === 1 ? 'procedimento' : 'procedimentos'}`,
     },
-    { key: 'base', label: baseLabel, render: g => <span className={styles.ganhosBase}>{formatBRL(g.base)}</span> },
+    { key: 'base', label: baseLabel, hideOnMobile: true, render: g => <span className={styles.ganhosBase}>{formatBRL(g.base)}</span> },
     {
       key: 'total',
       label: rule ? 'Comissão' : 'Produzido no período',
