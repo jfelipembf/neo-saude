@@ -1,0 +1,18 @@
+@use '../../styles/mixins' as *;
+
+.par {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  flex-shrink: 0;
+
+  @include phone {
+    flex-wrap: wrap;
+  }
+}
+
+.ate {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+  white-space: nowrap;
+}

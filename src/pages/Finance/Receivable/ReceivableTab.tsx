@@ -3,6 +3,7 @@ import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
+import { DateRangeFilter } from '@/components/DateRangeFilter/DateRangeFilter'
 import { SegmentedControl } from '@/components/SegmentedControl/SegmentedControl'
 import type { SegmentOption } from '@/components/SegmentedControl/SegmentedControl'
 import { UnbilledTab } from '../Unbilled/UnbilledTab'
@@ -20,6 +21,7 @@ import { usePagination } from '@/hooks/usePagination'
 import { usePatientName } from '@/hooks/useDisplayNames'
 import { PAYMENT_METHOD_LABEL } from '@/constants'
 import { formatBRL } from '@/utils/format'
+import { brToIsoDate } from '@/utils/date'
 import type { Receivable } from '@/types/domain'
 import { PaymentModal } from '@/components/PaymentModal/PaymentModal'
 import { SettleModal } from '../shared/SettleModal'
@@ -43,6 +45,10 @@ export function ReceivableTab() {
     { value: 'unbilled', label: `A faturar${unbilled?.length ? ` (${unbilled.length})` : ''}` },
   ]
   const { data: receivables, isLoading } = useReceivables()
+  // Filtro por VENCIMENTO — 'aaaa-mm-dd' (mesmo formato do <input type="date">).
+  // '' nos dois = sem filtro (mostra tudo, como sempre foi).
+  const [dueFrom, setDueFrom] = useState('')
+  const [dueTo, setDueTo] = useState('')
   const { mutate: settle, isPending: settling } = useSettleReceivable()
   const { mutate: cancel } = useCancelReceivable()
   const { mutate: reverse } = useReverseReceivable()
@@ -54,7 +60,15 @@ export function ReceivableTab() {
   // mostrar (ver hooks/useDisplayNames).
   const patientName = usePatientName()
 
-  const list = receivables ?? []
+  // Filtra ANTES de tudo (paginação, somas do rodapé, seleção em lote) — o
+  // filtro tem de valer para o que a tela conta, não só para o que ela mostra.
+  const list = (receivables ?? []).filter(c => {
+    const dueIso = brToIsoDate(c.dueDate)
+    if (!dueIso) return true
+    if (dueFrom && dueIso < dueFrom) return false
+    if (dueTo && dueIso > dueTo) return false
+    return true
+  })
   const pagination = usePagination(list)
 
   const [toSettle, setToSettle] = useState<Receivable | null>(null)
@@ -172,6 +186,18 @@ export function ReceivableTab() {
   const switcher = (
     <div className={shared.subVisao}>
       <SegmentedControl options={viewOptions} value={view} onChange={setView} />
+      {/* Só na visão Títulos — "A faturar" é produção sem cobrança nenhuma
+          ainda, não tem vencimento pra filtrar. */}
+      {view === 'titulos' && (
+        <DateRangeFilter
+          size="sm"
+          from={dueFrom}
+          to={dueTo}
+          onChange={(from, to) => { setDueFrom(from); setDueTo(to) }}
+          fromLabel="Vencimento de"
+          toLabel="até"
+        />
+      )}
     </div>
   )
 

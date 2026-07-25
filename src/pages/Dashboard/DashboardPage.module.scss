@@ -6,6 +6,27 @@
   margin-bottom: $sp-6;
 }
 
+// "Início rápido" duplicado (ver DashboardPage.tsx): no mobile ele deve
+// aparecer ANTES de tudo (Agenda, indicadores...); no desktop, no lugar de
+// sempre, ao lado do 2×2 de indicadores. Em vez de reordenar com CSS `order`
+// através de dois grids aninhados, o card é renderizado duas vezes e cada
+// cópia só existe no breakpoint certo — mais simples que depender de `order`
+// atravessando `.grid` → `.widgets`.
+.mobileQuickAccess {
+  display: none;
+
+  @include mobile {
+    display: block;
+    margin-bottom: $sp-6;
+  }
+}
+
+.desktopQuickAccess {
+  @include mobile {
+    display: none;
+  }
+}
+
 // Agenda em coluna fixa e estreita à esquerda; o restante é a área de widgets.
 .grid {
   display: grid;
@@ -32,6 +53,19 @@
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
   gap: $sp-6;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Tarefas + Comissões lado a lado (mesma célula que antes era só o card de
+// tarefas) — cada um fica mais estreito para dividir a coluna com o outro.
+.tasksRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: $sp-6;
+  min-width: 0;
 
   @include mobile {
     grid-template-columns: 1fr;
@@ -111,7 +145,10 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  max-height: 340px;
+  // Mais alto agora que a coluna esquerda só tem a Agenda (Comissões mudou
+  // para o lado do card de Tarefas) — sobra altura pra mostrar mais consultas
+  // antes de rolar.
+  max-height: 460px;
   overflow-y: auto;
 }
 

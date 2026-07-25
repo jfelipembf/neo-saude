@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { Tabs } from '@/components/Tabs/Tabs'
 import { IconAdmin } from '@/components/icons'
@@ -45,7 +46,13 @@ const TABS: { key: TabKey; label: string; specialties?: ClinicSpecialty[]; exclu
 
 /** Página Administrativo: uma rota só, com o conteúdo organizado em abas. */
 export function AdminPage() {
-  const [tab, setTab] = useState<TabKey>('rooms')
+  // Deep-link ?tab=<key> (ex.: atalho "Início rápido" do Dashboard) — sem
+  // ele (ou com chave inválida) cai na aba padrão, Salas.
+  const [searchParams] = useSearchParams()
+  const requestedTab = searchParams.get('tab')
+  const [tab, setTab] = useState<TabKey>(
+    () => TABS.some(t => t.key === requestedTab) ? (requestedTab as TabKey) : 'rooms',
+  )
   const { specialty } = useSession()
   const visibleTabs = TABS.filter(t => appliesToSpecialty(specialty, t))
 

@@ -272,6 +272,10 @@
 // Alternador de visão dentro de uma aba (ex.: Contas a Receber → Títulos | A faturar).
 .subVisao {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  flex-wrap: wrap;
   margin-bottom: $sp-4;
 }
 

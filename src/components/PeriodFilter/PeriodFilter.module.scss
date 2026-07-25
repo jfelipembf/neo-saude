@@ -58,13 +58,3 @@
   &:hover { background: var(--primary-dark); color: #fff; }
 }
 
-.custom {
-  display: flex;
-  align-items: center;
-  gap: $sp-2;
-}
-
-.ate {
-  font-size: $fs-sm;
-  color: var(--text-muted);
-}

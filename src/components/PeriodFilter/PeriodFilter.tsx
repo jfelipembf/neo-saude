@@ -1,4 +1,4 @@
-import { Input } from '@/components/Input/Input'
+import { DateRangeFilter } from '@/components/DateRangeFilter/DateRangeFilter'
 import { PERIOD_PRESETS } from '@/constants'
 import type { PeriodPreset } from '@/utils/period'
 import styles from './PeriodFilter.module.scss'
@@ -34,19 +34,7 @@ export function PeriodFilter({ preset, onPreset, customFrom, customTo, onCustom 
       </div>
 
       {preset === 'custom' && (
-        <div className={styles.custom}>
-          <Input
-            size="sm" type="date" aria-label="De"
-            value={customFrom}
-            onChange={e => onCustom(e.target.value, customTo)}
-          />
-          <span className={styles.ate}>até</span>
-          <Input
-            size="sm" type="date" aria-label="Até"
-            value={customTo}
-            onChange={e => onCustom(customFrom, e.target.value)}
-          />
-        </div>
+        <DateRangeFilter size="sm" from={customFrom} to={customTo} onChange={onCustom} toLabel="até" />
       )}
     </div>
   )

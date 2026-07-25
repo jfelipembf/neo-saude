@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { AddressFields } from '@/components/AddressFields/AddressFields'
 import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
@@ -40,8 +41,11 @@ export function CollaboratorsTab() {
   const { mutate: setRole, isPending: savingRole } = useSetCollaboratorRole()
   const { mutate: setStatus, isPending: savingStatus } = useSetCollaboratorStatus()
 
+  // Deep-link ?new=1 (ex.: atalho "Início rápido" do Dashboard, via
+  // ?tab=collaborators) — abre o formulário de cadastro já na entrada.
+  const [searchParams] = useSearchParams()
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [creating, setCreating] = useState(false)
+  const [creating, setCreating] = useState(() => searchParams.get('new') === '1')
   const [passwordFor, setPasswordFor] = useState<Collaborator | null>(null)
 
   if (isLoading) return <PageLoader />

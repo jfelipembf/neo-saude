@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
@@ -31,7 +31,13 @@ export function ProfessionalProfilePage() {
   const { id } = useParams<{ id: string }>()
   const { data: professional, isLoading } = useProfessional(id ?? '')
 
-  const [tab, setTab] = useState<TabKey>('personal')
+  // Deep-link ?tab=<key> (ex.: atalho "Início rápido" do Dashboard) — sem
+  // ele (ou com chave inválida) cai na aba padrão, Dados pessoais.
+  const [searchParams] = useSearchParams()
+  const requestedTab = searchParams.get('tab')
+  const [tab, setTab] = useState<TabKey>(
+    () => TABS.some(t => t.key === requestedTab) ? (requestedTab as TabKey) : 'personal',
+  )
   const [editingData, setEditingData] = useState(false)
   const [editingCv, setEditingCv] = useState(false)
   // Foto escolhida no avatar (já subiu pro Storage), pendente de SALVAR junto

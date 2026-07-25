@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { Tabs } from '@/components/Tabs/Tabs'
 import { IconFinance } from '@/components/icons'
@@ -26,8 +27,16 @@ import styles from './FinancePage.module.scss'
 // operação com várias recepcionistas no dinheiro físico, caso Feegow).
 type TabKey = 'cashFlow' | 'sales' | 'payables' | 'receivables' | 'delinquency' | 'categories' | 'costCenters' | 'banks' | 'acquirers'
 
+const TAB_KEYS: TabKey[] = ['cashFlow', 'sales', 'payables', 'receivables', 'delinquency', 'categories', 'costCenters', 'banks', 'acquirers']
+
 export function FinancePage() {
-  const [tab, setTab] = useState<TabKey>('cashFlow')
+  // Deep-link ?tab=<key> (ex.: atalho "Início rápido" do Dashboard) — sem
+  // ele (ou com chave inválida) cai na aba padrão, Fluxo de caixa.
+  const [searchParams] = useSearchParams()
+  const requestedTab = searchParams.get('tab')
+  const [tab, setTab] = useState<TabKey>(
+    () => TAB_KEYS.includes(requestedTab as TabKey) ? (requestedTab as TabKey) : 'cashFlow',
+  )
   // O contador vive AQUI, e não dentro da aba: uma pendência que só aparece
   // depois de você clicar na aba não avisa ninguém. É a diferença entre uma
   // rede de segurança e um relatório que ninguém abre.

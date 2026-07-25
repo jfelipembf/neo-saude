@@ -9,7 +9,7 @@ import { dashboardRange, type PeriodPreset } from '@/utils/period'
 import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
-import { BillingCard } from '@/components/BillingCard/BillingCard'
+import { QuickAccessCard } from '@/components/QuickAccessCard/QuickAccessCard'
 import { CommissionsCard } from '@/components/CommissionsCard/CommissionsCard'
 import { TasksCard } from '@/components/TasksCard/TasksCard'
 import { AppointmentsChart } from '@/components/AppointmentsChart/AppointmentsChart'
@@ -159,121 +159,134 @@ export function DashboardPage() {
         // Funil de contatos: Novos contatos → Agendamento → Converteu / Perdeu.
         <LeadsKanban />
       ) : (
-        <div className={styles.grid}>
-          <div className={styles.colEsquerda}>
-            <section className={styles.agendaCard}>
-              <header className={styles.agendaHeader}>
-                <div>
-                  <h2 className={styles.agendaTitle}>Agenda do dia</h2>
-                  <p className={styles.agendaDate}>{selectedLabel}</p>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => navigate(APP_ROUTES.SCHEDULE)}>
-                  Ver agenda
-                </Button>
-              </header>
-
-              <Calendar
-                markedDates={markedDates}
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-              />
-
-              <h3 className={styles.listTitle}>
-                {selectedDate === todayIso ? 'Pacientes de hoje' : 'Pacientes do dia'}
-              </h3>
-              <ul className={styles.list}>
-                {dayPatients.length === 0 && (
-                  <li className={styles.emptyItem}>
-                    {selectedDate === todayIso
-                      ? 'Nenhum paciente agendado para hoje.'
-                      : 'Nenhum paciente agendado para este dia.'}
-                  </li>
-                )}
-                {dayPatients.map(c => (
-                  <li key={c.id} className={styles.item}>
-                    <div className={styles.itemInfo}>
-                      <span className={styles.itemPaciente}>{patientName(c.patientId)}</span>
-                      <span className={styles.itemLine}><IconClock /> {c.startTime} · {c.activity}</span>
-                      <Badge status={c.status} label={DAY_STATUS_LABEL[c.status]} className={styles.itemBadge} />
-                    </div>
-
-                    <div className={styles.presence}>
-                      <button
-                        type="button"
-                        className={`${styles.circleBtn} ${styles['circleBtn--ok']} ${c.status === 'completed' ? styles['circleBtn--active'] : ''}`}
-                        onClick={() => markOutcome(c, 'completed')}
-                        title={c.status === 'completed' ? 'Desfazer presença' : 'Presente'}
-                        aria-label={`Marcar que ${patientName(c.patientId)} compareceu`}
-                        aria-pressed={c.status === 'completed'}
-                      >
-                        <IconCheck />
-                      </button>
-                      <button
-                        type="button"
-                        className={`${styles.circleBtn} ${styles['circleBtn--no']} ${c.status === 'no_show' ? styles['circleBtn--active'] : ''}`}
-                        onClick={() => markOutcome(c, 'no_show')}
-                        title={c.status === 'no_show' ? 'Desfazer falta' : 'Faltou'}
-                        aria-label={`Marcar que ${patientName(c.patientId)} faltou`}
-                        aria-pressed={c.status === 'no_show'}
-                      >
-                        <IconX />
-                      </button>
-                      <button
-                        type="button"
-                        className={`${styles.circleBtn} ${styles['circleBtn--cancel']} ${c.status === 'canceled' ? styles['circleBtn--active'] : ''}`}
-                        onClick={() => markOutcome(c, 'canceled')}
-                        title={c.status === 'canceled' ? 'Reativar consulta' : 'Cancelar consulta'}
-                        aria-label={c.status === 'canceled'
-                          ? `Reativar a consulta de ${patientName(c.patientId)}`
-                          : `Cancelar a consulta de ${patientName(c.patientId)}`}
-                        aria-pressed={c.status === 'canceled'}
-                      >
-                        <IconBan />
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            <CommissionsCard />
+        <>
+          {/* Só existe no mobile (ver CSS) — o mesmo card reaparece lá embaixo,
+              no lugar de sempre, para quem usa em telas maiores. */}
+          <div className={styles.mobileQuickAccess}>
+            <QuickAccessCard />
           </div>
 
-          <div className={styles.widgets}>
-            {/* ⚠️ NÃO ADICIONE CARTÃO AQUI SEM O DONO PEDIR.
-                O Dashboard mostra SOMENTE as métricas QUE TÊM META — as quatro
-                de `metrics`, cada uma com meta e com a variação sobre o mês
-                anterior CALCULADA aqui. Vêm todas da RPC dashboard_stats, num
-                round-trip só.
+          <div className={styles.grid}>
+            <div className={styles.colEsquerda}>
+              <section className={styles.agendaCard}>
+                <header className={styles.agendaHeader}>
+                  <div>
+                    <h2 className={styles.agendaTitle}>Agenda do dia</h2>
+                    <p className={styles.agendaDate}>{selectedLabel}</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => navigate(APP_ROUTES.SCHEDULE)}>
+                    Ver agenda
+                  </Button>
+                </header>
 
-                Os contadores OPERACIONAIS que ficavam antes destes ("Consultas
-                hoje", "A confirmar" e "Pacientes ativos") foram REMOVIDOS A
-                PEDIDO DO DONO — ele viu os três na tela e mandou tirar. A
-                ausência deles é DELIBERADA, não é regressão: dois agentes já os
-                "restauraram" achando que alguém tinha apagado por engano. Se
-                bater a vontade de repor, é engano. Com a remoção, a RPC também
-                deixou de calcular e de devolver appointments_today,
-                pending_confirmations, active_patients e monthly_revenue — repor
-                o cartão exigiria despodar o banco junto. */}
-            <div className={styles.statsGrid}>
-              <StatsCard {...metricCard('appointments_scheduled', <IconSchedule />)} />
-              <StatsCard {...metricCard('appointments_completed', <IconCheck />)} />
-              <StatsCard {...metricCard('revenue',                <IconTrendUp />)} />
-              <StatsCard {...metricCard('expenses',               <IconTrendDown />)} />
+                <Calendar
+                  markedDates={markedDates}
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                />
+
+                <h3 className={styles.listTitle}>
+                  {selectedDate === todayIso ? 'Pacientes de hoje' : 'Pacientes do dia'}
+                </h3>
+                <ul className={styles.list}>
+                  {dayPatients.length === 0 && (
+                    <li className={styles.emptyItem}>
+                      {selectedDate === todayIso
+                        ? 'Nenhum paciente agendado para hoje.'
+                        : 'Nenhum paciente agendado para este dia.'}
+                    </li>
+                  )}
+                  {dayPatients.map(c => (
+                    <li key={c.id} className={styles.item}>
+                      <div className={styles.itemInfo}>
+                        <span className={styles.itemPaciente}>{patientName(c.patientId)}</span>
+                        <span className={styles.itemLine}><IconClock /> {c.startTime} · {c.activity}</span>
+                        <Badge status={c.status} label={DAY_STATUS_LABEL[c.status]} className={styles.itemBadge} />
+                      </div>
+
+                      <div className={styles.presence}>
+                        <button
+                          type="button"
+                          className={`${styles.circleBtn} ${styles['circleBtn--ok']} ${c.status === 'completed' ? styles['circleBtn--active'] : ''}`}
+                          onClick={() => markOutcome(c, 'completed')}
+                          title={c.status === 'completed' ? 'Desfazer presença' : 'Presente'}
+                          aria-label={`Marcar que ${patientName(c.patientId)} compareceu`}
+                          aria-pressed={c.status === 'completed'}
+                        >
+                          <IconCheck />
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.circleBtn} ${styles['circleBtn--no']} ${c.status === 'no_show' ? styles['circleBtn--active'] : ''}`}
+                          onClick={() => markOutcome(c, 'no_show')}
+                          title={c.status === 'no_show' ? 'Desfazer falta' : 'Faltou'}
+                          aria-label={`Marcar que ${patientName(c.patientId)} faltou`}
+                          aria-pressed={c.status === 'no_show'}
+                        >
+                          <IconX />
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.circleBtn} ${styles['circleBtn--cancel']} ${c.status === 'canceled' ? styles['circleBtn--active'] : ''}`}
+                          onClick={() => markOutcome(c, 'canceled')}
+                          title={c.status === 'canceled' ? 'Reativar consulta' : 'Cancelar consulta'}
+                          aria-label={c.status === 'canceled'
+                            ? `Reativar a consulta de ${patientName(c.patientId)}`
+                            : `Cancelar a consulta de ${patientName(c.patientId)}`}
+                          aria-pressed={c.status === 'canceled'}
+                        >
+                          <IconBan />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             </div>
 
-            {/* O que há para cobrar: vencidos e pendentes, mais antigo primeiro. */}
-            <BillingCard />
+            <div className={styles.widgets}>
+              {/* ⚠️ NÃO ADICIONE CARTÃO AQUI SEM O DONO PEDIR.
+                  O Dashboard mostra SOMENTE as métricas QUE TÊM META — as quatro
+                  de `metrics`, cada uma com meta e com a variação sobre o mês
+                  anterior CALCULADA aqui. Vêm todas da RPC dashboard_stats, num
+                  round-trip só.
 
-            {/* Linha 2: tarefas à esquerda, os dois gráficos empilhados à direita
-                — como são a MESMA célula do grid, terminam na mesma altura. */}
-            <TasksCard />
-            <div className={styles.graficos}>
-              <AppointmentsChart />
-              <FinanceChart />
+                  Os contadores OPERACIONAIS que ficavam antes destes ("Consultas
+                  hoje", "A confirmar" e "Pacientes ativos") foram REMOVIDOS A
+                  PEDIDO DO DONO — ele viu os três na tela e mandou tirar. A
+                  ausência deles é DELIBERADA, não é regressão: dois agentes já os
+                  "restauraram" achando que alguém tinha apagado por engano. Se
+                  bater a vontade de repor, é engano. Com a remoção, a RPC também
+                  deixou de calcular e de devolver appointments_today,
+                  pending_confirmations, active_patients e monthly_revenue — repor
+                  o cartão exigiria despodar o banco junto. */}
+              <div className={styles.statsGrid}>
+                <StatsCard {...metricCard('appointments_scheduled', <IconSchedule />)} />
+                <StatsCard {...metricCard('appointments_completed', <IconCheck />)} />
+                <StatsCard {...metricCard('revenue',                <IconTrendUp />)} />
+                <StatsCard {...metricCard('expenses',               <IconTrendDown />)} />
+              </div>
+
+              {/* Atalhos para telas de cadastro/configuração usadas com frequência
+                  — some no mobile (ver .mobileQuickAccess acima). */}
+              <div className={styles.desktopQuickAccess}>
+                <QuickAccessCard />
+              </div>
+
+              {/* Linha 2: tarefas + comissões lado a lado à esquerda, os dois
+                  gráficos empilhados à direita — como são a MESMA célula do
+                  grid, terminam na mesma altura. */}
+              <div className={styles.tasksRow}>
+                <TasksCard />
+                <CommissionsCard />
+              </div>
+              <div className={styles.graficos}>
+                <AppointmentsChart />
+                <FinanceChart />
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </>
   )

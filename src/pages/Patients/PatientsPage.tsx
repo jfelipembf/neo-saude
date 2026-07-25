@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { Tabs } from '@/components/Tabs/Tabs'
 import { Table } from '@/components/Table/Table'
@@ -72,7 +72,10 @@ export function PatientsPage() {
   const { mutate: create, isPending: creating } = useCreatePatient()
 
   const [view, setView] = useState<ContactView>('all')
-  const [modalOpen, setModalOpen] = useState(false)
+  // Deep-link ?new=1 (ex.: atalho "Início rápido" do Dashboard) — abre o
+  // modal de cadastro já na entrada, sem precisar do clique em "Novo paciente".
+  const [searchParams] = useSearchParams()
+  const [modalOpen, setModalOpen] = useState(() => searchParams.get('new') === '1')
   const [form, setForm] = useState<PatientFormState>(EMPTY_FORM)
   const [nameError, setNameError] = useState('')
 

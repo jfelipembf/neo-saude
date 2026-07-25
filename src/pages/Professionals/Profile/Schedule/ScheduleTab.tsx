@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Calendar } from '@/components/Calendar/Calendar'
 import { Button } from '@/components/Button/Button'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
@@ -29,7 +29,13 @@ const VIEW_OPTIONS = [
 /** Aba "Agenda": alterna entre as consultas já marcadas (calendário + lista
  *  do dia) e a grade de disponibilidade recorrente do profissional. */
 export function ScheduleTab({ professional }: ScheduleTabProps) {
-  const [view, setView] = useState<View>('appointments')
+  // Deep-link ?view=availability (ex.: atalho "Início rápido" do Dashboard)
+  // — sem ele (ou com valor inválido) cai na view padrão, Consultas.
+  const [searchParams] = useSearchParams()
+  const requestedView = searchParams.get('view')
+  const [view, setView] = useState<View>(
+    () => VIEW_OPTIONS.some(o => o.value === requestedView) ? (requestedView as View) : 'appointments',
+  )
   const navigate = useNavigate()
   const today = new Date()
   const fromIso = toIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 182))

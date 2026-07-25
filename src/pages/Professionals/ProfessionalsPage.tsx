@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { Button } from '@/components/Button/Button'
 import { ProfessionalsTable } from '@/components/ProfessionalsTable/ProfessionalsTable'
@@ -9,7 +9,10 @@ import { ProfessionalFormModal } from './ProfessionalFormModal'
 
 export function ProfessionalsPage() {
   const navigate = useNavigate()
-  const [creating, setCreating] = useState(false)
+  // Deep-link ?new=1 (ex.: atalho "Início rápido" do Dashboard) — abre o
+  // modal de cadastro já na entrada, sem precisar do clique em "Novo profissional".
+  const [searchParams] = useSearchParams()
+  const [creating, setCreating] = useState(() => searchParams.get('new') === '1')
 
   return (
     <>
