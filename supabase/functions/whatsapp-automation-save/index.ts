@@ -1,4 +1,5 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { WHATSAPP_AUTOMATION_DEFAULTS } from "../_shared/whatsappAutomationDefaults.ts";
 
 const cors = {
   "access-control-allow-origin": "*",
@@ -55,6 +56,7 @@ Deno.serve(async (request) => {
   }
 
   let body: {
+    action?: string;
     clinicId?: string;
     trigger?: string;
     status?: string;
@@ -67,6 +69,7 @@ Deno.serve(async (request) => {
     return json({ ok: false, error: "invalid_body" }, 400);
   }
 
+  const action = String(body.action ?? "save");
   const clinicId = String(body.clinicId ?? "");
   const trigger = String(body.trigger ?? "");
   const status = String(body.status ?? "");
@@ -74,16 +77,20 @@ Deno.serve(async (request) => {
   const sendTime = body.sendTime == null ? null : String(body.sendTime);
   const scheduled = trigger !== "after_booking";
 
-  if (
-    !clinicId ||
-    !TRIGGERS.has(trigger) ||
-    (status !== "active" && status !== "inactive") ||
-    !message ||
-    message.length > 4096 ||
-    !placeholdersValid(message, trigger) ||
-    (scheduled ? !sendTime || !validTime(sendTime) : sendTime !== null)
-  ) {
+  if (!clinicId || (action !== "save" && action !== "bootstrap")) {
     return json({ ok: false, error: "invalid_automation" }, 400);
+  }
+  if (action === "save") {
+    if (
+      !TRIGGERS.has(trigger) ||
+      (status !== "active" && status !== "inactive") ||
+      !message ||
+      message.length > 4096 ||
+      !placeholdersValid(message, trigger) ||
+      (scheduled ? !sendTime || !validTime(sendTime) : sendTime !== null)
+    ) {
+      return json({ ok: false, error: "invalid_automation" }, 400);
+    }
   }
 
   const caller = createClient(
@@ -128,10 +135,9 @@ Deno.serve(async (request) => {
   const [{ data: permission }, { data: entitlement }] = await Promise.all([
     admin
       .from("access_profile_permission")
-      .select("can_edit")
+      .select("can_view, can_edit")
       .eq("access_profile_id", member.access_profile_id)
       .eq("feature_key", "whatsapp")
-      .eq("can_edit", true)
       .maybeSingle(),
     admin
       .from("plan_feature")
@@ -140,8 +146,38 @@ Deno.serve(async (request) => {
       .eq("feature_key", "whatsapp")
       .maybeSingle(),
   ]);
-  if (!permission || !entitlement) {
+  const allowed = action === "bootstrap"
+    ? permission?.can_view
+    : permission?.can_edit;
+  if (!allowed || !entitlement) {
     return json({ ok: false, error: "forbidden" }, 403);
+  }
+
+  if (action === "bootstrap") {
+    const rows = WHATSAPP_AUTOMATION_DEFAULTS.map((item) => ({
+      clinic_id: clinicId,
+      ...item,
+    }));
+    const { error: insertError } = await admin
+      .from("whatsapp_automation")
+      .upsert(rows, {
+        onConflict: "clinic_id,trigger",
+        ignoreDuplicates: true,
+      });
+    if (insertError) {
+      console.error("[whatsapp-automation-bootstrap]", insertError);
+      return json({ ok: false, error: "automation_bootstrap_failed" }, 500);
+    }
+
+    const { data: automations, error: listError } = await admin
+      .from("whatsapp_automation")
+      .select("trigger, status, message, send_time")
+      .eq("clinic_id", clinicId);
+    if (listError) {
+      console.error("[whatsapp-automation-bootstrap]", listError);
+      return json({ ok: false, error: "automation_list_failed" }, 500);
+    }
+    return json({ ok: true, automations });
   }
 
   const { error } = await admin.from("whatsapp_automation").upsert(
@@ -156,7 +192,7 @@ Deno.serve(async (request) => {
   );
   if (error) {
     console.error("[whatsapp-automation-save]", error);
-    return json({ ok: false, error: "automation_save_failed" });
+    return json({ ok: false, error: "automation_save_failed" }, 500);
   }
   return json({ ok: true });
 });

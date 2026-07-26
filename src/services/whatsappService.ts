@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
+import { AUTOMATION_CATALOG } from '@/constants/whatsappAutomations'
 import type { AutomationTrigger, WhatsAppAutomation, WhatsAppConnection } from '@/types/domain'
 
 function fmtDateTime(iso: string): string {
@@ -114,18 +115,41 @@ export async function sendWhatsAppMessage(
 
 type AutomationRow = { trigger: AutomationTrigger; status: WhatsAppAutomation['status']; message: string; send_time: string | null }
 
+function toAutomation(row: AutomationRow): WhatsAppAutomation {
+  return {
+    trigger: row.trigger,
+    status: row.status,
+    message: row.message,
+    sendTime: row.send_time ? hhmm(row.send_time) : undefined,
+  }
+}
+
 export async function listAutomations(): Promise<WhatsAppAutomation[]> {
+  const clinicId = getCurrentClinicId()
   const { data, error } = await supabase
     .from('whatsapp_automation')
     .select('trigger, status, message, send_time')
-    .eq('clinic_id', getCurrentClinicId())
+    .eq('clinic_id', clinicId)
   if (error) throw error
-  return (data as AutomationRow[]).map(r => ({
-    trigger: r.trigger,
-    status: r.status,
-    message: r.message,
-    sendTime: r.send_time ? hhmm(r.send_time) : undefined,
-  }))
+
+  const rows = data as AutomationRow[]
+  const configured = new Set(rows.map(row => row.trigger))
+  if (AUTOMATION_CATALOG.every(item => configured.has(item.trigger))) {
+    return rows.map(toAutomation)
+  }
+
+  const { data: initialized, error: initializeError } = await supabase.functions.invoke<{
+    ok: boolean
+    automations?: AutomationRow[]
+    error?: string
+  }>('whatsapp-automation-save', {
+    body: { action: 'bootstrap', clinicId },
+  })
+  if (initializeError) throw initializeError
+  if (!initialized?.ok || !initialized.automations) {
+    throw new Error(initialized?.error ?? 'automation_bootstrap_failed')
+  }
+  return initialized.automations.map(toAutomation)
 }
 
 /** Campos editáveis de uma automação (o gatilho é a chave, não muda). */
