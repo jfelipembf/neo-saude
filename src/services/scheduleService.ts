@@ -9,7 +9,7 @@ import { addMinutes } from '@/utils/date'
 // (`schedule_slot` ficou reservada para regras recorrentes; a Agenda não a usa.)
 
 const COLUMNS =
-  'id, clinic_id, patient_id, professional_id, room_id, service, date, start_time, duration_minutes, status, notes, color, send_confirmation, entitlement_id, clinical_note'
+  'id, clinic_id, patient_id, professional_id, room_id, service, date, start_time, duration_minutes, status, notes, color, send_confirmation, is_overbook, entitlement_id, clinical_note'
 
 type AppointmentRow = {
   id: string
@@ -25,6 +25,7 @@ type AppointmentRow = {
   notes: string | null
   color: string | null
   send_confirmation: boolean
+  is_overbook: boolean
   entitlement_id: string | null
   // O CHECK `appointment_clinical_note_shape_ck` já garante no BANCO que só
   // existem as quatro chaves do SOAP, cada uma string — por isso a linha entra
@@ -84,6 +85,7 @@ export async function listScheduleAppointments(fromIso: string, toIso: string): 
     status: row.status,
     notes: row.notes ?? undefined,
     sendConfirmation: row.send_confirmation,
+    isOverbook: row.is_overbook,
     entitlementId: row.entitlement_id ?? undefined,
     clinicalNote: row.clinical_note ?? undefined,
   }))
@@ -106,6 +108,7 @@ async function toRow(clinicId: string, payload: EditScheduledAppointment) {
     notes: payload.notes ?? null,
     color: payload.color ?? null,
     send_confirmation: payload.sendConfirmation ?? false,
+    is_overbook: payload.isOverbook ?? false,
   }
 }
 

@@ -22,7 +22,8 @@ import { toIsoDate } from '@/utils/date'
 import { useProfessionalName } from '@/hooks/useDisplayNames'
 import { formatBRL, parseBRL } from '@/utils/format'
 import { IconPlus, IconPrint, IconTasks, IconChevronRight, IconX } from '@/components/icons'
-import type { OdontogramThemeConfig } from '@/lib/odontogramShell/odontogram-shell'
+import { LIGHT_THEME, DARK_THEME } from '@/lib/odontogramShell/theme'
+import { hideDefaultLayers } from '@/lib/odontogramShell/layers'
 import type { SessionBillingChoice, UsedMaterial, TreatmentSession, Treatment } from '@/types/domain'
 import styles from './TreatmentsPanel.module.scss'
 
@@ -87,38 +88,6 @@ function loadChart(
     if (confirmed || Date.now() - start > 3000) clearInterval(timer)
   }, 150)
   return () => clearInterval(timer)
-}
-
-/**
- * Desliga por padrão as camadas de osso e polpa (os botões seguem disponíveis
- * para religar). Retry até o motor montar os botões; devolve o cleanup.
- */
-function hideDefaultLayers(root: HTMLElement): () => void {
-  const hiddenByDefault = ['btnBoneVisible', 'btnPulpVisible']
-  const start = Date.now()
-  const timer = setInterval(() => {
-    const pending = hiddenByDefault.filter(id => {
-      const btn = root.querySelector<HTMLButtonElement>(`#${id}`)
-      if (!btn) return true
-      if (btn.getAttribute('aria-pressed') === 'true') btn.click()
-      return btn.getAttribute('aria-pressed') === 'true'
-    })
-    if (pending.length === 0 || Date.now() - start > 3000) clearInterval(timer)
-  }, 120)
-  return () => clearInterval(timer)
-}
-
-// Paleta do odontograma = tokens do app (styles/_themes.scss), por tema.
-const LIGHT_THEME: OdontogramThemeConfig = {
-  background: '#F3F7F5', panel: '#FFFFFF', card: '#FFFFFF',
-  text: '#12211C', muted: '#5E6E68', line: '#D8E2DE',
-  accent: '#10B981', accent2: '#8B5CF6',
-}
-
-const DARK_THEME: OdontogramThemeConfig = {
-  background: '#0D1512', panel: '#121D18', card: '#121D18',
-  text: '#EDF7F2', muted: '#95A69F', line: '#26332D',
-  accent: '#34D399', accent2: '#A78BFA',
 }
 
 /**

@@ -42,6 +42,9 @@ export interface Patient {
   /** Referência humana sequencial por clínica (PAC-000001). */
   code: string
   name: string           // nome completo (nome + sobrenome), usado nas listas
+  /** Nome comum: como a pessoa é geralmente chamada, quando difere do nome
+   *  completo (ex.: "José Felipe" no cadastro, "Felipe" no dia a dia). */
+  commonName?: string
   cpf?: string           // 000.000.000-00
   phone: string
   insurance: string
@@ -795,6 +798,26 @@ export interface Room {
   photo?: string          // path da imagem no bucket privado (assinado na leitura)
 }
 
+/** Fornecedor de materiais (Administrativo → Fornecedores, só odontologia). */
+export interface Supplier {
+  id: string
+  clinicId: string
+  name: string
+  photo?: string          // path da imagem no bucket privado (assinado na leitura)
+  cnpj?: string
+  phone?: string
+  /** Destino do pedido de orçamento quando um material está acabando. */
+  email?: string
+  /** Separado de `phone`: o fixo do balcão raramente é o WhatsApp de quem vende. */
+  whatsapp?: string
+  cep?: string
+  state?: string          // UF
+  city?: string
+  neighborhood?: string
+  street?: string
+  number?: string
+}
+
 /** Turma coletiva recorrente (Administrativo → Turmas) — nome/profissional/sala/
  *  horário/capacidade compartilhados por todos os dias da semana selecionados. */
 /** Uma sessão semanal recorrente de turma coletiva — turma com aulas em dois
@@ -867,6 +890,8 @@ export interface Material {
   minQuantity: number
   expiryDate?: string      // dd/mm/aaaa
   notes?: string    // ex.: Lote 123
+  /** Fornecedores deste material — um material pode ter mais de um (material_supplier). */
+  supplierIds: string[]
 }
 
 /** Perfil do usuário logado (menu de perfil no topo, cabeçalho de receituário). */
@@ -906,6 +931,10 @@ export interface ScheduledAppointment {
   notes?: string
   /** Enviar mensagem de confirmação ao paciente. */
   sendConfirmation?: boolean
+  /** Encaixe declarado — tira a consulta da trava de agenda dupla do banco
+   *  (appointment_professional_overlap_ex). É o que separa o encaixe proposital
+   *  do choque acidental. */
+  isOverbook?: boolean
   /** Pacote de sessões do qual esta consulta desconta — IMUTÁVEL depois de
    *  criada (ver appointment.entitlement_id). undefined = consulta avulsa. */
   entitlementId?: string

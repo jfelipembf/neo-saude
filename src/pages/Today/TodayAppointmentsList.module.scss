@@ -35,3 +35,16 @@
 .colStatus {
   width: 140px;
 }
+
+.acoes {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  flex-wrap: wrap;
+}
+
+.odontoIcon {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}

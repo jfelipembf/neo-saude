@@ -1,56 +1,45 @@
 @use '../../../styles/mixins' as *;
 
-.toolbarDireita {
+// Mesmo desenho de Comissões/Colaboradores: lista lateral + área de detalhe.
+.layout {
   display: flex;
-  align-items: center;
-  gap: $sp-2;
+  align-items: flex-start;
+  gap: $sp-4;
 
-  @include phone {
+  @include mobile {
     flex-direction: column;
-    align-items: stretch;
   }
 }
 
-.busca {
-  max-width: 280px;
-
-  @include phone {
-    max-width: none;
-  }
-}
-
-// Nome + miniatura da foto do material.
-.materialCell {
+.formArea {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: $sp-3;
-  font-weight: 600;
-  color: var(--text-primary);
 }
 
-.thumb {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border-radius: $radius-md;
-  object-fit: cover;
-}
-
-.semThumb {
+.formRoot {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border-radius: $radius-md;
-  background: var(--accent-bg);
-  color: var(--primary-fg);
-
-  svg { width: 16px; height: 16px; }
+  flex-direction: column;
+  gap: $sp-4;
 }
 
-.form {
+// Foto (retângulo vertical, largura fixa) ao lado dos campos — a foto abre o
+// formulário, como capa do produto. Empilha no mobile (foto em cima).
+.fields {
+  display: flex;
+  gap: $sp-4;
+  align-items: flex-start;
+
+  @include mobile {
+    flex-direction: column;
+  }
+}
+
+.fieldStack {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: $sp-3;
@@ -65,3 +54,10 @@
     grid-template-columns: 1fr;
   }
 }
+
+.acoesBar {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-3;
+}
+

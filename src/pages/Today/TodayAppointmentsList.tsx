@@ -1,9 +1,15 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AppointmentModal } from '@/components/AppointmentModal/AppointmentModal'
 import { Badge } from '@/components/Badge/Badge'
+import { Button } from '@/components/Button/Button'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { Table, type TableColumn } from '@/components/Table/Table'
+import { IconUser } from '@/components/icons'
+import odontoIAIcon from '@/assets/images/icon/odontoIA.png'
+import { useSession } from '@/context/SessionProvider'
 import { usePatientName } from '@/hooks/useDisplayNames'
+import { buildRoute, FULLSCREEN_ROUTES } from '@/constants'
 import type { ScheduledAppointment } from '@/types/domain'
 import styles from './TodayAppointmentsList.module.scss'
 
@@ -23,8 +29,15 @@ interface TodayAppointmentsListProps {
  * sessão, sem duplicar esse fluxo aqui.
  */
 export function TodayAppointmentsList({ appointments }: TodayAppointmentsListProps) {
+  const navigate = useNavigate()
   const patientName = usePatientName()
+  const { canView, specialty } = useSession()
   const [selected, setSelected] = useState<ScheduledAppointment | null>(null)
+
+  // Mesma feature que protege a leitura do odontograma por RLS ('patients') +
+  // o gate de especialidade (só faz sentido em odontologia) — ver comment do
+  // showOdontogram em Header.tsx.
+  const showOdontoActions = specialty === 'dentistry' && canView('patients')
 
   // Mais cedo primeiro — é a ordem em que o profissional vai VIVER o dia.
   const sorted = useMemo(
@@ -51,6 +64,30 @@ export function TodayAppointmentsList({ appointments }: TodayAppointmentsListPro
       className: styles.colStatus,
       render: a => <Badge status={a.status} />,
     },
+    ...(showOdontoActions ? [{
+      key: 'actions',
+      label: 'Ações',
+      render: (a: ScheduledAppointment) => (
+        <span className={styles.acoes}>
+          <Button
+            variant="outline"
+            size="sm"
+            iconLeft={<IconUser />}
+            onClick={e => { e.stopPropagation(); navigate(buildRoute.patientProfile(a.patientId)) }}
+          >
+            Perfil
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            iconLeft={<img src={odontoIAIcon} alt="" className={styles.odontoIcon} />}
+            onClick={e => { e.stopPropagation(); navigate(`${FULLSCREEN_ROUTES.ODONTOGRAM}?patient=${a.patientId}`) }}
+          >
+            Odonto IA
+          </Button>
+        </span>
+      ),
+    }] : []),
   ]
 
   return (

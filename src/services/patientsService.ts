@@ -7,7 +7,7 @@ import { brToIsoDate, isoToBrDate } from '@/utils/date'
 import type { Patient, Gender } from '@/types/domain'
 
 const COLUMNS =
-  'id, clinic_id, code, name, cpf, phone, insurance_id, last_visit, status, photo_url, sex, birth_date, email, whatsapp, cep, state, city, neighborhood, street, number'
+  'id, clinic_id, code, name, common_name, cpf, phone, insurance_id, last_visit, status, photo_url, sex, birth_date, email, whatsapp, cep, state, city, neighborhood, street, number'
 
 // Rótulo do "sem convênio": no banco é insurance_id NULL (não é linha de insurance).
 const PARTICULAR = 'Particular'
@@ -17,6 +17,7 @@ type PatientRow = {
   clinic_id: string
   code: string
   name: string
+  common_name: string | null
   cpf: string | null
   phone: string
   insurance_id: string | null
@@ -60,6 +61,7 @@ function toPatient(row: PatientRow, insMap: Map<string, string>): Patient {
     clinicId: row.clinic_id,
     code: row.code,
     name: row.name,
+    commonName: row.common_name ?? undefined,
     cpf: row.cpf ?? undefined,
     phone: row.phone,
     insurance: row.insurance_id ? (insMap.get(row.insurance_id) ?? PARTICULAR) : PARTICULAR,
@@ -113,6 +115,8 @@ export async function getPatient(id: string): Promise<Patient | null> {
 export interface NewPatient {
   firstName: string
   lastName: string
+  /** Como a pessoa é geralmente chamada, quando difere do nome completo. */
+  commonName?: string
   sex?: Gender
   birthDate?: string    // dd/mm/aaaa
   email?: string
@@ -128,11 +132,12 @@ export interface NewPatient {
 
 /** Cadastra um paciente novo (entra ativo, sem convênio/última visita). */
 export async function addPatient(payload: NewPatient): Promise<void> {
-  const { firstName, lastName, birthDate, sex, email, phone, whatsapp, cep, state, city, neighborhood, street, number } = payload
+  const { firstName, lastName, commonName, birthDate, sex, email, phone, whatsapp, cep, state, city, neighborhood, street, number } = payload
   const row: ClientInsert<'patient'> = {
     clinic_id: getCurrentClinicId(),
     // O nome nasce normalizado aqui — o form não se preocupa com CAPS/"de souza".
     name: capitalizeName(`${firstName} ${lastName}`),
+    common_name: commonName?.trim() ? capitalizeName(commonName) : null,
     sex: sex ?? null,
     birth_date: brToIsoDate(birthDate),
     email: emailToDb(email),
@@ -158,11 +163,12 @@ export interface EditPatient extends NewPatient {
 export async function updatePatient(id: string, payload: EditPatient): Promise<void> {
   const clinicId = getCurrentClinicId()
   const insuranceId = await insuranceIdByName(clinicId, payload.insurance)
-  const { firstName, lastName, birthDate, sex, email, phone, whatsapp, cep, state, city, neighborhood, street, number } = payload
+  const { firstName, lastName, commonName, birthDate, sex, email, phone, whatsapp, cep, state, city, neighborhood, street, number } = payload
   const { error } = await supabase
     .from('patient')
     .update({
       name: capitalizeName(`${firstName} ${lastName}`),
+      common_name: commonName?.trim() ? capitalizeName(commonName) : null,
       sex: sex ?? null,
       birth_date: brToIsoDate(birthDate),
       email: emailToDb(email),

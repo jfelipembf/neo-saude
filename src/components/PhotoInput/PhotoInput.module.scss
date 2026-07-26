@@ -37,6 +37,13 @@
   height: 200px;
 }
 
+// Retângulo vertical (não estica pra 100%) — pra quando a foto abre o
+// formulário, tipo capa de produto, em vez de ocupar a linha inteira.
+.drop--portrait {
+  width: 160px;
+  height: 220px;
+}
+
 .preview {
   width: 100%;
   height: 100%;

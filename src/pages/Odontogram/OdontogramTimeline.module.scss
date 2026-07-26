@@ -1,0 +1,113 @@
+@use '../../styles/mixins' as *;
+
+// A régua atravessa a tela inteira logo abaixo da barra, e não dentro de um dos
+// painéis: a data escolhida vale para TUDO que está abaixo dela — o desenho da
+// boca e a coluna de Achados. Presa a um painel, pareceria filtrar só aquele.
+.regua {
+  position: relative;
+  z-index: 2;
+  padding: $sp-2 $sp-5;
+  border-bottom: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  overflow-x: auto;
+  @include hide-scrollbar;
+
+  @include mobile { padding: $sp-2 $sp-3; }
+}
+
+.trilho {
+  display: flex;
+  align-items: flex-start;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  // Sem folga ENTRE os itens: o fio que liga os marcos é desenhado por item, e
+  // qualquer gap abriria buracos nele.
+  gap: 0;
+  min-width: min-content;
+}
+
+.marco {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+// O fio da linha do tempo. Fica no botão e ocupa a largura inteira dele, na
+// altura do centro do ponto — itens colados formam um fio contínuo que rola
+// junto com a régua (um fio único no container só cobriria a parte visível).
+.botao {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: $sp-1 $sp-3 2px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: $fs-xs;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: calc(#{$sp-1} + 4px);   // centro do ponto (8px de altura)
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--glass-border);
+  }
+
+  &:hover:not(:disabled) { color: var(--text-primary); }
+  &:disabled { cursor: default; opacity: 0.6; }
+  &:focus-visible { @include focus-ring; border-radius: $radius-sm; }
+}
+
+// As pontas do fio não passam do primeiro e do último marco — fio sobrando nas
+// bordas parece histórico cortado.
+.marco:first-child .botao::before { left: 50%; }
+.marco:last-child .botao::before { right: 50%; }
+
+.ponto {
+  position: relative;
+  z-index: 1;
+  width: 8px;
+  height: 8px;
+  border-radius: $radius-pill;
+  background: var(--bg-elevated);
+  box-shadow: 0 0 0 2px var(--glass-border) inset, 0 0 0 3px var(--bg-base);
+}
+
+.rotulo {
+  font-variant-numeric: tabular-nums;
+}
+
+// O marco selecionado. Verde só quando é a ficha corrente; um dia do passado
+// acende em ÂMBAR, porque ali a tela está em somente leitura e a diferença
+// entre "estou editando" e "estou olhando" não pode depender de ler um texto.
+.botaoAtivo {
+  color: var(--warning-fg);
+
+  .ponto {
+    background: var(--warning-fg);
+    box-shadow: 0 0 0 3px var(--bg-base);
+  }
+}
+
+.marcoAtual .botaoAtivo {
+  color: var(--primary-fg);
+
+  .ponto {
+    background: var(--primary-fg);
+    box-shadow: 0 0 0 3px var(--bg-base);
+  }
+}
+
+// "Atual" é o fim da régua e o único ponto editável — ganha um respiro à
+// esquerda para não se confundir com mais um dia do passado.
+.marcoAtual .botao {
+  padding-left: $sp-4;
+  font-weight: 700;
+}

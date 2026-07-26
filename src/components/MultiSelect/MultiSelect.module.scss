@@ -1,0 +1,178 @@
+@use '../../styles/mixins' as *;
+
+.campo {
+  @include field-root;
+}
+
+.rotulo {
+  @include field-label;
+}
+
+.dica {
+  @include field-hint-text;
+}
+
+.involucro {
+  @include suggestion-wrapper;
+}
+
+// O gatilho usa a MESMA superfície dos outros campos (control-surface), então
+// alinha com Input e Select na mesma linha do formulário sem ajuste manual.
+// `height: auto` porque as etiquetas quebram linha — é o único ponto em que
+// ele precisa divergir de um controle de altura fixa.
+.gatilho {
+  @include control-surface;
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  width: 100%;
+  height: auto;
+  min-height: $ctrl-h-md;
+  padding: $sp-2 $sp-3;
+  text-align: left;
+  cursor: pointer;
+
+  &:disabled { cursor: not-allowed; opacity: 0.6; }
+}
+
+.placeholder {
+  flex: 1;
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}
+
+.etiquetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2;
+  flex: 1;
+  min-width: 0;
+}
+
+.etiqueta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px $sp-2;
+  border-radius: $radius-sm;
+  background: var(--accent-bg);
+  color: var(--text-primary);
+  font-size: $fs-xs;
+  font-weight: 600;
+  // Nome longo de fornecedor não pode empurrar o campo para fora da coluna.
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remover {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+
+  svg { width: 12px; height: 12px; }
+
+  &:hover { color: var(--danger-fg); }
+}
+
+.chevron {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+
+  svg { width: 16px; height: 16px; }
+}
+
+.menu {
+  @include suggestion-list;
+  top: calc(100% + 4px);   // abaixo do gatilho, que tem altura variável
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.buscaLinha {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  padding: $sp-2 $sp-3;
+  border-bottom: 1px solid var(--glass-border);
+  color: var(--text-muted);
+
+  svg { width: 14px; height: 14px; flex-shrink: 0; }
+}
+
+.buscaInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: $fs-sm;
+  color: var(--text-primary);
+
+  &:focus { outline: none; }
+}
+
+.lista {
+  list-style: none;
+}
+
+.opcao {
+  @include suggestion-item;
+  flex-direction: row;
+  align-items: center;
+  gap: $sp-2;
+}
+
+.opcaoMarcada {
+  background: var(--accent-bg);
+}
+
+// Caixa do check desenhada, e não <input type=checkbox>: o item inteiro já é o
+// alvo de clique, e um checkbox real aqui viraria um segundo alvo dentro do
+// primeiro — clicar "quase" nele não faria nada.
+.marca {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--glass-border-strong);
+  border-radius: 4px;
+  color: var(--primary);
+
+  svg { width: 12px; height: 12px; }
+}
+
+.textos {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.nome {
+  @include suggestion-name;
+}
+
+.meta {
+  @include suggestion-meta;
+}
+
+.vazio {
+  margin: 0;
+  padding: $sp-3;
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}
+
+@include mobile {
+  // Alvo maior no toque: a tela de cadastro é usada no celular da recepção.
+  .opcao { padding: $sp-3; }
+  .menu { max-height: 220px; }
+}

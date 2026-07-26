@@ -1,3 +1,5 @@
+import { MONTHS_LONG } from '@/constants/dates'
+
 /** Date → 'aaaa-mm-dd' (fuso local — evita o shift de dia do toISOString/UTC). */
 export function toIsoDate(d: Date) {
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -75,4 +77,20 @@ export function addMonths(d: Date, months: number) {
  *  alerta de "lead parado há X dias" no Kanban. */
 export function daysBetween(a: Date, b: Date) {
   return Math.floor((b.getTime() - a.getTime()) / 86_400_000)
+}
+
+/**
+ * Data por extenso para o fecho de documento assinado:
+ * '26/07/2026' → '26 de julho de 2026'.
+ *
+ * Recebe dd/mm/aaaa (o formato que circula no app) e devolve '' se não bater —
+ * documento com data quebrada é pior que documento sem data.
+ */
+export function formatLongDate(br: string | undefined | null) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((br ?? '').trim())
+  if (!m) return ''
+  const [, dia, mes, ano] = m
+  const nome = MONTHS_LONG[Number(mes) - 1]
+  if (!nome) return ''
+  return `${Number(dia)} de ${nome.toLowerCase()} de ${ano}`
 }

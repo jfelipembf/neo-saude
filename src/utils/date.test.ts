@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { addMonths, addDays, parseBrDate, toIsoDate, toShortDateWithYear, localDate } from './date'
+import { addMonths, addDays, parseBrDate, toIsoDate, toShortDateWithYear, localDate, formatLongDate } from './date'
 
 // Datas são a fonte silenciosa de bug em software de clínica: vencimento de
 // parcela que pula o mês, dia da semana que escorrega no fuso, fim de mês que
@@ -63,5 +63,23 @@ describe('parseBrDate / localDate — fuso', () => {
 
   it('faz ida e volta entre os dois formatos', () => {
     expect(toIsoDate(parseBrDate('22/07/2026'))).toBe('2026-07-22')
+  })
+})
+
+// Vai para o fecho de receita e atestado ("Aracaju, 26 de julho de 2026").
+describe('formatLongDate — data por extenso de documento assinado', () => {
+  it('escreve o mês por extenso, em minúscula, sem zero à esquerda no dia', () => {
+    expect(formatLongDate('26/07/2026')).toBe('26 de julho de 2026')
+    expect(formatLongDate('01/01/2027')).toBe('1 de janeiro de 2027')
+    expect(formatLongDate('09/03/2026')).toBe('9 de março de 2026')
+  })
+
+  // Documento com data quebrada é pior que documento sem data — quem chama
+  // decide o que fazer com a string vazia.
+  it('devolve vazio em entrada que não é dd/mm/aaaa', () => {
+    expect(formatLongDate('2026-07-26')).toBe('')
+    expect(formatLongDate('26/13/2026')).toBe('')
+    expect(formatLongDate('')).toBe('')
+    expect(formatLongDate(undefined)).toBe('')
   })
 })

@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AppLayout } from './AppLayout'
 import { AuthGuard } from './guards/AuthGuard'
 import { FeatureGuard } from './guards/FeatureGuard'
-import { APP_ROUTES, AUTH_ROUTES, SYSTEM_ROUTES } from '@/constants'
+import { APP_ROUTES, AUTH_ROUTES, FULLSCREEN_ROUTES, SYSTEM_ROUTES } from '@/constants'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
 
 // Páginas carregadas sob demanda (code-splitting): cada página é um chunk próprio,
@@ -23,6 +23,10 @@ const AdminPage          = lazy(() => import('@/pages/Admin/AdminPage').then(m =
 const SettingsPage       = lazy(() => import('@/pages/Settings/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const NotFoundPage       = lazy(() => import('@/pages/System/NotFound/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
 const UnauthorizedPage   = lazy(() => import('@/pages/System/Unauthorized/UnauthorizedPage').then(m => ({ default: m.UnauthorizedPage })))
+// Chunk próprio de propósito: carrega o motor do odontograma (~900KB), que só
+// faz sentido baixar quando esta rota é aberta — mesmo motivo de
+// PatientProfilePage → TreatmentsPanel já ser lazy.
+const OdontogramFullscreenPage = lazy(() => import('@/pages/Odontogram/OdontogramFullscreenPage').then(m => ({ default: m.OdontogramFullscreenPage })))
 
 export function AppRouter() {
   return (
@@ -54,6 +58,16 @@ export function AppRouter() {
               <Route path={APP_ROUTES.SETTINGS}             element={<FeatureGuard feature="settings"><SettingsPage /></FeatureGuard>} />
               <Route path={SYSTEM_ROUTES.UNAUTHORIZED} element={<UnauthorizedPage />} />
             </Route>
+
+            {/* Irmã do <AppLayout/>, não filha: tela cheia, sem Header/Footer.
+                Ainda dentro do AuthGuard (exige login). feature="patients" é a
+                MESMA que protege treatment_session_odontogram por RLS — o
+                gate de especialidade (só odontologia) é feito dentro da
+                própria página, que é só UX (ver comment lá). */}
+            <Route
+              path={FULLSCREEN_ROUTES.ODONTOGRAM}
+              element={<FeatureGuard feature="patients"><OdontogramFullscreenPage /></FeatureGuard>}
+            />
           </Route>
 
           {/* ── Fallback ────────────────────────────────────────────── */}

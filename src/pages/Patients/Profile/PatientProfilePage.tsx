@@ -64,6 +64,7 @@ const TABS: { key: TabKey; label: string; specialties?: ClinicSpecialty[]; exclu
 interface PatientFormState {
   firstName: string
   lastName: string
+  commonName: string
   sex: Gender | ''
   birthDateIso: string   // aaaa-mm-dd (input date)
   email: string
@@ -84,6 +85,7 @@ function formFromPatient(p: Patient): PatientFormState {
   return {
     firstName,
     lastName: lastNameParts.join(' '),
+    commonName: p.commonName ?? '',
     sex: p.sex ?? '',
     birthDateIso: p.birthDate ? p.birthDate.split('/').reverse().join('-') : '',
     email: p.email ?? '',
@@ -218,6 +220,7 @@ export function PatientProfilePage() {
         payload: {
           firstName: form.firstName.trim(),
           lastName: form.lastName.trim(),
+          commonName: form.commonName.trim() || undefined,
           sex: form.sex || undefined,
           birthDate: form.birthDateIso ? form.birthDateIso.split('-').reverse().join('/') : undefined,
           email: form.email.trim() || undefined,
@@ -262,6 +265,7 @@ export function PatientProfilePage() {
       title: 'Identificação',
       items: [
         { label: 'Nome completo', value: patient.name },
+        { label: 'Nome comum',    value: patient.commonName },
         { label: 'Sexo',          value: patient.sex ? SEX_LABEL[patient.sex] : undefined },
         { label: 'Nascimento',    value: patient.birthDate },
         { label: 'Convênio',      value: patient.insurance },
@@ -446,6 +450,13 @@ export function PatientProfilePage() {
                   <Input label="Nome" value={form.firstName} onChange={e => set('firstName')(e.target.value)} error={nameError} autoFocus />
                   <Input label="Sobrenome" value={form.lastName} onChange={e => set('lastName')(e.target.value)} />
                 </div>
+                <Input
+                  label="Nome comum / nome social"
+                  placeholder="Felipe"
+                  hint="Como a pessoa é chamada no dia a dia, e o nome que a assistente de voz fala em voz alta no atendimento. Vazio, ela deduz do nome completo."
+                  value={form.commonName}
+                  onChange={e => set('commonName')(e.target.value)}
+                />
                 <div className={styles.grid2}>
                   <Select
                     label="Sexo"

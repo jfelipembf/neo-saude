@@ -16,6 +16,9 @@ import { AppointmentsChart } from '@/components/AppointmentsChart/AppointmentsCh
 import { FinanceChart } from '@/components/FinanceChart/FinanceChart'
 import { StatsCard } from '@/components/StatsCard/StatsCard'
 import { LeadsKanban } from '@/components/LeadsKanban/LeadsKanban'
+// ⚠️ TEMPORÁRIO — ver o comentário no topo de CibellyUsageCard.tsx para o
+// passo a passo de remoção completa quando a comparação OpenAI × Gemini acabar.
+import { CibellyUsageCard } from '@/components/CibellyUsageCard/CibellyUsageCard'
 import { PeriodFilter } from '@/components/PeriodFilter/PeriodFilter'
 import { useDashboardStats, useSetAppointmentStatus } from '@/hooks/useAppointments'
 import { useScheduleAppointments } from '@/hooks/useSchedule'
@@ -242,6 +245,11 @@ export function DashboardPage() {
                   ))}
                 </ul>
               </section>
+
+              {/* ⚠️ TEMPORÁRIO — comparação de custo real OpenAI × Gemini.
+                  Bloco isolado, some com um único diff quando a comparação
+                  terminar (ver o comentário no topo do componente). */}
+              <CibellyUsageCard />
             </div>
 
             <div className={styles.widgets}>

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { NavLink } from 'react-router-dom'
-import { APP_ROUTES } from '@/constants'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { APP_ROUTES, FULLSCREEN_ROUTES, SPECIALTY_BADGE_LABEL } from '@/constants'
 import type { AppPage } from '@/types/domain'
 import { useTheme } from '@/context/ThemeProvider'
 import { useSession } from '@/context/SessionProvider'
@@ -10,6 +10,7 @@ import {
   IconLogo, IconDashboard, IconToday, IconSchedule, IconPatients, IconProfessionals, IconFinance,
   IconAdmin, IconTheme,
 } from '@/components/icons'
+import odontoIAIcon from '@/assets/images/icon/odontoIA.png'
 import styles from './Header.module.scss'
 
 // `feature` casa 1:1 com a chave do mapa de permissões (my_session) e com a aba
@@ -36,20 +37,44 @@ const NAV_ITEMS: NavItem[] = [
 
 /** Barra horizontal do topo: marca à esquerda, navegação no centro, ações à direita. */
 export function Header() {
+  const navigate = useNavigate()
   const { toggleTheme } = useTheme()
-  const { canView } = useSession()
+  const { canView, specialty } = useSession()
   const navItems = NAV_ITEMS.filter(item => canView(item.feature))
+  // Mesma feature que protege a leitura do odontograma por RLS ('patients') +
+  // o gate de especialidade (só faz sentido em odontologia) — ver comment do
+  // FeatureGuard da rota em AppRouter.tsx.
+  const showOdontogram = specialty === 'dentistry' && canView('patients')
+  const specialtyBadge = specialty ? SPECIALTY_BADGE_LABEL[specialty] : undefined
 
   return (
     <header className={styles.header}>
       <div className={styles.topBar}>
         <div className={styles.brand}>
           <span className={styles.brandLogo}><IconLogo /></span>
+          {specialtyBadge && (
+            <>
+              <span className={styles.brandDivider} aria-hidden="true" />
+              <span className={styles.brandBadge}>{specialtyBadge}</span>
+            </>
+          )}
         </div>
 
         <div className={styles.actions}>
           {/* Busca global de pacientes — antes do seletor de tema (lua). */}
           <HeaderSearch />
+          {showOdontogram && (
+            <button
+              type="button"
+              className={styles.aiBtn}
+              onClick={() => navigate(FULLSCREEN_ROUTES.ODONTOGRAM)}
+              title="Odontograma em tela cheia"
+              aria-label="Abrir odontograma em tela cheia"
+            >
+              <img src={odontoIAIcon} alt="" className={styles.aiIcon} />
+              <span className={styles.aiLabel}>Odonto IA</span>
+            </button>
+          )}
           <button type="button" className={styles.iconBtn} onClick={toggleTheme} title="Alternar tema" aria-label="Alternar tema">
             <IconTheme />
           </button>

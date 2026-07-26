@@ -12,10 +12,40 @@ export const queryKeys = {
   anamnesis: {
     byPatient: (patientId: string) => ['anamnesis', patientId] as const,
   },
+  // Ficha corrente do odontograma (tabela patient_odontogram). Bloco próprio, e
+  // NÃO ['patients', id, ...], pelo mesmo motivo de customQuestions logo abaixo:
+  // pendurada no prefixo de paciente, qualquer invalidação de cadastro
+  // derrubaria o odontograma no meio de um exame.
+  odontogram: {
+    byPatient: (patientId: string) => ['odontogram', patientId] as const,
+    /** Régua do histórico: só datas, sem payload. */
+    revisions: (patientId: string) => ['odontogram', patientId, 'revisions'] as const,
+    /** Snapshot de um dia. Chaveado pela SESSÃO, não pelo paciente: o snapshot é
+     *  imutável, então cache por sessão nunca envelhece e reabrir um dia já
+     *  visitado é instantâneo. */
+    revision: (sessionId: string) => ['odontogramRevision', sessionId] as const,
+  },
+  /** Resumo clínico lido pela assistente de voz — bloco próprio, mesmo motivo
+   *  do odontogram acima: sob o prefixo de paciente, uma invalidação de
+   *  cadastro derrubaria o resumo no meio do atendimento. */
+  clinicalSummary: {
+    byPatient: (patientId: string) => ['clinicalSummary', patientId] as const,
+  },
+  /** Lembretes deixados para o PRÓXIMO atendimento do paciente. Bloco próprio
+   *  pelo mesmo motivo do odontogram e do clinicalSummary: pendurado no prefixo
+   *  de paciente, uma invalidação de cadastro os derrubaria no meio da consulta. */
+  reminders: {
+    byPatient: (patientId: string) => ['reminders', patientId] as const,
+  },
   // Perguntas personalizadas do paciente (aba Anamnese → Personalizado) —
   // permanentes, independem da ficha ativa; key própria, fora do prefixo 'anamnesis'.
   customQuestions: {
     byPatient: (patientId: string) => ['customQuestions', patientId] as const,
+  },
+  // MEDIÇÃO TEMPORÁRIA — ver src/lib/cibelly/pricing.ts. Sai junto quando a
+  // comparação OpenAI × Gemini terminar.
+  cibellyUsage: {
+    recent: ['cibellyUsage', 'recent'] as const,
   },
   whatsapp: {
     connection:    ['whatsapp', 'connection'] as const,
@@ -231,6 +261,10 @@ export const queryKeys = {
   },
   materials: {
     all: ['materials'] as const,
+  },
+  // Catálogo de fornecedores (Administrativo → Fornecedores, só odontologia).
+  suppliers: {
+    all: ['suppliers'] as const,
   },
   goals: {
     // Prefixo para invalidar TODOS os anos de uma vez (troca de clínica, logout).
