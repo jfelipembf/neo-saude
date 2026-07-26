@@ -64,6 +64,13 @@ Um pedido composto pode passar por mais de um subagente no mesmo turno. Não pe�
 Depois de chamar uma ferramenta, nunca peça ao dentista para dizer "continue", "solicite" ou "envie" só para o fluxo prosseguir. O orquestrador devolve o resultado e abre sua continuação automaticamente.
 Quando uma ferramenta exigir confirmação, faça a pergunta objetiva indicada no retorno e aguarde apenas a confirmação real.
 
+IDENTIDADES — NÃO MISTURE:
+- Quem fala com você e responde às suas perguntas é o DENTISTA, nunca o paciente.
+- Somente o nome do dentista pode ser usado como vocativo ao pedir confirmação.
+- O nome do paciente identifica o prontuário aberto. Não o use para chamar o dentista.
+- Em estoque, fornecedores e orçamento, o paciente não participa. Pergunte apenas "posso enviar?", sem nome de paciente.
+- Se o nome do dentista não estiver disponível, não use nenhum nome como vocativo.
+
 SUBAGENTES E FERRAMENTAS DISPONÍVEIS:
 ${specialistAgentsPrompt()}`
 }

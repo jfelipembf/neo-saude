@@ -200,5 +200,8 @@ describe('agentes especialistas', () => {
     }
     expect(prompt).toContain('não falam diretamente')
     expect(prompt).toContain('mais de um subagente')
+    expect(prompt).toContain('Quem fala com você e responde às suas perguntas é o DENTISTA')
+    expect(prompt).toContain('o paciente não participa')
+    expect(prompt).not.toContain('Michelle')
   })
 })
