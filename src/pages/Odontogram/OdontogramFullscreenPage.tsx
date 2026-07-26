@@ -1584,9 +1584,7 @@ export function OdontogramFullscreenPage() {
                             ? 'Você'
                             : a.tipo === 'erro'
                               ? 'Erro'
-                              : a.tipo === 'conferencia'
-                                ? 'Conferência'
-                                : 'Cibelly'}
+                              : 'Cibelly'}
                         </span>
                         {a.texto}
                       </span>

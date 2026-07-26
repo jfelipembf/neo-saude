@@ -14,6 +14,8 @@ import {
   APICAL, DEFEITO, DISCROMIA, descricaoDosAchados, IDS_DOS_ACHADOS, MIGRACAO,
   PERI_IMPLANTE, PROFUNDIDADE, PROTESE, PULPA, REABSORCAO, VERTICAL,
 } from '../../../src/lib/odontogramShell/toothCatalog.ts'
+import { cibellyAgentPrompt } from '../../../src/lib/cibelly/cibellyAgent.ts'
+import { CIBELLY_TOOL_CATALOG } from '../../../src/lib/cibelly/toolCatalog.ts'
 
 // CIBELLY — assistente de voz do odontograma (fisioterapia usa Gemini/texto em
 // transcribe-audio; isto aqui é odontologia, voz AO VIVO, provedor diferente:
@@ -248,6 +250,8 @@ function tratamento(nomeCru: string, sexo: string | null): string | null {
 }
 
 const INSTRUCTIONS = `IDIOMA — REGRA ABSOLUTA, ACIMA DE QUALQUER OUTRA: fale e escreva SEMPRE em português do Brasil, em 100% das suas respostas, sem nenhuma exceção. NUNCA responda em inglês nem em qualquer outro idioma, mesmo que ouça uma palavra ou nome em outra língua, mesmo que o áudio venha com ruído, mesmo que você não entenda o que foi dito. Se não entender, pergunte EM PORTUGUÊS. Termos técnicos em latim ou inglês que o dentista usar podem ser repetidos como ele falou, mas a frase inteira ao redor é em português.
+
+${cibellyAgentPrompt()}
 
 ORDEM DAS COISAS — SEGUNDA REGRA ABSOLUTA: primeiro a ferramenta, DEPOIS a fala. Sempre nessa ordem, sem exceção.
 Ao ouvir um pedido, sua PRIMEIRA ação é chamar a ferramenta — calada, sem dizer nada antes. Só quando o resultado voltar é que você fala, e o que você fala já é a RESPOSTA, nunca o aviso de que vai buscar.
@@ -1013,6 +1017,25 @@ const TOOLS = [
     parameters: { type: 'object', properties: {} },
   },
 ]
+
+function assertToolSchemasMatchCatalog() {
+  const catalogNames = Object.keys(CIBELLY_TOOL_CATALOG)
+  const schemaNames = TOOLS.map(tool => tool.name)
+  const missingSchemas = catalogNames.filter(name => !schemaNames.includes(name))
+  const missingCatalog = schemaNames.filter(name => !catalogNames.includes(name))
+  const duplicatedSchemas = schemaNames.filter((name, index) => schemaNames.indexOf(name) !== index)
+
+  if (missingSchemas.length || missingCatalog.length || duplicatedSchemas.length) {
+    throw new Error(JSON.stringify({
+      error: 'Catálogo e schemas da Cibelly estão divergentes.',
+      missingSchemas,
+      missingCatalog,
+      duplicatedSchemas,
+    }))
+  }
+}
+
+assertToolSchemasMatchCatalog()
 
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })

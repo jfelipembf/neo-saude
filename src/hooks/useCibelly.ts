@@ -6,10 +6,6 @@ import {
   verifyToothProposalState,
   type ToothProposalResult,
 } from '@/lib/odontogramShell/toothFields'
-import {
-  isToothMutationTool, looksLikeUnservedToothCommand, mutationToolMatchesSpeech,
-  parseDeterministicToothCommand, toothCommandFingerprint,
-} from '@/lib/cibelly/commandGuard'
 import { errorMessage } from '@/utils/errors'
 import { toIsoDate } from '@/utils/date'
 import { GeminiLive } from '@/lib/cibelly/geminiLive'
@@ -19,10 +15,8 @@ import {
   type Provedor, type UsoBruto, type UsoRealtimeOpenAI,
 } from '@/lib/cibelly/pricing'
 import { recordCibellyUsage } from '@/services/cibellyUsageService'
-import {
-  canCreateFollowUp, isActiveResponseConflict, isRealtimeBusy,
-  type RealtimeContinuationState,
-} from '@/lib/cibelly/responseContinuation'
+import { CibellyAgent } from '@/lib/cibelly/cibellyAgent'
+import { isActiveResponseConflict } from '@/lib/cibelly/orchestrator'
 
 /**
  * Cibelly — assistente de voz do odontograma. DOIS provedores.
@@ -103,23 +97,7 @@ interface RealtimeFunctionCall {
   arguments: string
 }
 
-interface CachedToothCommand {
-  at: number
-  resultado: Record<string, unknown>
-}
-
-interface PendingVoiceTurn {
-  id: string
-  text: string
-  responseDone: boolean
-  functionCalled: boolean
-  retrySent: boolean
-  lastMutationCall?: { name: string; args: Record<string, unknown> }
-}
-
-const COMMAND_CACHE_TTL_MS = 15_000
-const TRANSCRIPT_COMPATIBILITY_WAIT_MS = 2_000
-const TRANSCRIPT_POLL_INTERVAL_MS = 50
+const FOLLOW_UP_ACK_TIMEOUT_MS = 5_000
 
 /** `response.function_call_arguments.done` dispara por item; `response.done`
  *  é o evento "guarda-chuva" ao final de cada turno, com TODOS os itens da
@@ -196,7 +174,7 @@ async function extractFunctionErrorMessage(fnError: unknown): Promise<string | n
 export interface AtividadeCibelly {
   id: number
   em: number
-  tipo: 'dentista' | 'fala' | 'ferramenta' | 'conferencia' | 'erro'
+  tipo: 'dentista' | 'fala' | 'ferramenta' | 'erro'
   texto: string
   /** Só em 'dentista': liga a reserva à transcrição que chega depois. */
   itemId?: string
@@ -305,19 +283,11 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
    * isso, não para diagnosticar nada.
    */
   const [processando, setProcessando] = useState(false)
+  const [cibellyAgent] = useState(() => new CibellyAgent())
+  const orchestrator = cibellyAgent.orchestrator
 
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const geminiRef = useRef<GeminiLive | null>(null)
-  /** Há uma resposta da OpenAI em curso? Ver o `response.create` no fim do laço. */
-  const respostaEmVooRef = useRef(false)
-  /** `response.create` enviado, mas ainda sem o `response.created` de volta.
-   * Esta janela curta era suficiente para cinco ferramentas enviarem cinco
-   * continuações concorrentes. */
-  const respostaSolicitadaRef = useRef(false)
-  /** Ferramentas do turno que ainda não devolveram `function_call_output`. */
-  const ferramentasEmVooRef = useRef(0)
-  /** Fala pedida enquanto outra resposta corria — sai no `response.done`. */
-  const falaPendenteRef = useRef(false)
 
   /** Diário do atendimento. Acumula em ref e publica em lote — uma chamada de
    *  ferramenta por dente renderizaria a tela inteira a cada marcação. */
@@ -353,11 +323,6 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
   // WebRTC sem parar — derrubando o microfone no meio do exame.
   const handlersRef = useRef(handlers)
   useEffect(() => { handlersRef.current = handlers })
-  const processedCallIdsRef = useRef<Set<string>>(new Set())
-  /** Idempotência semântica: call_id deduplica eventos da API; esta cache
-   * deduplica o mesmo COMANDO repetido em outra fala/call_id. */
-  const commandCacheRef = useRef<Map<string, CachedToothCommand>>(new Map())
-
   // O paciente vai numa ref pelo MESMO motivo dos handlers: como dependência do
   // efeito, trocar de paciente derrubaria o microfone no meio do exame. É lido
   // uma vez, na conexão — que é quando a saudação e o prompt são montados. A
@@ -436,191 +401,65 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
 
     atividadeRef.current = []
     let cancelled = false
-    let pendingVoiceTurn: PendingVoiceTurn | null = null
-    let commandCheckTimer = 0
-    let geminiTurnSequence = 0
+    let followUpAckTimer = 0
     // Lido uma vez, na abertura: trocar de provedor no meio de um atendimento
     // não faz sentido, e a URL é a mesma a sessão inteira.
     const provedor = provedorEscolhido()
-    respostaEmVooRef.current = false
-    respostaSolicitadaRef.current = false
-    ferramentasEmVooRef.current = 0
-    falaPendenteRef.current = false
-
-    function estadoDaContinuacao(): RealtimeContinuationState {
-      return {
-        responseActive: respostaEmVooRef.current,
-        responseRequested: respostaSolicitadaRef.current,
-        toolsInFlight: ferramentasEmVooRef.current,
-        followUpRequested: falaPendenteRef.current,
-      }
-    }
+    orchestrator.reset()
 
     function sincronizarProcessamento() {
-      if (provedor === 'openai') setProcessando(isRealtimeBusy(estadoDaContinuacao()))
+      if (provedor === 'openai') setProcessando(orchestrator.snapshot.busy)
+    }
+
+    function clearFollowUpAckTimer() {
+      if (!followUpAckTimer) return
+      window.clearTimeout(followUpAckTimer)
+      followUpAckTimer = 0
     }
 
     /** Envia no máximo UM `response.create`, somente quando a resposta anterior
      * terminou e TODAS as ferramentas do turno já devolveram o resultado. */
     function continuarQuandoPronto() {
       if (provedor !== 'openai' || cancelled) return
-      const estado = estadoDaContinuacao()
-      if (!canCreateFollowUp(estado)) {
+      const claim = orchestrator.claimFollowUp()
+      if (claim === 'exhausted') {
+        const mensagem = 'A Cibelly não conseguiu concluir a resposta da ferramenta após três tentativas. O atendimento continua ativo.'
+        orchestrator.abandonFollowUp()
+        setError(mensagem)
+        registrar({ tipo: 'erro', texto: mensagem })
+        sincronizarProcessamento()
+        return
+      }
+      if (claim === 'blocked') {
         sincronizarProcessamento()
         return
       }
 
       const dc = dcRef.current
       if (dc?.readyState !== 'open') {
+        orchestrator.responseFailed(false)
+        window.setTimeout(continuarQuandoPronto, 250)
         sincronizarProcessamento()
         return
       }
 
-      falaPendenteRef.current = false
-      respostaSolicitadaRef.current = true
-      dc.send(JSON.stringify({ type: 'response.create' }))
-      sincronizarProcessamento()
-    }
+      try {
+        dc.send(JSON.stringify({ type: 'response.create' }))
+      } catch {
+        orchestrator.responseFailed(false)
+        window.setTimeout(continuarQuandoPronto, 250)
+        sincronizarProcessamento()
+        return
+      }
 
-    function scheduleCommandCheck() {
-      if (commandCheckTimer) window.clearTimeout(commandCheckTimer)
-      const turn = pendingVoiceTurn
-      if (!turn?.text || !turn.responseDone || turn.functionCalled || turn.retrySent) return
-
-      commandCheckTimer = window.setTimeout(async () => {
-        commandCheckTimer = 0
-        if (cancelled || pendingVoiceTurn !== turn
-            || turn.functionCalled || turn.retrySent
-            || !looksLikeUnservedToothCommand(turn.text)) return
-
-        // Uma resposta de leitura/clarificação pode ter aberto um segundo ciclo.
-        // Espera ele terminar para não provocar "active response in progress".
-        if (respostaEmVooRef.current) {
-          scheduleCommandCheck()
-          return
-        }
-
-        const deterministic = parseDeterministicToothCommand(turn.text)
-        if (deterministic) {
-          turn.retrySent = true
-          registrar({
-            tipo: 'conferencia',
-            texto: `Alteração não executada pela voz; aplicando conferência automática: “${turn.text}”`,
-          })
-          const { resultado } = await executarFerramenta(
-            deterministic.tool,
-            deterministic.args,
-          )
-          if (resultado.ok === true) turn.functionCalled = true
-          registrar({
-            tipo: 'ferramenta',
-            texto: deterministic.tool,
-            args: JSON.stringify(deterministic.args),
-            resultado: JSON.stringify(resultado),
-          })
-          return
-        }
-
-        turn.retrySent = true
-        registrar({
-          tipo: 'conferencia',
-          texto: `Comando sem alteração detectada; conferindo novamente: “${turn.text}”`,
-        })
-
-        const prompt =
-          '[CONFERÊNCIA AUTOMÁTICA] A fala anterior do dentista foi: '
-          + JSON.stringify(turn.text)
-          + '. Nenhuma ferramenta de alteração compatível foi concluída. '
-          + 'Se a frase contém um comando odontológico completo, chame agora a ferramenta correta, '
-          + 'sem narrar e sem pedir repetição. Se estiver incompleta ou ambígua, faça somente a pergunta curta que falta.'
-
-        if (provedor === 'gemini') {
-          geminiRef.current?.enviarTexto(prompt)
-          return
-        }
-        const dc = dcRef.current
-        if (dc?.readyState !== 'open') return
-        dc.send(JSON.stringify({
-          type: 'conversation.item.create',
-          item: {
-            type: 'message',
-            role: 'user',
-            content: [{ type: 'input_text', text: prompt }],
-          },
-        }))
-        falaPendenteRef.current = true
+      clearFollowUpAckTimer()
+      followUpAckTimer = window.setTimeout(() => {
+        followUpAckTimer = 0
+        if (cancelled || !orchestrator.snapshot.responseRequested) return
+        orchestrator.responseFailed(false)
         continuarQuandoPronto()
-      }, 600)
-    }
-
-    function beginVoiceTurn(id: string, text = '') {
-      pendingVoiceTurn = {
-        id,
-        text,
-        responseDone: false,
-        functionCalled: false,
-        retrySent: false,
-      }
-    }
-
-    function setVoiceTurnText(id: string, text: string) {
-      if (!pendingVoiceTurn || pendingVoiceTurn.id !== id) beginVoiceTurn(id)
-      if (!pendingVoiceTurn) return
-      pendingVoiceTurn.text = text
-      const call = pendingVoiceTurn.lastMutationCall
-      if (call && mutationToolMatchesSpeech(text, call.name, call.args)) {
-        pendingVoiceTurn.functionCalled = true
-      }
-      scheduleCommandCheck()
-    }
-
-    function finishVoiceTurn() {
-      if (!pendingVoiceTurn) return
-      pendingVoiceTurn.responseDone = true
-      scheduleCommandCheck()
-    }
-
-    function recordMutationCall(
-      name: string,
-      args: Record<string, unknown>,
-    ): boolean | null {
-      const turn = pendingVoiceTurn
-      if (!turn || !isToothMutationTool(name)) return null
-      turn.lastMutationCall = { name, args }
-      if (!turn.text) return null
-      const matches = mutationToolMatchesSpeech(turn.text, name, args)
-      if (matches) {
-        turn.functionCalled = true
-        if (commandCheckTimer) {
-          window.clearTimeout(commandCheckTimer)
-          commandCheckTimer = 0
-        }
-      }
-      return matches
-    }
-
-    async function ensureMutationCompatibility(
-      name: string,
-      args: Record<string, unknown>,
-    ): Promise<boolean | null> {
-      const immediate = recordMutationCall(name, args)
-      if (immediate !== null || !isToothMutationTool(name)
-          || !transcricaoLigadaRef.current || !pendingVoiceTurn) return immediate
-
-      const turn = pendingVoiceTurn
-      for (
-        let waited = 0;
-        waited < TRANSCRIPT_COMPATIBILITY_WAIT_MS;
-        waited += TRANSCRIPT_POLL_INTERVAL_MS
-      ) {
-        await new Promise(resolve => window.setTimeout(
-          resolve,
-          TRANSCRIPT_POLL_INTERVAL_MS,
-        ))
-        if (cancelled || pendingVoiceTurn !== turn) return null
-        if (turn.text) return recordMutationCall(name, args)
-      }
-      return null
+      }, FOLLOW_UP_ACK_TIMEOUT_MS)
+      sincronizarProcessamento()
     }
 
     async function connect() {
@@ -681,10 +520,7 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
             aoFalar: texto => registrar({ tipo: 'fala', texto }),
             aoOuvir: texto => {
               registrar({ tipo: 'dentista', texto })
-              const id = `gemini-${++geminiTurnSequence}`
-              beginVoiceTurn(id, texto)
             },
-            aoTurnoConcluido: finishVoiceTurn,
             // MEDIÇÃO TEMPORÁRIA — ver src/lib/cibelly/pricing.ts.
             aoMedirUso: meta => { usoRef.current = acumularGemini(usoRef.current, meta) },
             aoProcessando: setProcessando,
@@ -693,23 +529,28 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
               setStatus('error')
               setError(msg)
             },
-            // Uma diferença de protocolo que importa: a OpenAI manda o mesmo
-            // call_id duas vezes e exige dedupe; o Gemini manda uma vez só. O
-            // `processedCallIds` continua servindo aos dois sem estorvo.
             aoChamarFerramenta: async ({ id, name, args }) => {
-              if (processedCallIdsRef.current.has(id)) return { ok: true, duplicado: true }
-              processedCallIdsRef.current.add(id)
+              const [call] = orchestrator.claimToolCalls([{
+                call_id: id,
+                name,
+                arguments: JSON.stringify(args),
+              }])
+              if (!call) return { ok: true, duplicado: true }
               console.info('[Cibelly] ferramenta:', name, args)
-              const compatible = await ensureMutationCompatibility(name, args)
-              const { resultado } = compatible === false
-                ? {
-                    resultado: {
-                      ok: false,
-                      erro: 'A ferramenta divergiu da fala mais recente e foi bloqueada sem alterar o odontograma. Use os dentes e campos que o dentista acabou de informar.',
-                      bloqueadoPelaConferencia: true,
-                    },
-                  }
-                : await executarFerramenta(name, args)
+              let resultado: Record<string, unknown> = {
+                ok: false,
+                erro: 'Não consegui concluir esta ação.',
+              }
+              try {
+                resultado = await executarFerramenta(name, args)
+              } catch (error) {
+                resultado = {
+                  ok: false,
+                  erro: errorMessage(error, 'Não consegui concluir esta ação.'),
+                }
+              } finally {
+                orchestrator.finishTool(name, resultado, false)
+              }
               registrar({ tipo: 'ferramenta', texto: name,
                 args: JSON.stringify(args), resultado: JSON.stringify(resultado) })
               return resultado
@@ -790,61 +631,21 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
      * o segundo provedor entrou — manter duas cópias desta cadeia seria garantir
      * que uma das duas ficasse para trás na próxima ferramenta.
      *
-     * `valeFalar` só existe para a OpenAI, onde SOMOS NÓS que pedimos a fala
-     * (`response.create`). O Gemini responde sozinho depois do toolResponse,
-     * então lá o campo é ignorado.
+     * A política de continuação não mora neste despacho. Ela pertence ao
+     * catálogo do orquestrador, para não divergir entre ferramentas.
      */
-    function verifyCurrentMutation(nome: string, args: Record<string, unknown>) {
-      if (nome === 'marcar_dente') {
-        return verifyToothProposalState(normalizeToothProposal(args))
-      }
-      if (nome === 'restaurar_dente') {
-        return verifyToothClearState(
-          (args as { dentes?: number[] }).dentes,
-          'ausente',
-        )
-      }
-      if (nome === 'apagar_marcacao') {
-        const { dentes, achado } = args as { dentes?: number[]; achado?: string }
-        return verifyToothClearState(
-          dentes,
-          achado as Parameters<typeof clearTeeth>[1],
-        )
-      }
-      return null
-    }
-
     async function executarFerramenta(
       nome: string,
       rawArgs: Record<string, unknown>,
-    ): Promise<{ resultado: Record<string, unknown>; valeFalar: boolean }> {
+    ): Promise<Record<string, unknown>> {
       const args = nome === 'marcar_dente'
         ? normalizeToothProposal(rawArgs) as unknown as Record<string, unknown>
         : rawArgs
-      const fingerprint = toothCommandFingerprint(nome, args)
-      if (fingerprint) {
-        const cached = commandCacheRef.current.get(fingerprint)
-        const current = cached && Date.now() - cached.at <= COMMAND_CACHE_TTL_MS
-          ? verifyCurrentMutation(nome, args)
-          : null
-        if (cached && current?.ok) {
-          return {
-            resultado: {
-              ...cached.resultado,
-              verificado: true,
-              reutilizado: true,
-            },
-            valeFalar: false,
-          }
-        }
-      }
 
       // O retorno vai DE VOLTA pra Cibelly, então o erro precisa ser um texto
       // que ela consiga falar ("faltou a superfície") — e não um {ok:true}
       // genérico, que a fazia anunciar marcação que o motor descartou.
       let resultado: Record<string, unknown>
-      // Só pede resposta falada quando há o que dizer.
-      let valeFalar = false
 
       if (nome === 'marcar_dente') {
         const proposta = normalizeToothProposal(args)
@@ -871,15 +672,11 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
               verificado: true,
               ...(r.recusados ? { recusados: r.recusados } : {}),
             }
-            // Recusa parcial ela precisa falar; sucesso limpo, não.
-            valeFalar = Boolean(r.recusados?.length)
           } else {
             resultado = { ok: false, erro: verificacao.erro, verificado: false }
-            valeFalar = true
           }
         } else {
           resultado = { ok: false, erro: r.erro }
-          valeFalar = true      // faltou dado: ela tem que perguntar
         }
       } else if (nome === 'restaurar_dente') {
         // Ferramenta com nome inequívoco para o comando falado "retorne/insira
@@ -901,11 +698,9 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
             resultado = { ok: true, restaurado: r.resumo, verificado: true }
           } else {
             resultado = { ok: false, erro: verificacao.erro, verificado: false }
-            valeFalar = true
           }
         } else {
           resultado = { ok: false, erro: r.erro }
-          valeFalar = true
         }
       } else if (nome === 'apagar_marcacao') {
         // Apagar também entra na pilha de desfazer: limpar a boca inteira
@@ -938,11 +733,9 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
             resultado = { ok: true, apagado: r.resumo, verificado: true }
           } else {
             resultado = { ok: false, erro: verificacao.erro, verificado: false }
-            valeFalar = true
           }
         } else {
           resultado = { ok: false, erro: r.erro }
-          valeFalar = true
         }
       } else if (nome === 'emitir_documento') {
         const emitir = handlersRef.current.aoEmitirDocumento
@@ -952,16 +745,12 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
           const r = await emitir(args as unknown as DocumentRequest)
           resultado = r.ok ? { ok: true, emitido: r.resumo } : { ok: false, erro: r.erro }
         }
-        // Documento é a única ação que ela SEMPRE comenta: a janela de
-        // impressão abre e o dentista precisa saber que é para assinar.
-        valeFalar = true
       } else if (nome === 'consultar_materiais') {
         const consultar = handlersRef.current.aoConsultarMateriais
         const { busca, somenteAcabando } = args as { busca?: string; somenteAcabando?: boolean }
         resultado = consultar
           ? { ok: true, materiais: await consultar(busca, somenteAcabando) }
           : { ok: false, erro: 'Não consegui ler o estoque agora.' }
-        valeFalar = true      // consulta existe para ser respondida em voz
       } else if (nome === 'registrar_material_usado') {
         const registrar = handlersRef.current.aoRegistrarMaterial
         const { materiais } = args as { materiais?: MaterialUsage[] }
@@ -970,9 +759,6 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         } else {
           resultado = { ok: true, baixa: await registrar(materiais) }
         }
-        // Ela precisa falar quando o material ficou abaixo do mínimo — é o
-        // gatilho do "quer que eu peça orçamento?".
-        valeFalar = true
       } else if (nome === 'solicitar_orcamento_fornecedor') {
         const solicitar = handlersRef.current.aoSolicitarOrcamento
         if (!solicitar) {
@@ -988,7 +774,6 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
             }
             : { ok: true, pedido }
         }
-        valeFalar = true
       } else if (nome === 'enviar_mensagem_paciente') {
         const enviar = handlersRef.current.aoEnviarMensagemPaciente
         if (!enviar) {
@@ -1004,53 +789,41 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
             }
             : { ok: true, envio }
         }
-        valeFalar = true
       } else if (nome === 'cancelar_consulta') {
         const cancelar = handlersRef.current.aoCancelarConsulta
         resultado = cancelar
           ? { ok: true, resultado: await cancelar(args as { data: string; hora?: string; confirmado?: boolean; ditoPeloDentista?: string }) }
           : { ok: false, erro: 'Não consegui cancelar agora.' }
-        valeFalar = true
       } else if (nome === 'criar_lembrete') {
         const criar = handlersRef.current.aoCriarLembrete
         resultado = criar
           ? { ok: true, resultado: await criar(args as { texto: string }) }
           : { ok: false, erro: 'Não consegui salvar o lembrete.' }
-        // Confirma em voz: o dentista pediu para ser lembrado e precisa saber
-        // que ficou registrado — silêncio aqui parece que se perdeu.
-        valeFalar = true
       } else if (nome === 'concluir_lembrete') {
         const concluir = handlersRef.current.aoConcluirLembrete
         resultado = concluir
           ? { ok: true, resultado: await concluir(args as { id: string }) }
           : { ok: false, erro: 'Não consegui concluir o lembrete.' }
-        valeFalar = true
       } else if (nome === 'ler_odontograma') {
         const ler = handlersRef.current.aoLerOdontograma
         resultado = ler
           ? { ok: true, odontograma: await ler(args as { dentes?: number[] }) }
           : { ok: false, erro: 'Não consegui ler o odontograma agora.' }
-        valeFalar = true
       } else if (nome === 'consultar_historico') {
         const historico = handlersRef.current.aoConsultarHistorico
         resultado = historico
           ? { ok: true, historico: await historico(args as { data?: string; dente?: number }) }
           : { ok: false, erro: 'Não consegui ler o histórico agora.' }
-        valeFalar = true
       } else if (nome === 'consultar_agenda') {
         const consultar = handlersRef.current.aoConsultarAgenda
         resultado = consultar
           ? { ok: true, agenda: await consultar(args as { data?: string; hora?: string; duracao?: number; dias?: number }) }
           : { ok: false, erro: 'Não consegui ler a agenda agora.' }
-        valeFalar = true
       } else if (nome === 'agendar_consulta') {
         const agendar = handlersRef.current.aoAgendar
         resultado = agendar
           ? { ok: true, resultado: await agendar(args as { data: string; hora: string; duracao?: number; servico?: string; encaixe?: boolean; sala?: string; confirmaFimDeSemana?: boolean; ditoPeloDentista?: string; confirmaData?: boolean }) }
           : { ok: false, erro: 'Não há paciente em atendimento para agendar.' }
-        // Agendamento sempre se anuncia: mexe na agenda de outra pessoa (o
-        // paciente) e o dentista precisa saber que entrou.
-        valeFalar = true
       } else if (nome === 'desfazer_ultima_marcacao') {
         const anterior = historicoRef.current.pop()
         if (anterior) {
@@ -1062,27 +835,16 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
           } else {
             historicoRef.current.push(anterior)
             resultado = { ok: false, erro: 'A ficha está aberta numa data anterior, só para leitura. Volte para "Atual" para desfazer.' }
-            valeFalar = true
           }
         } else {
           resultado = { ok: false, erro: 'Não há marcação recente para desfazer. Para apagar o que já estava na ficha, use apagar_marcacao.' }
-          valeFalar = true
         }
       } else {
         resultado = { ok: false, erro: `Ferramenta desconhecida: ${nome}` }
-        valeFalar = true
       }
 
 
-      if (fingerprint && resultado.ok === true && resultado.verificado === true) {
-        const now = Date.now()
-        for (const [key, cached] of commandCacheRef.current) {
-          if (now - cached.at > COMMAND_CACHE_TTL_MS) commandCacheRef.current.delete(key)
-        }
-        commandCacheRef.current.set(fingerprint, { at: now, resultado })
-      }
-
-      return { resultado, valeFalar }
+      return resultado
     }
 
     async function handleRealtimeEvent(message: MessageEvent<string>) {
@@ -1102,31 +864,14 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         const e = event as { error?: { message?: string } }
         const mensagem = e.error?.message ?? 'Erro da API de voz.'
         registrar({ tipo: 'erro', texto: mensagem })
+        clearFollowUpAckTimer()
 
-        // ⚠️ MUDA PARA SEMPRE, se não fosse isto. Uma resposta "em voo" pode
-        // morrer com `error` em vez de terminar com `response.done` (limite,
-        // moderação, saída malformada) — e só o `response.done` zerava
-        // `respostaEmVooRef`. Sem este reset, a flag ficava travada em `true`
-        // pelo resto da SESSÃO INTEIRA: toda fala pendente daí em diante só se
-        // empilhava em `falaPendenteRef` esperando um `response.done` que
-        // nunca mais viria para aquela resposta morta. Foi visto ao vivo:
-        // `ler_odontograma` respondeu certo (ok:true, resposta pronta) três
-        // vezes seguidas e nenhuma foi falada, até uma fala solta e sem
-        // relação nenhuma ("Olá") abrir um ciclo novo por conta própria e
-        // "destravar" por acidente — daí a resposta ter saído sobre o "Olá",
-        // não sobre a pergunta represada.
-        // "active response in progress" é diferente: a resposta citada no
-        // erro CONTINUA viva. Marcá-la como encerrada e repetir imediatamente
-        // cria um ciclo de conflitos. O `response.done` dela liberará a fila.
-        if (isActiveResponseConflict(mensagem)) {
-          respostaEmVooRef.current = true
-          respostaSolicitadaRef.current = false
-          sincronizarProcessamento()
-          return
-        }
-
-        respostaEmVooRef.current = false
-        respostaSolicitadaRef.current = false
+        // Conflito significa que a resposta anterior continua viva. Outros
+        // erros encerram a resposta atual e liberam a continuação pendente.
+        const conflitoAtivo = isActiveResponseConflict(mensagem)
+        orchestrator.responseFailed(conflitoAtivo)
+        sincronizarProcessamento()
+        if (conflitoAtivo) return
         continuarQuandoPronto()
         return
       }
@@ -1147,7 +892,6 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         const e = event as { item_id?: string }
         if (e.item_id) {
           reservarFala(e.item_id)
-          beginVoiceTurn(e.item_id)
           publicar()
         }
       }
@@ -1158,7 +902,6 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         if (e.transcript?.trim()) {
           if (e.item_id) {
             preencherFala(e.item_id, e.transcript.trim())
-            setVoiceTurnText(e.item_id, e.transcript.trim())
           }
           else registrar({ tipo: 'dentista', texto: e.transcript.trim() })
           publicar()
@@ -1175,14 +918,14 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       // de fala cortando a Cibelly por ruído da sala. Se os deltas simplesmente
       // param, é rede. Sem este log, a próxima rodada de ajuste seria chute.
       if (tipo === 'response.created') {
-        respostaEmVooRef.current = true
-        respostaSolicitadaRef.current = false
+        clearFollowUpAckTimer()
+        orchestrator.responseStarted()
+        setError(null)
         sincronizarProcessamento()
       }
       if (tipo === 'response.done') {
-        respostaEmVooRef.current = false
-        respostaSolicitadaRef.current = false
-        finishVoiceTurn()
+        clearFollowUpAckTimer()
+        orchestrator.responseFinished()
         // MEDIÇÃO TEMPORÁRIA — ver src/lib/cibelly/pricing.ts.
         usoRef.current = acumularOpenAI(usoRef.current, (event as RealtimeResponseDoneEvent).response?.usage)
         // A fila será liberada DEPOIS de processar as function_calls deste
@@ -1205,22 +948,15 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         return
       }
 
-      // Marca TODAS antes do primeiro await. Eventos de ferramentas diferentes
-      // podem executar em paralelo; a contagem global impede a primeira que
-      // terminar de abrir uma resposta enquanto as demais ainda trabalham.
-      const chamadasNovas = chamadas.filter(call => {
-        if (processedCallIdsRef.current.has(call.call_id)) return false
-        processedCallIdsRef.current.add(call.call_id)
-        return true
-      })
+      // Reserva o lote inteiro antes do primeiro await. A mesma chamada chega
+      // no evento individual e novamente em `response.done`.
+      const chamadasNovas = orchestrator.claimToolCalls(chamadas)
       if (chamadasNovas.length === 0) {
         continuarQuandoPronto()
         return
       }
 
-      ferramentasEmVooRef.current += chamadasNovas.length
       sincronizarProcessamento()
-      let precisaFalar = false
 
       for (const call of chamadasNovas) {
         // O mesmo call_id chega duas vezes (uma por
@@ -1236,32 +972,16 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         console.info('[Cibelly] ferramenta:', call.name, args)
 
         let resultado: Record<string, unknown>
-        let valeFalar: boolean
         try {
-          const compatible = await ensureMutationCompatibility(call.name, args)
-          const execucao = compatible === false
-            ? {
-                resultado: {
-                  ok: false,
-                  erro: 'A ferramenta divergiu da fala mais recente e foi bloqueada sem alterar o odontograma. Use os dentes e campos que o dentista acabou de informar.',
-                  bloqueadoPelaConferencia: true,
-                },
-                valeFalar: true,
-              }
-            : await executarFerramenta(call.name, args)
-          resultado = execucao.resultado
-          valeFalar = execucao.valeFalar
+          resultado = await executarFerramenta(call.name, args)
         } catch (error) {
           resultado = {
             ok: false,
             erro: errorMessage(error, 'Não consegui concluir esta ação.'),
           }
-          valeFalar = true
         }
         registrar({ tipo: 'ferramenta', texto: call.name,
           args: JSON.stringify(args), resultado: JSON.stringify(resultado) })
-
-        if (valeFalar) precisaFalar = true
 
         try {
           const dc = dcRef.current
@@ -1272,7 +992,8 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
             }))
           }
         } finally {
-          ferramentasEmVooRef.current = Math.max(0, ferramentasEmVooRef.current - 1)
+          orchestrator.finishTool(call.name, resultado)
+          sincronizarProcessamento()
         }
       }
 
@@ -1287,16 +1008,10 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       // Uma única continuação para o LOTE inteiro. `continuarQuandoPronto`
       // também espera a resposta anterior terminar e bloqueia duplicatas no
       // intervalo entre `response.create` e `response.created`.
-      if (precisaFalar) falaPendenteRef.current = true
       continuarQuandoPronto()
     }
 
     connect()
-
-    // Capturados aqui, e não lidos no cleanup: a regra dos hooks avisa (com
-    // razão) que `ref.current` pode ter mudado quando o cleanup rodar.
-    const idsTratados = processedCallIdsRef.current
-    const commandCache = commandCacheRef.current
 
     return () => {
       cancelled = true
@@ -1333,17 +1048,10 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       pcRef.current = null
       micStreamRef.current = null
       audioElRef.current = null
-      // Zera os ids já tratados: a sessão seguinte numera do zero e um call_id
-      // repetido seria descartado como duplicata.
-      idsTratados.clear()
-      commandCache.clear()
-      respostaEmVooRef.current = false
-      respostaSolicitadaRef.current = false
-      ferramentasEmVooRef.current = 0
-      falaPendenteRef.current = false
-      if (commandCheckTimer) window.clearTimeout(commandCheckTimer)
+      orchestrator.reset()
+      clearFollowUpAckTimer()
     }
-  }, [ativa, registrar, reservarFala, preencherFala, publicar])
+  }, [ativa, orchestrator, registrar, reservarFala, preencherFala, publicar])
 
   return { status, error, lastApplied, atividade, processando }
 }
