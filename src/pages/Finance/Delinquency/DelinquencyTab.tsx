@@ -15,6 +15,7 @@ import { formatBRL } from '@/utils/format'
 import { parseBrDate, toShortDateWithYear } from '@/utils/date'
 import { digitsOnly } from '@/utils/text'
 import { fillTemplate } from '@/utils/messageTemplate'
+import { automationCatalogItem } from '@/constants/whatsappAutomations'
 import type { Receivable } from '@/types/domain'
 import shared from '../shared/finance.module.scss'
 
@@ -43,7 +44,7 @@ export function DelinquencyTab() {
 
   const patientById = new Map((patients ?? []).map(p => [p.id, p]))
   const billingTemplate = automations?.find(a => a.trigger === 'billing')?.message
-    ?? 'Olá, {paciente}. Consta um saldo em aberto de {valor}, com vencimento em {data}.'
+    ?? automationCatalogItem('billing').defaultMessage
 
   /**
    * 🚨 `debtor === 'payer'` é a trava do cartão NESTA TELA, e ela é cinto por

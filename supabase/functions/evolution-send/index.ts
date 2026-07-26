@@ -3,6 +3,7 @@ import {
   evolutionConfigured,
   sendEvolutionText,
 } from "../_shared/evolution.ts";
+import { renderClinicTemplate } from "../_shared/messageTemplate.ts";
 
 const cors = {
   "access-control-allow-origin": "*",
@@ -144,7 +145,7 @@ Deno.serve(async (request) => {
       .maybeSingle(),
     admin
       .from("clinic")
-      .select("plan_key")
+      .select("name, plan_key")
       .eq("id", clinicId)
       .eq("status", "active")
       .maybeSingle(),
@@ -170,6 +171,11 @@ Deno.serve(async (request) => {
   ]);
   if (!permission || !entitlement) {
     return json({ ok: false, error: "forbidden" }, 403);
+  }
+
+  const renderedMessage = renderClinicTemplate(message, clinic.name);
+  if (renderedMessage.length > 4096) {
+    return json({ ok: false, error: "message_too_long" }, 400);
   }
 
   const instanceName = `neosaude-${clinicId.replaceAll("-", "")}`;
@@ -232,7 +238,7 @@ Deno.serve(async (request) => {
 
   const now = Date.now();
   const messageHash = bytesToHex(
-    await digestBytes(message.replace(/\s+/g, " ").trim()),
+    await digestBytes(renderedMessage.replace(/\s+/g, " ").trim()),
   );
   const { count: recentClinicMessages, error: countError } = await admin
     .from("audit_log")
@@ -349,7 +355,7 @@ Deno.serve(async (request) => {
     const send = await sendEvolutionText(
       instanceName,
       recipient.whatsapp,
-      message,
+      renderedMessage,
     );
     const resultData = {
       ...claimData,

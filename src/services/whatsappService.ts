@@ -131,24 +131,20 @@ export async function listAutomations(): Promise<WhatsAppAutomation[]> {
 /** Campos editáveis de uma automação (o gatilho é a chave, não muda). */
 export type EditAutomation = Omit<WhatsAppAutomation, 'trigger'>
 
-/** Cria ou atualiza a automação do gatilho (a clínica escreve o texto que sai). */
+/** Cria ou atualiza a automação pelo backend autorizado da clínica. */
 export async function saveAutomation(trigger: AutomationTrigger, payload: EditAutomation): Promise<void> {
-  const clinicId = getCurrentClinicId()
-  const row = { status: payload.status, message: payload.message, send_time: payload.sendTime ?? null }
-
-  const { data: existing, error: findError } = await supabase
-    .from('whatsapp_automation')
-    .select('id')
-    .eq('clinic_id', clinicId)
-    .eq('trigger', trigger)
-    .maybeSingle()
-  if (findError) throw findError
-
-  if (existing) {
-    const { error } = await supabase.from('whatsapp_automation').update(row).eq('id', existing.id)
-    if (error) throw error
-    return
-  }
-  const { error } = await supabase.from('whatsapp_automation').insert({ clinic_id: clinicId, trigger, ...row })
+  const { data, error } = await supabase.functions.invoke<{ ok: boolean; error?: string }>(
+    'whatsapp-automation-save',
+    {
+      body: {
+        clinicId: getCurrentClinicId(),
+        trigger,
+        status: payload.status,
+        message: payload.message,
+        sendTime: payload.sendTime ?? null,
+      },
+    },
+  )
   if (error) throw error
+  if (!data?.ok) throw new Error(data?.error ?? 'automation_save_failed')
 }
