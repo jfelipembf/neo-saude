@@ -19,6 +19,8 @@ import { chooseRoom } from '@/utils/roomChoice'
 import { readOdontogram, travarEscritaNoOdontograma } from '@/lib/odontogramShell/toothFields'
 import { agruparAchados, notasLivres } from '@/utils/toothNoteGroups'
 import { resumoPorDente, resumoUltimosAtendimentos } from '@/utils/clinicalHistorySpeech'
+import { resolverPedidoDeOrcamento } from '@/utils/quoteRequest'
+import { matchesSearch } from '@/utils/search'
 import { OdontogramTimeline } from './OdontogramTimeline'
 import { pediuCancelamento } from '@/utils/cancelIntent'
 import { dataPorExtenso, distanciaDeHoje, fimDeSemana, datasAmbiguas } from '@/utils/spokenDate'
@@ -56,7 +58,9 @@ import { PatientPicker } from '@/components/PatientPicker/PatientPicker'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { Button } from '@/components/Button/Button'
 import { Spinner } from '@/components/Spinner/Spinner'
-import { IconX, IconMic, IconCheck } from '@/components/icons'
+import {
+  IconX, IconMic, IconCheck, IconTooth, IconDocument, IconMessage,
+} from '@/components/icons'
 import { errorMessage } from '@/utils/errors'
 import { APP_ROUTES } from '@/constants'
 import type { Patient } from '@/types/domain'
@@ -77,6 +81,8 @@ interface ToothNote {
   /** Anotação livre digitada/ditada, se houver. */
   text: string
 }
+
+type MobilePanel = 'odontogram' | 'findings' | 'activity'
 
 // O motor monta o title do tile como "<resumo clínico>" e, SÓ SE houver
 // anotação, concatena "\n📝 <texto>" no fim (odontogram.ts:updateToothTooltip).
@@ -143,6 +149,7 @@ export function OdontogramFullscreenPage() {
   const [notes, setNotes] = useState<ToothNote[]>([])
   const [ready, setReady] = useState(false)
   const [emAtendimento, setEmAtendimento] = useState(false)
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>('odontogram')
   const [sujo, setSujo] = useState(false)
   const [erroSalvar, setErroSalvar] = useState<string | null>(null)
   const pendingPatientMessageRef = useRef<PendingMessageConfirmation | null>(null)
@@ -858,53 +865,87 @@ export function OdontogramFullscreenPage() {
     }
   }
 
-  /** Pedido de orçamento por WhatsApp aos fornecedores vinculados ao material. */
+  /**
+   * Pedido de orçamento por WhatsApp aos fornecedores.
+   *
+   * QUEM decide o que cotar é `resolverPedidoDeOrcamento` (puro, testado) —
+   * inclusive o caso que quebrou em atendimento real, de nome de FORNECEDOR
+   * chegando no campo do material. Aqui fica só o que tem efeito: montar a
+   * mensagem, confirmar e enviar.
+   */
   async function solicitarOrcamento(pedido: QuoteRequest) {
     const cadastro = await listMaterialsWithSuppliers()
-    const termo = pedido.material.trim().toLowerCase()
-    const m = cadastro.find(c => c.nome.toLowerCase() === termo)
-      ?? cadastro.find(c => c.nome.toLowerCase().includes(termo))
+    const alvo = resolverPedidoDeOrcamento(cadastro, pedido)
+    if (!alvo.ok) return alvo
 
-    if (!m) return { ok: false, erro: `Não encontrei "${pedido.material}" no cadastro de materiais.` }
-    if (m.fornecedores.length === 0) {
-      return { ok: false, erro: `${m.nome} não tem fornecedor cadastrado. Cadastre em Administrativo → Fornecedores.` }
-    }
+    // Só os fornecedores pedidos (quando o dentista nomeou um) e com WhatsApp.
+    const filtroFornecedor = pedido.fornecedor?.trim()
+    const semWhatsapp = new Set<string>()
+    /** fornecedor → materiais que ELE fornece dentre os escolhidos. */
+    const porFornecedor = new Map<string, { nome: string; materiais: string[] }>()
 
-    const alvo = pedido.fornecedor
-      ? m.fornecedores.filter(f => f.nome.toLowerCase().includes(pedido.fornecedor!.trim().toLowerCase()))
-      : m.fornecedores
-    if (alvo.length === 0) return { ok: false, erro: `Não encontrei esse fornecedor para ${m.nome}.` }
-
-    const comWhatsapp = alvo.filter(f => f.whatsapp)
-    const semWhatsapp = alvo.filter(f => !f.whatsapp).map(f => f.nome)
-    if (comWhatsapp.length === 0) {
-      return {
-        ok: false,
-        erro: `Nenhum fornecedor selecionado para ${m.nome} tem WhatsApp cadastrado.`,
+    for (const m of alvo.materiais) {
+      for (const f of m.fornecedores) {
+        if (filtroFornecedor && !matchesSearch(f.nome, filtroFornecedor)) continue
+        if (!f.whatsapp) { semWhatsapp.add(f.nome); continue }
+        const atual = porFornecedor.get(f.id) ?? { nome: f.nome, materiais: [] }
+        atual.materiais.push(m.nome)
+        porFornecedor.set(f.id, atual)
       }
     }
 
-    const item = pedido.quantidade?.trim()
-      ? `${pedido.quantidade.trim()} de ${m.nome}`
-      : m.nome
-    const mensagem =
-      `Olá! Aqui é da ${clinica?.name ?? 'clínica'}. Gostaríamos de solicitar ` +
-      `um orçamento para ${item}. Por favor, informe valor, disponibilidade, ` +
-      'prazo de entrega e condições de pagamento.'
-    const recipientIds = comWhatsapp.map(f => f.id)
+    if (porFornecedor.size === 0) {
+      const nomes = alvo.materiais.map(m => m.nome).join(', ')
+      return {
+        ok: false,
+        erro: semWhatsapp.size
+          ? `Nenhum fornecedor de ${nomes} tem WhatsApp cadastrado.`
+          : `${nomes} não tem fornecedor cadastrado. Cadastre em Administrativo → Fornecedores.`,
+      }
+    }
+
+    // Cada fornecedor recebe UMA mensagem com a lista dele — não uma por
+    // material, que encheria o WhatsApp de quem fornece três coisas.
+    // Fornecedores com a mesma lista compartilham o mesmo texto e vão num
+    // envio só (é o caso comum, de um material com vários fornecedores).
+    const quantidade = pedido.quantidade?.trim()
+    const textoDe = (materiais: string[]) => {
+      const itens = materiais.length === 1 && quantidade
+        ? `${quantidade} de ${materiais[0]}`
+        : materiais.join(', ')
+      return `Olá! Aqui é da ${clinica?.name ?? 'clínica'}. Gostaríamos de solicitar `
+        + `um orçamento para ${itens}. Por favor, informe valor, disponibilidade, `
+        + 'prazo de entrega e condições de pagamento.'
+    }
+
+    const lotes = new Map<string, { ids: string[]; nomes: string[] }>()
+    for (const [id, dados] of porFornecedor) {
+      const texto = textoDe(dados.materiais)
+      const lote = lotes.get(texto) ?? { ids: [], nomes: [] }
+      lote.ids.push(id)
+      lote.nomes.push(dados.nome)
+      lotes.set(texto, lote)
+    }
+
+    const todosIds = [...porFornecedor.keys()]
+    const todosNomes = [...porFornecedor.values()].map(f => f.nome)
+    // Uma confirmação para o pedido INTEIRO: a impressão digital cobre todos os
+    // destinatários e todos os textos juntos, então mudar qualquer parte exige
+    // confirmar de novo.
+    const assinatura = [...lotes.keys()].sort().join('\n---\n')
 
     if (
       !pedido.confirmado ||
-      !matchesPendingMessage(pendingSupplierMessageRef.current, recipientIds, mensagem)
+      !matchesPendingMessage(pendingSupplierMessageRef.current, todosIds, assinatura)
     ) {
-      pendingSupplierMessageRef.current = pendingMessageConfirmation(recipientIds, mensagem)
+      pendingSupplierMessageRef.current = pendingMessageConfirmation(todosIds, assinatura)
       return {
         ok: true,
         precisaConfirmar: true,
-        material: m.nome,
-        destinatarios: comWhatsapp.map(f => f.nome),
-        mensagem,
-        semWhatsapp: semWhatsapp.length ? semWhatsapp : undefined,
+        materiais: alvo.materiais.map(m => m.nome),
+        destinatarios: todosNomes,
+        mensagens: [...lotes.entries()].map(([texto, lote]) => ({ para: lote.nomes, texto })),
+        semWhatsapp: semWhatsapp.size ? [...semWhatsapp] : undefined,
         instrucao:
           'Leia os destinatários e pergunte se pode enviar. Só chame novamente com confirmado=true depois de um sim claro.',
       }
@@ -912,17 +953,25 @@ export function OdontogramFullscreenPage() {
 
     pendingSupplierMessageRef.current = null
     try {
-      const envio = await sendWhatsAppMessage(
-        comWhatsapp.map(f => ({ type: 'supplier' as const, id: f.id })),
-        mensagem,
-      )
+      const enviados: string[] = []
+      const falhas: string[] = []
+      let total = 0
+      for (const [texto, lote] of lotes) {
+        const envio = await sendWhatsAppMessage(
+          lote.ids.map(id => ({ type: 'supplier' as const, id })),
+          texto,
+        )
+        total += envio.sent
+        enviados.push(...envio.results.flatMap(i => i.sent && i.name ? [i.name] : []))
+        falhas.push(...envio.results.flatMap(i => !i.sent && !i.pending && i.name ? [i.name] : []))
+      }
       return {
         ok: true,
-        enviado: envio.sent,
-        material: m.nome,
-        destinatarios: envio.results.filter(item => item.sent).map(item => item.name),
-        falhas: envio.results.filter(item => !item.sent && !item.pending).map(item => item.name),
-        semWhatsapp: semWhatsapp.length ? semWhatsapp : undefined,
+        enviado: total,
+        materiais: alvo.materiais.map(m => m.nome),
+        destinatarios: enviados,
+        falhas: falhas.length ? falhas : undefined,
+        semWhatsapp: semWhatsapp.size ? [...semWhatsapp] : undefined,
       }
     } catch (error) {
       return { ok: false, erro: mensagemDeErroDoWhatsApp(error) }
@@ -1232,12 +1281,24 @@ export function OdontogramFullscreenPage() {
     listening: emProcessamento ? 'Cibelly processando… aguarde' : `Cibelly ouvindo${patientName ? ` · ${patientName}` : ''}`,
     error: cibelly.error ?? 'Cibelly indisponível',
   }[cibelly.status]
+  const statusTextoCurto = {
+    idle: 'Em espera',
+    connecting: 'Conectando…',
+    listening: emProcessamento ? 'Processando · aguarde' : 'Ouvindo',
+    error: 'Indisponível',
+  }[cibelly.status]
 
   return (
-    <div className={`${styles.tela} ${emAtendimento ? styles.telaOuvindo : ''}`}>
+    <div className={[
+      styles.tela,
+      emAtendimento ? styles.telaOuvindo : '',
+      emProcessamento ? styles.telaProcessando : '',
+      emAtendimento && cibelly.status === 'error' ? styles.telaErro : '',
+    ].filter(Boolean).join(' ')}>
       <header className={styles.barra}>
         <div className={styles.barraEsquerda}>
           <PatientPicker
+            className={styles.seletorPaciente}
             value={patientId}
             onChange={escolherPaciente}
             lockedReason={emAtendimento ? 'Encerre o atendimento para trocar de paciente' : undefined}
@@ -1246,11 +1307,18 @@ export function OdontogramFullscreenPage() {
           <Button
             variant={emAtendimento ? 'danger' : 'primary'}
             size="md"
+            className={styles.atendimentoBotao}
+            iconLeft={<IconMic />}
             onClick={alternarAtendimento}
             disabled={!patientId || salvar.isPending}
             title={!patientId ? 'Escolha um paciente para iniciar' : undefined}
           >
-            {emAtendimento ? 'Encerrar atendimento' : 'Iniciar atendimento'}
+            <span className={styles.rotuloAtendimentoCompleto}>
+              {emAtendimento ? 'Encerrar atendimento' : 'Iniciar atendimento'}
+            </span>
+            <span className={styles.rotuloAtendimentoCurto}>
+              {emAtendimento ? 'Encerrar' : 'Iniciar'}
+            </span>
           </Button>
 
           {patientId && !emAtendimento && sujo && !emHistorico && (
@@ -1266,9 +1334,11 @@ export function OdontogramFullscreenPage() {
               className={`${styles.chip} ${emProcessamento ? styles.chipProcessando : styles[`chip${cibelly.status[0].toUpperCase()}${cibelly.status.slice(1)}`]}`}
               role="status"
               aria-live="polite"
+              title={statusTexto}
             >
-              <IconMic />
-              {statusTexto}
+              {emProcessamento ? <Spinner size="sm" /> : <IconMic />}
+              <span className={`${styles.chipTexto} ${styles.chipTextoCompleto}`}>{statusTexto}</span>
+              <span className={`${styles.chipTexto} ${styles.chipTextoCurto}`}>{statusTextoCurto}</span>
             </span>
           )}
           {/* Em modo histórico o estado de salvamento não se aplica — o que a
@@ -1280,7 +1350,10 @@ export function OdontogramFullscreenPage() {
           )}
           {!emHistorico && salvar.isPending && <span className={styles.chip}><Spinner size="sm" />Salvando…</span>}
           {!emHistorico && !salvar.isPending && patientId && !sujo && (
-            <span className={styles.chip}><IconCheck />Salvo</span>
+            <span className={`${styles.chip} ${styles.chipSalvo}`} role="status" aria-label="Ficha salva">
+              <IconCheck />
+              <span className={styles.chipSalvoTexto}>Salvo</span>
+            </span>
           )}
 
           <button
@@ -1323,13 +1396,68 @@ export function OdontogramFullscreenPage() {
         </div>
       )}
 
+      <nav className={styles.mobileTabs} aria-label="Seções do atendimento">
+        <button
+          type="button"
+          id="mobile-tab-odontogram"
+          className={`${styles.mobileTab} ${mobilePanel === 'odontogram' ? styles.mobileTabAtiva : ''}`}
+          role="tab"
+          aria-selected={mobilePanel === 'odontogram'}
+          aria-controls="mobile-panel-odontogram"
+          onClick={() => setMobilePanel('odontogram')}
+        >
+          <IconTooth />
+          <span>Odontograma</span>
+        </button>
+        <button
+          type="button"
+          id="mobile-tab-findings"
+          className={`${styles.mobileTab} ${mobilePanel === 'findings' ? styles.mobileTabAtiva : ''}`}
+          role="tab"
+          aria-selected={mobilePanel === 'findings'}
+          aria-controls="mobile-panel-findings"
+          onClick={() => setMobilePanel('findings')}
+        >
+          <IconDocument />
+          <span>Achados</span>
+          {notes.length > 0 && <span className={styles.mobileTabContagem}>{notes.length}</span>}
+        </button>
+        <button
+          type="button"
+          id="mobile-tab-activity"
+          className={`${styles.mobileTab} ${mobilePanel === 'activity' ? styles.mobileTabAtiva : ''}`}
+          role="tab"
+          aria-selected={mobilePanel === 'activity'}
+          aria-controls="mobile-panel-activity"
+          onClick={() => setMobilePanel('activity')}
+        >
+          <IconMessage />
+          <span>Atividade</span>
+          {cibelly.atividade.length > 0 && (
+            <span className={styles.mobileTabContagem}>
+              {cibelly.atividade.length > 99 ? '99+' : cibelly.atividade.length}
+            </span>
+          )}
+        </button>
+      </nav>
+
       {/* O shell continua MONTADO durante o carregamento — é o motor global de
           módulo; desmontar zeraria o estado. Só fica visualmente oculto. */}
       <div className={`${styles.conteudo} ${ready ? '' : styles.carregandoConteudo}`}>
         {/* Em modo histórico o desenho fica inerte: o clique do dente não passa
             pela trava do toothFields (ele entra pelos handlers do próprio
             motor), então o bloqueio dele é aqui, onde o clique chega. */}
-        <div className={`${styles.quadro} ${emHistorico ? styles.quadroInerte : ''}`} ref={shellRef}>
+        <div
+          id="mobile-panel-odontogram"
+          className={[
+            styles.quadro,
+            emHistorico ? styles.quadroInerte : '',
+            mobilePanel !== 'odontogram' ? styles.mobilePanelOculto : '',
+          ].filter(Boolean).join(' ')}
+          role="tabpanel"
+          aria-labelledby="mobile-tab-odontogram"
+          ref={shellRef}
+        >
           {!patientId && ready && (
             <div className={styles.semPaciente}>
               <p>Escolha um paciente para começar.</p>
@@ -1339,84 +1467,100 @@ export function OdontogramFullscreenPage() {
         </div>
 
         <div className={styles.lateral}>
-        {/* Recados do atendimento ANTERIOR. Ficam no topo da coluna, acima dos
-            achados de hoje, porque servem para mudar a conduta antes de ela
-            começar — embaixo de uma lista de dentes ninguém lê a tempo. Só
-            aparece quando há algum: painel vazio permanente vira paisagem. */}
-        {(lembretes?.length ?? 0) > 0 && (
-          <aside className={styles.lembretes} aria-label="Lembretes deste paciente">
-            <h2 className={styles.notasTitulo}>Lembretes</h2>
-            <ul className={styles.lembretesLista}>
-              {lembretes?.map(l => (
-                <li key={l.id} className={styles.lembreteItem}>
-                  <p className={styles.lembreteTexto}>{l.texto}</p>
-                  <button
-                    type="button"
-                    className={styles.lembreteFeito}
-                    title="Marcar como resolvido"
-                    disabled={fecharLembrete.isPending}
-                    onClick={() => patientId && fecharLembrete.mutate({ id: l.id, patientId })}
-                  >
-                    <IconCheck />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </aside>
-        )}
+          <div
+            id="mobile-panel-findings"
+            className={`${styles.resumoClinico} ${mobilePanel !== 'findings' ? styles.mobilePanelOculto : ''}`}
+            role="tabpanel"
+            aria-labelledby="mobile-tab-findings"
+          >
+            {/* Recados do atendimento ANTERIOR. Ficam no topo da coluna, acima dos
+                achados de hoje, porque servem para mudar a conduta antes de ela
+                começar — embaixo de uma lista de dentes ninguém lê a tempo. Só
+                aparece quando há algum: painel vazio permanente vira paisagem. */}
+            {(lembretes?.length ?? 0) > 0 && (
+              <aside className={styles.lembretes} aria-label="Lembretes deste paciente">
+                <h2 className={styles.notasTitulo}>Lembretes</h2>
+                <ul className={styles.lembretesLista}>
+                  {lembretes?.map(l => (
+                    <li key={l.id} className={styles.lembreteItem}>
+                      <p className={styles.lembreteTexto}>{l.texto}</p>
+                      <button
+                        type="button"
+                        className={styles.lembreteFeito}
+                        title="Marcar como resolvido"
+                        disabled={fecharLembrete.isPending}
+                        onClick={() => patientId && fecharLembrete.mutate({ id: l.id, patientId })}
+                      >
+                        <IconCheck />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </aside>
+            )}
 
-        <aside className={styles.notas} aria-label="Achados do odontograma">
-          <h2 className={styles.notasTitulo}>Achados</h2>
-          {notes.length === 0 ? (
-            <p className={styles.notasVazio}>
-              Os achados aparecem aqui conforme forem marcados — pela Cibelly ou com duplo
-              clique num dente para escrever à mão.
-            </p>
-          ) : (
-            <>
-              {/* POR ACHADO, não por dente. Com aparelho na arcada inteira, a
-                  lista por dente virava dezesseis blocos idênticos; agrupada,
-                  a mesma informação é uma linha — e é assim que o dentista
-                  pergunta ("onde tem cárie?"). */}
-              <ul className={styles.grupos}>
-                {agruparAchados(notes).map(g => (
-                  <li key={g.achado} className={styles.grupo}>
-                    <div className={styles.grupoTopo}>
-                      <span className={styles.grupoNome}>{g.achado}</span>
-                      <span className={styles.grupoContagem}>{g.dentes.length}</span>
-                    </div>
-                    <span className={styles.grupoDentes}>{g.resumo}</span>
-                  </li>
-                ))}
-              </ul>
-
-              {/* Anotação livre é de outra natureza: não agrupa, e some se
-                  misturada com o que está desenhado. */}
-              {notasLivres(notes).length > 0 && (
+            <aside className={styles.notas} aria-label="Achados do odontograma">
+              <h2 className={styles.notasTitulo}>Achados</h2>
+              {notes.length === 0 ? (
+                <p className={styles.notasVazio}>
+                  Os achados aparecem aqui conforme forem marcados — pela Cibelly ou com duplo
+                  clique num dente para escrever à mão.
+                </p>
+              ) : (
                 <>
-                  <h3 className={styles.subtitulo}>Anotações</h3>
-                  <ul className={styles.notasLista}>
-                    {notasLivres(notes).map(n => (
-                      <li key={n.tooth} className={styles.notaItem}>
-                        <span className={styles.notaDente}>Dente {n.tooth}</span>
-                        <p className={styles.notaTexto}>{n.text}</p>
+                  {/* POR ACHADO, não por dente. Com aparelho na arcada inteira, a
+                      lista por dente virava dezesseis blocos idênticos; agrupada,
+                      a mesma informação é uma linha — e é assim que o dentista
+                      pergunta ("onde tem cárie?"). */}
+                  <ul className={styles.grupos}>
+                    {agruparAchados(notes).map(g => (
+                      <li key={g.achado} className={styles.grupo}>
+                        <div className={styles.grupoTopo}>
+                          <span className={styles.grupoNome}>{g.achado}</span>
+                          <span className={styles.grupoContagem}>{g.dentes.length}</span>
+                        </div>
+                        <span className={styles.grupoDentes}>{g.resumo}</span>
                       </li>
                     ))}
                   </ul>
+
+                  {/* Anotação livre é de outra natureza: não agrupa, e some se
+                      misturada com o que está desenhado. */}
+                  {notasLivres(notes).length > 0 && (
+                    <>
+                      <h3 className={styles.subtitulo}>Anotações</h3>
+                      <ul className={styles.notasLista}>
+                        {notasLivres(notes).map(n => (
+                          <li key={n.tooth} className={styles.notaItem}>
+                            <span className={styles.notaDente}>Dente {n.tooth}</span>
+                            <p className={styles.notaTexto}>{n.text}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
                 </>
               )}
-            </>
-          )}
-        </aside>
+            </aside>
+          </div>
 
-        {/* DIÁRIO DO ATENDIMENTO — o que ela falou e o que ela executou.
-            Existe para responder "por que ela não marcou o 23?": mostra se a
-            ferramenta foi chamada, com quais argumentos e o que voltou.
-            Não custa nada: a fala DELA vem junto do áudio que já foi gerado, e
-            as chamadas são nossas. A transcrição da fala do DENTISTA, que era
-            paga (whisper, por minuto), continua desligada. */}
-        {emAtendimento || cibelly.atividade.length > 0 ? (
-          <aside className={styles.diario} aria-label="Diário do atendimento">
+          {/* DIÁRIO DO ATENDIMENTO — o que ela falou e o que ela executou.
+              Existe para responder "por que ela não marcou o 23?": mostra se a
+              ferramenta foi chamada, com quais argumentos e o que voltou.
+              Não custa nada: a fala DELA vem junto do áudio que já foi gerado, e
+              as chamadas são nossas. A transcrição da fala do DENTISTA, que era
+              paga (whisper, por minuto), continua desligada. */}
+          <aside
+            id="mobile-panel-activity"
+            className={[
+              styles.diario,
+              !emAtendimento && cibelly.atividade.length === 0 ? styles.diarioSomenteMobile : '',
+              mobilePanel !== 'activity' ? styles.mobilePanelOculto : '',
+            ].filter(Boolean).join(' ')}
+            role="tabpanel"
+            aria-labelledby="mobile-tab-activity"
+            aria-label="Diário do atendimento"
+          >
             <h2 className={styles.notasTitulo}>Atividade</h2>
             {cibelly.atividade.length === 0 ? (
               <p className={styles.notasVazio}>
@@ -1452,7 +1596,6 @@ export function OdontogramFullscreenPage() {
               </ul>
             )}
           </aside>
-        ) : null}
         </div>
       </div>
 

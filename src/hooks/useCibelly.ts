@@ -19,6 +19,10 @@ import {
   type Provedor, type UsoBruto, type UsoRealtimeOpenAI,
 } from '@/lib/cibelly/pricing'
 import { recordCibellyUsage } from '@/services/cibellyUsageService'
+import {
+  canCreateFollowUp, isActiveResponseConflict, isRealtimeBusy,
+  type RealtimeContinuationState,
+} from '@/lib/cibelly/responseContinuation'
 
 /**
  * Cibelly — assistente de voz do odontograma. DOIS provedores.
@@ -222,9 +226,13 @@ export interface MaterialUsage {
 }
 
 export interface QuoteRequest {
-  material: string
+  /** Opcional: o dentista pode pedir por FORNECEDOR ("orçamento ao Dental
+   *  Cremer") ou pelo que está acabando, sem nomear material nenhum. */
+  material?: string
   quantidade?: string
   fornecedor?: string
+  /** "peça orçamento do que está em falta" — sem citar material. */
+  emFalta?: boolean
   confirmado?: boolean
 }
 
@@ -302,6 +310,12 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
   const geminiRef = useRef<GeminiLive | null>(null)
   /** Há uma resposta da OpenAI em curso? Ver o `response.create` no fim do laço. */
   const respostaEmVooRef = useRef(false)
+  /** `response.create` enviado, mas ainda sem o `response.created` de volta.
+   * Esta janela curta era suficiente para cinco ferramentas enviarem cinco
+   * continuações concorrentes. */
+  const respostaSolicitadaRef = useRef(false)
+  /** Ferramentas do turno que ainda não devolveram `function_call_output`. */
+  const ferramentasEmVooRef = useRef(0)
   /** Fala pedida enquanto outra resposta corria — sai no `response.done`. */
   const falaPendenteRef = useRef(false)
 
@@ -428,6 +442,45 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
     // Lido uma vez, na abertura: trocar de provedor no meio de um atendimento
     // não faz sentido, e a URL é a mesma a sessão inteira.
     const provedor = provedorEscolhido()
+    respostaEmVooRef.current = false
+    respostaSolicitadaRef.current = false
+    ferramentasEmVooRef.current = 0
+    falaPendenteRef.current = false
+
+    function estadoDaContinuacao(): RealtimeContinuationState {
+      return {
+        responseActive: respostaEmVooRef.current,
+        responseRequested: respostaSolicitadaRef.current,
+        toolsInFlight: ferramentasEmVooRef.current,
+        followUpRequested: falaPendenteRef.current,
+      }
+    }
+
+    function sincronizarProcessamento() {
+      if (provedor === 'openai') setProcessando(isRealtimeBusy(estadoDaContinuacao()))
+    }
+
+    /** Envia no máximo UM `response.create`, somente quando a resposta anterior
+     * terminou e TODAS as ferramentas do turno já devolveram o resultado. */
+    function continuarQuandoPronto() {
+      if (provedor !== 'openai' || cancelled) return
+      const estado = estadoDaContinuacao()
+      if (!canCreateFollowUp(estado)) {
+        sincronizarProcessamento()
+        return
+      }
+
+      const dc = dcRef.current
+      if (dc?.readyState !== 'open') {
+        sincronizarProcessamento()
+        return
+      }
+
+      falaPendenteRef.current = false
+      respostaSolicitadaRef.current = true
+      dc.send(JSON.stringify({ type: 'response.create' }))
+      sincronizarProcessamento()
+    }
 
     function scheduleCommandCheck() {
       if (commandCheckTimer) window.clearTimeout(commandCheckTimer)
@@ -495,7 +548,8 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
             content: [{ type: 'input_text', text: prompt }],
           },
         }))
-        dc.send(JSON.stringify({ type: 'response.create' }))
+        falaPendenteRef.current = true
+        continuarQuandoPronto()
       }, 600)
     }
 
@@ -1046,7 +1100,8 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       if (tipo === 'error') {
         console.error('[Cibelly] erro da API:', event)
         const e = event as { error?: { message?: string } }
-        registrar({ tipo: 'erro', texto: e.error?.message ?? 'Erro da API de voz.' })
+        const mensagem = e.error?.message ?? 'Erro da API de voz.'
+        registrar({ tipo: 'erro', texto: mensagem })
 
         // ⚠️ MUDA PARA SEMPRE, se não fosse isto. Uma resposta "em voo" pode
         // morrer com `error` em vez de terminar com `response.done` (limite,
@@ -1060,13 +1115,19 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         // relação nenhuma ("Olá") abrir um ciclo novo por conta própria e
         // "destravar" por acidente — daí a resposta ter saído sobre o "Olá",
         // não sobre a pergunta represada.
-        respostaEmVooRef.current = false
-        setProcessando(false)
-        if (falaPendenteRef.current) {
-          falaPendenteRef.current = false
-          const dc = dcRef.current
-          if (dc?.readyState === 'open') dc.send(JSON.stringify({ type: 'response.create' }))
+        // "active response in progress" é diferente: a resposta citada no
+        // erro CONTINUA viva. Marcá-la como encerrada e repetir imediatamente
+        // cria um ciclo de conflitos. O `response.done` dela liberará a fila.
+        if (isActiveResponseConflict(mensagem)) {
+          respostaEmVooRef.current = true
+          respostaSolicitadaRef.current = false
+          sincronizarProcessamento()
+          return
         }
+
+        respostaEmVooRef.current = false
+        respostaSolicitadaRef.current = false
+        continuarQuandoPronto()
         return
       }
 
@@ -1113,27 +1174,20 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       // `speech_started` e a resposta terminou como `cancelled`, foi o detector
       // de fala cortando a Cibelly por ruído da sala. Se os deltas simplesmente
       // param, é rede. Sem este log, a próxima rodada de ajuste seria chute.
-      if (tipo === 'response.created') { respostaEmVooRef.current = true; setProcessando(true) }
+      if (tipo === 'response.created') {
+        respostaEmVooRef.current = true
+        respostaSolicitadaRef.current = false
+        sincronizarProcessamento()
+      }
       if (tipo === 'response.done') {
         respostaEmVooRef.current = false
-        setProcessando(false)
+        respostaSolicitadaRef.current = false
         finishVoiceTurn()
         // MEDIÇÃO TEMPORÁRIA — ver src/lib/cibelly/pricing.ts.
         usoRef.current = acumularOpenAI(usoRef.current, (event as RealtimeResponseDoneEvent).response?.usage)
-        // A FALA ADIADA sai aqui.
-        //
-        // O pedido de fala nasce em `response.function_call_arguments.done`, que
-        // chega ANTES do `response.done` da própria resposta que trouxe a
-        // chamada — ou seja, sempre com uma resposta "em voo". A trava que pus
-        // contra o erro "active response in progress" estava DESCARTANDO esse
-        // pedido, e a Cibelly executava a ferramenta e ficava muda até um ruído
-        // abrir um turno novo. Era intermitente porque a chamada às vezes chega
-        // primeiro pelo `response.done`, quando o flag já está limpo.
-        if (falaPendenteRef.current) {
-          falaPendenteRef.current = false
-          const dc = dcRef.current
-          if (dc?.readyState === 'open') dc.send(JSON.stringify({ type: 'response.create' }))
-        }
+        // A fila será liberada DEPOIS de processar as function_calls deste
+        // mesmo evento, abaixo. Liberar aqui criaria a continuação antes de
+        // registrar resultados que só vieram no `response.done`.
       }
 
       if (tipo === 'response.created' || tipo === 'response.done'
@@ -1146,18 +1200,33 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       }
 
       const chamadas = extractFunctionCalls(event)
-      if (chamadas.length === 0) return
+      if (chamadas.length === 0) {
+        if (tipo === 'response.done') continuarQuandoPronto()
+        return
+      }
 
+      // Marca TODAS antes do primeiro await. Eventos de ferramentas diferentes
+      // podem executar em paralelo; a contagem global impede a primeira que
+      // terminar de abrir uma resposta enquanto as demais ainda trabalham.
+      const chamadasNovas = chamadas.filter(call => {
+        if (processedCallIdsRef.current.has(call.call_id)) return false
+        processedCallIdsRef.current.add(call.call_id)
+        return true
+      })
+      if (chamadasNovas.length === 0) {
+        continuarQuandoPronto()
+        return
+      }
+
+      ferramentasEmVooRef.current += chamadasNovas.length
+      sincronizarProcessamento()
       let precisaFalar = false
 
-      for (const call of chamadas) {
+      for (const call of chamadasNovas) {
         // O mesmo call_id chega duas vezes (uma por
         // response.function_call_arguments.done, outra dentro de
         // response.done) — sem dedupe, "confirmar" aplicaria a marcação duas
         // vezes e "propor" reabriria uma proposta já resolvida.
-        if (processedCallIdsRef.current.has(call.call_id)) continue
-        processedCallIdsRef.current.add(call.call_id)
-
         let args: Record<string, unknown>
         try {
           args = JSON.parse(call.arguments)
@@ -1166,28 +1235,44 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         }
         console.info('[Cibelly] ferramenta:', call.name, args)
 
-        const compatible = await ensureMutationCompatibility(call.name, args)
-        const { resultado, valeFalar } = compatible === false
-          ? {
-              resultado: {
-                ok: false,
-                erro: 'A ferramenta divergiu da fala mais recente e foi bloqueada sem alterar o odontograma. Use os dentes e campos que o dentista acabou de informar.',
-                bloqueadoPelaConferencia: true,
-              },
-              valeFalar: true,
-            }
-          : await executarFerramenta(call.name, args)
+        let resultado: Record<string, unknown>
+        let valeFalar: boolean
+        try {
+          const compatible = await ensureMutationCompatibility(call.name, args)
+          const execucao = compatible === false
+            ? {
+                resultado: {
+                  ok: false,
+                  erro: 'A ferramenta divergiu da fala mais recente e foi bloqueada sem alterar o odontograma. Use os dentes e campos que o dentista acabou de informar.',
+                  bloqueadoPelaConferencia: true,
+                },
+                valeFalar: true,
+              }
+            : await executarFerramenta(call.name, args)
+          resultado = execucao.resultado
+          valeFalar = execucao.valeFalar
+        } catch (error) {
+          resultado = {
+            ok: false,
+            erro: errorMessage(error, 'Não consegui concluir esta ação.'),
+          }
+          valeFalar = true
+        }
         registrar({ tipo: 'ferramenta', texto: call.name,
           args: JSON.stringify(args), resultado: JSON.stringify(resultado) })
 
         if (valeFalar) precisaFalar = true
 
-        const dc = dcRef.current
-        if (dc?.readyState === 'open') {
-          dc.send(JSON.stringify({
-            type: 'conversation.item.create',
-            item: { type: 'function_call_output', call_id: call.call_id, output: JSON.stringify(resultado) },
-          }))
+        try {
+          const dc = dcRef.current
+          if (dc?.readyState === 'open') {
+            dc.send(JSON.stringify({
+              type: 'conversation.item.create',
+              item: { type: 'function_call_output', call_id: call.call_id, output: JSON.stringify(resultado) },
+            }))
+          }
+        } finally {
+          ferramentasEmVooRef.current = Math.max(0, ferramentasEmVooRef.current - 1)
         }
       }
 
@@ -1199,19 +1284,11 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       // e deu certo? Silêncio — a tela já mostra, e o dentista segue no exame.
       // Continua UM por turno, não um por chamada: dois pedidos faziam ela
       // falar por cima de si mesma.
-      // Com uma resposta em curso, a API recusa um `response.create` novo
-      // ("Conversation already has an active response in progress") e o comando
-      // se perde. Então ADIA em vez de descartar: o pedido sai no
-      // `response.done` logo acima. Descartar era o que a deixava muda.
-      if (precisaFalar && respostaEmVooRef.current) {
-        falaPendenteRef.current = true
-        return
-      }
-
-      if (precisaFalar) {
-        const dc = dcRef.current
-        if (dc?.readyState === 'open') dc.send(JSON.stringify({ type: 'response.create' }))
-      }
+      // Uma única continuação para o LOTE inteiro. `continuarQuandoPronto`
+      // também espera a resposta anterior terminar e bloqueia duplicatas no
+      // intervalo entre `response.create` e `response.created`.
+      if (precisaFalar) falaPendenteRef.current = true
+      continuarQuandoPronto()
     }
 
     connect()
@@ -1260,6 +1337,10 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       // repetido seria descartado como duplicata.
       idsTratados.clear()
       commandCache.clear()
+      respostaEmVooRef.current = false
+      respostaSolicitadaRef.current = false
+      ferramentasEmVooRef.current = 0
+      falaPendenteRef.current = false
       if (commandCheckTimer) window.clearTimeout(commandCheckTimer)
     }
   }, [ativa, registrar, reservarFala, preencherFala, publicar])

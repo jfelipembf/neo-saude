@@ -14,6 +14,8 @@ $raio-item: 10px;
   z-index: 10;
   display: flex;
   flex-direction: column;
+  min-height: 100dvh;
+  overflow: hidden;
   background: var(--bg-base);
 
   // Profundidade sem hex mágico: dois halos difusos nas cores da marca (verde
@@ -51,6 +53,18 @@ $raio-item: 10px;
   animation: respiraMoldura 3.2s ease-in-out infinite;
 }
 
+.telaProcessando::after {
+  border-color: var(--warning-fg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning-fg) 24%, transparent);
+  animation-duration: 1.4s;
+}
+
+.telaErro::after {
+  border-color: var(--danger-fg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger-fg) 22%, transparent);
+  animation: none;
+}
+
 // Tela aberta a consulta inteira não pode piscar sem escape.
 @media (prefers-reduced-motion: reduce) {
   .telaOuvindo::after { animation: none; }
@@ -76,7 +90,9 @@ $raio-item: 10px;
   @include mobile {
     flex-direction: column;
     align-items: stretch;
-    padding: $sp-3;
+    gap: $sp-2;
+    padding: $sp-2 $sp-3;
+    padding-top: calc(#{$sp-2} + env(safe-area-inset-top));
   }
 }
 
@@ -91,6 +107,43 @@ $raio-item: 10px;
 
 .barraDireita {
   justify-content: flex-end;
+
+  @include mobile {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+}
+
+.barraEsquerda {
+  @include mobile {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+}
+
+.seletorPaciente {
+  width: clamp(220px, 28vw, 360px);
+
+  > button:first-child { flex: 1; }
+
+  @include mobile {
+    width: auto;
+    flex: 1;
+  }
+}
+
+.atendimentoBotao {
+  flex-shrink: 0;
+}
+
+.rotuloAtendimentoCurto {
+  display: none;
+
+  @include phone { display: inline; }
+}
+
+.rotuloAtendimentoCompleto {
+  @include phone { display: none; }
 }
 
 .chip {
@@ -107,6 +160,32 @@ $raio-item: 10px;
   white-space: nowrap;
 
   svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  @include mobile {
+    min-width: 0;
+    overflow: hidden;
+  }
+}
+
+.chipTexto {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chipTextoCurto {
+  display: none;
+
+  @include mobile { display: inline; }
+}
+
+.chipTextoCompleto {
+  @include mobile { display: none; }
+}
+
+.chipSalvoTexto {
+  @include phone { display: none; }
 }
 
 // Âmbar, a mesma cor do marco selecionado na régua — os dois avisam a mesma
@@ -139,6 +218,7 @@ $raio-item: 10px;
 .chipProcessando {
   border-color: var(--warning-fg);
   color: var(--warning-fg);
+  background: color-mix(in srgb, var(--warning-fg) 10%, var(--bg-elevated));
 
   svg { animation: cibellyPulse 0.9s ease-in-out infinite; }
 
@@ -232,6 +312,86 @@ $raio-item: 10px;
   visibility: hidden;
 }
 
+// ── Navegação móvel ──────────────────────────────────────────────────────────
+// Em uma janela fixa, empilhar odontograma, achados e diário reduz cada área a
+// poucos pixels. No celular, cada um vira uma vista completa; no desktop esta
+// navegação some e os três continuam visíveis ao mesmo tempo.
+.mobileTabs {
+  position: relative;
+  z-index: 2;
+  display: none;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+
+  @include mobile { display: grid; }
+}
+
+.mobileTab {
+  @include focus-ring;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $sp-1;
+  min-width: 0;
+  min-height: 48px;
+  padding: $sp-2 $sp-1;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: $fs-xs;
+  font-weight: 600;
+  cursor: pointer;
+
+  svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  > span:not(.mobileTabContagem) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @include phone {
+    gap: 2px;
+    padding-inline: 2px;
+    font-size: 11px;
+  }
+}
+
+.mobileTabAtiva {
+  border-bottom-color: var(--primary);
+  color: var(--primary);
+  background: var(--accent-bg);
+}
+
+.mobileTabContagem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  flex-shrink: 0;
+  border-radius: $radius-pill;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mobilePanelOculto {
+  @include mobile { display: none !important; }
+}
+
 // ── Conteúdo ─────────────────────────────────────────────────────────────────
 .conteudo {
   position: relative;
@@ -242,8 +402,13 @@ $raio-item: 10px;
   gap: $sp-4;
   padding: $sp-4 $sp-5 $sp-5;
 
-  @include mobile { flex-direction: column; }
-  @include phone { padding: $sp-3; }
+  @include mobile {
+    flex-direction: column;
+    gap: 0;
+    padding: $sp-3;
+    padding-bottom: calc(#{$sp-3} + env(safe-area-inset-bottom));
+    overflow: hidden;
+  }
 }
 
 // Ficha de outro dia: o desenho vira consulta, não edição. `pointer-events` e
@@ -269,6 +434,16 @@ $raio-item: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
+
+  @include mobile {
+    width: 100%;
+    height: 100%;
+    flex: 0 0 100%;
+    align-items: flex-start;
+    padding: $sp-2;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 
   // ── Tema do motor ──────────────────────────────────────────────────────────
   // O motor lê estas CSS vars; o prop `themeConfig` NÃO é usado de propósito.
@@ -311,6 +486,13 @@ $raio-item: 10px;
     border-radius: $radius-lg;
     background: transparent;
     border: none;
+
+    @include mobile {
+      // Uma arcada mantém 16 posições com alvos de toque grandes. Em telas
+      // estreitas ela rola lateralmente em vez de encolher dentes ou cortá-los.
+      overflow-x: auto;
+      overscroll-behavior-inline: contain;
+    }
   }
 
   // grid-template-columns vira 1fr (era "1fr 360px"): sem `.panel`, a segunda
@@ -371,6 +553,22 @@ $raio-item: 10px;
 
   @include mobile {
     width: auto;
+    display: contents;
+  }
+}
+
+.resumoClinico {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  flex: 1 1 45%;
+  min-height: 0;
+
+  @include mobile {
+    width: 100%;
+    height: 100%;
+    flex: 0 0 100%;
+    overflow: hidden;
   }
 }
 
@@ -447,7 +645,16 @@ $raio-item: 10px;
   min-height: 0;
   padding: $sp-4;
 
-  @include mobile { max-height: 240px; }
+  @include mobile {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    flex: 0 0 100%;
+  }
+}
+
+.diarioSomenteMobile {
+  @include desktop { display: none; }
 }
 
 .diarioLista {
@@ -526,7 +733,9 @@ $raio-item: 10px;
   padding: $sp-4;
   overflow-y: auto;
 
-  @include mobile { max-height: 220px; }
+  @include mobile {
+    max-height: none;
+  }
 }
 
 .notasTitulo {

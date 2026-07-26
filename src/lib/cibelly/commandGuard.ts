@@ -47,8 +47,28 @@ function normalizeSpeech(text: string): string {
 const FDI = /\b(?:1[1-8]|2[1-8]|3[1-8]|4[1-8])\b/
 const FINDING =
   /\b(?:carie|mobilidade|restauracao|obturacao|coroa|canal|endodontia|implante|ausente|ausencia|presentes?|extraido|extracao|fratura|calculo|tartaro|selante|desgaste|atricao|erosao|abrasao|abfracao|protese|ponte|aparelho|raiz residual)\b/
-const MUTATION =
-  /\b(?:marque|marcar|adicione|adicionar|insira|inserir|remova|remover|apague|apagar|limpe|limpar|reverta|reverter|retorne|retornar|restaure|restaurar|recoloque|recolocar|desfaca)\b/
+
+/**
+ * TODOS os verbos de TIRAR um achado — fonte única, usada tanto pelo watchdog
+ * (MUTATION) quanto pela conferência de direção (removesFinding).
+ *
+ * A lista tinha só `remova|apague|limpe`, e isso não era "faltou cobrir": a
+ * guarda empurrava ATIVAMENTE para o lado errado. Medido antes da correção,
+ * para "Tire a cárie do dente 24" ela APROVAVA `marcar_dente` e RECUSAVA
+ * `apagar_marcacao` — o oposto exato do pedido. Foi o que gravou uma cárie que
+ * o dentista mandou tirar, em mesial/distal/oclusal.
+ *
+ * Os cinco verbos abaixo vieram de atendimentos reais: "tire", "remova",
+ * "reverta", "cancele" e "exclua" — só o segundo era reconhecido.
+ */
+const REMOVE_VERB =
+  /\b(?:remova|remover|apague|apagar|limpe|limpar|tire|tirar|retire|retirar|exclua|excluir|cancele|cancelar|reverta|reverter|desfaca)\b/
+
+/** Verbos de PÔR/devolver — o outro lado da moeda. */
+const ADD_VERB =
+  /\b(?:marque|marcar|adicione|adicionar|insira|inserir|retorne|retornar|restaure|restaurar|recoloque|recolocar)\b/
+
+const MUTATION = new RegExp(`${ADD_VERB.source}|${REMOVE_VERB.source}`)
 const QUESTION =
   /^(?:como|qual|quais|o que|que|tem|existe|esta marcado|esta presente)\b/
 const SURFACE = /\b(?:mesial|distal|oclusal|incisal|vestibular|lingual|palatina)\b/
@@ -129,10 +149,19 @@ export function looksLikeUnservedToothCommand(text: string): boolean {
   if (text.trim().endsWith('?')) return false
   const normalized = normalizeSpeech(text)
   if (!FDI.test(normalized) || QUESTION.test(normalized)) return false
-  if (/\bmobilidade\b/.test(normalized) && !MOBILITY_GRADE.test(normalized)) return false
-  if (/\bcarie\b/.test(normalized) && !SURFACE.test(normalized)) return false
-  if (/\b(?:restauracao|obturacao)\b/.test(normalized)
-      && (!SURFACE.test(normalized) || !MATERIAL.test(normalized))) return false
+
+  // As exigências de dado completo (superfície, grau, material) valem só para
+  // MARCAR: sem elas o motor descartaria a marcação, então não vale insistir.
+  // TIRAR não precisa de nada disso — "tire a cárie do 24" é ordem completa.
+  // Sem esta distinção o watchdog ficava cego justamente nos comandos de
+  // remoção, que são os que mais falharam em atendimento real.
+  if (!REMOVE_VERB.test(normalized)) {
+    if (/\bmobilidade\b/.test(normalized) && !MOBILITY_GRADE.test(normalized)) return false
+    if (/\bcarie\b/.test(normalized) && !SURFACE.test(normalized)) return false
+    if (/\b(?:restauracao|obturacao)\b/.test(normalized)
+        && (!SURFACE.test(normalized) || !MATERIAL.test(normalized))) return false
+  }
+
   if (MUTATION.test(normalized)) return true
   return FINDING.test(normalized)
 }
@@ -156,8 +185,11 @@ export function mutationToolMatchesSpeech(
       || (tool === 'apagar_marcacao' && args.achado === 'ausente')
   }
 
+  // Verbo de tirar + o que tirar. `restoresToothPresence` já rodou acima e
+  // ficou com o caso da PRESENÇA do dente ("reverta o dente 28"), então aqui
+  // "reverta" só chega quando há um achado nomeado — "reverta a mobilidade".
   const removesFinding =
-    /\b(?:remova|apague|limpe)\b/.test(normalized)
+    REMOVE_VERB.test(normalized)
     && (/\bmarcacao\b/.test(normalized) || FINDING.test(normalized))
   if (removesFinding) {
     if (tool !== 'apagar_marcacao') return false

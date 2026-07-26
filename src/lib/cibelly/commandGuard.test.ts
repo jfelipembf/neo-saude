@@ -106,6 +106,35 @@ describe('mutationToolMatchesSpeech', () => {
       { dentes: [28, 48] },
     )).toBe(false)
   })
+
+  // ⚠️ VERBOS DE TIRAR, todos de atendimento real. Antes só "remova" era
+  // reconhecido — e a guarda não ficava neutra nos outros: ela APROVAVA
+  // `marcar_dente` e RECUSAVA `apagar_marcacao`, o inverso exato do pedido.
+  // Foi assim que "Tire a cárie do dente 24" gravou uma cárie em três faces.
+  it.each([
+    'Tire a cárie do dente 24.',
+    'Remova a cárie do dente 24.',
+    'Reverta a cárie do dente 24.',
+    'Cancele a cárie do dente 24.',
+    'Exclua a cárie do dente 24.',
+    'Retire a cárie do dente 24.',
+  ])('tirar achado exige apagar_marcacao: %s', text => {
+    expect(mutationToolMatchesSpeech(text, 'apagar_marcacao', { dentes: [24], achado: 'carie' })).toBe(true)
+    expect(mutationToolMatchesSpeech(text, 'marcar_dente', { dentes: [24], achado: 'carie' })).toBe(false)
+  })
+
+  it('tirar mobilidade não exige o grau (só marcar exige)', () => {
+    expect(mutationToolMatchesSpeech(
+      'Reverta a mobilidade do dente 24.', 'apagar_marcacao', { dentes: [24], achado: 'mobilidade' },
+    )).toBe(true)
+  })
+
+  // "reverta" serve aos DOIS sentidos; quem separa é haver ou não achado
+  // nomeado. Sem achado, é a presença do dente que volta.
+  it('"reverta o dente" sem achado continua sendo restauração de presença', () => {
+    expect(mutationToolMatchesSpeech('Reverta o dente 28.', 'restaurar_dente', { dentes: [28] })).toBe(true)
+    expect(mutationToolMatchesSpeech('Reverta o dente 28.', 'marcar_dente', { dentes: [28], achado: 'carie' })).toBe(false)
+  })
 })
 
 describe('looksLikeUnservedToothCommand', () => {
@@ -131,6 +160,17 @@ describe('looksLikeUnservedToothCommand', () => {
     'Sim, estou aqui.',
   ])('não recupera pergunta ou fala incompleta: %s', text => {
     expect(looksLikeUnservedToothCommand(text)).toBe(false)
+  })
+
+  // Superfície/grau/material são exigência de MARCAR (sem eles o motor
+  // descarta). Para TIRAR, a ordem já está completa — e era exatamente aqui
+  // que o watchdog ficava cego: "Tire a cárie do 24" não disparava nada.
+  it.each([
+    'Tire a cárie do dente 24.',
+    'Remova a mobilidade do dente 24.',
+    'Exclua a restauração do dente 24.',
+  ])('detecta comando de remoção sem exigir superfície/grau: %s', text => {
+    expect(looksLikeUnservedToothCommand(text)).toBe(true)
   })
 })
 

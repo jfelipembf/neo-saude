@@ -321,9 +321,15 @@ AGENDA — VOCÊ TEM ACESSO, SIM:
 MATERIAIS E ESTOQUE — você também cuida disso:
 - "tem resina?", "quanto sobrou de anestésico?", "quem fornece a broca?", "me passa o contato deles" → "consultar_materiais".
 - "usei duas seringas de resina", "gastei um tubete" → "registrar_material_usado". Isso dá baixa no estoque na hora.
+- PEDIDO COMPOSTO ("verifique o que está acabando E solicite orçamento") → chame UMA VEZ "solicitar_orcamento_fornecedor" com emFalta=true. Essa ferramenta já lê o estoque, reúne TODOS os materiais abaixo do mínimo e agrupa TODOS os fornecedores; não precisa chamar "consultar_materiais" antes.
+- NUNCA chame "solicitar_orcamento_fornecedor" uma vez por material ou por fornecedor. Uma chamada com emFalta=true prepara o lote inteiro. Repetir por par material/fornecedor cria várias confirmações concorrentes e várias mensagens separadas.
+- Se a consulta ou o pedido com emFalta=true voltar sem materiais, conclua imediatamente: não há item no mínimo para cotar. NÃO consulte de novo com nomes inventados e NÃO espere outra fala para concluir.
 - Depois de registrar, o retorno diz se o material ficou ACABANDO. Se ficou, chame "solicitar_orcamento_fornecedor" SEM "confirmado": a ferramenta só prepara a mensagem e devolve fornecedores + texto. Leia a prévia e pergunte se pode enviar.
 - Só depois de um SIM claro chame novamente, com os mesmos dados e confirmado=true. A ferramenta confere se destinatários e texto são exatamente os da prévia. Nunca mande sem essa segunda chamada.
 - Um material pode ter MAIS DE UM fornecedor. Quando houver, diga quantos são e mande para todos, a não ser que ele escolha um.
+- MATERIAL ou FORNECEDOR? O pedido de orçamento aceita os dois, em campos SEPARADOS. "peça um orçamento ao Dental Cremer" é FORNECEDOR → mande em "fornecedor" e deixe "material" vazio; a ferramenta devolve o que aquele fornecedor supre e você pergunta qual. "orçamento do que está em falta" → emFalta=true, sem material nenhum.
+  NUNCA ponha nome de fornecedor no campo "material", e NUNCA fique chutando nomes de material quando o retorno disser que não encontrou: se o nome for de fornecedor, a própria ferramenta avisa "é um FORNECEDOR" e lista os materiais dele. Leia esse retorno em vez de adivinhar.
+  (Caso real: "peça um orçamento ao Dental Cremer" virou material="odontocol creme", depois "ortodontico", depois "dental creme" — seis turnos chutando marca, e o dentista teve que perguntar "encontrou?" duas vezes. Nenhum chute podia acertar: Dental Cremer é fornecedor, não material.)
 
 MENSAGENS AO PACIENTE — pelo WhatsApp conectado da clínica:
 - "mande uma mensagem para a paciente dizendo que...", "avise a Michelle que..." → "enviar_mensagem_paciente".
@@ -743,23 +749,39 @@ const TOOLS = [
     type: 'function',
     name: 'solicitar_orcamento_fornecedor',
     description:
-      'Prepara e, depois da confirmação, envia por WhatsApp um pedido de orçamento aos fornecedores do material. ' +
+      'Prepara e, depois da confirmação, envia por WhatsApp um pedido de orçamento aos fornecedores. ' +
+      'TRÊS JEITOS de pedir, e você escolhe pelo que o dentista falou: ' +
+      '(a) por MATERIAL ("orçamento de resina") → campo "material"; ' +
+      '(b) por FORNECEDOR ("peça um orçamento ao Dental Cremer") → campo "fornecedor", SEM inventar material; ' +
+      '(c) pelo que está acabando ("orçamento do que está em falta") → emFalta=true. ' +
+      'Uma única chamada com emFalta=true reúne todos os materiais abaixo do mínimo e todos os fornecedores; nunca repita por material ou fornecedor. ' +
+      'Pode combinar: fornecedor + emFalta pede só o que aquele fornecedor supre e está abaixo do mínimo. ' +
+      'NUNCA ponha nome de fornecedor no campo "material" — se não souber se o nome é material ou fornecedor, ' +
+      'chame assim mesmo que a ferramenta diz qual dos dois é. ' +
       'DUAS ETAPAS: primeiro chame sem confirmado; leia destinatários e mensagem e pergunte se pode enviar. ' +
-      'Só repita com confirmado=true depois de um sim claro. Se o material tiver mais de um fornecedor, ' +
-      'envia para todos, salvo se o dentista indicar um específico.',
+      'Só repita com confirmado=true depois de um sim claro.',
     parameters: {
       type: 'object',
       properties: {
-        material: { type: 'string', description: 'Nome do material.' },
+        material: {
+          type: 'string',
+          description: 'Nome do MATERIAL a cotar. Omita quando o dentista citar só o fornecedor ou pedir o que está em falta.',
+        },
         quantidade: { type: 'string', description: 'Quanto pedir no orçamento. Opcional.' },
-        fornecedor: { type: 'string', description: 'Nome de um fornecedor específico. Omita para mandar a todos.' },
+        fornecedor: {
+          type: 'string',
+          description: 'Nome do FORNECEDOR. Use este campo (e não "material") quando o dentista disser "peça orçamento ao Fulano".',
+        },
+        emFalta: {
+          type: 'boolean',
+          description: 'true quando ele pedir orçamento do que está acabando/em falta, sem nomear material.',
+        },
         confirmado: {
           type: 'boolean',
           description:
             'Só true na SEGUNDA chamada, depois de ler fornecedores + mensagem e receber um sim claro. Nunca na primeira.',
         },
       },
-      required: ['material'],
     },
   },
   {

@@ -16,6 +16,7 @@ interface PatientPickerProps {
   /** ID do paciente escolhido — nunca o nome (homônimo escolheria o errado). */
   value: string | null
   onChange: (patient: Patient | null) => void
+  className?: string
   placeholder?: string
   disabled?: boolean
   /** Trava a troca e explica por quê (ex.: atendimento em andamento). */
@@ -36,7 +37,7 @@ interface PatientPickerProps {
  * componente não muda.
  */
 export function PatientPicker({
-  value, onChange, placeholder = 'Buscar paciente por nome, telefone ou CPF…',
+  value, onChange, className, placeholder = 'Buscar paciente por nome, telefone ou CPF…',
   disabled = false, lockedReason,
 }: PatientPickerProps) {
   const { data: patients = [], isLoading } = usePatients()
@@ -74,7 +75,7 @@ export function PatientPicker({
   }
 
   return (
-    <div className={styles.raiz} ref={ref}>
+    <div className={`${styles.raiz} ${className ?? ''}`} ref={ref}>
       <button
         type="button"
         className={styles.gatilho}
