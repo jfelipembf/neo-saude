@@ -48,7 +48,7 @@ function porDiaMaisRecente(atendimentos: AtendimentoResumo[]): AtendimentoResumo
  * antigo — o que o prompt já pedia, só que agora pronto em vez de exigido.
  */
 export function resumoUltimosAtendimentos(
-  atendimentos: AtendimentoResumo[], hoje: Date, limite = 3,
+  atendimentos: AtendimentoResumo[], limite = 3,
 ): string {
   const dias = porDiaMaisRecente(atendimentos).slice(0, limite)
   if (dias.length === 0) return 'Não encontrei atendimento anterior no histórico.'

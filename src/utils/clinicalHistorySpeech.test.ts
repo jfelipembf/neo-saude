@@ -1,15 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { resumoPorDente, resumoUltimosAtendimentos } from './clinicalHistorySpeech'
 
-const hoje = new Date(2026, 6, 26)
-
 function atendimento(data: string, achados: string[], extra?: Partial<{ descricao: string; tratamento: string; dentes: string[] }>) {
   return { data, achados, descricao: extra?.descricao, tratamento: extra?.tratamento, dentes: extra?.dentes ?? [] }
 }
 
 describe('resumoUltimosAtendimentos', () => {
   it('sem atendimento nenhum, diz que não encontrou', () => {
-    expect(resumoUltimosAtendimentos([], hoje)).toBe('Não encontrei atendimento anterior no histórico.')
+    expect(resumoUltimosAtendimentos([])).toBe('Não encontrei atendimento anterior no histórico.')
   })
 
   // O caso real: 5 gravações do MESMO dia (Michelle Dratovsky) viram UMA frase.
@@ -18,7 +16,7 @@ describe('resumoUltimosAtendimentos', () => {
       atendimento('2026-07-26', ['Dente 11: X'], { descricao: 'Exame clínico', dentes: ['11', '12'] }),
       atendimento('2026-07-26', ['Dente 11: X', 'Dente 12: Y'], { descricao: 'Exame clínico', dentes: ['11'] }),
       atendimento('2026-07-26', ['Dente 11: X'], { descricao: 'Exame clínico', dentes: ['11'] }),
-    ], hoje)
+    ])
     expect(r).toBe('dia 26/07: Exame clínico, 2 dentes tocados')
   })
 
@@ -26,7 +24,7 @@ describe('resumoUltimosAtendimentos', () => {
     const r = resumoUltimosAtendimentos([
       atendimento('2026-07-26', [], { descricao: 'Restauração 26', dentes: ['26'] }),
       atendimento('2026-07-26', [], { descricao: 'Exame clínico', dentes: ['11'] }),
-    ], hoje)
+    ])
     expect(r).toBe('dia 26/07: Restauração 26, 1 dente tocado')
   })
 
@@ -36,17 +34,17 @@ describe('resumoUltimosAtendimentos', () => {
       atendimento('2026-07-20', [], { descricao: 'B' }),
       atendimento('2026-06-01', [], { descricao: 'C' }),
       atendimento('2026-05-01', [], { descricao: 'D' }),
-    ], hoje, 3)
+    ], 3)
     expect(r).toBe('dia 26/07: A; dia 20/07: B; dia 01/06: C')
   })
 
   it('sem dentes tocados, não menciona contagem', () => {
-    const r = resumoUltimosAtendimentos([atendimento('2026-07-26', [], { descricao: 'Consulta' })], hoje)
+    const r = resumoUltimosAtendimentos([atendimento('2026-07-26', [], { descricao: 'Consulta' })])
     expect(r).toBe('dia 26/07: Consulta')
   })
 
   it('sem descrição nem tratamento, cai para "atendimento"', () => {
-    const r = resumoUltimosAtendimentos([atendimento('2026-07-26', [])], hoje)
+    const r = resumoUltimosAtendimentos([atendimento('2026-07-26', [])])
     expect(r).toBe('dia 26/07: atendimento')
   })
 })

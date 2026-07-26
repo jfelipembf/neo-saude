@@ -7,40 +7,32 @@
   max-width: 760px;
 }
 
-// ── Pareamento: QR à esquerda, instruções à direita ──────────────────────────
-.pareamento {
+.desconectado {
   display: flex;
-  align-items: flex-start;
-  gap: $sp-6;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-4;
 
   @include mobile {
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
   }
 }
 
-// Grid 21×21 do QR de demonstração (módulos são <span>, não SVG).
-.qr {
-  display: grid;
-  grid-template-columns: repeat(21, 1fr);
-  width: 200px;
-  height: 200px;
-  flex-shrink: 0;
-  padding: $sp-3;
-  border-radius: $radius-md;
-  border: 1px solid var(--glass-border);
-  background: #fff;   // QR só é legível sobre branco, mesmo no tema escuro
+.texto {
+  margin-top: $sp-1;
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+  line-height: 1.5;
 }
 
-.qrCheio {
-  background: #12211C;
-}
-
-.instrucoes {
+.modalQr,
+.sucesso {
   display: flex;
   flex-direction: column;
-  gap: $sp-3;
-  min-width: 0;
+  align-items: center;
+  gap: $sp-4;
+  text-align: center;
 }
 
 .passosTitulo {
@@ -50,34 +42,90 @@
 }
 
 .passos {
-  display: flex;
-  flex-direction: column;
-  gap: $sp-2;
+  width: 100%;
+  margin: 0;
   padding-left: $sp-4;
+  text-align: left;
   font-size: $fs-sm;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.7;
 
   strong { color: var(--text-primary); }
 }
 
-.aviso {
-  padding: $sp-3;
+.qrImagem {
+  display: block;
+  width: 224px;
+  height: 224px;
+  padding: $sp-2;
+  border: 1px solid var(--glass-border);
   border-radius: $radius-sm;
-  background: rgba($warning, 0.1);
-  border: 1px solid rgba($warning, 0.3);
-  font-size: $fs-xs;
+  background: #fff;
+  object-fit: contain;
+}
+
+.carregando {
+  display: flex;
+  min-height: 224px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: $sp-2;
   color: var(--text-secondary);
+  font-size: $fs-sm;
+}
+
+.erro {
+  width: 100%;
+  padding: $sp-3;
+  border: 1px solid rgba($danger, 0.35);
+  border-radius: $radius-sm;
+  background: rgba($danger, 0.08);
+  color: var(--text-primary);
+  font-size: $fs-sm;
   line-height: 1.5;
 }
 
-.acoes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: $sp-3;
+.codigo {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+
+  strong {
+    color: var(--text-primary);
+    letter-spacing: 0;
+  }
 }
 
-// ── Estado conectado ─────────────────────────────────────────────────────────
+.modalAcoes {
+  display: flex;
+  justify-content: center;
+}
+
+.sucesso {
+  padding: $sp-4 0;
+
+  h3 {
+    font-size: $fs-lg;
+    color: var(--text-primary);
+  }
+
+  p {
+    color: var(--text-secondary);
+    font-size: $fs-sm;
+  }
+}
+
+.sucessoIcone {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba($success, 0.14);
+  color: $success;
+}
+
 .conectado {
   display: flex;
   align-items: flex-end;

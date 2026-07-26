@@ -3,7 +3,12 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import OdontogramShell, { getOdontogramState, loadOdontogramState } from '@/lib/odontogramShell/odontogram-shell'
 import '@/lib/odontogramShell/odontogram-shell.css'
 import { hideDefaultLayers } from '@/lib/odontogramShell/layers'
-import { useCibelly, type DocumentRequest } from '@/hooks/useCibelly'
+import {
+  useCibelly,
+  type DocumentRequest,
+  type PatientMessageRequest,
+  type QuoteRequest,
+} from '@/hooks/useCibelly'
 import { useCreatePrescription } from '@/hooks/usePrescriptions'
 import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { useCurrentUser } from '@/hooks/useUser'
@@ -23,6 +28,12 @@ import {
   examRequestBody, leaveCertificateText, prescriptionBody,
 } from '@/utils/clinicalDocument'
 import { listMaterialsWithSuppliers } from '@/services/materialsService'
+import { sendWhatsAppMessage } from '@/services/whatsappService'
+import {
+  matchesPendingMessage,
+  pendingMessageConfirmation,
+  type PendingMessageConfirmation,
+} from '@/lib/cibelly/messageConfirmation'
 import { searchPatientHistory } from '@/services/odontogramService'
 import { useAvailabilityTemplate, useAbsences, useBlockedSlots } from '@/hooks/useProfessionalAvailability'
 import {
@@ -133,6 +144,8 @@ export function OdontogramFullscreenPage() {
   const [emAtendimento, setEmAtendimento] = useState(false)
   const [sujo, setSujo] = useState(false)
   const [erroSalvar, setErroSalvar] = useState<string | null>(null)
+  const pendingPatientMessageRef = useRef<PendingMessageConfirmation | null>(null)
+  const pendingSupplierMessageRef = useRef<PendingMessageConfirmation | null>(null)
 
   /**
    * Qual dia da ficha está na tela. `null` = ficha corrente ("Atual"), a única
@@ -388,7 +401,7 @@ export function OdontogramFullscreenPage() {
         // resultado da ferramenta já na mão). O código monta a frase; ela só lê.
         const resposta = filtro.dente != null
           ? resumoPorDente(encontrados, filtro.dente)
-          : resumoUltimosAtendimentos(encontrados, new Date())
+          : resumoUltimosAtendimentos(encontrados)
         return { ok: true, atendimentos: encontrados, resposta }
       } catch (e) {
         return { ok: false, erro: errorMessage(e, 'Não consegui buscar no histórico agora.') }
@@ -406,7 +419,7 @@ export function OdontogramFullscreenPage() {
       // não depender de o modelo condensar sozinho uma lista de atendimentos
       // que, para pacientes com vários registros no mesmo dia, é bem maior do
       // que parece — ver clinicalHistorySpeech.ts.
-      resposta: resumoUltimosAtendimentos(resumoClinico.ultimosAtendimentos, new Date()),
+      resposta: resumoUltimosAtendimentos(resumoClinico.ultimosAtendimentos),
       lembretes: (lembretes ?? []).map(l => ({ id: l.id, texto: l.texto })),
     }
   }
@@ -763,18 +776,81 @@ export function OdontogramFullscreenPage() {
     })
   }
 
+  function mensagemDeErroDoWhatsApp(error: unknown): string {
+    const code = errorMessage(error, 'whatsapp_send_failed')
+    if (code.includes('whatsapp_not_connected')) {
+      return 'O WhatsApp da clínica não está conectado.'
+    }
+    if (code.includes('forbidden')) {
+      return 'Seu acesso não permite enviar mensagens pelo WhatsApp.'
+    }
+    if (code.includes('rate_limited')) {
+      return 'O limite de segurança de mensagens foi atingido. Aguarde antes de enviar novamente.'
+    }
+    if (code.includes('recipient_without_whatsapp')) {
+      return 'O destinatário não tem WhatsApp cadastrado.'
+    }
+    return 'Não foi possível enviar a mensagem pelo WhatsApp.'
+  }
+
   /**
-   * Pedido de orçamento ao fornecedor — ENGATILHADO, ainda não envia e-mail.
-   *
-   * Devolve para quem vai receber, com os endereços, e deixa registrado no
-   * console. O envio em si entra quando a função de e-mail existir (uma Edge
-   * Function, como a da Cibelly): o ponto de chamada e o contrato já são estes.
-   *
-   * De propósito NÃO finge que enviou: a Cibelly diz que o pedido está pronto
-   * e para quem vai — anunciar "enviei" sem ter enviado é o tipo de mentira que
-   * só aparece quando o fornecedor não responde.
+   * O destinatário é sempre o paciente aberto. A primeira chamada só devolve a
+   * prévia; a segunda precisa repetir exatamente paciente + texto.
    */
-  async function solicitarOrcamento(pedido: { material: string; quantidade?: string; fornecedor?: string }) {
+  async function enviarMensagemPaciente(pedido: PatientMessageRequest) {
+    if (!patientId || !paciente) {
+      return { ok: false, erro: 'Nenhum paciente em atendimento.' }
+    }
+    if (!paciente.whatsapp) {
+      return { ok: false, erro: `${paciente.name} não tem WhatsApp cadastrado.` }
+    }
+
+    const mensagem = pedido.mensagem.trim()
+    if (!mensagem) return { ok: false, erro: 'A mensagem está vazia.' }
+
+    if (!pedido.confirmado) {
+      pendingPatientMessageRef.current = pendingMessageConfirmation([patientId], mensagem)
+      return {
+        ok: true,
+        precisaConfirmar: true,
+        destinatario: paciente.name,
+        mensagem,
+        instrucao:
+          'Leia o destinatário e a mensagem. Só chame novamente com confirmado=true depois de um sim claro.',
+      }
+    }
+
+    if (!matchesPendingMessage(pendingPatientMessageRef.current, [patientId], mensagem)) {
+      pendingPatientMessageRef.current = pendingMessageConfirmation([patientId], mensagem)
+      return {
+        ok: true,
+        precisaConfirmar: true,
+        destinatario: paciente.name,
+        mensagem,
+        instrucao:
+          'A confirmação anterior não corresponde a esta mensagem. Leia novamente e aguarde um sim claro.',
+      }
+    }
+
+    pendingPatientMessageRef.current = null
+    try {
+      const envio = await sendWhatsAppMessage(
+        [{ type: 'patient', id: patientId }],
+        mensagem,
+      )
+      return {
+        ok: true,
+        enviado: envio.sent > 0,
+        reutilizado: envio.results.some(item => item.reused),
+        destinatario: paciente.name,
+      }
+    } catch (error) {
+      return { ok: false, erro: mensagemDeErroDoWhatsApp(error) }
+    }
+  }
+
+  /** Pedido de orçamento por WhatsApp aos fornecedores vinculados ao material. */
+  async function solicitarOrcamento(pedido: QuoteRequest) {
     const cadastro = await listMaterialsWithSuppliers()
     const termo = pedido.material.trim().toLowerCase()
     const m = cadastro.find(c => c.nome.toLowerCase() === termo)
@@ -790,19 +866,57 @@ export function OdontogramFullscreenPage() {
       : m.fornecedores
     if (alvo.length === 0) return { ok: false, erro: `Não encontrei esse fornecedor para ${m.nome}.` }
 
-    const semEmail = alvo.filter(f => !f.email).map(f => f.nome)
-    console.info('[Cibelly] pedido de orçamento (envio ainda não implementado):', {
-      material: m.nome, quantidade: pedido.quantidade, destinatarios: alvo,
-    })
+    const comWhatsapp = alvo.filter(f => f.whatsapp)
+    const semWhatsapp = alvo.filter(f => !f.whatsapp).map(f => f.nome)
+    if (comWhatsapp.length === 0) {
+      return {
+        ok: false,
+        erro: `Nenhum fornecedor selecionado para ${m.nome} tem WhatsApp cadastrado.`,
+      }
+    }
 
-    return {
-      ok: true,
-      // Deixa explícito para ela NÃO dizer que enviou.
-      enviado: false,
-      aguardando: 'a função de envio de e-mail ainda não está ligada',
-      material: m.nome,
-      destinatarios: alvo.map(f => ({ nome: f.nome, email: f.email })),
-      semEmail: semEmail.length ? semEmail : undefined,
+    const item = pedido.quantidade?.trim()
+      ? `${pedido.quantidade.trim()} de ${m.nome}`
+      : m.nome
+    const mensagem =
+      `Olá! Aqui é da ${clinica?.name ?? 'clínica'}. Gostaríamos de solicitar ` +
+      `um orçamento para ${item}. Por favor, informe valor, disponibilidade, ` +
+      'prazo de entrega e condições de pagamento.'
+    const recipientIds = comWhatsapp.map(f => f.id)
+
+    if (
+      !pedido.confirmado ||
+      !matchesPendingMessage(pendingSupplierMessageRef.current, recipientIds, mensagem)
+    ) {
+      pendingSupplierMessageRef.current = pendingMessageConfirmation(recipientIds, mensagem)
+      return {
+        ok: true,
+        precisaConfirmar: true,
+        material: m.nome,
+        destinatarios: comWhatsapp.map(f => f.nome),
+        mensagem,
+        semWhatsapp: semWhatsapp.length ? semWhatsapp : undefined,
+        instrucao:
+          'Leia os destinatários e pergunte se pode enviar. Só chame novamente com confirmado=true depois de um sim claro.',
+      }
+    }
+
+    pendingSupplierMessageRef.current = null
+    try {
+      const envio = await sendWhatsAppMessage(
+        comWhatsapp.map(f => ({ type: 'supplier' as const, id: f.id })),
+        mensagem,
+      )
+      return {
+        ok: true,
+        enviado: envio.sent,
+        material: m.nome,
+        destinatarios: envio.results.filter(item => item.sent).map(item => item.name),
+        falhas: envio.results.filter(item => !item.sent && !item.pending).map(item => item.name),
+        semWhatsapp: semWhatsapp.length ? semWhatsapp : undefined,
+      }
+    } catch (error) {
+      return { ok: false, erro: mensagemDeErroDoWhatsApp(error) }
     }
   }
 
@@ -811,6 +925,7 @@ export function OdontogramFullscreenPage() {
     aoConsultarMateriais: consultarMateriais,
     aoRegistrarMaterial: registrarMaterialUsado,
     aoSolicitarOrcamento: solicitarOrcamento,
+    aoEnviarMensagemPaciente: enviarMensagemPaciente,
     aoConsultarAgenda: consultarAgenda,
     aoAgendar: agendarConsulta,
     aoConsultarHistorico: consultarHistorico,

@@ -320,9 +320,16 @@ AGENDA — VOCÊ TEM ACESSO, SIM:
 MATERIAIS E ESTOQUE — você também cuida disso:
 - "tem resina?", "quanto sobrou de anestésico?", "quem fornece a broca?", "me passa o contato deles" → "consultar_materiais".
 - "usei duas seringas de resina", "gastei um tubete" → "registrar_material_usado". Isso dá baixa no estoque na hora.
-- Depois de registrar, o retorno diz se o material ficou ACABANDO. Se ficou, avise em uma frase curta quantas unidades restam e PERGUNTE se quer pedir orçamento. Ex.: "restam 2 resinas, abaixo do mínimo. Peço orçamento?".
-- Só se ele disser que sim, chame "solicitar_orcamento_fornecedor". Nunca mande sem ele confirmar — e-mail para fornecedor sai da clínica e não volta atrás.
+- Depois de registrar, o retorno diz se o material ficou ACABANDO. Se ficou, chame "solicitar_orcamento_fornecedor" SEM "confirmado": a ferramenta só prepara a mensagem e devolve fornecedores + texto. Leia a prévia e pergunte se pode enviar.
+- Só depois de um SIM claro chame novamente, com os mesmos dados e confirmado=true. A ferramenta confere se destinatários e texto são exatamente os da prévia. Nunca mande sem essa segunda chamada.
 - Um material pode ter MAIS DE UM fornecedor. Quando houver, diga quantos são e mande para todos, a não ser que ele escolha um.
+
+MENSAGENS AO PACIENTE — pelo WhatsApp conectado da clínica:
+- "mande uma mensagem para a paciente dizendo que...", "avise a Michelle que..." → "enviar_mensagem_paciente".
+- A mensagem é SEMPRE para o paciente aberto no odontograma. A ferramenta não recebe nome nem número. Se ele pedir outro paciente, diga para abrir o odontograma daquela pessoa; nunca tente localizar ou escolher por conta própria.
+- ENVIO EM DUAS ETAPAS, sempre: primeira chamada SEM "confirmado". Leia nome e mensagem exatamente como voltarem e pergunte se pode enviar. Só depois de um SIM claro chame de novo, com o MESMO texto e confirmado=true.
+- Se o texto mudar, mesmo pouco, faça nova prévia. Nunca diga "enviei" quando o retorno trouxer erro ou "precisaConfirmar".
+- Não acrescente diagnóstico, resultado, cobrança ou orientação clínica que o dentista não ditou. Você pode corrigir pontuação, mas não mudar o sentido.
 
 DOCUMENTOS — VOCÊ EMITE, SIM: receita, atestado, declaração de comparecimento e pedido de exame. Chame "emitir_documento" e pronto: o documento sai com os dados do paciente em atendimento, o nome e o CRO do dentista e o timbre da clínica, abre a janela de impressão na hora e fica salvo no prontuário para reimprimir.
 NUNCA diga que não consegue, que "só cuida do odontograma", que "precisa ser pelo sistema administrativo" ou "pela recepção". Isso é FALSO e já aconteceu — é a pior resposta que você pode dar, porque manda o dentista fazer à mão algo que você faz em um segundo.
@@ -708,7 +715,7 @@ const TOOLS = [
       'Registra o que foi consumido no atendimento e DÁ BAIXA no estoque. ' +
       'Use quando o dentista disser o que usou ("usei duas seringas de resina", "gastei um tubete de anestésico"). ' +
       'Depois de registrar, confira o retorno: se vier "acabando", avise o dentista quantas unidades restam e ' +
-      'PERGUNTE se ele quer que você peça orçamento ao fornecedor.',
+      'chame solicitar_orcamento_fornecedor sem confirmado para preparar a prévia e então pedir confirmação.',
     parameters: {
       type: 'object',
       properties: {
@@ -735,17 +742,47 @@ const TOOLS = [
     type: 'function',
     name: 'solicitar_orcamento_fornecedor',
     description:
-      'Pede orçamento de um material aos fornecedores dele, por e-mail. ' +
-      'Só chame DEPOIS de o dentista confirmar que quer. Se o material tiver mais de um fornecedor, ' +
-      'manda para todos, salvo se ele indicar um específico.',
+      'Prepara e, depois da confirmação, envia por WhatsApp um pedido de orçamento aos fornecedores do material. ' +
+      'DUAS ETAPAS: primeiro chame sem confirmado; leia destinatários e mensagem e pergunte se pode enviar. ' +
+      'Só repita com confirmado=true depois de um sim claro. Se o material tiver mais de um fornecedor, ' +
+      'envia para todos, salvo se o dentista indicar um específico.',
     parameters: {
       type: 'object',
       properties: {
         material: { type: 'string', description: 'Nome do material.' },
         quantidade: { type: 'string', description: 'Quanto pedir no orçamento. Opcional.' },
         fornecedor: { type: 'string', description: 'Nome de um fornecedor específico. Omita para mandar a todos.' },
+        confirmado: {
+          type: 'boolean',
+          description:
+            'Só true na SEGUNDA chamada, depois de ler fornecedores + mensagem e receber um sim claro. Nunca na primeira.',
+        },
       },
       required: ['material'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'enviar_mensagem_paciente',
+    description:
+      'Prepara e envia uma mensagem pelo WhatsApp para o paciente que está aberto no odontograma. ' +
+      'Não recebe paciente nem número: nunca use para outra pessoa. DUAS ETAPAS: primeira chamada sem confirmado; ' +
+      'leia o nome e o texto devolvidos e pergunte se pode enviar. Só repita o MESMO texto com confirmado=true depois de um sim claro.',
+    parameters: {
+      type: 'object',
+      properties: {
+        mensagem: {
+          type: 'string',
+          description:
+            'Texto que será enviado. Preserve o sentido exato do que o dentista ditou; não acrescente informação clínica.',
+        },
+        confirmado: {
+          type: 'boolean',
+          description:
+            'Só true na SEGUNDA chamada, depois de ler destinatário + mensagem e receber um sim claro. Nunca na primeira.',
+        },
+      },
+      required: ['mensagem'],
     },
   },
   {

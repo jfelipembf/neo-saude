@@ -225,6 +225,12 @@ export interface QuoteRequest {
   material: string
   quantidade?: string
   fornecedor?: string
+  confirmado?: boolean
+}
+
+export interface PatientMessageRequest {
+  mensagem: string
+  confirmado?: boolean
 }
 
 interface CibellyHandlers {
@@ -240,6 +246,8 @@ interface CibellyHandlers {
   aoRegistrarMaterial?: (materiais: MaterialUsage[]) => Promise<unknown>
   /** Dispara o pedido de orçamento ao fornecedor. */
   aoSolicitarOrcamento?: (pedido: QuoteRequest) => Promise<unknown>
+  /** Confere e envia uma mensagem ao paciente que está aberto na tela. */
+  aoEnviarMensagemPaciente?: (pedido: PatientMessageRequest) => Promise<unknown>
   /** Horários livres / se um horário específico serve. */
   aoConsultarAgenda?: (p: { data?: string; hora?: string; duracao?: number; dias?: number }) => Promise<unknown>
   /** Cancela uma consulta já marcada do paciente — em duas etapas (ver `confirmado`). */
@@ -913,9 +921,35 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         valeFalar = true
       } else if (nome === 'solicitar_orcamento_fornecedor') {
         const solicitar = handlersRef.current.aoSolicitarOrcamento
-        resultado = solicitar
-          ? { ok: true, pedido: await solicitar(args as unknown as QuoteRequest) }
-          : { ok: false, erro: 'Não consegui preparar o pedido de orçamento.' }
+        if (!solicitar) {
+          resultado = { ok: false, erro: 'Não consegui preparar o pedido de orçamento.' }
+        } else {
+          const pedido = await solicitar(args as unknown as QuoteRequest)
+          const falha = pedido && typeof pedido === 'object'
+            && (pedido as { ok?: boolean }).ok === false
+          resultado = falha
+            ? {
+              ok: false,
+              erro: (pedido as { erro?: string }).erro ?? 'Não consegui enviar o pedido de orçamento.',
+            }
+            : { ok: true, pedido }
+        }
+        valeFalar = true
+      } else if (nome === 'enviar_mensagem_paciente') {
+        const enviar = handlersRef.current.aoEnviarMensagemPaciente
+        if (!enviar) {
+          resultado = { ok: false, erro: 'Não há paciente em atendimento para receber a mensagem.' }
+        } else {
+          const envio = await enviar(args as unknown as PatientMessageRequest)
+          const falha = envio && typeof envio === 'object'
+            && (envio as { ok?: boolean }).ok === false
+          resultado = falha
+            ? {
+              ok: false,
+              erro: (envio as { erro?: string }).erro ?? 'Não consegui enviar a mensagem.',
+            }
+            : { ok: true, envio }
+        }
         valeFalar = true
       } else if (nome === 'cancelar_consulta') {
         const cancelar = handlersRef.current.aoCancelarConsulta

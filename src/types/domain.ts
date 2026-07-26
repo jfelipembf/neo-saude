@@ -661,8 +661,10 @@ export interface WhatsAppConnection {
   status: WhatsAppStatus
   phoneNumber?: string        // (79) 99999-0000 — preenchido quando conectado
   connectedAt?: string   // dd/mm/aaaa HH:mm
-  /** Conteúdo do QR de pareamento (mock: string qualquer que vira o desenho). */
+  /** Imagem data URL devolvida pela Evolution API. */
   qrCode?: string
+  qrExpiresAt?: string
+  lastError?: string
 }
 
 /** Momento que dispara a mensagem automática. */
