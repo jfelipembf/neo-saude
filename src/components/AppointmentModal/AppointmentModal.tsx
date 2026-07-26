@@ -13,7 +13,7 @@ import { useToast } from '@/components/Toast/Toast'
 import { SCHEDULE_TAGS } from '@/constants'
 import {
   useCreateScheduleAppointment, useScheduleAppointments, useUpdateScheduleAppointment,
-  useUpdateClinicalNote,
+  useSendAppointmentConfirmation, useUpdateClinicalNote,
 } from '@/hooks/useSchedule'
 import { useAppointmentAttachments, useDeleteDocument, useUploadDocument } from '@/hooks/useDocuments'
 import { usePatients } from '@/hooks/usePatients'
@@ -102,6 +102,19 @@ const SITUACAO_TOAST: Record<AppointmentStatus, string> = {
   canceled:   'Consulta cancelada.',
 }
 
+function confirmationFailureMessage(reason?: string) {
+  const messages: Record<string, string> = {
+    automation_inactive: 'a automação “Após o agendamento” está inativa',
+    whatsapp_not_connected: 'o WhatsApp da clínica não está conectado',
+    recipient_without_whatsapp: 'o paciente não possui um WhatsApp válido',
+    invalid_phone: 'o telefone do paciente é inválido',
+    clinic_rate_limited: 'o limite temporário de mensagens da clínica foi atingido',
+    recipient_rate_limited: 'esse paciente recebeu muitas mensagens recentemente',
+    confirmation_disabled: 'a confirmação está desativada para essa consulta',
+  }
+  return messages[reason ?? ''] ?? 'houve uma falha no envio pelo WhatsApp'
+}
+
 /** Duração (min) entre '07:30' e '08:00' — para editar uma sessão existente. */
 function durationBetween(start: string, end: string) {
   const [startH, startM] = start.split(':').map(Number)
@@ -138,6 +151,8 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
   const { data: rooms } = useRooms()
   const { mutate: create, isPending: creating } = useCreateScheduleAppointment()
   const { mutate: update, isPending: saving } = useUpdateScheduleAppointment()
+  const { mutate: sendConfirmation, isPending: sendingConfirmation } =
+    useSendAppointmentConfirmation()
   const { mutate: saveNote, isPending: savingNote } = useUpdateClinicalNote()
 
   const patientName = usePatientName()
@@ -392,34 +407,56 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
   function submitAppointment() {
     // Salvar mantém a situação atual (a situação muda pelos botões dedicados).
     const payload = buildPayload(status)
-    const options = {
-      onSuccess: () => {
-        // O prontuário tem botão próprio, mas quem aperta "Salvar"
-        // espera que o modal INTEIRO seja salvo — fechar aqui com evolução
-        // digitada e não salva era o mesmo texto perdido do confirmOnClose.
-        if (slot && noteDirty) {
-          saveNote(
-            { appointmentId: slot.id, note: noteToSave, patientId: slot.patientId },
-            {
-              onSuccess: () => { toast.success('Agendamento e prontuário salvos!'); onClose() },
-              // A consulta já foi salva; só o prontuário falhou. O modal fica
-              // aberto com o texto na tela em vez de fechar e descartá-lo.
-              onError: (e: unknown) => setError(userMessage(e, 'A consulta foi salva, mas o prontuário não. Tente salvar o prontuário novamente.')),
-            },
+    const onError = (e: unknown) =>
+      setError(userMessage(e, 'Não foi possível salvar a consulta. Tente novamente.'))
+
+    if (slot) {
+      update({ id: slot.id, payload }, {
+        onSuccess: () => {
+          // O prontuário tem botão próprio, mas quem aperta "Salvar"
+          // espera que o modal INTEIRO seja salvo — fechar aqui com evolução
+          // digitada e não salva era o mesmo texto perdido do confirmOnClose.
+          if (noteDirty) {
+            saveNote(
+              { appointmentId: slot.id, note: noteToSave, patientId: slot.patientId },
+              {
+                onSuccess: () => { toast.success('Agendamento e prontuário salvos!'); onClose() },
+                // A consulta já foi salva; só o prontuário falhou. O modal fica
+                // aberto com o texto na tela em vez de fechar e descartá-lo.
+                onError: (e: unknown) => setError(userMessage(e, 'A consulta foi salva, mas o prontuário não. Tente salvar o prontuário novamente.')),
+              },
+            )
+            return
+          }
+          toast.success('Agendamento atualizado!')
+          onClose()
+        },
+        onError,
+      })
+      return
+    }
+
+    create(payload, {
+      onSuccess: created => {
+        if (created.confirmation.status === 'sent') {
+          toast.success('Consulta agendada e confirmação enviada!')
+        } else if (created.confirmation.status === 'pending') {
+          toast.info('Consulta agendada. A confirmação já está em processamento.')
+        } else {
+          toast.info(
+            `Consulta agendada, mas a confirmação não foi enviada porque ${
+              confirmationFailureMessage(created.confirmation.reason)
+            }.`,
           )
-          return
         }
-        toast.success(slot ? 'Agendamento atualizado!' : 'Consulta agendada!')
         onClose()
       },
       // A sala é trava real de banco (exclude using gist — ver
       // appointment_room_overlap_ex): duas consultas ativas não cabem na
       // mesma sala no mesmo horário. userMessage traduz o erro da constraint;
       // o modal fica aberto com o aviso em vez de fechar como se tivesse dado certo.
-      onError: (e: unknown) => setError(userMessage(e, 'Não foi possível salvar a consulta. Tente novamente.')),
-    }
-    if (slot) update({ id: slot.id, payload }, options)
-    else create(payload, options)
+      onError,
+    })
   }
 
   /**
@@ -542,6 +579,33 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
       confirmOnCloseMessage="O que você escreveu no prontuário desta sessão ainda não foi salvo. Fechar agora descarta a evolução."
       footer={requestClose => (
         <>
+          {slot && !canceled && (
+            <Button
+              variant="ghost"
+              iconLeft={<IconWhatsApp />}
+              loading={sendingConfirmation}
+              onClick={() => sendConfirmation(slot.id, {
+                onSuccess: result => {
+                  if (result.status === 'sent') {
+                    toast.success(
+                      result.reused
+                        ? 'A confirmação desta consulta já foi enviada.'
+                        : 'Confirmação enviada pelo WhatsApp!',
+                    )
+                  } else if (result.status === 'pending') {
+                    toast.info('A confirmação já está em processamento.')
+                  } else {
+                    toast.error(
+                      `Não foi possível enviar: ${confirmationFailureMessage(result.reason)}.`,
+                    )
+                  }
+                },
+                onError: () => toast.error('Não foi possível solicitar o envio da confirmação.'),
+              })}
+            >
+              Enviar confirmação
+            </Button>
+          )}
           {/* WhatsApp: abre a conversa com o paciente (usa o WhatsApp se houver,
               senão o telefone). Substitui o antigo seletor de confirmação. */}
           {currentPatient && (currentPatient.whatsapp || currentPatient.phone) && (

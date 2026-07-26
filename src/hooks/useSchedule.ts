@@ -3,6 +3,7 @@ import { queryKeys } from '@/lib/queryKeys'
 import {
   addScheduleAppointment,
   listScheduleAppointments,
+  sendAppointmentConfirmation,
   updateScheduleAppointment,
   updateClinicalNote,
 } from '@/services/scheduleService'
@@ -35,6 +36,14 @@ export function useCreateScheduleAppointment() {
         queryClient.invalidateQueries({ queryKey: queryKeys.entitlements.byPatient(payload.patientId) })
       }
     },
+  })
+}
+
+/** Envia ou repete uma confirmação que ainda não tenha sido entregue. */
+export function useSendAppointmentConfirmation() {
+  return useMutation({
+    mutationFn: (appointmentId: string) =>
+      sendAppointmentConfirmation(appointmentId, true),
   })
 }
 

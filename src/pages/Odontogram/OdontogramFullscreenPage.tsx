@@ -697,8 +697,9 @@ export function OdontogramFullscreenPage() {
       }
     }
 
+    let confirmacaoWhatsapp: { status: string; reason?: string } | undefined
     try {
-      await agendar.mutateAsync({
+      const criada = await agendar.mutateAsync({
         patientId,
         professionalId: profId,
         activity: p.servico?.trim() || 'Consulta',
@@ -709,6 +710,7 @@ export function OdontogramFullscreenPage() {
         isOverbook: p.encaixe ?? false,
         room: escolha.room,
       })
+      confirmacaoWhatsapp = criada.confirmation
     } catch (e) {
       // A trava do banco (agenda dupla, sala ocupada) chega aqui — o texto dela
       // é mais preciso que qualquer coisa que eu inventasse.
@@ -725,6 +727,7 @@ export function OdontogramFullscreenPage() {
       distancia: distanciaDeHoje(p.data, hojeIso),
       sala: escolha.room,
       encaixe: p.encaixe ?? false,
+      confirmacaoWhatsapp,
     }
   }
 
