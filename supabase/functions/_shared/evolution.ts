@@ -1,3 +1,5 @@
+import { normalizeBrazilianWhatsappNumber } from "../../../src/utils/whatsappNumber.ts";
+
 const EVOLUTION_URL = (Deno.env.get("EVOLUTION_API_URL") ?? "").replace(
   /\/+$/,
   "",
@@ -218,10 +220,7 @@ export async function connectEvolutionInstance(
 }
 
 export function normalizeWhatsappNumber(value: string): string | null {
-  const digits = value.replace(/\D/g, "");
-  if (digits.length === 10 || digits.length === 11) return `55${digits}`;
-  if (digits.length >= 12 && digits.length <= 15) return digits;
-  return null;
+  return normalizeBrazilianWhatsappNumber(value);
 }
 
 export async function sendEvolutionText(

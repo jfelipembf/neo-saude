@@ -46,12 +46,14 @@ export class CibellyAgent {
       return { ok: false, erro: `Ferramenta desconhecida: ${name}` }
     }
 
-    return executors[agent.domain]({
+    const result = await executors[agent.domain]({
       agent,
       name,
       definition,
       args,
     })
+    this.orchestrator.observeToolResult(name, args, result)
+    return result
   }
 }
 

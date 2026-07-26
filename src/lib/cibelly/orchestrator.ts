@@ -26,6 +26,22 @@ export interface OrchestratorSnapshot {
 
 export type FollowUpClaim = 'claimed' | 'blocked' | 'exhausted'
 
+export interface PendingToolConfirmation {
+  name: string
+  args: Record<string, unknown>
+}
+
+const TOOL_CONFIRMATION_TTL_MS = 2 * 60_000
+
+function resultNeedsConfirmation(value: unknown, depth = 0): boolean {
+  if (!value || typeof value !== 'object' || depth > 3) return false
+  if ((value as { precisaConfirmar?: unknown }).precisaConfirmar === true) {
+    return true
+  }
+  return Object.values(value).some(child =>
+    resultNeedsConfirmation(child, depth + 1))
+}
+
 export function isActiveResponseConflict(message: string): boolean {
   return /active response in progress/i.test(message)
 }
@@ -43,6 +59,9 @@ export class CibellyOrchestrator {
   private followUpRequested = false
   private followUpAttempts = 0
   private processedCallIds = new Set<string>()
+  private pendingConfirmation: (PendingToolConfirmation & {
+    expiresAt: number
+  }) | null = null
   private readonly maxFollowUpAttempts: number
 
   constructor(maxFollowUpAttempts = 3) {
@@ -63,6 +82,40 @@ export class CibellyOrchestrator {
 
   getAgentForTool(name: string): CibellySpecialistAgent | null {
     return getSpecialistAgentByTool(name)
+  }
+
+  get pendingConfirmationToolName(): string | null {
+    return this.pendingConfirmation?.name ?? null
+  }
+
+  observeToolResult(
+    name: string,
+    args: Record<string, unknown>,
+    result: Record<string, unknown>,
+    now = Date.now(),
+  ) {
+    const definition = this.getTool(name)
+    if (definition?.confirmation !== 'tool_managed') return
+
+    if (resultNeedsConfirmation(result)) {
+      this.pendingConfirmation = {
+        name,
+        args: { ...args, confirmado: true },
+        expiresAt: now + TOOL_CONFIRMATION_TTL_MS,
+      }
+      return
+    }
+
+    if (args.confirmado === true && this.pendingConfirmation?.name === name) {
+      this.pendingConfirmation = null
+    }
+  }
+
+  claimPendingConfirmation(now = Date.now()): PendingToolConfirmation | null {
+    const pending = this.pendingConfirmation
+    this.pendingConfirmation = null
+    if (!pending || pending.expiresAt < now) return null
+    return { name: pending.name, args: pending.args }
   }
 
   get snapshot(): OrchestratorSnapshot {
@@ -91,6 +144,7 @@ export class CibellyOrchestrator {
     this.followUpRequested = false
     this.followUpAttempts = 0
     this.processedCallIds.clear()
+    this.pendingConfirmation = null
   }
 
   responseStarted() {

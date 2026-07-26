@@ -20,6 +20,7 @@ import {
   type CibellySpecialistExecutors,
   type DelegatedToolCall,
 } from '@/lib/cibelly/cibellyAgent'
+import { isClearAffirmativeConfirmation } from '@/lib/cibelly/confirmationIntent'
 import { isActiveResponseConflict } from '@/lib/cibelly/orchestrator'
 
 /**
@@ -101,7 +102,16 @@ interface RealtimeFunctionCall {
   arguments: string
 }
 
+interface ConfirmationVoiceTurn {
+  id: string
+  text: string
+  responseDone: boolean
+  toolCalled: boolean
+  fallbackStarted: boolean
+}
+
 const FOLLOW_UP_ACK_TIMEOUT_MS = 5_000
+const CONFIRMATION_FALLBACK_DELAY_MS = 400
 
 /** `response.function_call_arguments.done` dispara por item; `response.done`
  *  é o evento "guarda-chuva" ao final de cada turno, com TODOS os itens da
@@ -406,6 +416,9 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
     atividadeRef.current = []
     let cancelled = false
     let followUpAckTimer = 0
+    let confirmationFallbackTimer = 0
+    let confirmationVoiceTurn: ConfirmationVoiceTurn | null = null
+    let geminiTurnSequence = 0
     // Lido uma vez, na abertura: trocar de provedor no meio de um atendimento
     // não faz sentido, e a URL é a mesma a sessão inteira.
     const provedor = provedorEscolhido()
@@ -466,6 +479,121 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       sincronizarProcessamento()
     }
 
+    function clearConfirmationFallbackTimer() {
+      if (!confirmationFallbackTimer) return
+      window.clearTimeout(confirmationFallbackTimer)
+      confirmationFallbackTimer = 0
+    }
+
+    function beginConfirmationVoiceTurn(id: string, text = '') {
+      clearConfirmationFallbackTimer()
+      confirmationVoiceTurn = {
+        id,
+        text,
+        responseDone: false,
+        toolCalled: false,
+        fallbackStarted: false,
+      }
+    }
+
+    function setConfirmationVoiceText(id: string, text: string) {
+      if (!confirmationVoiceTurn || confirmationVoiceTurn.id !== id) {
+        beginConfirmationVoiceTurn(id)
+      }
+      if (!confirmationVoiceTurn) return
+      confirmationVoiceTurn.text = text
+      scheduleConfirmationFallback()
+    }
+
+    function finishConfirmationVoiceTurn() {
+      if (!confirmationVoiceTurn) return
+      confirmationVoiceTurn.responseDone = true
+      scheduleConfirmationFallback()
+    }
+
+    function markConfirmationToolCall(name: string) {
+      if (!confirmationVoiceTurn
+          || name !== orchestrator.pendingConfirmationToolName) return
+      confirmationVoiceTurn.toolCalled = true
+      clearConfirmationFallbackTimer()
+    }
+
+    function scheduleConfirmationFallback() {
+      clearConfirmationFallbackTimer()
+      const turn = confirmationVoiceTurn
+      if (!turn?.responseDone
+          || turn.toolCalled
+          || turn.fallbackStarted
+          || !isClearAffirmativeConfirmation(turn.text)
+          || !orchestrator.pendingConfirmationToolName) return
+
+      confirmationFallbackTimer = window.setTimeout(() => {
+        confirmationFallbackTimer = 0
+        void executePendingConfirmation(turn)
+      }, CONFIRMATION_FALLBACK_DELAY_MS)
+    }
+
+    async function executePendingConfirmation(turn: ConfirmationVoiceTurn) {
+      if (cancelled
+          || confirmationVoiceTurn !== turn
+          || turn.toolCalled
+          || turn.fallbackStarted) return
+
+      const pending = orchestrator.claimPendingConfirmation()
+      if (!pending) return
+      turn.fallbackStarted = true
+
+      const [call] = orchestrator.claimToolCalls([{
+        call_id: `confirmation-${turn.id}-${pending.name}`,
+        name: pending.name,
+        arguments: JSON.stringify(pending.args),
+      }])
+      if (!call) return
+      sincronizarProcessamento()
+
+      let resultado: Record<string, unknown>
+      try {
+        resultado = await executarFerramenta(pending.name, pending.args)
+      } catch (error) {
+        resultado = {
+          ok: false,
+          erro: errorMessage(error, 'Não consegui concluir esta ação.'),
+        }
+      }
+      registrar({
+        tipo: 'ferramenta',
+        texto: pending.name,
+        args: JSON.stringify(pending.args),
+        resultado: JSON.stringify(resultado),
+      })
+
+      const prompt =
+        '[CONFIRMAÇÃO EXECUTADA PELO ORQUESTRADOR] A confirmação do dentista '
+        + `já executou ${pending.name}. Resultado: ${JSON.stringify(resultado)}. `
+        + 'Não chame a ferramenta novamente. Responda somente o resultado final em português.'
+
+      if (provedor === 'gemini') {
+        orchestrator.finishTool(pending.name, resultado, false)
+        geminiRef.current?.enviarTexto(prompt)
+        return
+      }
+
+      const dc = dcRef.current
+      if (dc?.readyState === 'open') {
+        dc.send(JSON.stringify({
+          type: 'conversation.item.create',
+          item: {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: prompt }],
+          },
+        }))
+      }
+      orchestrator.finishTool(pending.name, resultado)
+      sincronizarProcessamento()
+      continuarQuandoPronto()
+    }
+
     async function connect() {
       setStatus('connecting')
       setError(null)
@@ -524,7 +652,12 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
             aoFalar: texto => registrar({ tipo: 'fala', texto }),
             aoOuvir: texto => {
               registrar({ tipo: 'dentista', texto })
+              beginConfirmationVoiceTurn(
+                `gemini-${++geminiTurnSequence}`,
+                texto,
+              )
             },
+            aoTurnoConcluido: finishConfirmationVoiceTurn,
             // MEDIÇÃO TEMPORÁRIA — ver src/lib/cibelly/pricing.ts.
             aoMedirUso: meta => { usoRef.current = acumularGemini(usoRef.current, meta) },
             aoProcessando: setProcessando,
@@ -540,6 +673,7 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
                 arguments: JSON.stringify(args),
               }])
               if (!call) return { ok: true, duplicado: true }
+              markConfirmationToolCall(name)
               console.info('[Cibelly] ferramenta:', name, args)
               let resultado: Record<string, unknown> = {
                 ok: false,
@@ -943,6 +1077,7 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         const e = event as { item_id?: string }
         if (e.item_id) {
           reservarFala(e.item_id)
+          beginConfirmationVoiceTurn(e.item_id)
           publicar()
         }
       }
@@ -953,6 +1088,7 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         if (e.transcript?.trim()) {
           if (e.item_id) {
             preencherFala(e.item_id, e.transcript.trim())
+            setConfirmationVoiceText(e.item_id, e.transcript.trim())
           }
           else registrar({ tipo: 'dentista', texto: e.transcript.trim() })
           publicar()
@@ -977,6 +1113,7 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       if (tipo === 'response.done') {
         clearFollowUpAckTimer()
         orchestrator.responseFinished()
+        finishConfirmationVoiceTurn()
         // MEDIÇÃO TEMPORÁRIA — ver src/lib/cibelly/pricing.ts.
         usoRef.current = acumularOpenAI(usoRef.current, (event as RealtimeResponseDoneEvent).response?.usage)
         // A fila será liberada DEPOIS de processar as function_calls deste
@@ -1021,6 +1158,7 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
           args = {}
         }
         console.info('[Cibelly] ferramenta:', call.name, args)
+        markConfirmationToolCall(call.name)
 
         let resultado: Record<string, unknown>
         try {
@@ -1101,6 +1239,7 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       audioElRef.current = null
       orchestrator.reset()
       clearFollowUpAckTimer()
+      clearConfirmationFallbackTimer()
     }
   }, [ativa, cibellyAgent, orchestrator, registrar, reservarFala, preencherFala, publicar])
 

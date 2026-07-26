@@ -110,6 +110,47 @@ describe('CibellyOrchestrator', () => {
     })
     expect(orchestrator.claimToolCalls(calls)).toHaveLength(5)
   })
+
+  it('guarda e entrega uma confirmação de ferramenta uma única vez', () => {
+    const orchestrator = new CibellyOrchestrator()
+    orchestrator.observeToolResult(
+      'solicitar_orcamento_fornecedor',
+      { emFalta: true },
+      { ok: true, pedido: { precisaConfirmar: true } },
+      1_000,
+    )
+
+    expect(orchestrator.pendingConfirmationToolName)
+      .toBe('solicitar_orcamento_fornecedor')
+    expect(orchestrator.claimPendingConfirmation(2_000)).toEqual({
+      name: 'solicitar_orcamento_fornecedor',
+      args: { emFalta: true, confirmado: true },
+    })
+    expect(orchestrator.claimPendingConfirmation(2_000)).toBeNull()
+  })
+
+  it('descarta confirmação expirada ou concluída', () => {
+    const orchestrator = new CibellyOrchestrator()
+    orchestrator.observeToolResult(
+      'enviar_mensagem_paciente',
+      { mensagem: 'Olá' },
+      { ok: true, envio: { precisaConfirmar: true } },
+      1_000,
+    )
+    expect(orchestrator.claimPendingConfirmation(500_000)).toBeNull()
+
+    orchestrator.observeToolResult(
+      'cancelar_consulta',
+      { data: '2026-07-28' },
+      { ok: true, resultado: { precisaConfirmar: true } },
+    )
+    orchestrator.observeToolResult(
+      'cancelar_consulta',
+      { data: '2026-07-28', confirmado: true },
+      { ok: true, resultado: { cancelado: true } },
+    )
+    expect(orchestrator.pendingConfirmationToolName).toBeNull()
+  })
 })
 
 describe('catálogo de ferramentas', () => {

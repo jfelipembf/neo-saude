@@ -806,6 +806,12 @@ export function OdontogramFullscreenPage() {
     if (code.includes('recipient_without_whatsapp')) {
       return 'O destinatário não tem WhatsApp cadastrado.'
     }
+    if (code.includes('invalid_phone')) {
+      return 'O WhatsApp cadastrado é inválido. Informe DDD e número; o DDI 55 é adicionado automaticamente.'
+    }
+    if (code.includes('send_failed')) {
+      return 'A Evolution API recusou o envio. Verifique a conexão da instância e o WhatsApp do destinatário.'
+    }
     return 'Não foi possível enviar a mensagem pelo WhatsApp.'
   }
 

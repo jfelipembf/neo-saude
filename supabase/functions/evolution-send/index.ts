@@ -386,12 +386,21 @@ Deno.serve(async (request) => {
   const successful = results.filter((result) =>
     result.sent === true || result.pending === true
   );
+  const failureCodes = [...new Set(
+    results.flatMap((result) =>
+      typeof result.error === "string" ? [result.error] : []
+    ),
+  )];
   return json({
     ok: successful.length > 0,
     sent: results.filter((result) => result.sent === true).length,
     pending: results.filter((result) => result.pending === true).length,
     failed: results.length - successful.length,
     results,
-    error: successful.length === 0 ? "no_message_sent" : undefined,
+    error: successful.length === 0
+      ? failureCodes.length === 1
+        ? failureCodes[0]
+        : "no_message_sent"
+      : undefined,
   });
 });
