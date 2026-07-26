@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
+import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { FormSection } from '@/components/FormSection/FormSection'
+import { Input } from '@/components/Input/Input'
 import { Modal } from '@/components/Modal/Modal'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { Spinner } from '@/components/Spinner/Spinner'
@@ -9,6 +11,7 @@ import { useToast } from '@/components/Toast/Toast'
 import { IconCheck, IconUndo, IconWhatsApp, IconX } from '@/components/icons'
 import {
   useWhatsAppConnection, useConnectWhatsApp, useDisconnectWhatsApp, useRefreshWhatsAppQr,
+  useSendWhatsAppTest,
 } from '@/hooks/useWhatsApp'
 import type { WhatsAppPairingResult } from '@/services/whatsappService'
 import { formatPhone } from '@/utils/format'
@@ -36,6 +39,34 @@ function displayPhone(phone?: string): string {
   return formatPhone(phone) || phone
 }
 
+/** O que a Edge Function aceita: 10 a 13 dígitos (com ou sem o 55). */
+function digitosDoTelefone(valor: string): string {
+  return valor.replace(/\D/g, '')
+}
+
+function testeError(error: unknown): string {
+  const code = error instanceof Error ? error.message : ''
+  if (code.includes('whatsapp_not_connected')) return 'Conecte um número antes de testar o envio.'
+  if (code.includes('clinic_rate_limited')) return 'Limite de envios por minuto atingido. Espere um pouco.'
+  if (code.includes('recipient_rate_limited')) return 'Esse número já recebeu testes demais nos últimos 15 minutos.'
+  if (code.includes('forbidden')) return 'Seu acesso não permite enviar mensagens.'
+  if (code.includes('evolution_not_configured')) return 'A Evolution API ainda não foi configurada.'
+  if (code.includes('invalid_phone')) return 'A Evolution recusou esse número. Confira DDD e dígitos.'
+  if (code.includes('recipient_without_whatsapp')) return 'Esse número não tem WhatsApp.'
+  if (code.includes('send_failed')) {
+    const detail = code.match(/send_failed(?::\s*([^]+))?/)?.[1]?.trim()
+    return detail
+      ? `A Evolution API recusou o envio: ${detail}`
+      : 'A Evolution API recusou o envio. Confira a conexão e o número.'
+  }
+  // Código desconhecido NÃO vira "erro genérico": num campo que existe só para
+  // diagnosticar, esconder o motivo é o pior resultado possível. Mostra o que
+  // veio — é feio, mas é acionável (e o console tem a resposta inteira).
+  return code
+    ? `Falha no envio: ${code}`
+    : 'Não foi possível enviar a mensagem de teste.'
+}
+
 /** Aba "WhatsApp": conexão real com a Evolution API por QR Code. */
 export function WhatsAppTab() {
   const toast = useToast()
@@ -43,10 +74,13 @@ export function WhatsAppTab() {
   const [pollingSince, setPollingSince] = useState<number | null>(null)
   const [pairingCode, setPairingCode] = useState<string | null>(null)
   const [pairingError, setPairingError] = useState<string | null>(null)
+  const [testePhone, setTestePhone] = useState('')
+  const [confirmandoTeste, setConfirmandoTeste] = useState(false)
   const { data: connection, isLoading } = useWhatsAppConnection(pollingSince)
   const { mutate: connect, isPending: requestingConnection } = useConnectWhatsApp()
   const { mutate: disconnect, isPending: disconnecting } = useDisconnectWhatsApp()
   const { mutate: refreshQr, isPending: refreshing } = useRefreshWhatsAppQr()
+  const { mutate: enviarTeste, isPending: enviandoTeste } = useSendWhatsAppTest()
 
   if (isLoading || !connection) return <PageLoader />
 
@@ -91,6 +125,16 @@ export function WhatsAppTab() {
     setPollingSince(null)
     setPairingCode(null)
     setPairingError(null)
+  }
+
+  function dispararTeste() {
+    enviarTeste(testePhone, {
+      onSuccess: () => {
+        toast.success(`Mensagem de teste enviada para ${displayPhone(digitosDoTelefone(testePhone))}.`)
+        setTestePhone('')
+      },
+      onError: error => toast.error(testeError(error)),
+    })
   }
 
   return (
@@ -143,6 +187,45 @@ export function WhatsAppTab() {
           </div>
         )}
       </FormSection>
+
+      {/* Só com um número conectado: sem conexão o envio falharia de qualquer
+          jeito, e um campo que só sabe dar erro é pior que campo nenhum. */}
+      {connected && (
+        <FormSection
+          title="Testar envio"
+          description="Manda uma mensagem de teste para conferir se a Evolution está entregando. O texto é fixo e não usa dados de paciente."
+        >
+          <div className={styles.teste}>
+            <Input
+              label="Número do contato"
+              placeholder="(79) 99999-9999"
+              hint="Com DDD. Se omitir o DDI, o 55 do Brasil é assumido pelo servidor."
+              value={testePhone}
+              inputMode="tel"
+              autoComplete="off"
+              onChange={e => setTestePhone(e.target.value)}
+            />
+            <Button
+              iconLeft={<IconWhatsApp />}
+              loading={enviandoTeste}
+              disabled={digitosDoTelefone(testePhone).length < 10}
+              onClick={() => setConfirmandoTeste(true)}
+            >
+              Enviar teste
+            </Button>
+          </div>
+        </FormSection>
+      )}
+
+      {/* Mensagem para fora da clínica não sai sem um sim explícito. */}
+      <ConfirmDialog
+        open={confirmandoTeste}
+        onClose={() => setConfirmandoTeste(false)}
+        onConfirm={dispararTeste}
+        title="Enviar mensagem de teste?"
+        message={`Uma mensagem de teste será enviada por WhatsApp para ${displayPhone(digitosDoTelefone(testePhone))}.`}
+        confirmLabel="Enviar"
+      />
 
       <Modal open={open} onClose={closeModal} title="Conectar WhatsApp" size="sm">
         {connected ? (

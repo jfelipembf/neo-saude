@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import {
   connectWhatsApp, disconnectWhatsApp, getWhatsAppConnection, listAutomations,
-  refreshWhatsAppQr, saveAutomation,
+  refreshWhatsAppQr, saveAutomation, sendWhatsAppTestMessage,
 } from '@/services/whatsappService'
 import type { EditAutomation } from '@/services/whatsappService'
 import type { AutomationTrigger } from '@/types/domain'
@@ -42,6 +42,11 @@ export function useRefreshWhatsAppQr() {
     mutationFn: refreshWhatsAppQr,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.connection }),
   })
+}
+
+/** Envio de teste para um número digitado — só a tela de Configurações usa. */
+export function useSendWhatsAppTest() {
+  return useMutation({ mutationFn: (phone: string) => sendWhatsAppTestMessage(phone) })
 }
 
 export function useAutomations() {

@@ -22,6 +22,7 @@ import {
 } from '@/lib/cibelly/cibellyAgent'
 import { isClearAffirmativeConfirmation } from '@/lib/cibelly/confirmationIntent'
 import { isActiveResponseConflict } from '@/lib/cibelly/orchestrator'
+import { requestsLowStockQuote } from '@/lib/cibelly/workflowIntent'
 
 /**
  * Cibelly — assistente de voz do odontograma. DOIS provedores.
@@ -108,6 +109,8 @@ interface ConfirmationVoiceTurn {
   responseDone: boolean
   toolCalled: boolean
   fallbackStarted: boolean
+  lowStockQuoteRequested: boolean
+  quotePrepared: boolean
 }
 
 const FOLLOW_UP_ACK_TIMEOUT_MS = 5_000
@@ -493,7 +496,10 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         responseDone: false,
         toolCalled: false,
         fallbackStarted: false,
+        lowStockQuoteRequested: requestsLowStockQuote(text),
+        quotePrepared: false,
       }
+      scheduleConfirmationFallback()
     }
 
     function setConfirmationVoiceText(id: string, text: string) {
@@ -502,6 +508,7 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       }
       if (!confirmationVoiceTurn) return
       confirmationVoiceTurn.text = text
+      confirmationVoiceTurn.lowStockQuoteRequested = requestsLowStockQuote(text)
       scheduleConfirmationFallback()
     }
 
@@ -512,6 +519,10 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
     }
 
     function markConfirmationToolCall(name: string) {
+      if (confirmationVoiceTurn
+          && name === 'solicitar_orcamento_fornecedor') {
+        confirmationVoiceTurn.quotePrepared = true
+      }
       if (!confirmationVoiceTurn
           || name !== orchestrator.pendingConfirmationToolName) return
       confirmationVoiceTurn.toolCalled = true
@@ -521,7 +532,7 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
     function scheduleConfirmationFallback() {
       clearConfirmationFallbackTimer()
       const turn = confirmationVoiceTurn
-      if (!turn?.responseDone
+      if (!turn
           || turn.toolCalled
           || turn.fallbackStarted
           || !isClearAffirmativeConfirmation(turn.text)
@@ -774,7 +785,48 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       nome: string,
       rawArgs: Record<string, unknown>,
     ): Promise<Record<string, unknown>> {
-      return cibellyAgent.executeTool(nome, rawArgs, specialistExecutors)
+      const result = await cibellyAgent.executeTool(
+        nome,
+        rawArgs,
+        specialistExecutors,
+      )
+      const turn = confirmationVoiceTurn
+      if (nome !== 'consultar_materiais'
+          || result.ok !== true
+          || !turn?.lowStockQuoteRequested
+          || turn.quotePrepared) return result
+
+      turn.quotePrepared = true
+      const quoteArgs = { emFalta: true }
+      let quoteResult: Record<string, unknown>
+      try {
+        quoteResult = await cibellyAgent.executeTool(
+          'solicitar_orcamento_fornecedor',
+          quoteArgs,
+          specialistExecutors,
+        )
+      } catch (error) {
+        quoteResult = {
+          ok: false,
+          erro: errorMessage(error, 'Não consegui preparar o orçamento.'),
+        }
+      }
+      registrar({
+        tipo: 'ferramenta',
+        texto: 'solicitar_orcamento_fornecedor',
+        args: JSON.stringify(quoteArgs),
+        resultado: JSON.stringify(quoteResult),
+      })
+
+      return {
+        ...result,
+        fluxoAutomatico: {
+          etapa: 'orcamento_fornecedor',
+          resultado: quoteResult,
+          instrucao:
+            'O pedido composto já avançou para o orçamento. Não peça ao dentista para solicitar novamente. Se houver uma prévia, leia os destinatários e peça apenas a confirmação de envio.',
+        },
+      }
     }
 
     async function executarOdontograma({

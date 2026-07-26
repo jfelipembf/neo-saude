@@ -223,26 +223,61 @@ export function normalizeWhatsappNumber(value: string): string | null {
   return normalizeBrazilianWhatsappNumber(value);
 }
 
+/**
+ * Puxa a frase de erro de dentro da resposta da Evolution.
+ *
+ * O formato varia por versão e por endpoint (`message` na raiz, dentro de
+ * `response`, às vezes um array), então tenta os caminhos conhecidos e cai
+ * fora em silêncio — isto serve para DIAGNÓSTICO, e um parser que estoura
+ * seria pior que a falta da mensagem.
+ */
+// deno-lint-ignore no-explicit-any
+function extrairMensagemEvolution(data: any): string | null {
+  const bruto = data?.response?.message ?? data?.message ?? data?.error;
+  const texto = Array.isArray(bruto) ? bruto.join('; ') : bruto;
+  if (typeof texto !== "string" || !texto.trim()) return null;
+  // Curto: este texto vai para o toast na tela, não para o log.
+  return texto.trim().slice(0, 160);
+}
+
 export async function sendEvolutionText(
   instanceName: string,
   phone: string,
   text: string,
 ): Promise<{ ok: boolean; messageId?: string; error?: string }> {
   const number = normalizeWhatsappNumber(phone);
-  if (!number) return { ok: false, error: "invalid_phone" };
+  if (!number) {
+    console.error("[evolution] telefone recusado na normalização:", phone);
+    return { ok: false, error: "invalid_phone" };
+  }
 
   const response = await evolutionRequest(
     `/message/sendText/${encodeURIComponent(instanceName)}`,
     "POST",
     {
       number,
-      textMessage: { text },
+      text,
       // Evita rajadas instantâneas em lotes pequenos de fornecedores.
       delay: 1200,
       linkPreview: false,
     },
   );
-  if (!response.ok) return { ok: false, error: "send_failed" };
+  if (!response.ok) {
+    // O MOTIVO REAL vinha até aqui e morria: `send_failed` não diz se foi
+    // número inexistente no WhatsApp, instância caída, apikey recusada ou
+    // payload malformado — e sem isso não há como consertar nada do lado de
+    // cá. O corpo da Evolution vai para o log da função (supabase logs) e um
+    // resumo curto sobe no código de erro, para aparecer na tela.
+    console.error(
+      `[evolution] sendText falhou · status=${response.status} · instancia=${instanceName}`,
+      JSON.stringify(response.data),
+    );
+    const detalhe = extrairMensagemEvolution(response.data);
+    return {
+      ok: false,
+      error: detalhe ? `send_failed: ${detalhe}` : `send_failed_${response.status}`,
+    };
+  }
 
   // deno-lint-ignore no-explicit-any
   const payload = response.data as any;

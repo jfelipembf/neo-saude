@@ -810,7 +810,19 @@ export function OdontogramFullscreenPage() {
       return 'O WhatsApp cadastrado é inválido. Informe DDD e número; o DDI 55 é adicionado automaticamente.'
     }
     if (code.includes('send_failed')) {
-      return 'A Evolution API recusou o envio. Verifique a conexão da instância e o WhatsApp do destinatário.'
+      const detail = code.match(/send_failed(?::\s*([^]+))?/)?.[1]?.trim()
+      return detail
+        ? `A Evolution API recusou o envio: ${detail}`
+        : 'A Evolution API recusou o envio. Verifique a conexão da instância e o WhatsApp do destinatário.'
+    }
+    if (code.includes('evolution_not_configured')) {
+      return 'A Evolution API ainda não está configurada para esta instalação.'
+    }
+    if (code.includes('recipient_lookup_failed')) {
+      return 'Não foi possível localizar os destinatários cadastrados.'
+    }
+    if (code.includes('send_claim_failed')) {
+      return 'Não foi possível registrar o envio com segurança. Tente novamente.'
     }
     return 'Não foi possível enviar a mensagem pelo WhatsApp.'
   }

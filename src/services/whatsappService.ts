@@ -2,6 +2,10 @@ import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
 import { AUTOMATION_CATALOG } from '@/constants/whatsappAutomations'
 import type { AutomationTrigger, WhatsAppAutomation, WhatsAppConnection } from '@/types/domain'
+import {
+  functionResultErrorMessage,
+  supabaseFunctionErrorMessage,
+} from '@/utils/supabaseFunctionError'
 
 function fmtDateTime(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -58,7 +62,7 @@ export interface WhatsAppSendResult {
   pending: number
   failed: number
   results: Array<{
-    type: WhatsAppRecipient['type']
+    type: WhatsAppRecipient['type'] | 'test'
     id: string
     name?: string
     sent?: boolean
@@ -108,8 +112,46 @@ export async function sendWhatsAppMessage(
       },
     },
   )
-  if (error) throw error
-  if (!data?.ok) throw new Error(data?.error ?? 'whatsapp_send_failed')
+  if (error) {
+    throw new Error(await supabaseFunctionErrorMessage(
+      error,
+      'whatsapp_send_failed',
+    ))
+  }
+  if (!data?.ok) {
+    throw new Error(functionResultErrorMessage(data, 'whatsapp_send_failed'))
+  }
+  return data
+}
+
+/**
+ * Envio de TESTE — o único caminho que aceita um número digitado.
+ *
+ * Fica numa função separada, e não como mais um tipo aceito por
+ * `sendWhatsAppMessage`, de propósito: aquela é a que a Cibelly usa, e ela tem
+ * que continuar só sabendo mandar para paciente/fornecedor resolvido no
+ * servidor. O TEXTO não vai daqui — quem escreve é a Edge Function (ver
+ * TEST_MESSAGE em evolution-send), então esta função não consegue mandar
+ * qualquer coisa para qualquer número.
+ */
+export async function sendWhatsAppTestMessage(phone: string): Promise<WhatsAppSendResult> {
+  const digits = phone.replace(/\D/g, '')
+  const { data, error } = await supabase.functions.invoke<WhatsAppSendResult>(
+    'evolution-send',
+    { body: { clinicId: getCurrentClinicId(), recipients: [{ type: 'test', id: digits }] } },
+  )
+
+  if (error) {
+    throw new Error(await supabaseFunctionErrorMessage(
+      error,
+      'whatsapp_send_failed',
+    ))
+  }
+  if (!data?.ok) {
+    const code = functionResultErrorMessage(data, 'whatsapp_send_failed')
+    console.error('[whatsapp] teste não enviado:', code, data?.results ?? [])
+    throw new Error(code)
+  }
   return data
 }
 

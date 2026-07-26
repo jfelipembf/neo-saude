@@ -33,13 +33,13 @@ export interface PendingToolConfirmation {
 
 const TOOL_CONFIRMATION_TTL_MS = 2 * 60_000
 
-function resultNeedsConfirmation(value: unknown, depth = 0): boolean {
+export function toolResultNeedsConfirmation(value: unknown, depth = 0): boolean {
   if (!value || typeof value !== 'object' || depth > 3) return false
   if ((value as { precisaConfirmar?: unknown }).precisaConfirmar === true) {
     return true
   }
   return Object.values(value).some(child =>
-    resultNeedsConfirmation(child, depth + 1))
+    toolResultNeedsConfirmation(child, depth + 1))
 }
 
 export function isActiveResponseConflict(message: string): boolean {
@@ -97,7 +97,7 @@ export class CibellyOrchestrator {
     const definition = this.getTool(name)
     if (definition?.confirmation !== 'tool_managed') return
 
-    if (resultNeedsConfirmation(result)) {
+    if (toolResultNeedsConfirmation(result)) {
       this.pendingConfirmation = {
         name,
         args: { ...args, confirmado: true },

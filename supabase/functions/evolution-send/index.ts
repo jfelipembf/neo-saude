@@ -20,7 +20,32 @@ const DEDUPE_WINDOW_MS = 5 * 60_000;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-type RecipientKind = "patient" | "supplier";
+/**
+ * "test" é o ÚNICO tipo que carrega um número cru, e existe só para a tela de
+ * Configurações provar que a Evolution está entregando.
+ *
+ * O resto do arquivo recusa número vindo do cliente de propósito: paciente e
+ * fornecedor entram por ID e o telefone é resolvido AQUI, contra o banco da
+ * própria clínica. É isso que impede a Cibelly (ou um cliente comprometido) de
+ * mandar mensagem para um número qualquer.
+ *
+ * O furo é fechado por três lados, e não pela boa vontade de quem chama:
+ *  1. o TEXTO do teste é fixo, escrito aqui embaixo — quem pede não escolhe o
+ *     que vai ser dito, então isto não vira um canal de "qualquer texto para
+ *     qualquer número";
+ *  2. um destinatário por vez, e nunca misturado com paciente/fornecedor;
+ *  3. passa pelos MESMOS limites de taxa, dedupe e auditoria do envio normal.
+ * A Cibelly não alcança este caminho: as ferramentas dela mandam
+ * {type:'patient'|'supplier'}, e o texto do teste ignora o campo `message`.
+ */
+type RecipientKind = "patient" | "supplier" | "test";
+
+const TEST_MESSAGE =
+  "Esta é uma mensagem de teste do Neo Saúde. Se você recebeu, a integração de "
+  + "WhatsApp da clínica está funcionando. Não é preciso responder.";
+
+/** Telefone brasileiro com DDI opcional: 10 a 13 dígitos, igual ao phoneToDb do app. */
+const PHONE_PATTERN = /^\d{10,13}$/;
 
 interface RecipientInput {
   type: RecipientKind;
@@ -46,6 +71,11 @@ function uniqueRecipients(value: unknown): RecipientInput[] {
     if (!item || typeof item !== "object") continue;
     const type = (item as { type?: unknown }).type;
     const id = String((item as { id?: unknown }).id ?? "");
+    // O "test" traz DÍGITOS no lugar do UUID (ver o comentário de RecipientKind).
+    if (type === "test") {
+      if (PHONE_PATTERN.test(id)) unique.set(`test:${id}`, { type, id });
+      continue;
+    }
     if (
       (type !== "patient" && type !== "supplier") ||
       !UUID_PATTERN.test(id)
@@ -102,8 +132,16 @@ Deno.serve(async (request) => {
   }
 
   const clinicId = String(body.clinicId ?? "");
-  const message = String(body.message ?? "").trim();
   const recipients = uniqueRecipients(body.recipients);
+
+  // TESTE: nunca misturado com envio de verdade, nunca em lote, e o texto é o
+  // do servidor — o `message` que veio do cliente é IGNORADO aqui.
+  const isTest = recipients.some((recipient) => recipient.type === "test");
+  if (isTest && recipients.length > 1) {
+    return json({ ok: false, error: "test_send_is_single_recipient" }, 400);
+  }
+  const message = isTest ? TEST_MESSAGE : String(body.message ?? "").trim();
+
   if (!UUID_PATTERN.test(clinicId) || recipients.length === 0 || !message) {
     return json({ ok: false, error: "missing_params" }, 400);
   }
@@ -199,6 +237,16 @@ Deno.serve(async (request) => {
     .map((recipient) => recipient.id);
 
   const resolved = new Map<string, StoredRecipient>();
+  // O teste é o único que não consulta o banco: o número É o destinatário.
+  for (const recipient of recipients) {
+    if (recipient.type !== "test") continue;
+    resolved.set(`test:${recipient.id}`, {
+      type: "test",
+      id: recipient.id,
+      name: "Teste",
+      whatsapp: recipient.id,
+    });
+  }
   if (patientIds.length > 0) {
     const { data, error } = await admin
       .from("patient")
@@ -357,6 +405,13 @@ Deno.serve(async (request) => {
       recipient.whatsapp,
       renderedMessage,
     );
+    if (!send.ok) {
+      // Um por destinatário: num lote, saber QUAL falhou (e por quê) é o que
+      // separa "a instância caiu" de "aquele número não tem WhatsApp".
+      console.error(
+        `[evolution-send] falha · tipo=${recipient.type} · nome=${recipient.name} · erro=${send.error}`,
+      );
+    }
     const resultData = {
       ...claimData,
       status: send.ok ? "sent" : "failed",

@@ -1,4 +1,7 @@
-import { CibellyOrchestrator } from './orchestrator.ts'
+import {
+  CibellyOrchestrator,
+  toolResultNeedsConfirmation,
+} from './orchestrator.ts'
 import {
   specialistAgentsPrompt,
   type CibellySpecialistAgent,
@@ -26,13 +29,39 @@ export type CibellySpecialistExecutors = Record<
   SpecialistToolExecutor
 >
 
+interface ConfirmedExecution {
+  expiresAt: number
+  promise: Promise<Record<string, unknown>>
+}
+
+const CONFIRMED_EXECUTION_TTL_MS = 30_000
+
+function stableValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableValue)
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, child]) => [key, stableValue(child)]),
+  )
+}
+
+function confirmedExecutionKey(
+  name: CibellyToolName,
+  args: Record<string, unknown>,
+): string {
+  return `${name}:${JSON.stringify(stableValue(args))}`
+}
+
 export class CibellyAgent {
   readonly name = 'Cibelly'
   readonly role = 'Interface de voz clínica do Neo Saúde'
   readonly orchestrator = new CibellyOrchestrator()
+  private confirmedExecutions = new Map<string, ConfirmedExecution>()
 
   reset() {
     this.orchestrator.reset()
+    this.confirmedExecutions.clear()
   }
 
   async executeTool(
@@ -46,14 +75,47 @@ export class CibellyAgent {
       return { ok: false, erro: `Ferramenta desconhecida: ${name}` }
     }
 
-    const result = await executors[agent.domain]({
-      agent,
-      name,
-      definition,
-      args,
+    const execute = async () => {
+      const result = await executors[agent.domain]({
+        agent,
+        name,
+        definition,
+        args,
+      })
+      this.orchestrator.observeToolResult(name, args, result)
+      return result
+    }
+
+    if (definition.confirmation !== 'tool_managed' || args.confirmado !== true) {
+      return execute()
+    }
+
+    const now = Date.now()
+    for (const [key, execution] of this.confirmedExecutions) {
+      if (execution.expiresAt < now) this.confirmedExecutions.delete(key)
+    }
+
+    const key = confirmedExecutionKey(name, args)
+    const existing = this.confirmedExecutions.get(key)
+    if (existing) return existing.promise
+
+    const promise = execute()
+    this.confirmedExecutions.set(key, {
+      expiresAt: now + CONFIRMED_EXECUTION_TTL_MS,
+      promise,
     })
-    this.orchestrator.observeToolResult(name, args, result)
-    return result
+
+    void promise.then(
+      result => {
+        if (toolResultNeedsConfirmation(result)) {
+          this.confirmedExecutions.delete(key)
+        }
+      },
+      () => {
+        this.confirmedExecutions.delete(key)
+      },
+    )
+    return promise
   }
 }
 
