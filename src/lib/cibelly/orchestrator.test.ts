@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { CibellyOrchestrator } from './orchestrator'
-import { CIBELLY_TOOL_CATALOG, cibellyCapabilitiesPrompt, toolNeedsFollowUp } from './toolCatalog'
+import {
+  CibellyAgent,
+  cibellyAgentPrompt,
+  type CibellySpecialistExecutors,
+  type SpecialistToolExecutor,
+} from './cibellyAgent'
+import { CIBELLY_SPECIALIST_AGENTS } from './agents'
+import {
+  CIBELLY_TOOL_CATALOG,
+  cibellyCapabilitiesPrompt,
+  toolNeedsFollowUp,
+  type CibellyToolDomain,
+} from './toolCatalog'
 
 const calls = Array.from({ length: 5 }, (_, index) => ({
   call_id: `call-${index}`,
@@ -12,8 +24,12 @@ describe('CibellyOrchestrator', () => {
   it('conhece as 16 ferramentas disponíveis', () => {
     const orchestrator = new CibellyOrchestrator()
     expect(Object.keys(orchestrator.tools)).toHaveLength(16)
+    expect(orchestrator.agents).toHaveLength(6)
     expect(orchestrator.getTool('solicitar_orcamento_fornecedor')?.domain).toBe('inventory')
+    expect(orchestrator.getAgentForTool('solicitar_orcamento_fornecedor')?.id)
+      .toBe('inventory_agent')
     expect(orchestrator.getTool('ferramenta_inventada')).toBeNull()
+    expect(orchestrator.getAgentForTool('ferramenta_inventada')).toBeNull()
   })
 
   it('deduplica call_id entre eventos individuais e response.done', () => {
@@ -115,5 +131,74 @@ describe('catálogo de ferramentas', () => {
   it('descreve todas as ferramentas no prompt compartilhado', () => {
     const prompt = cibellyCapabilitiesPrompt()
     for (const tool of Object.keys(CIBELLY_TOOL_CATALOG)) expect(prompt).toContain(tool)
+  })
+})
+
+describe('agentes especialistas', () => {
+  it('atribui cada ferramenta a exatamente um agente do mesmo domínio', () => {
+    const assignments = CIBELLY_SPECIALIST_AGENTS.flatMap(agent =>
+      agent.tools.map(tool => ({ agent, tool })))
+
+    expect(assignments).toHaveLength(Object.keys(CIBELLY_TOOL_CATALOG).length)
+    expect(new Set(assignments.map(({ tool }) => tool)).size).toBe(assignments.length)
+    for (const { agent, tool } of assignments) {
+      expect(CIBELLY_TOOL_CATALOG[tool].domain).toBe(agent.domain)
+    }
+  })
+
+  it('delega a execução ao especialista responsável', async () => {
+    const executor = (domain: CibellyToolDomain): SpecialistToolExecutor =>
+      async call => ({
+        ok: true,
+        domain,
+        agent: call.agent.id,
+        tool: call.name,
+      })
+    const executors: CibellySpecialistExecutors = {
+      odontogram: executor('odontogram'),
+      records: executor('records'),
+      schedule: executor('schedule'),
+      inventory: executor('inventory'),
+      communication: executor('communication'),
+      documents: executor('documents'),
+    }
+
+    const result = await new CibellyAgent().executeTool(
+      'consultar_agenda',
+      { dias: 7 },
+      executors,
+    )
+
+    expect(result).toMatchObject({
+      ok: true,
+      domain: 'schedule',
+      agent: 'schedule_agent',
+      tool: 'consultar_agenda',
+    })
+  })
+
+  it('recusa ferramenta sem agente antes de chegar aos executores', async () => {
+    const fail: SpecialistToolExecutor = async () => {
+      throw new Error('não deveria executar')
+    }
+    const executors = Object.fromEntries(
+      CIBELLY_SPECIALIST_AGENTS.map(agent => [agent.domain, fail]),
+    ) as CibellySpecialistExecutors
+
+    await expect(new CibellyAgent().executeTool(
+      'ferramenta_inventada',
+      {},
+      executors,
+    )).resolves.toMatchObject({ ok: false })
+  })
+
+  it('informa agentes, ferramentas e regras de handoff no prompt', () => {
+    const prompt = cibellyAgentPrompt()
+    for (const agent of CIBELLY_SPECIALIST_AGENTS) {
+      expect(prompt).toContain(agent.name)
+      for (const tool of agent.tools) expect(prompt).toContain(tool)
+    }
+    expect(prompt).toContain('não falam diretamente')
+    expect(prompt).toContain('mais de um subagente')
   })
 })

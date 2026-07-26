@@ -2,6 +2,11 @@ import {
   CIBELLY_TOOL_CATALOG, isCibellyToolName, toolNeedsFollowUp,
   type CibellyToolDefinition,
 } from './toolCatalog.ts'
+import {
+  CIBELLY_SPECIALIST_AGENTS,
+  getSpecialistAgentByTool,
+  type CibellySpecialistAgent,
+} from './agents/index.ts'
 
 export interface OrchestratorToolCall {
   call_id: string
@@ -48,8 +53,16 @@ export class CibellyOrchestrator {
     return CIBELLY_TOOL_CATALOG
   }
 
+  get agents(): readonly CibellySpecialistAgent[] {
+    return CIBELLY_SPECIALIST_AGENTS
+  }
+
   getTool(name: string): CibellyToolDefinition | null {
     return isCibellyToolName(name) ? CIBELLY_TOOL_CATALOG[name] : null
+  }
+
+  getAgentForTool(name: string): CibellySpecialistAgent | null {
+    return getSpecialistAgentByTool(name)
   }
 
   get snapshot(): OrchestratorSnapshot {

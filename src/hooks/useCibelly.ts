@@ -15,7 +15,11 @@ import {
   type Provedor, type UsoBruto, type UsoRealtimeOpenAI,
 } from '@/lib/cibelly/pricing'
 import { recordCibellyUsage } from '@/services/cibellyUsageService'
-import { CibellyAgent } from '@/lib/cibelly/cibellyAgent'
+import {
+  CibellyAgent,
+  type CibellySpecialistExecutors,
+  type DelegatedToolCall,
+} from '@/lib/cibelly/cibellyAgent'
 import { isActiveResponseConflict } from '@/lib/cibelly/orchestrator'
 
 /**
@@ -623,31 +627,31 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       }
     }
 
-    /**
-     * DESPACHO DAS FERRAMENTAS — compartilhado pelos dois provedores.
-     *
-     * Nada aqui sabe se veio da OpenAI ou do Gemini: recebe nome + argumentos e
-     * devolve o objeto que volta para o modelo. Foi extraído justamente quando
-     * o segundo provedor entrou — manter duas cópias desta cadeia seria garantir
-     * que uma das duas ficasse para trás na próxima ferramenta.
-     *
-     * A política de continuação não mora neste despacho. Ela pertence ao
-     * catálogo do orquestrador, para não divergir entre ferramentas.
-     */
+    const specialistExecutors: CibellySpecialistExecutors = {
+      odontogram: executarOdontograma,
+      records: executarProntuario,
+      schedule: executarAgenda,
+      inventory: executarEstoque,
+      communication: executarComunicacao,
+      documents: executarDocumentos,
+    }
+
     async function executarFerramenta(
       nome: string,
       rawArgs: Record<string, unknown>,
     ): Promise<Record<string, unknown>> {
-      const args = nome === 'marcar_dente'
+      return cibellyAgent.executeTool(nome, rawArgs, specialistExecutors)
+    }
+
+    async function executarOdontograma({
+      name,
+      args: rawArgs,
+    }: DelegatedToolCall): Promise<Record<string, unknown>> {
+      const args = name === 'marcar_dente'
         ? normalizeToothProposal(rawArgs) as unknown as Record<string, unknown>
         : rawArgs
 
-      // O retorno vai DE VOLTA pra Cibelly, então o erro precisa ser um texto
-      // que ela consiga falar ("faltou a superfície") — e não um {ok:true}
-      // genérico, que a fazia anunciar marcação que o motor descartou.
-      let resultado: Record<string, unknown>
-
-      if (nome === 'marcar_dente') {
+      if (name === 'marcar_dente') {
         const proposta = normalizeToothProposal(args)
         const antes = snapshotOdontogram()
         const r = applyToothProposal(proposta)
@@ -666,19 +670,19 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
           }
           if (verificacao.ok) {
             setLastApplied(r.resumo)
-            resultado = {
+            return {
               ok: true,
               aplicado: r.resumo,
               verificado: true,
               ...(r.recusados ? { recusados: r.recusados } : {}),
             }
-          } else {
-            resultado = { ok: false, erro: verificacao.erro, verificado: false }
           }
-        } else {
-          resultado = { ok: false, erro: r.erro }
+          return { ok: false, erro: verificacao.erro, verificado: false }
         }
-      } else if (nome === 'restaurar_dente') {
+        return { ok: false, erro: r.erro }
+      }
+
+      if (name === 'restaurar_dente') {
         // Ferramenta com nome inequívoco para o comando falado "retorne/insira
         // o dente". Reutiliza a limpeza de ausência, que também remove o
         // alvéolo de extração e devolve a base visual do dente.
@@ -695,14 +699,14 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
           }
           if (verificacao.ok) {
             setLastApplied(r.resumo)
-            resultado = { ok: true, restaurado: r.resumo, verificado: true }
-          } else {
-            resultado = { ok: false, erro: verificacao.erro, verificado: false }
+            return { ok: true, restaurado: r.resumo, verificado: true }
           }
-        } else {
-          resultado = { ok: false, erro: r.erro }
+          return { ok: false, erro: verificacao.erro, verificado: false }
         }
-      } else if (nome === 'apagar_marcacao') {
+        return { ok: false, erro: r.erro }
+      }
+
+      if (name === 'apagar_marcacao') {
         // Apagar também entra na pilha de desfazer: limpar a boca inteira
         // sem volta seria pior que a marcação errada que motivou a limpeza.
         const antes = snapshotOdontogram()
@@ -730,121 +734,168 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
           }
           if (verificacao.ok) {
             setLastApplied(r.resumo)
-            resultado = { ok: true, apagado: r.resumo, verificado: true }
-          } else {
-            resultado = { ok: false, erro: verificacao.erro, verificado: false }
+            return { ok: true, apagado: r.resumo, verificado: true }
           }
-        } else {
-          resultado = { ok: false, erro: r.erro }
+          return { ok: false, erro: verificacao.erro, verificado: false }
         }
-      } else if (nome === 'emitir_documento') {
-        const emitir = handlersRef.current.aoEmitirDocumento
-        if (!emitir) {
-          resultado = { ok: false, erro: 'Não há paciente em atendimento para emitir documento.' }
-        } else {
-          const r = await emitir(args as unknown as DocumentRequest)
-          resultado = r.ok ? { ok: true, emitido: r.resumo } : { ok: false, erro: r.erro }
+        return { ok: false, erro: r.erro }
+      }
+
+      if (name === 'ler_odontograma') {
+        const ler = handlersRef.current.aoLerOdontograma
+        return ler
+          ? { ok: true, odontograma: await ler(args as { dentes?: number[] }) }
+          : { ok: false, erro: 'Não consegui ler o odontograma agora.' }
+      }
+
+      if (name === 'desfazer_ultima_marcacao') {
+        const anterior = historicoRef.current.pop()
+        if (!anterior) {
+          return {
+            ok: false,
+            erro: 'Não há marcação recente para desfazer. Para apagar o que já estava na ficha, use apagar_marcacao.',
+          }
         }
-      } else if (nome === 'consultar_materiais') {
+        // Travado (ficha em modo histórico) o restore não acontece — e aí a
+        // pilha precisa do item de volta, senão o desfazer some sem ter agido.
+        if (restoreOdontogram(anterior)) {
+          setLastApplied(null)
+          return { ok: true, desfeito: true }
+        }
+        historicoRef.current.push(anterior)
+        return {
+          ok: false,
+          erro: 'A ficha está aberta numa data anterior, só para leitura. Volte para "Atual" para desfazer.',
+        }
+      }
+
+      return { ok: false, erro: `Ferramenta fora do Agente de Odontograma: ${name}` }
+    }
+
+    async function executarProntuario({
+      name,
+      args,
+    }: DelegatedToolCall): Promise<Record<string, unknown>> {
+      if (name === 'consultar_historico') {
+        const historico = handlersRef.current.aoConsultarHistorico
+        return historico
+          ? { ok: true, historico: await historico(args as { data?: string; dente?: number }) }
+          : { ok: false, erro: 'Não consegui ler o histórico agora.' }
+      }
+      if (name === 'criar_lembrete') {
+        const criar = handlersRef.current.aoCriarLembrete
+        return criar
+          ? { ok: true, resultado: await criar(args as { texto: string }) }
+          : { ok: false, erro: 'Não consegui salvar o lembrete.' }
+      }
+      if (name === 'concluir_lembrete') {
+        const concluir = handlersRef.current.aoConcluirLembrete
+        return concluir
+          ? { ok: true, resultado: await concluir(args as { id: string }) }
+          : { ok: false, erro: 'Não consegui concluir o lembrete.' }
+      }
+      return { ok: false, erro: `Ferramenta fora do Agente de Prontuário: ${name}` }
+    }
+
+    async function executarAgenda({
+      name,
+      args,
+    }: DelegatedToolCall): Promise<Record<string, unknown>> {
+      if (name === 'consultar_agenda') {
+        const consultar = handlersRef.current.aoConsultarAgenda
+        return consultar
+          ? { ok: true, agenda: await consultar(args as { data?: string; hora?: string; duracao?: number; dias?: number }) }
+          : { ok: false, erro: 'Não consegui ler a agenda agora.' }
+      }
+      if (name === 'agendar_consulta') {
+        const agendar = handlersRef.current.aoAgendar
+        return agendar
+          ? { ok: true, resultado: await agendar(args as { data: string; hora: string; duracao?: number; servico?: string; encaixe?: boolean; sala?: string; confirmaFimDeSemana?: boolean; ditoPeloDentista?: string; confirmaData?: boolean }) }
+          : { ok: false, erro: 'Não há paciente em atendimento para agendar.' }
+      }
+      if (name === 'cancelar_consulta') {
+        const cancelar = handlersRef.current.aoCancelarConsulta
+        return cancelar
+          ? { ok: true, resultado: await cancelar(args as { data: string; hora?: string; confirmado?: boolean; ditoPeloDentista?: string }) }
+          : { ok: false, erro: 'Não consegui cancelar agora.' }
+      }
+      return { ok: false, erro: `Ferramenta fora do Agente de Agenda: ${name}` }
+    }
+
+    async function executarEstoque({
+      name,
+      args,
+    }: DelegatedToolCall): Promise<Record<string, unknown>> {
+      if (name === 'consultar_materiais') {
         const consultar = handlersRef.current.aoConsultarMateriais
         const { busca, somenteAcabando } = args as { busca?: string; somenteAcabando?: boolean }
-        resultado = consultar
+        return consultar
           ? { ok: true, materiais: await consultar(busca, somenteAcabando) }
           : { ok: false, erro: 'Não consegui ler o estoque agora.' }
-      } else if (nome === 'registrar_material_usado') {
+      }
+      if (name === 'registrar_material_usado') {
         const registrar = handlersRef.current.aoRegistrarMaterial
         const { materiais } = args as { materiais?: MaterialUsage[] }
         if (!registrar || !materiais?.length) {
-          resultado = { ok: false, erro: 'Não entendi qual material foi usado.' }
-        } else {
-          resultado = { ok: true, baixa: await registrar(materiais) }
+          return { ok: false, erro: 'Não entendi qual material foi usado.' }
         }
-      } else if (nome === 'solicitar_orcamento_fornecedor') {
+        return { ok: true, baixa: await registrar(materiais) }
+      }
+      if (name === 'solicitar_orcamento_fornecedor') {
         const solicitar = handlersRef.current.aoSolicitarOrcamento
         if (!solicitar) {
-          resultado = { ok: false, erro: 'Não consegui preparar o pedido de orçamento.' }
-        } else {
-          const pedido = await solicitar(args as unknown as QuoteRequest)
-          const falha = pedido && typeof pedido === 'object'
-            && (pedido as { ok?: boolean }).ok === false
-          resultado = falha
-            ? {
-              ok: false,
-              erro: (pedido as { erro?: string }).erro ?? 'Não consegui enviar o pedido de orçamento.',
-            }
-            : { ok: true, pedido }
+          return { ok: false, erro: 'Não consegui preparar o pedido de orçamento.' }
         }
-      } else if (nome === 'enviar_mensagem_paciente') {
-        const enviar = handlersRef.current.aoEnviarMensagemPaciente
-        if (!enviar) {
-          resultado = { ok: false, erro: 'Não há paciente em atendimento para receber a mensagem.' }
-        } else {
-          const envio = await enviar(args as unknown as PatientMessageRequest)
-          const falha = envio && typeof envio === 'object'
-            && (envio as { ok?: boolean }).ok === false
-          resultado = falha
-            ? {
-              ok: false,
-              erro: (envio as { erro?: string }).erro ?? 'Não consegui enviar a mensagem.',
-            }
-            : { ok: true, envio }
-        }
-      } else if (nome === 'cancelar_consulta') {
-        const cancelar = handlersRef.current.aoCancelarConsulta
-        resultado = cancelar
-          ? { ok: true, resultado: await cancelar(args as { data: string; hora?: string; confirmado?: boolean; ditoPeloDentista?: string }) }
-          : { ok: false, erro: 'Não consegui cancelar agora.' }
-      } else if (nome === 'criar_lembrete') {
-        const criar = handlersRef.current.aoCriarLembrete
-        resultado = criar
-          ? { ok: true, resultado: await criar(args as { texto: string }) }
-          : { ok: false, erro: 'Não consegui salvar o lembrete.' }
-      } else if (nome === 'concluir_lembrete') {
-        const concluir = handlersRef.current.aoConcluirLembrete
-        resultado = concluir
-          ? { ok: true, resultado: await concluir(args as { id: string }) }
-          : { ok: false, erro: 'Não consegui concluir o lembrete.' }
-      } else if (nome === 'ler_odontograma') {
-        const ler = handlersRef.current.aoLerOdontograma
-        resultado = ler
-          ? { ok: true, odontograma: await ler(args as { dentes?: number[] }) }
-          : { ok: false, erro: 'Não consegui ler o odontograma agora.' }
-      } else if (nome === 'consultar_historico') {
-        const historico = handlersRef.current.aoConsultarHistorico
-        resultado = historico
-          ? { ok: true, historico: await historico(args as { data?: string; dente?: number }) }
-          : { ok: false, erro: 'Não consegui ler o histórico agora.' }
-      } else if (nome === 'consultar_agenda') {
-        const consultar = handlersRef.current.aoConsultarAgenda
-        resultado = consultar
-          ? { ok: true, agenda: await consultar(args as { data?: string; hora?: string; duracao?: number; dias?: number }) }
-          : { ok: false, erro: 'Não consegui ler a agenda agora.' }
-      } else if (nome === 'agendar_consulta') {
-        const agendar = handlersRef.current.aoAgendar
-        resultado = agendar
-          ? { ok: true, resultado: await agendar(args as { data: string; hora: string; duracao?: number; servico?: string; encaixe?: boolean; sala?: string; confirmaFimDeSemana?: boolean; ditoPeloDentista?: string; confirmaData?: boolean }) }
-          : { ok: false, erro: 'Não há paciente em atendimento para agendar.' }
-      } else if (nome === 'desfazer_ultima_marcacao') {
-        const anterior = historicoRef.current.pop()
-        if (anterior) {
-          // Travado (ficha em modo histórico) o restore não acontece — e aí a
-          // pilha precisa do item de volta, senão o desfazer some sem ter agido.
-          if (restoreOdontogram(anterior)) {
-            setLastApplied(null)
-            resultado = { ok: true, desfeito: true }
-          } else {
-            historicoRef.current.push(anterior)
-            resultado = { ok: false, erro: 'A ficha está aberta numa data anterior, só para leitura. Volte para "Atual" para desfazer.' }
+        const pedido = await solicitar(args as unknown as QuoteRequest)
+        const falha = pedido && typeof pedido === 'object'
+          && (pedido as { ok?: boolean }).ok === false
+        return falha
+          ? {
+            ok: false,
+            erro: (pedido as { erro?: string }).erro ?? 'Não consegui enviar o pedido de orçamento.',
           }
-        } else {
-          resultado = { ok: false, erro: 'Não há marcação recente para desfazer. Para apagar o que já estava na ficha, use apagar_marcacao.' }
-        }
-      } else {
-        resultado = { ok: false, erro: `Ferramenta desconhecida: ${nome}` }
+          : { ok: true, pedido }
       }
+      return { ok: false, erro: `Ferramenta fora do Agente de Estoque e Compras: ${name}` }
+    }
 
+    async function executarComunicacao({
+      name,
+      args,
+    }: DelegatedToolCall): Promise<Record<string, unknown>> {
+      if (name !== 'enviar_mensagem_paciente') {
+        return { ok: false, erro: `Ferramenta fora do Agente de Comunicação: ${name}` }
+      }
+      const enviar = handlersRef.current.aoEnviarMensagemPaciente
+      if (!enviar) {
+        return { ok: false, erro: 'Não há paciente em atendimento para receber a mensagem.' }
+      }
+      const envio = await enviar(args as unknown as PatientMessageRequest)
+      const falha = envio && typeof envio === 'object'
+        && (envio as { ok?: boolean }).ok === false
+      return falha
+        ? {
+          ok: false,
+          erro: (envio as { erro?: string }).erro ?? 'Não consegui enviar a mensagem.',
+        }
+        : { ok: true, envio }
+    }
 
-      return resultado
+    async function executarDocumentos({
+      name,
+      args,
+    }: DelegatedToolCall): Promise<Record<string, unknown>> {
+      if (name !== 'emitir_documento') {
+        return { ok: false, erro: `Ferramenta fora do Agente de Documentos: ${name}` }
+      }
+      const emitir = handlersRef.current.aoEmitirDocumento
+      if (!emitir) {
+        return { ok: false, erro: 'Não há paciente em atendimento para emitir documento.' }
+      }
+      const documento = await emitir(args as unknown as DocumentRequest)
+      return documento.ok
+        ? { ok: true, emitido: documento.resumo }
+        : { ok: false, erro: documento.erro }
     }
 
     async function handleRealtimeEvent(message: MessageEvent<string>) {
@@ -1051,7 +1102,7 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       orchestrator.reset()
       clearFollowUpAckTimer()
     }
-  }, [ativa, orchestrator, registrar, reservarFala, preencherFala, publicar])
+  }, [ativa, cibellyAgent, orchestrator, registrar, reservarFala, preencherFala, publicar])
 
   return { status, error, lastApplied, atividade, processando }
 }
