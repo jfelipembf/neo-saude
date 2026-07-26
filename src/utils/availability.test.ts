@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { checkSlot, freeSlotsOfDay, nextFreeSlots, type AvailabilityInput, mergeFreeSlots } from './availability'
+import {
+  checkSlot, formatFreeStartRanges, freeSlotsOfDay, nextFreeSlots,
+  type AvailabilityInput, mergeFreeSlots,
+} from './availability'
 import type { ScheduledAppointment } from '@/types/domain'
 
 const HOJE = '2026-07-27'          // uma segunda-feira
@@ -89,6 +92,12 @@ describe('freeSlotsOfDay', () => {
     expect(freeSlotsOfDay(a, SEGUNDA, 60, HOJE).map(s => s.start)).toEqual(['10:00', '10:30', '11:00'])
   })
 
+  it('não oferece como início a hora em que a última vaga termina', () => {
+    const a = base({ appointments: [consulta(SEGUNDA, '11:00', '12:00')] })
+    const blocos = mergeFreeSlots(freeSlotsOfDay(a, SEGUNDA, 60, HOJE))
+    expect(formatFreeStartRanges(blocos)).toBe('09:00 a 10:00')
+  })
+
   it('devolve vazio em dia de ausência, sem grade, ou no passado', () => {
     expect(freeSlotsOfDay(base({ absences: [{ id: 'a', professionalId: 'prof', startDate: SEGUNDA, endDate: SEGUNDA }] }), SEGUNDA, 60, HOJE)).toEqual([])
     expect(freeSlotsOfDay(base({ template: [] }), SEGUNDA, 60, HOJE)).toEqual([])
@@ -117,7 +126,7 @@ describe('mergeFreeSlots — a agenda dita em voz alta', () => {
     expect(mergeFreeSlots([
       s('08:00', '09:00'), s('08:30', '09:30'), s('09:00', '10:00'),
       s('09:30', '10:30'), s('10:00', '11:00'),
-    ])).toEqual([{ inicio: '08:00', fim: '11:00' }])
+    ])).toEqual([{ inicio: '08:00', ultimoInicio: '10:00', fim: '11:00' }])
   })
 
   it('separa o que tem intervalo no meio — o almoço aparece', () => {
@@ -125,18 +134,26 @@ describe('mergeFreeSlots — a agenda dita em voz alta', () => {
       s('08:00', '09:00'), s('08:30', '09:30'),
       s('14:00', '15:00'), s('14:30', '15:30'),
     ])).toEqual([
-      { inicio: '08:00', fim: '09:30' },
-      { inicio: '14:00', fim: '15:30' },
+      { inicio: '08:00', ultimoInicio: '08:30', fim: '09:30' },
+      { inicio: '14:00', ultimoInicio: '14:30', fim: '15:30' },
     ])
   })
 
   it('não depende da ordem de entrada', () => {
     expect(mergeFreeSlots([s('09:00', '10:00'), s('08:00', '09:00')]))
-      .toEqual([{ inicio: '08:00', fim: '10:00' }])
+      .toEqual([{ inicio: '08:00', ultimoInicio: '09:00', fim: '10:00' }])
   })
 
   it('lista vazia e faixa única', () => {
     expect(mergeFreeSlots([])).toEqual([])
-    expect(mergeFreeSlots([s('08:00', '09:00')])).toEqual([{ inicio: '08:00', fim: '09:00' }])
+    expect(mergeFreeSlots([s('08:00', '09:00')]))
+      .toEqual([{ inicio: '08:00', ultimoInicio: '08:00', fim: '09:00' }])
+  })
+
+  it('dita a faixa pelos horários de início, sem oferecer a hora de término', () => {
+    expect(formatFreeStartRanges([
+      { inicio: '08:00', ultimoInicio: '10:00', fim: '11:00' },
+      { inicio: '14:00', ultimoInicio: '16:00', fim: '17:00' },
+    ])).toBe('08:00 a 10:00 e 14:00 a 16:00')
   })
 })

@@ -35,6 +35,15 @@ export interface FreeSlot {
   end: string
 }
 
+export interface FreeSlotBlock {
+  /** Primeiro horário em que uma consulta pode começar. */
+  inicio: string
+  /** Último horário em que uma consulta pode começar dentro do bloco. */
+  ultimoInicio: string
+  /** Quando termina a última consulta possível; não é horário de início. */
+  fim: string
+}
+
 /** Motivo de um horário não servir — é o que a Cibelly fala em voz alta. */
 export type UnavailableReason =
   | 'ausencia'
@@ -198,20 +207,30 @@ export function nextFreeSlots(
  * trazia uma dúzia de faixas sobrepostas — 08:00-09:00, 08:30-09:30,
  * 09:00-10:00… Tudo isso volta para o contexto e é relido a cada turno.
  *
- * E é também como gente responde: ninguém lê doze horários em voz alta; diz
- * "de manhã até meio-dia, e das duas às cinco".
+ * Para a fala, o bloco preserva também `ultimoInicio`: numa consulta de 60
+ * minutos, "08:00–11:00" termina às 11:00, mas o último início é 10:00.
  */
-export function mergeFreeSlots(slots: FreeSlot[]): { inicio: string; fim: string }[] {
+export function mergeFreeSlots(slots: FreeSlot[]): FreeSlotBlock[] {
   const ordenados = [...slots].sort((a, b) => a.start.localeCompare(b.start))
-  const blocos: { inicio: string; fim: string }[] = []
+  const blocos: FreeSlotBlock[] = []
   for (const s of ordenados) {
     const ultimo = blocos[blocos.length - 1]
     // Contíguo OU sobreposto entra no bloco anterior; o fim é sempre o maior.
     if (ultimo && s.start <= ultimo.fim) {
+      if (s.start > ultimo.ultimoInicio) ultimo.ultimoInicio = s.start
       if (s.end > ultimo.fim) ultimo.fim = s.end
     } else {
-      blocos.push({ inicio: s.start, fim: s.end })
+      blocos.push({ inicio: s.start, ultimoInicio: s.start, fim: s.end })
     }
   }
   return blocos
+}
+
+/** Texto inequívoco para voz: lista horários de INÍCIO, não a hora de término. */
+export function formatFreeStartRanges(blocks: FreeSlotBlock[]): string {
+  return blocks
+    .map(block => block.inicio === block.ultimoInicio
+      ? block.inicio
+      : `${block.inicio} a ${block.ultimoInicio}`)
+    .join(' e ')
 }

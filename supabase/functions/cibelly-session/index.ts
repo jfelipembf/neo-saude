@@ -292,8 +292,9 @@ LEMBRETES — o dentista deixa recado para o PRÓXIMO atendimento do paciente:
 AGENDA — VOCÊ TEM ACESSO, SIM:
 - "segunda às 13h tá livre?", "quando tenho vaga?", "tem horário na quinta?" → "consultar_agenda". Ela já desconta disponibilidade, bloqueio, férias e consultas existentes.
 - PERÍODO É UMA CHAMADA SÓ: "esta semana" é data=segunda + dias=7. NUNCA percorra dia a dia — você já fez isso (sete chamadas para responder uma pergunta) e o dentista teve de repetir a pergunta de tanto que demorou.
-- Os horários voltam em BLOCOS ("08:00 às 12:00"). Fale assim, do jeito que gente fala; não leia faixa por faixa.
-- A resposta traz o campo "resposta" já ESCRITO. LEIA ele. Pergunta sobre agenda NUNCA se responde com "sim" ou "não" sozinho — já aconteceu de você responder só "sim" a "essa semana tem consulta?", com o dia e a hora na sua frente. Ele perguntou para saber QUANDO.
+- Os horários voltam como faixas de INÍCIO ("08:00 a 10:00" para consultas de 60 minutos). O fim da última consulta não é um horário livre para começar outra.
+- A resposta traz o campo "resposta" já ESCRITO. LEIA EXATAMENTE esse campo e não monte outra resposta usando "agenda". Ele combina consulta já marcada e horários livres sem oferecer a hora de término como início.
+- Se "consultasDoPaciente" trouxer consulta no período pedido, diga primeiro que o paciente JÁ está agendado. Não trate os horários livres como se a consulta existente não importasse.
 - "quando é a consulta dela?", "quando ela volta?", "ela tem retorno marcado?" → também "consultar_agenda": a resposta traz "consultasDoPaciente" com o que já está marcado para o paciente em atendimento. Nunca diga que não sabe — consulte.
 - SE ELE JÁ DISSE DIA E HORA ("marca segunda às 14h"), chame "agendar_consulta" DIRETO. Não consulte antes: agendar já confere o horário sozinho e, se não servir, recusa dizendo o motivo e oferecendo alternativas. Consultar primeiro é um turno de conversa a mais para chegar na mesma resposta.
 - "consultar_agenda" é para quando ele PERGUNTA ("quando tenho vaga?", "quinta tá livre?", "quando é a consulta dela?") — aí a pergunta é a resposta, e não um passo antes de agendar.
@@ -403,7 +404,7 @@ Jeito CERTO (a ferramenta roda calada; a resposta é uma palavra):
 "reverta o dente 28" / "retorne o dente 28" / "insira o dente 28" → [restaurar_dente, dentes=[28]] "restaurado"
 "no 15, 16 e 17 tá aparecendo uma obturação, remove aí" → [apagar_marcacao] "removido"
 "prepara um atestado de um dia" → [emitir_documento] "pronto pra assinar"
-"segunda às 13h tá livre?" → [consultar_agenda] "tá livre" / "tem consulta às 13; 14h tá livre"
+"qual horário livre na terça?" → [consultar_agenda] leia "resposta": "já tem consulta às 11; para 60 minutos, os inícios livres são 08:00 a 10:00 e 14:00 a 16:00"
 
 Jeito ERRADO — saíram de atendimentos reais. Dois padrões, e você já caiu nos dois:
 
@@ -837,6 +838,7 @@ const TOOLS = [
       'bloqueios, férias/ausências e consultas existentes) E as consultas JÁ MARCADAS do paciente em atendimento, ' +
       'que voltam sempre no campo "consultasDoPaciente". ' +
       'Use tanto para "segunda às 13h tá livre?" quanto para "quando é a consulta dela?" / "quando ela volta?". ' +
+      'O campo "resposta" já combina consultas existentes e faixas de horários de INÍCIO; leia-o sem reinterpretar os blocos de agenda. ' +
       'Use quando ele PERGUNTA sobre horário. Se ele já disse dia e hora, NÃO consulte antes — chame agendar_consulta direto, que já confere sozinho. ' +
       'VOCÊ TEM acesso à agenda: nunca mande conferir com a recepção.',
     parameters: {

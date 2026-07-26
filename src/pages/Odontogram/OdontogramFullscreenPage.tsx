@@ -40,7 +40,8 @@ import {
   useCreateScheduleAppointment, useScheduleAppointments, useUpdateScheduleAppointment,
 } from '@/hooks/useSchedule'
 import {
-  checkSlot, freeSlotsOfDay, mergeFreeSlots, nextFreeSlots, UNAVAILABLE_LABEL,
+  checkSlot, formatFreeStartRanges, freeSlotsOfDay, mergeFreeSlots,
+  nextFreeSlots, UNAVAILABLE_LABEL,
   type AvailabilityInput,
 } from '@/utils/availability'
 import { formatCpf } from '@/utils/format'
@@ -530,16 +531,21 @@ export function OdontogramFullscreenPage() {
       const fimIso = agenda[agenda.length - 1]?.dataIso ?? inicioIso
       const noPeriodo = consultasDoPaciente.filter(c => c.dataIso >= inicioIso && c.dataIso <= fimIso)
       const livresNoPeriodo = agenda.filter(d => d.livres.length > 0)
+      const resumoLivres = livresNoPeriodo
+        .map(d => `${d.dia}: ${formatFreeStartRanges(d.livres)}`)
+        .join('; ')
 
-      const resposta = noPeriodo.length > 0
-        ? `${paciente.name} tem ${noPeriodo.length === 1 ? 'consulta' : noPeriodo.length + ' consultas'}: `
+      const consultasTexto = noPeriodo.length > 0
+        ? `${paciente.name} já tem ${noPeriodo.length === 1 ? 'consulta' : noPeriodo.length + ' consultas'}: `
           + noPeriodo.map(c => c.quando).join('; ') + '.'
-        // Sem consulta marcada, a resposta útil é o que ESTÁ livre — senão ela
-        // responde "não tem" e o dentista pergunta a seguir "e o que tem?".
-        : livresNoPeriodo.length === 0
-          ? `${paciente.name} não tem consulta nesse período, e não há horário livre.`
-          : `${paciente.name} não tem consulta nesse período. Livre: `
-            + livresNoPeriodo.map(d => `${d.dia} ${d.livres.map(h => `${h.inicio} às ${h.fim}`).join(' e ')}`).join('; ') + '.'
+        : `${paciente.name} não tem consulta nesse período.`
+      // `fim` é a hora em que a última consulta TERMINA. A fala lista
+      // `ultimoInicio`, senão "08:00 às 11:00" oferece 11:00 como início
+      // justamente quando esse horário já pode estar ocupado.
+      const vagasTexto = livresNoPeriodo.length === 0
+        ? ' Não há outro horário livre nesse período.'
+        : ` Para uma consulta de ${duracao} minutos, os horários de início livres são ${resumoLivres}.`
+      const resposta = consultasTexto + vagasTexto
 
       return { ok: true, resposta, consultasDoPaciente: noPeriodo, agenda }
     }
