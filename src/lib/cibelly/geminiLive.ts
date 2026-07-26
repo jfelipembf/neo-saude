@@ -38,8 +38,13 @@ export interface GeminiLiveHandlers {
   aoFalar?: (texto: string) => void
   /** Transcrição do que o DENTISTA falou (só quando habilitada no setup). */
   aoOuvir?: (texto: string) => void
+  /** O modelo encerrou o turno; usado pelo watchdog de comando sem ferramenta. */
+  aoTurnoConcluido?: () => void
   /** MEDIÇÃO TEMPORÁRIA de custo — ver src/lib/cibelly/pricing.ts. */
   aoMedirUso?: (meta: UsageMetadataGemini) => void
+  /** Há um turno dela em andamento AGORA — o dentista deve esperar antes de
+   *  falar de novo (mesmo motivo do `processando` em useCibelly.ts). */
+  aoProcessando?: (emAndamento: boolean) => void
 }
 
 export class GeminiLive {
@@ -128,6 +133,9 @@ export class GeminiLive {
     }
 
     if (msg.toolCall) {
+      // Chamando ferramenta agora, resposta falada vem em seguida — mesmo
+      // sinal de "espera" que o response.created da OpenAI dá.
+      this.handlers.aoProcessando?.(true)
       const { functionCalls } = msg.toolCall as { functionCalls?: ChamadaDeFerramenta[] }
       const respostas = []
       for (const chamada of functionCalls ?? []) {
@@ -154,6 +162,7 @@ export class GeminiLive {
     const conteudo = msg.serverContent as {
       modelTurn?: { parts?: { inlineData?: { data?: string } }[] }
       interrupted?: boolean
+      turnComplete?: boolean
       outputTranscription?: { text?: string }
       inputTranscription?: { text?: string }
     } | undefined
@@ -164,10 +173,16 @@ export class GeminiLive {
     const ouvido = conteudo.inputTranscription?.text
     if (ouvido?.trim()) this.handlers.aoOuvir?.(ouvido.trim())
 
-    if (conteudo.interrupted) { this.alto.cortar(); return }
+    if (conteudo.interrupted) { this.alto.cortar(); this.handlers.aoProcessando?.(false); return }
 
     for (const parte of conteudo.modelTurn?.parts ?? []) {
       if (parte.inlineData?.data) void this.alto.tocar(parte.inlineData.data)
+    }
+
+    // `turnComplete` fecha o turno dela — o sinal de "pode falar de novo".
+    if (conteudo.turnComplete) {
+      this.handlers.aoProcessando?.(false)
+      this.handlers.aoTurnoConcluido?.()
     }
   }
 
@@ -177,6 +192,17 @@ export class GeminiLive {
 
   /** Está ouvindo de verdade (setup aceito e microfone aberto). */
   get ouvindo(): boolean { return this.pronta }
+
+  /** Injeta uma conferência textual sem reabrir o microfone ou outra conexão. */
+  enviarTexto(texto: string): void {
+    if (!this.pronta || !texto.trim()) return
+    this.enviar({
+      clientContent: {
+        turns: [{ role: 'user', parts: [{ text: texto.trim() }] }],
+        turnComplete: true,
+      },
+    })
+  }
 
   encerrar(): void {
     this.encerrado = true

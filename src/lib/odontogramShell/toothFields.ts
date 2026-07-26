@@ -128,6 +128,32 @@ export type ToothProposalResult =
   | { ok: true; resumo: string; recusados?: string[] }
   | { ok: false; erro: string }
 
+/** Aceita pequenas variações que modelos de voz às vezes produzem apesar do
+ * schema. O contrato interno continua sendo ToothProposal; a tolerância fica
+ * somente nesta fronteira. */
+export function normalizeToothProposal(input: Record<string, unknown>): ToothProposal {
+  const normalized = { ...input }
+  const proposta = normalized as unknown as ToothProposal
+  if (proposta.achado !== 'mobilidade') return proposta
+
+  const mobilidade = normalized.mobilidade && typeof normalized.mobilidade === 'object'
+    ? normalized.mobilidade as Record<string, unknown>
+    : {}
+  const candidato = normalized.grauMobilidade
+    ?? normalized.grau
+    ?? normalized.nivel
+    ?? mobilidade.grau
+    ?? mobilidade.nivel
+  const numero = typeof candidato === 'string' ? Number(candidato) : candidato
+  if (numero === 1 || numero === 2 || numero === 3) {
+    proposta.grauMobilidade = numero
+  }
+  delete normalized.mobilidade
+  delete normalized.grau
+  delete normalized.nivel
+  return proposta
+}
+
 /** Superfície falada -> chave interna do motor. "palatina" é o nome da lingual
  *  no arco superior — o motor guarda as duas como "lingual" e só troca a LETRA
  *  exibida conforme o arco. */
@@ -735,6 +761,104 @@ const LIMPEZA_POR_ACHADO: Record<ToothFinding, ToothRaw> = {
   'carie-de-raiz': { rootCaries: 'none' },
   desgaste: { wearEdge: 'none', wearCervical: 'none' },
   nota: { note: '' },
+}
+
+export type ToothStateVerification =
+  | { ok: true; dentes: number[] }
+  | { ok: false; erro: string; dentes: number[] }
+
+function stableState(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableState).join(',')}]`
+  if (!value || typeof value !== 'object') return JSON.stringify(value)
+  return `{${Object.entries(value as Record<string, unknown>)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, child]) => `${JSON.stringify(key)}:${stableState(child)}`)
+    .join(',')}}`
+}
+
+function cloneTooth(tooth: ToothRaw): ToothRaw {
+  return JSON.parse(JSON.stringify(tooth)) as ToothRaw
+}
+
+/**
+ * Confere a pós-condição usando a mesma regra pura que aplica cada achado. Se
+ * aplicar a proposta outra vez seria um no-op, o estado atual já a satisfaz.
+ */
+export function verifyToothProposalState(p: ToothProposal): ToothStateVerification {
+  const dentes = (p.dentes ?? []).filter(d => FDI_VALIDOS.has(d))
+  const superficies = (p.superficies ?? []).map(s => SURFACE_MAP[s]).filter(Boolean)
+  const faltou = validarProposta(p, superficies)
+  if (faltou || dentes.length === 0) {
+    return { ok: false, erro: faltou ?? 'Nenhum dente válido para conferir.', dentes: [] }
+  }
+
+  const payload = getOdontogramState() as { teeth?: Record<string, ToothRaw> }
+  const pendentes: number[] = []
+  const avaliados: number[] = []
+
+  for (const dente of dentes) {
+    const atual = cloneTooth(payload.teeth?.[String(dente)] ?? {})
+    const nota = p.nota?.trim()
+    const notaPresente = !nota
+      || (typeof atual.note === 'string' && atual.note.split('\n').includes(nota))
+
+    if (p.achado === 'nota') {
+      avaliados.push(dente)
+      if (!notaPresente) pendentes.push(dente)
+      continue
+    }
+
+    const esperado = cloneTooth(atual)
+    const motivo = aplicarNoDente(esperado, { ...p, nota: undefined }, superficies, dente)
+    // Uma recusa por dente já é comunicada por applyToothProposal e não é uma
+    // gravação perdida. A conferência cobre somente os que podem receber.
+    if (motivo) continue
+    avaliados.push(dente)
+    if (!notaPresente || stableState(atual) !== stableState(esperado)) {
+      pendentes.push(dente)
+    }
+  }
+
+  if (avaliados.length === 0 || pendentes.length > 0) {
+    const falhos = pendentes.length ? pendentes : dentes
+    return {
+      ok: false,
+      erro: `O estado do odontograma não confirmou o comando nos dentes ${falhos.join(', ')}.`,
+      dentes: falhos,
+    }
+  }
+  return { ok: true, dentes: avaliados }
+}
+
+const LIMPEZA_COMPLETA: ToothRaw = Object.assign({}, ...Object.values(LIMPEZA_POR_ACHADO))
+
+/** Confere remoção específica, restauração de dente ou limpeza completa. */
+export function verifyToothClearState(
+  dentes?: number[],
+  achado?: ToothFinding,
+): ToothStateVerification {
+  const validos = (dentes?.length ? dentes : [...FDI_VALIDOS]).filter(d => FDI_VALIDOS.has(d))
+  const patch = achado ? LIMPEZA_POR_ACHADO[achado] : LIMPEZA_COMPLETA
+  if (!patch || validos.length === 0) {
+    return { ok: false, erro: 'Não há uma remoção válida para conferir.', dentes: [] }
+  }
+
+  const payload = getOdontogramState() as { teeth?: Record<string, ToothRaw> }
+  const pendentes = validos.filter(dente => {
+    const atual = payload.teeth?.[String(dente)] ?? {}
+    return Object.entries(patch).some(([campo, esperado]) => (
+      // Campo ausente hidrata com o padrão do motor e equivale a estar limpo.
+      atual[campo] !== undefined && stableState(atual[campo]) !== stableState(esperado)
+    ))
+  })
+
+  return pendentes.length
+    ? {
+        ok: false,
+        erro: `A remoção não foi confirmada nos dentes ${pendentes.join(', ')}.`,
+        dentes: pendentes,
+      }
+    : { ok: true, dentes: validos }
 }
 
 /**

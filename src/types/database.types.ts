@@ -1175,6 +1175,7 @@ export type Database = {
           text_cached_tokens: number
           text_input_tokens: number
           text_output_tokens: number
+          whisper_cost_usd: number
         }
         Insert: {
           audio_cached_tokens?: number
@@ -1193,6 +1194,7 @@ export type Database = {
           text_cached_tokens?: number
           text_input_tokens?: number
           text_output_tokens?: number
+          whisper_cost_usd?: number
         }
         Update: {
           audio_cached_tokens?: number
@@ -1211,6 +1213,7 @@ export type Database = {
           text_cached_tokens?: number
           text_input_tokens?: number
           text_output_tokens?: number
+          whisper_cost_usd?: number
         }
         Relationships: [
           {

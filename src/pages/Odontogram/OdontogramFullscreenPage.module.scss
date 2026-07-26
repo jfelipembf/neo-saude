@@ -132,6 +132,21 @@ $raio-item: 10px;
   }
 }
 
+// Âmbar, o mesmo tom de "espera" do histórico — aqui o recado é "não fale
+// ainda": falar em cima de uma resposta em curso faz o comando se perder (o
+// servidor recusa abrir uma resposta nova por cima de uma já ativa). Pulso
+// mais rápido que o do "ouvindo": é um estado de atenção, não de repouso.
+.chipProcessando {
+  border-color: var(--warning-fg);
+  color: var(--warning-fg);
+
+  svg { animation: cibellyPulse 0.9s ease-in-out infinite; }
+
+  @media (prefers-reduced-motion: reduce) {
+    svg { animation: none; }
+  }
+}
+
 .chipError { border-color: var(--danger-fg); color: var(--danger-fg); }
 
 @keyframes cibellyPulse {
@@ -460,6 +475,7 @@ $raio-item: 10px;
 .linha--dentista   { border-left-color: var(--text-muted); }
 .linha--fala       { border-left-color: var(--secondary); }
 .linha--ferramenta { border-left-color: var(--primary); }
+.linha--conferencia { border-left-color: var(--warning-fg); }
 .linha--erro       { border-left-color: var(--danger-fg); background: var(--bg-elevated); }
 
 // Rótulo de quem falou, antes do texto: sem ele, ler uma sequência de falas

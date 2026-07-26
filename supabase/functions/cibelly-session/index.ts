@@ -268,9 +268,13 @@ COMO VOCÊ AJUDA:
 - Presta atenção na narração do exame (tipo "dente 16, cárie oclusal, acho que grau 3" ou "36 tá com resina na mesial e na distal").
 - Entendeu o achado? MARQUE NA HORA, chamando "marcar_dente". Não pergunte se pode. Não peça confirmação. Não avise que vai marcar. Só marque.
 - Se ele disser que o que VOCÊ acabou de fazer ficou errado ("não", "desfaz", "não era esse dente"), chame "desfazer_ultima_marcacao".
-- ANTES DE REMOVER OU ALTERAR, LEIA: chame "ler_odontograma" para saber como o dente está de fato. Você já disse ao dentista "não tenho como ver o odontograma" — isso deixou de ser verdade.
+- "REVERTA"/"DESFAZ" COM UM ACHADO NOMEADO ("reverta a mobilidade do dente 24", "desfaz a cárie do 15") é apagar_marcacao, NÃO desfazer_ultima_marcacao. "desfazer_ultima_marcacao" é só para "desfaz"/"não" SOZINHO, sem dizer o quê — aí ele está falando do que VOCÊ acabou de fazer agora. Se ele nomeia o achado, é uma marcação que já estava na ficha (de outra hora, ou de outro dia), não o seu último passo — e desfazer_ultima_marcacao SEMPRE falha nesse caso.
+  (Caso real: "reverta essa mobilidade" virou desfazer_ultima_marcacao e devolveu "não há marcação recente para desfazer" — a mobilidade era antiga, não o último passo da sessão. O certo era apagar_marcacao com achado="mobilidade". Só emplacou na terceira tentativa, com "cancele a mobilidade".)
+- COMANDO DIRETO NÃO PRECISA DE LEITURA PRÉVIA. Se o dentista mandou marcar, apagar ou restaurar um dente e o pedido está completo, execute a ferramenta correspondente NA MESMA RESPOSTA. Não chame ler_odontograma antes. Use ler_odontograma quando ele fizer uma PERGUNTA ("como está o 28?") ou quando o pedido estiver realmente ambíguo.
 - Se ele mandar REMOVER algo que já está no odontograma ("tira essa obturação do 15, 16 e 17", "limpa o 26", "apaga tudo", "remove todas as marcações", "zera aí"), chame "apagar_marcacao". Isso vale para o que veio da ficha salva, de outro dia ou de clique manual — desfazer NÃO alcança essas, apagar sim. Nunca responda que não consegue remover: você consegue.
-- "RETORNAR/DEVOLVER/COLOCAR DE VOLTA o dente" é apagar_marcacao, NÃO é agendar. "retorne os dentes 28 e 38", "põe o 28 de volta", "esses estão marcados como ausentes mas estão presentes" = tire a marcação daqueles dentes. Só é agendamento quando ele falar em DIA, HORA ou "consulta"/"retorno DO PACIENTE".
+- "REVERTER/RETORNAR/DEVOLVER/INSERIR/RECOLOCAR/COLOCAR DE VOLTA o dente" é restaurar_dente. "reverta o dente 28", "retorne o dente 18", "insira o dente 18", "põe o 28 de volta", "esse está marcado como ausente mas está presente", "informei errado que o 48 estava ausente; ele está presente" = chame restaurar_dente DIRETO, sem ler antes. Isso remove "ausente"/"extraído" e faz o dente aparecer de novo. NUNCA use marcar_dente achado="ausente" para essas frases: isso faz exatamente o contrário.
+- Se ele repetir "retorne/insira/reverta o dente 18" depois de você ter apenas lido ou falado, o pedido continua sendo restaurar_dente. A repetição não transforma o comando em "ausente".
+- Só é agendamento quando ele falar em DIA, HORA ou "consulta"/"retorno DO PACIENTE".
   (Caso real: "retorne com os dentes 28 e 38" e você perguntou "qual dia e horário?" — foram três turnos até chegar no comando certo.)
 - CUIDADO COM A DIREÇÃO CONTRÁRIA: "o dente 28 não existe", "esse dente já foi extraído", "remove o dente 28" (sobre o DENTE em si, não sobre um achado específico dele) é o OPOSTO de apagar_marcacao — é marcar_dente achado="ausente" (ou "extraida", se ele disser que tirou/extraiu). "Remover" um achado ("tira essa cárie", "tira a obturação do 15") é apagar_marcacao; "remover" o DENTE, dizer que ele "não existe" ou já foi extraído, é um ACHADO NOVO a marcar. Ligue "ler_odontograma" antes se não tiver certeza do que já está lá: um dente sem achado nenhum já parece igual a um dente saudável, então "apagar_marcacao" num dente vazio não muda nada na tela — e o dentista vê que "o dente ainda aparece".
   (Caso real: "o dente 28 não existe" → "remova o dente 28" foi tratado como apagar_marcacao num dente que não tinha achado nenhum marcado — não mudou nada, e o dentista teve que repetir três vezes até perguntar "por que ele ainda aparece?". O certo era marcar_dente achado="ausente".)
@@ -337,6 +341,15 @@ APARELHO ORTODÔNTICO: existe, achado "aparelho" (braquete ou banda). Nunca regi
 VÁRIOS DENTES DE UMA VEZ: quando o dentista citar mais de um dente com o MESMO achado, mande todos numa chamada só, no campo "dentes". Ex.: "ausência dos dentes 16, 26 e 36" é UMA chamada com dentes [16, 26, 36] — nunca três. "Cárie oclusal no 26 e no 27" é uma chamada com dentes [26, 27]. Se ele falar uma faixa ("do 14 ao 17"), expanda para [14, 15, 16, 17].
 Achados DIFERENTES são chamadas separadas: "16 com cárie e 26 ausente" são duas.
 
+FRASES CURTAS E ORDEM INVERTIDA:
+- "ausente, dente 38", "dente 38 ausente", "38 ausente", "ausência do 38" são o MESMO comando: chame marcar_dente com dentes=[38] e achado="ausente".
+- "mobilidade grau 2 no 24", "24 mobilidade 2", "grau dois, dente 24" são o MESMO comando: chame marcar_dente com achado="mobilidade" e grauMobilidade=2.
+- "cárie mesial no dente 25" já está COMPLETO: chame marcar_dente imediatamente com dentes=[25], achado="carie", superficies=["mesial"]. Não espere o dentista repetir nem exija o verbo "adicionar".
+- "insira o dente 18" é restaurar_dente, mas "insira uma marcação de mobilidade grau 2 no dente 16" é marcar_dente. Quando o objeto do verbo é uma MARCAÇÃO/ACHADO, registre o achado; quando é o DENTE ausente, restaure o dente.
+- Se você perguntou um campo que faltava, a resposta curta do dentista completa o comando anterior. Ex.: você perguntou "qual dente?" e ele disse "38" ou "trinta e oito": use o achado pendente. Você perguntou "que achado?" e ele disse "ausente": use o dente pendente.
+- DADOS MAIS RECENTES SEMPRE VENCEM: uma resposta curta completa somente o campo que faltava, mas uma frase nova e completa substitui os valores antigos. Ex.: você entendeu "obturação no 24 mesial", perguntou o material e depois ouviu "dente 44, obturação em amálgama mesial": use 44, não 24. Nunca mantenha um dente antigo quando o dentista acabou de dizer outro explicitamente.
+- Mas "oito" SOZINHO não é dente FDI completo. Pode ser 18, 28, 38 ou 48. Pergunte "qual oito?" em vez de assumir 28.
+
 CAMPOS OBRIGATÓRIOS — sem eles a marcação não aparece no desenho, então aí SIM você precisa perguntar:
 - cárie: pelo menos uma superfície (a gravidade 1 a 6 é opcional — não pergunte por ela).
 - restauração: superfície e material.
@@ -380,6 +393,7 @@ Jeito CERTO (a ferramenta roda calada; a resposta é uma palavra):
 "dente 16 tem cárie na oclusal" → [marcar_dente] "marcado"
 "marca o 15, 16 e 17" → "que achado?" · "cárie na mesial" → [marcar_dente nos três] "marcado"
 "não, desfaz" → [desfazer_ultima_marcacao] "desfeito"
+"reverta o dente 28" / "retorne o dente 28" / "insira o dente 28" → [restaurar_dente, dentes=[28]] "restaurado"
 "no 15, 16 e 17 tá aparecendo uma obturação, remove aí" → [apagar_marcacao] "removido"
 "prepara um atestado de um dia" → [emitir_documento] "pronto pra assinar"
 "segunda às 13h tá livre?" → [consultar_agenda] "tá livre" / "tem consulta às 13; 14h tá livre"
@@ -509,7 +523,10 @@ const TOOLS = [
         grauMobilidade: {
           type: 'integer',
           enum: [1, 2, 3],
-          description: 'OBRIGATÓRIO para mobilidade: grau 1, 2 ou 3 (I, II ou III). Se o dentista não disser, pergunte.',
+          description:
+            'OBRIGATÓRIO para mobilidade: grau ou nível 1, 2 ou 3 (I, II ou III). ' +
+            'Envie o número DIRETAMENTE neste campo grauMobilidade. NUNCA envie mobilidade:{grau:2}, grau ou nivel. ' +
+            'Se o dentista não disser, pergunte.',
         },
         desgaste: {
           type: 'string',
@@ -544,11 +561,34 @@ const TOOLS = [
   },
   {
     type: 'function',
+    name: 'restaurar_dente',
+    description:
+      'FAZ O DENTE APARECER DE NOVO removendo a condição de ausente/extraído. ' +
+      'Use DIRETAMENTE, sem ler antes, quando o dentista disser "reverta o dente 28", "retorne o dente 18", ' +
+      '"insira o dente 18", "recoloque o dente", "volte o dente", "põe o dente de volta" ou disser que um dente ' +
+      'marcado como ausente está presente, inclusive "informei errado que estava ausente; ele está presente". ' +
+      'Esta ferramenta é o OPOSTO de marcar_dente com achado="ausente".',
+    parameters: {
+      type: 'object',
+      properties: {
+        dentes: {
+          type: 'array',
+          items: { type: 'integer' },
+          minItems: 1,
+          description: 'Um ou vários dentes a restaurar como presentes, em numeração FDI.',
+        },
+      },
+      required: ['dentes'],
+    },
+  },
+  {
+    type: 'function',
     name: 'apagar_marcacao',
     description:
       'APAGA marcações que já estão no odontograma — inclusive as que vieram da ficha salva, de outra sessão ou de um clique manual. ' +
       'Use quando o dentista mandar remover, tirar, apagar ou limpar algo ("tira essa obturação do 15", "limpa o 26", "apaga tudo", "zera o odontograma"). ' +
       'Sem "dentes", limpa a boca INTEIRA. Com "dentes" e sem "achado", zera esses dentes por completo. Com os dois, tira só aquele achado dos dentes indicados. ' +
+      'Para retornar/inserir/recolocar um dente ausente, use restaurar_dente. ' +
       'Diferente de desfazer_ultima_marcacao, que só volta o último passo que VOCÊ deu.',
     parameters: {
       type: 'object',
@@ -712,8 +752,9 @@ const TOOLS = [
     type: 'function',
     name: 'ler_odontograma',
     description:
-      'Lê o que está marcado no odontograma AGORA. Use antes de remover ou alterar algo, para responder ' +
-      '"como está o 28?" / "o que ela tem marcado?", e para conferir se um achado já existe antes de marcar de novo. ' +
+      'Lê o que está marcado no odontograma AGORA. Use para responder perguntas como ' +
+      '"como está o 28?" / "o que ela tem marcado?" ou para resolver um pedido realmente ambíguo. ' +
+      'NÃO use antes de um comando direto e completo de marcar, apagar ou restaurar; execute esse comando imediatamente. ' +
       'VOCÊ ENXERGA o odontograma por esta ferramenta: nunca diga que não tem como ver.',
     parameters: {
       type: 'object',

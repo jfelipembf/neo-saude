@@ -33,7 +33,7 @@ export function CibellyUsageCard() {
     )
   }
 
-  const totalUsd = sessoes.reduce((soma, s) => soma + s.costUsd, 0)
+  const totalUsd = sessoes.reduce((soma, s) => soma + s.costUsd + s.whisperCostUsd, 0)
 
   return (
     <section className={styles.card}>
@@ -56,7 +56,7 @@ export function CibellyUsageCard() {
                 {s.provider === 'openai' ? 'OpenAI' : 'Gemini'}
               </span>
               <span className={styles.modelo}>{s.model}</span>
-              <span className={styles.custo}>${s.costUsd.toFixed(4)}</span>
+              <span className={styles.custo}>${(s.costUsd + s.whisperCostUsd).toFixed(4)}</span>
             </div>
             <div className={styles.linha2}>
               <span className={styles.paciente}>{s.patientId ? patientName(s.patientId) : '—'}</span>
@@ -64,6 +64,11 @@ export function CibellyUsageCard() {
                 {new Date(s.startedAt).toLocaleString('pt-BR', {
                   day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
                 })} · {s.totalTokens.toLocaleString('pt-BR')} tokens
+                {/* Só a OpenAI tem essa lacuna — a transcrição do dentista
+                    (whisper-1) é modelo à parte, cobrado por minuto, e some de
+                    `response.usage`. No Gemini o áudio dele já está nos tokens
+                    normais, então não há o que separar. */}
+                {s.whisperCostUsd > 0 && ` · whisper ~$${s.whisperCostUsd.toFixed(4)}`}
               </span>
             </div>
           </li>

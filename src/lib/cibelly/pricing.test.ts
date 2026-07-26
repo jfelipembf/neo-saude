@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  acumularGemini, acumularOpenAI, calcularCustoUsd, totalTokens, USO_ZERADO,
+  acumularGemini, acumularOpenAI, calcularCustoUsd, calcularCustoWhisperUsd, totalTokens, USO_ZERADO,
   type UsageMetadataGemini, type UsoRealtimeOpenAI,
 } from './pricing'
 
@@ -136,6 +136,22 @@ describe('calcularCustoUsd', () => {
     const openai = calcularCustoUsd({ ...USO_ZERADO, audioEntradaCache: 9_000, audioSaida: 40 }, 'openai', 'gpt-realtime-2.1-mini')
     const gemini = calcularCustoUsd({ ...USO_ZERADO, audioEntrada: 9_000, audioSaida: 40 }, 'gemini', 'gemini-3.1-flash-live-preview')
     expect(openai).toBeLessThan(gemini)
+  })
+})
+
+describe('calcularCustoWhisperUsd', () => {
+  it('30 minutos custa exatamente a tabela oficial ($0,006/min)', () => {
+    expect(calcularCustoWhisperUsd(30 * 60)).toBeCloseTo(0.18, 6)
+  })
+
+  it('zero segundos custa zero', () => {
+    expect(calcularCustoWhisperUsd(0)).toBe(0)
+  })
+
+  it('cresce linearmente com a duração', () => {
+    const dez = calcularCustoWhisperUsd(10 * 60)
+    const vinte = calcularCustoWhisperUsd(20 * 60)
+    expect(vinte).toBeCloseTo(dez * 2, 6)
   })
 })
 

@@ -1096,10 +1096,16 @@ export function OdontogramFullscreenPage() {
     return <Navigate to={APP_ROUTES.DASHBOARD} replace />
   }
 
+  // Enquanto ela está processando/respondendo, falar por cima faz o SERVIDOR
+  // (não o nosso código) tentar abrir uma resposta nova em cima de uma já
+  // ativa — a API recusa, e como quem tentou foi o servidor sozinho, aquele
+  // comando falado simplesmente some, sem chamar ferramenta nenhuma. Esse
+  // estado avisa quando esperar, para o dentista não perder o comando.
+  const emProcessamento = cibelly.status === 'listening' && cibelly.processando
   const statusTexto = {
     idle: 'Cibelly em espera',
     connecting: 'Conectando a Cibelly…',
-    listening: `Cibelly ouvindo${patientName ? ` · ${patientName}` : ''}`,
+    listening: emProcessamento ? 'Cibelly processando… aguarde' : `Cibelly ouvindo${patientName ? ` · ${patientName}` : ''}`,
     error: cibelly.error ?? 'Cibelly indisponível',
   }[cibelly.status]
 
@@ -1132,7 +1138,11 @@ export function OdontogramFullscreenPage() {
 
         <div className={styles.barraDireita}>
           {emAtendimento && (
-            <span className={`${styles.chip} ${styles[`chip${cibelly.status[0].toUpperCase()}${cibelly.status.slice(1)}`]}`} role="status" aria-live="polite">
+            <span
+              className={`${styles.chip} ${emProcessamento ? styles.chipProcessando : styles[`chip${cibelly.status[0].toUpperCase()}${cibelly.status.slice(1)}`]}`}
+              role="status"
+              aria-live="polite"
+            >
               <IconMic />
               {statusTexto}
             </span>
@@ -1302,7 +1312,13 @@ export function OdontogramFullscreenPage() {
                     ) : (
                       <span className={styles.linhaTitulo}>
                         <span className={styles.quem}>
-                          {a.tipo === 'dentista' ? 'Você' : a.tipo === 'erro' ? 'Erro' : 'Cibelly'}
+                          {a.tipo === 'dentista'
+                            ? 'Você'
+                            : a.tipo === 'erro'
+                              ? 'Erro'
+                              : a.tipo === 'conferencia'
+                                ? 'Conferência'
+                                : 'Cibelly'}
                         </span>
                         {a.texto}
                       </span>

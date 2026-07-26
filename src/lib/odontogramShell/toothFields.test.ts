@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ToothProposal } from './toothFields'
 
 // O motor real é um bundle vendorizado que exige o shell MONTADO no DOM. Aqui
 // o que precisa ser travado é o CONTRATO do payload: o motor descarta em
@@ -10,10 +11,18 @@ let estadoAtual: Record<string, unknown> = {}
 
 vi.mock('./odontogram-shell', () => ({
   getOdontogramState: () => estadoAtual,
-  loadOdontogramState: (p: unknown) => loadSpy(p),
+  loadOdontogramState: (p: unknown) => {
+    loadSpy(p)
+    estadoAtual = p && typeof p === 'object'
+      ? p as Record<string, unknown>
+      : { version: '2.10', globals: {}, teeth: {} }
+  },
 }))
 
-const { applyToothProposal, clearTeeth, clearAllTeeth } = await import('./toothFields')
+const {
+  applyToothProposal, clearTeeth, clearAllTeeth, normalizeToothProposal,
+  verifyToothProposalState, verifyToothClearState,
+} = await import('./toothFields')
 
 /** Estado do dente que foi efetivamente mandado pro motor. */
 function denteEnviado(numero: number): Record<string, unknown> {
@@ -155,10 +164,55 @@ describe('mobilidade', () => {
     expect(denteEnviado(31).mobility).toBe('m2')
   })
 
+  it('normaliza grau aninhado enviado pelo modelo de voz', () => {
+    const proposta = normalizeToothProposal({
+      dentes: [16],
+      achado: 'mobilidade',
+      mobilidade: { grau: 2 },
+    })
+    expect(proposta.grauMobilidade).toBe(2)
+    expect(applyToothProposal(proposta).ok).toBe(true)
+    expect(denteEnviado(16).mobility).toBe('m2')
+  })
+
   it('recusa em implante, onde não existe mobilidade periodontal', () => {
     comEstado({ 31: { toothSelection: 'implant' } })
     const r = applyToothProposal({ dentes: [31], achado: 'mobilidade', grauMobilidade: 2 })
     expect(r.ok).toBe(false)
+  })
+})
+
+describe('conferência pós-condição', () => {
+  it('detecta marcação ainda não aplicada e confirma depois da escrita', () => {
+    const proposta = { dentes: [16], achado: 'mobilidade' as const, grauMobilidade: 2 as const }
+    expect(verifyToothProposalState(proposta).ok).toBe(false)
+    applyToothProposal(proposta)
+    expect(verifyToothProposalState(proposta)).toEqual({ ok: true, dentes: [16] })
+  })
+
+  it('confirma cárie e restauração pelas superfícies e material reais', () => {
+    const carie: ToothProposal = {
+      dentes: [25],
+      achado: 'carie',
+      superficies: ['mesial'],
+    }
+    const restauracao: ToothProposal = {
+      dentes: [44],
+      achado: 'restauracao',
+      superficies: ['mesial'],
+      material: 'amalgama',
+    }
+    applyToothProposal(carie)
+    applyToothProposal(restauracao)
+    expect(verifyToothProposalState(carie).ok).toBe(true)
+    expect(verifyToothProposalState(restauracao).ok).toBe(true)
+  })
+
+  it('confirma remoção de ausência e rejeita quando o dente segue ausente', () => {
+    comEstado({ 48: { toothSelection: 'none', extractionWound: false } })
+    expect(verifyToothClearState([48], 'ausente').ok).toBe(false)
+    clearTeeth([48], 'ausente')
+    expect(verifyToothClearState([48], 'ausente')).toEqual({ ok: true, dentes: [48] })
   })
 })
 

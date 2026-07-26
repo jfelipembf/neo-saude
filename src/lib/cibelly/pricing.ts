@@ -194,3 +194,32 @@ export function totalTokens(uso: UsoBruto): number {
   return uso.textoEntrada + uso.audioEntrada + uso.textoEntradaCache
     + uso.audioEntradaCache + uso.textoSaida + uso.audioSaida
 }
+
+/**
+ * A LACUNA DO WHISPER — só existe do lado da OpenAI.
+ *
+ * A transcrição da fala do DENTISTA (`whisper-1`, configurado em
+ * `session.audio.input.transcription` na Edge Function) é um modelo À PARTE,
+ * cobrado por MINUTO de áudio — não por token, e nunca aparece em
+ * `response.usage`. Sem somar isto, o card subestimava o custo real: o
+ * dentista comparou com o próprio painel da OpenAI e o nosso número vinha
+ * mais baixo, exatamente a diferença que este cálculo cobre.
+ *
+ * No Gemini não existe essa lacuna: a fala do dentista ali é só mais um
+ * pedaço do MESMO modelo de áudio-para-áudio, já coberta pelos tokens de
+ * entrada que `acumularGemini` já soma — não é um serviço separado.
+ *
+ * $0,006/minuto é o preço oficial do whisper-1 (developers.openai.com/api/docs/pricing,
+ * conferido em 26/07/2026).
+ *
+ * A ESTIMATIVA usa a DURAÇÃO DA SESSÃO inteira (conexão até desconexão), não
+ * só o tempo em que o dentista falou — superestima um pouco (conta silêncio
+ * junto), mas segue o mesmo princípio do resto deste arquivo: um fallback que
+ * nunca fica mais barato que a realidade é mais seguro que um que, por
+ * precisão de sobra, some tempo de fala real que não temos como medir aqui.
+ */
+const WHISPER_USD_POR_MINUTO = 0.006
+
+export function calcularCustoWhisperUsd(duracaoSegundos: number): number {
+  return (duracaoSegundos / 60) * WHISPER_USD_POR_MINUTO
+}
