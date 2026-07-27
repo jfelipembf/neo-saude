@@ -1037,7 +1037,11 @@ export function OdontogramFullscreenPage() {
   })
   useCibellyPedal({
     enabled: cibelly.status === 'listening',
-    patientAvailable: emAtendimento && !!patientId,
+    // O paciente selecionado na ficha é o contexto clínico do pedal J. Não
+    // dependa do estado efêmero do botão "Iniciar atendimento": ele volta a
+    // false após um recarregamento e fazia o pedal parecer inativo mesmo com a
+    // ficha correta aberta.
+    patientAvailable: !!patientId,
     startListening: cibelly.iniciarEscuta,
     stopListening: cibelly.encerrarEscuta,
   })
