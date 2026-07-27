@@ -256,7 +256,7 @@ ${cibellyAgentPrompt()}
 CONTROLE POR PEDAL — REGRA DE ESCOPO:
 - Você só recebe áudio enquanto o dentista mantém um pedal pressionado. Cada turno começa com uma mensagem interna "[CONTROLE DO PEDAL: ...]". Nunca leia, mencione nem responda essa mensagem; use-a apenas para limitar o turno.
 - PACIENTE ATUAL (tecla J): trate SOMENTE do paciente em atendimento. Pode usar odontograma, histórico, agenda, lembretes, documentos e mensagem para esse paciente. Estoque, fornecedores, administração, assunto geral e outro paciente estão fora do escopo; responda somente "Use o pedal F para essa demanda.".
-- MODO GERAL (tecla F): trate demandas gerais e de outra pessoa. Não presuma que a fala é sobre o paciente aberto. Se uma ação depender de paciente, use apenas o nome ou código falado nesse turno; se não houver identificação suficiente, pergunte.
+- MODO GERAL (tecla F): trate demandas gerais e de outra pessoa. Não presuma que a fala é sobre o paciente aberto. Se uma ação depender de paciente, use o nome ou código falado no pedido. Quando o dentista responder de forma curta a uma pergunta sua sobre data, hora ou homônimo, preserve o paciente que você acabou de perguntar. Se não houver identificação suficiente, pergunte.
 - No modo GERAL, "quais pacientes estão cadastrados?", "procure a Ana", "tem algum Lucas?" e perguntas de cadastro usam consultar_pacientes. Você TEM acesso ao diretório: nunca mande procurar na recepção ou no administrativo.
 - O escopo vale também para respostas sem ferramenta. Nunca responda uma pergunta geral ou sobre outra pessoa no modo PACIENTE ATUAL.
 
@@ -314,7 +314,7 @@ AGENDA — VOCÊ TEM ACESSO, SIM:
 - Os horários voltam como faixas de INÍCIO ("08:00 a 10:00" para consultas de 60 minutos). O fim da última consulta não é um horário livre para começar outra.
 - A resposta traz o campo "resposta" já ESCRITO. LEIA EXATAMENTE esse campo e não monte outra resposta usando "agenda". Ele combina consulta já marcada e horários livres sem oferecer a hora de término como início.
 - Se "consultasDoPaciente" trouxer consulta no período pedido, diga primeiro que o paciente JÁ está agendado. Não trate os horários livres como se a consulta existente não importasse.
-- "quando é a consulta dela?", "quando ela volta?", "ela tem retorno marcado?" → também "consultar_agenda": a resposta traz "consultasDoPaciente" com o que já está marcado para o paciente em atendimento. Nunca diga que não sabe — consulte.
+- "quando é a consulta dela?", "quando ela volta?", "ela tem retorno marcado?" → também "consultar_agenda": a resposta traz "consultasDoPaciente" com o que já está marcado. No pedal J, omita "paciente" para usar a ficha aberta. No pedal F, envie obrigatoriamente em "paciente" o nome ou código falado.
 - SE ELE JÁ DISSE DIA E HORA ("marca segunda às 14h"), chame "agendar_consulta" DIRETO. Não consulte antes: agendar já confere o horário sozinho e, se não servir, recusa dizendo o motivo e oferecendo alternativas. Consultar primeiro é um turno de conversa a mais para chegar na mesma resposta.
 - "consultar_agenda" é para quando ele PERGUNTA ("quando tenho vaga?", "quinta tá livre?", "quando é a consulta dela?") — aí a pergunta é a resposta, e não um passo antes de agendar.
 - "cancela a das 15h", "desmarca a de quinta" → "cancelar_consulta". Se houver mais de uma no dia e ele não disser a hora, pergunte qual — nunca escolha por ele.
@@ -328,8 +328,9 @@ AGENDA — VOCÊ TEM ACESSO, SIM:
 - Você NUNCA decide sozinha se a data é ambígua — não é seu trabalho, e mandar você "não escolher" enquanto a ferramenta exige uma data é ordem contraditória. Resolva a data como entender, mande junto a frase original em "ditoPeloDentista", e deixe a ferramenta julgar: se for ambígua, ela devolve as duas datas e AÍ você pergunta.
 - Ao confirmar qualquer data em voz alta, use o que a ferramenta devolveu em "quando" (já vem escrito: "quinta-feira, 30 de julho"). NÃO recalcule dia da semana nem mês de cabeça, e não acrescente "semana que vem"/"mês que vem" por conta própria.
 - Mande DURAÇÃO em minutos, nunca hora de fim.
-- A consulta é SEMPRE do paciente que está na tela. Se não houver paciente selecionado, não consulte horário nem agende: diga que precisa escolher o paciente primeiro e pare por aí.
-- Se o dentista falar o nome de OUTRO paciente ("marca pra Ana"), não agende: avise que só dá para agendar para quem está em atendimento, e que ele precisa trocar o paciente na tela.
+- PEDAL J: agenda somente o paciente da ficha aberta e omite o campo "paciente".
+- PEDAL F: pode consultar, agendar e cancelar para OUTRO paciente. Envie obrigatoriamente o nome ou código falado no campo "paciente". Se não houver identificação, pergunte; nunca use silenciosamente a ficha aberta.
+- Se houver mais de um paciente com o nome informado, a ferramenta recusa e devolve nomes completos e códigos. Leia as opções e pergunte qual; nunca escolha.
 - Ao confirmar o agendamento, apresente o nome como DADO, não como vocativo: "Paciente: <nome retornado>. Segunda, dia 3, às 13h". É assim que o dentista percebe se marcou para a pessoa errada.
 - DATA: mande SEMPRE em "ditoPeloDentista" a expressão de data como ele falou, sem traduzir. Se ela for ambígua ("quinta que vem" pode ser a próxima quinta ou a da semana seguinte), a ferramenta devolve as DUAS datas — leia as duas, pergunte qual, e chame de novo com a escolhida e confirmaData=true. Nada foi agendado até lá.
 - FIM DE SEMANA: não confira o calendário por conta própria. Chame normal; se a data cair em sábado ou domingo, a ferramenta devolve "precisaConfirmar" com o aviso pronto — leia o aviso, pergunte se pode marcar assim mesmo, e só então chame de novo com confirmaFimDeSemana=true. Nada foi agendado até esse segundo chamado.
@@ -935,8 +936,9 @@ const TOOLS = [
     name: 'consultar_agenda',
     description:
       'Consulta a agenda: os horários LIVRES do dentista (já descontando disponibilidade cadastrada, ' +
-      'bloqueios, férias/ausências e consultas existentes) E as consultas JÁ MARCADAS do paciente em atendimento, ' +
+      'bloqueios, férias/ausências e consultas existentes) E as consultas JÁ MARCADAS do paciente resolvido, ' +
       'que voltam sempre no campo "consultasDoPaciente". ' +
+      'No pedal J, omita "paciente" para usar a ficha aberta. No pedal F, "paciente" é obrigatório e deve conter o nome ou código falado. ' +
       'Use tanto para "segunda às 13h tá livre?" quanto para "quando é a consulta dela?" / "quando ela volta?". ' +
       'O campo "resposta" já combina consultas existentes e faixas de horários de INÍCIO; leia-o sem reinterpretar os blocos de agenda. ' +
       'Use quando ele PERGUNTA sobre horário. Se ele já disse dia e hora, NÃO consulte antes — chame agendar_consulta direto, que já confere sozinho. ' +
@@ -944,6 +946,12 @@ const TOOLS = [
     parameters: {
       type: 'object',
       properties: {
+        paciente: {
+          type: 'string',
+          description:
+            'Nome ou código PAC do paciente. OBRIGATÓRIO no pedal F para não usar a ficha aberta por engano. ' +
+            'Omita no pedal J, que usa o paciente atual.',
+        },
         data: {
           type: 'string',
           description: 'Dia específico, em aaaa-mm-dd. Omita para trazer as próximas vagas a partir de hoje.',
@@ -971,14 +979,19 @@ const TOOLS = [
     type: 'function',
     name: 'agendar_consulta',
     description:
-      'Agenda a próxima consulta do paciente EM ATENDIMENTO com o dentista logado. ' +
-      'A consulta é SEMPRE para o paciente que está na tela — não existe parâmetro de paciente e você NÃO pode agendar para outra pessoa. ' +
-      'Sem paciente selecionado, nem consulte horário: peça para escolher o paciente primeiro. ' +
+      'Agenda uma consulta com o dentista logado. ' +
+      'No pedal J, omita "paciente" e a consulta será para a ficha aberta. ' +
+      'No pedal F, informe obrigatoriamente em "paciente" o nome ou código falado; sem isso a ferramenta bloqueia sem agendar. ' +
       'Chame DIRETO quando ele disser dia e hora: esta ferramenta já confere disponibilidade, bloqueio, férias e agenda cheia, e recusa dizendo o motivo e oferecendo alternativas. Consultar antes é round trip perdido. ' +
       'Ao confirmar que agendou, DIGA O NOME do paciente — é como o dentista percebe se está marcando para a pessoa errada.',
     parameters: {
       type: 'object',
       properties: {
+        paciente: {
+          type: 'string',
+          description:
+            'Nome ou código PAC do outro paciente. OBRIGATÓRIO no pedal F. Omita no pedal J para usar a ficha aberta.',
+        },
         data: { type: 'string', description: 'Dia da consulta, em aaaa-mm-dd.' },
         hora: { type: 'string', description: 'Horário de início, em HH:MM.' },
         duracao: { type: 'integer', description: 'Duração em minutos. Padrão 60. NUNCA mande hora de fim, só duração.' },
@@ -1019,7 +1032,8 @@ const TOOLS = [
     type: 'function',
     name: 'cancelar_consulta',
     description:
-      'Cancela uma consulta já marcada do paciente em atendimento ("cancela a das 15h", "desmarca a de quinta"). ' +
+      'Cancela uma consulta já marcada ("cancela a das 15h", "desmarca a de quinta"). ' +
+      'No pedal J, omita "paciente" para usar a ficha aberta. No pedal F, informe obrigatoriamente o nome ou código falado. ' +
       'Consulte a agenda antes para saber o dia e a hora. Se houver mais de uma no mesmo dia e ele não disser a hora, ' +
       'a ferramenta recusa e devolve os horários — pergunte qual, não escolha por ele. ' +
       'DUAS ETAPAS: chame primeiro SEM "confirmado"; a resposta vem com "precisaConfirmar" e os dados da consulta. ' +
@@ -1029,6 +1043,11 @@ const TOOLS = [
     parameters: {
       type: 'object',
       properties: {
+        paciente: {
+          type: 'string',
+          description:
+            'Nome ou código PAC do outro paciente. OBRIGATÓRIO no pedal F. Omita no pedal J para usar a ficha aberta.',
+        },
         data: { type: 'string', description: 'Dia da consulta a cancelar, em aaaa-mm-dd.' },
         hora: { type: 'string', description: 'Horário de início, em HH:MM. Necessário quando há mais de uma no dia.' },
         confirmado: {

@@ -83,4 +83,26 @@ describe('executores especialistas da Cibelly', () => {
       },
     })
   })
+
+  it('preserva o outro paciente ao delegar um agendamento', async () => {
+    const schedule = vi.fn(async () => ({
+      ok: true,
+      agendado: 'Lucas Silva em 30/07/2026 às 14:00',
+    }))
+    const harness = setup({ aoAgendar: schedule })
+    const request = {
+      paciente: 'PAC-000001',
+      data: '2026-07-30',
+      hora: '14:00',
+      ditoPeloDentista: 'quinta às duas',
+    }
+
+    await harness.agent.executeTool(
+      'agendar_consulta',
+      request,
+      harness.executors,
+    )
+
+    expect(schedule).toHaveBeenCalledWith(request)
+  })
 })

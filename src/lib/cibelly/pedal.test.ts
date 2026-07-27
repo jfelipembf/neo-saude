@@ -51,5 +51,17 @@ describe('pedal da Cibelly', () => {
       'consultar_materiais',
       {},
     )).toBeNull()
+    expect(pedalScopeError(
+      'general',
+      'schedule',
+      'agendar_consulta',
+      { data: '2026-07-30', hora: '14:00' },
+    )).toContain('Nenhuma consulta foi alterada')
+    expect(pedalScopeError(
+      'general',
+      'schedule',
+      'agendar_consulta',
+      { paciente: 'Lucas', data: '2026-07-30', hora: '14:00' },
+    )).toBeNull()
   })
 })

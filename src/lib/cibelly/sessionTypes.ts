@@ -69,12 +69,14 @@ export interface CibellyHandlers {
   aoSolicitarOrcamento?: (pedido: QuoteRequest) => Promise<unknown>
   aoEnviarMensagemPaciente?: (pedido: PatientMessageRequest) => Promise<unknown>
   aoConsultarAgenda?: (p: {
+    paciente?: string
     data?: string
     hora?: string
     duracao?: number
     dias?: number
   }) => Promise<unknown>
   aoCancelarConsulta?: (p: {
+    paciente?: string
     data: string
     hora?: string
     confirmado?: boolean
@@ -85,6 +87,7 @@ export interface CibellyHandlers {
   aoCriarLembrete?: (p: { texto: string }) => Promise<unknown>
   aoConcluirLembrete?: (p: { id: string }) => Promise<unknown>
   aoAgendar?: (p: {
+    paciente?: string
     data: string
     hora: string
     duracao?: number

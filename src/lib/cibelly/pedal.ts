@@ -31,21 +31,30 @@ export function pedalTurnInstruction(
     return '[CONTROLE DO PEDAL: PACIENTE ATUAL] O áudio a seguir trata somente do paciente que está em atendimento. Não atenda estoque, fornecedores, administração, outro paciente nem assunto geral neste turno. Se a fala pedir algo fora desse escopo, diga apenas: "Use o pedal F para essa demanda."'
   }
 
-  return '[CONTROLE DO PEDAL: MODO GERAL] O áudio a seguir é uma demanda geral ou sobre outra pessoa. Não presuma que o dentista está falando do paciente aberto. Quando a ação depender de um paciente, use somente o nome ou código dito neste áudio; se faltar identificação, pergunte objetivamente.'
+  return '[CONTROLE DO PEDAL: MODO GERAL] O áudio a seguir é uma demanda geral ou sobre outra pessoa. Não presuma que o dentista está falando do paciente aberto. Quando a ação depender de um paciente, use o nome ou código dito no pedido; numa resposta curta a uma pergunta sua, preserve o paciente que você acabou de perguntar. Se faltar identificação, pergunte objetivamente.'
 }
 
 export function pedalScopeError(
   mode: CibellyListeningMode | null,
   domain: CibellyToolDomain | undefined,
-  _toolName: string,
+  toolName: string,
   args: Record<string, unknown>,
 ): string | null {
-  if (mode !== 'patient') return null
   const namesAnotherPatient = typeof args.paciente === 'string'
     && args.paciente.trim().length > 0
-  if (domain !== 'inventory'
-      && domain !== 'patients'
-      && !namesAnotherPatient) return null
+  if (mode === 'general') {
+    const patientRequired = toolName === 'consultar_agenda'
+      || toolName === 'agendar_consulta'
+      || toolName === 'cancelar_consulta'
+    if (patientRequired && !namesAnotherPatient) {
+      return 'No pedal F, diga o nome ou código do paciente. Nenhuma consulta foi alterada.'
+    }
+    return null
+  }
+  if (mode !== 'patient') return null
+  if (domain !== 'inventory' && domain !== 'patients' && !namesAnotherPatient) {
+    return null
+  }
 
   return 'O pedal J atende somente o paciente atual. Use o pedal F para demandas gerais, fornecedores ou outro paciente.'
 }

@@ -247,6 +247,7 @@ export function createSpecialistExecutors({
           ok: true,
           agenda: await handlers.aoConsultarAgenda(
             args as {
+              paciente?: string
               data?: string
               hora?: string
               duracao?: number
@@ -261,6 +262,7 @@ export function createSpecialistExecutors({
         ? {
           ok: true,
           resultado: await handlers.aoAgendar(args as {
+            paciente?: string
             data: string
             hora: string
             duracao?: number
@@ -279,6 +281,7 @@ export function createSpecialistExecutors({
         ? {
           ok: true,
           resultado: await handlers.aoCancelarConsulta(args as {
+            paciente?: string
             data: string
             hora?: string
             confirmado?: boolean

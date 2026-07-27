@@ -74,19 +74,19 @@ export const CIBELLY_TOOL_CATALOG = {
   },
   consultar_agenda: {
     domain: 'schedule',
-    purpose: 'Consultar consultas existentes e horários disponíveis.',
+    purpose: 'Consultar consultas existentes e horários disponíveis para o paciente atual ou outro identificado.',
     continuation: 'always',
     confirmation: 'none',
   },
   agendar_consulta: {
     domain: 'schedule',
-    purpose: 'Agendar uma consulta para o paciente em atendimento.',
+    purpose: 'Agendar uma consulta para o paciente atual ou outro identificado no modo geral.',
     continuation: 'always',
     confirmation: 'tool_managed',
   },
   cancelar_consulta: {
     domain: 'schedule',
-    purpose: 'Preparar e confirmar o cancelamento de uma consulta.',
+    purpose: 'Preparar e confirmar o cancelamento de uma consulta do paciente resolvido.',
     continuation: 'always',
     confirmation: 'tool_managed',
   },

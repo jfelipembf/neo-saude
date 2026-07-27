@@ -23,7 +23,10 @@ import { agruparAchados, notasLivres } from '@/utils/toothNoteGroups'
 import { resumoPorDente, resumoUltimosAtendimentos } from '@/utils/clinicalHistorySpeech'
 import { resolverPedidoDeOrcamento } from '@/utils/quoteRequest'
 import { descreverPaciente, resolverDestinatario } from '@/utils/messageRecipient'
-import { queryPatientDirectory } from '@/lib/cibelly/patientDirectory'
+import {
+  queryPatientDirectory,
+  resolvePatientReference,
+} from '@/lib/cibelly/patientDirectory'
 import { matchesSearch } from '@/utils/search'
 import { OdontogramTimeline } from './OdontogramTimeline'
 import { pediuCancelamento } from '@/utils/cancelIntent'
@@ -393,6 +396,24 @@ export function OdontogramFullscreenPage() {
     return queryPatientDirectory(pacientes ?? [], pedido)
   }
 
+  function pacienteParaAgenda(referencia?: string):
+    | { ok: true; id: string; patient: Patient }
+    | { ok: false; erro: string } {
+    if (referencia?.trim()) {
+      const resolution = resolvePatientReference(pacientes ?? [], referencia)
+      return resolution.ok
+        ? { ok: true, id: resolution.patient.id, patient: resolution.patient }
+        : { ok: false, erro: resolution.error }
+    }
+    if (!patientId || !paciente) {
+      return {
+        ok: false,
+        erro: 'Nenhum paciente selecionado. Diga o nome ou código do paciente.',
+      }
+    }
+    return { ok: true, id: patientId, patient: paciente }
+  }
+
   /**
    * Histórico do paciente. Sem filtro: o resumo pré-carregado (últimos 5,
    * já quente antes do atendimento começar). Com `data` e/ou `dente`: busca
@@ -473,13 +494,20 @@ export function OdontogramFullscreenPage() {
     return { ok: true, concluido: alvo.texto }
   }
 
-  async function consultarAgenda(p: { data?: string; hora?: string; duracao?: number; dias?: number }) {
-    // Sem paciente não segue nem na consulta de horário: oferecer vaga para
-    // depois descobrir que não há para quem marcar é fazer o dentista perder o
-    // tempo duas vezes. A trava real de gravação está em agendarConsulta.
-    if (!patientId || !paciente) {
-      return { ok: false, erro: 'Nenhum paciente selecionado. Escolha o paciente antes de falar de agenda.' }
-    }
+  async function consultarAgenda(p: {
+    paciente?: string
+    data?: string
+    hora?: string
+    duracao?: number
+    dias?: number
+  }) {
+    // O J chega sem referência e usa a ficha aberta. O F é barrado no hook de
+    // voz se não trouxer nome/código; chegando aqui, a referência explícita é
+    // resolvida sem trocar o paciente que continua aberto no odontograma.
+    const alvo = pacienteParaAgenda(p.paciente)
+    if (!alvo.ok) return alvo
+    const alvoId = alvo.id
+    const pacienteAlvo = alvo.patient
     if (!profId) {
       return { ok: false, erro: 'Seu login não está vinculado a um cadastro de profissional, então não sei de qual agenda falar.' }
     }
@@ -489,7 +517,7 @@ export function OdontogramFullscreenPage() {
     // ela agendava mas não sabia responder "quando é a consulta dela?" —
     // acabava de marcar e, na pergunta seguinte, dizia que não sabia.
     const consultasDoPaciente = (consultas ?? [])
-      .filter(a => a.patientId === patientId && a.status !== 'canceled')
+      .filter(a => a.patientId === alvoId && a.status !== 'canceled')
       .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))
       .map(a => ({
         id: a.id,          // é por ele que o cancelamento identifica a consulta
@@ -551,9 +579,9 @@ export function OdontogramFullscreenPage() {
         .join('; ')
 
       const consultasTexto = noPeriodo.length > 0
-        ? `${paciente.name} já tem ${noPeriodo.length === 1 ? 'consulta' : noPeriodo.length + ' consultas'}: `
+        ? `${pacienteAlvo.name} já tem ${noPeriodo.length === 1 ? 'consulta' : noPeriodo.length + ' consultas'}: `
           + noPeriodo.map(c => c.quando).join('; ') + '.'
-        : `${paciente.name} não tem consulta nesse período.`
+        : `${pacienteAlvo.name} não tem consulta nesse período.`
       // `fim` é a hora em que a última consulta TERMINA. A fala lista
       // `ultimoInicio`, senão "08:00 às 11:00" oferece 11:00 como início
       // justamente quando esse horário já pode estar ocupado.
@@ -567,8 +595,8 @@ export function OdontogramFullscreenPage() {
     return {
       ok: true,
       resposta: consultasDoPaciente.length === 0
-        ? `${paciente.name} não tem consulta marcada.`
-        : `${paciente.name} tem consulta em ${consultasDoPaciente.map(c => c.quando).join('; ')}.`,
+        ? `${pacienteAlvo.name} não tem consulta marcada.`
+        : `${pacienteAlvo.name} tem consulta em ${consultasDoPaciente.map(c => c.quando).join('; ')}.`,
       consultasDoPaciente,
       proximasVagas: nextFreeSlots(disponibilidade(), hojeIso, duracao, hojeIso, 5),
     }
@@ -584,9 +612,14 @@ export function OdontogramFullscreenPage() {
    * não ocupam, mesmo recorte do resto do sistema).
    */
   async function cancelarConsulta(p: {
-    data: string; hora?: string; confirmado?: boolean; ditoPeloDentista?: string
+    paciente?: string
+    data: string
+    hora?: string
+    confirmado?: boolean
+    ditoPeloDentista?: string
   }) {
-    if (!patientId) return { ok: false, erro: 'Nenhum paciente em atendimento.' }
+    const alvoPaciente = pacienteParaAgenda(p.paciente)
+    if (!alvoPaciente.ok) return alvoPaciente
 
     // A FRASE precisa ter pedido cancelamento. Num atendimento real, um ruído
     // transcrito como "Senhor Nando." fez ela anunciar "vou iniciar o
@@ -602,7 +635,7 @@ export function OdontogramFullscreenPage() {
     }
 
     const doPaciente = (consultas ?? []).filter(
-      a => a.patientId === patientId && a.status !== 'canceled' && a.date === p.data,
+      a => a.patientId === alvoPaciente.id && a.status !== 'canceled' && a.date === p.data,
     )
     const alvos = p.hora ? doPaciente.filter(a => a.startTime === p.hora) : doPaciente
 
@@ -631,7 +664,7 @@ export function OdontogramFullscreenPage() {
         ok: true,
         precisaConfirmar: true,
         consulta: {
-          paciente: paciente?.name,
+          paciente: alvoPaciente.patient.name,
           data: isoToBrDate(alvo.date),
           quando: `${dataPorExtenso(alvo.date)}, às ${alvo.startTime}`,
           hora: alvo.startTime,
@@ -653,13 +686,12 @@ export function OdontogramFullscreenPage() {
   }
 
   async function agendarConsulta(p: {
+    paciente?: string
     data: string; hora: string; duracao?: number; servico?: string; encaixe?: boolean
     sala?: string; confirmaFimDeSemana?: boolean; ditoPeloDentista?: string; confirmaData?: boolean
   }) {
-    // A trava que importa: a consulta é SEMPRE do paciente em atendimento. A
-    // ferramenta nem recebe paciente como parâmetro — não há como a voz apontar
-    // para outra pessoa, mesmo entendendo um nome errado no meio da frase.
-    if (!patientId || !paciente) return { ok: false, erro: 'Nenhum paciente em atendimento.' }
+    const alvoPaciente = pacienteParaAgenda(p.paciente)
+    if (!alvoPaciente.ok) return alvoPaciente
     if (!profId) return { ok: false, erro: 'Seu login não está vinculado a um cadastro de profissional.' }
 
     // DATA AMBÍGUA — a trava mais importante daqui.
@@ -721,7 +753,7 @@ export function OdontogramFullscreenPage() {
     let confirmacaoWhatsapp: { status: string; reason?: string } | undefined
     try {
       const criada = await agendar.mutateAsync({
-        patientId,
+        patientId: alvoPaciente.id,
         professionalId: profId,
         activity: p.servico?.trim() || 'Consulta',
         date: p.data,
@@ -740,7 +772,7 @@ export function OdontogramFullscreenPage() {
 
     return {
       ok: true,
-      agendado: `${paciente.name} em ${isoToBrDate(p.data)} às ${p.hora}`,
+      agendado: `${alvoPaciente.patient.name} em ${isoToBrDate(p.data)} às ${p.hora}`,
       // A confirmação sai daqui PRONTA para ser lida. Deixar ela deduzir o dia
       // da semana foi o que produziu "quinta dia 30, do mês que vem" num dia 26
       // do mesmo mês — a data certa, dita errado.
