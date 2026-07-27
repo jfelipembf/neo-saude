@@ -7,7 +7,7 @@ import { usePatients } from '@/hooks/usePatients'
 import { usePatientName } from '@/hooks/useDisplayNames'
 import { useRooms } from '@/hooks/useRooms'
 import { useCreatePrescription } from '@/hooks/usePrescriptions'
-import { usePrintDocument } from '@/hooks/usePrintDocument'
+import { usePrintDocumentSemGesto } from '@/hooks/usePrintDocument'
 import { usePatientReminders, useAddReminder, useCloseReminder } from '@/hooks/usePatientReminders'
 import { usePatientClinicalSummary } from '@/hooks/usePatientOdontogram'
 import { useAvailabilityTemplate, useAbsences, useBlockedSlots } from '@/hooks/useProfessionalAvailability'
@@ -41,6 +41,7 @@ import {
   CLINICAL_DOCUMENT_STYLES, attendanceCertificateText, certificateBody,
   examRequestBody, leaveCertificateText, prescriptionBody,
 } from '@/utils/clinicalDocument'
+import { buildDocument } from '@/utils/printDocument'
 import { listMaterialsWithSuppliers } from '@/services/materialsService'
 import { sendWhatsAppMessage } from '@/services/whatsappService'
 import { searchPatientHistory } from '@/services/odontogramService'
@@ -87,7 +88,21 @@ export function useCibellyGeneralTools({
   const { data: usuario } = useCurrentUser()
   const { data: clinica } = useClinic()
   const criarPrescricao = useCreatePrescription()
-  const imprimir = usePrintDocument()
+  const imprimirSemGesto = usePrintDocumentSemGesto()
+
+  /**
+   * PRÉVIA PENDENTE — o que o modal da tela mostra enquanto espera o "sim".
+   *
+   * Só existe entre a primeira chamada de emitirDocumento (que NÃO salva nem
+   * imprime, só monta o HTML) e a segunda, confirmada. Vazio de novo assim
+   * que ela imprime, ou se o dentista pedir outro documento antes de
+   * confirmar este — a prévia mais nova sempre substitui a anterior, porque
+   * nenhuma das duas chegou a ter efeito no prontuário ainda.
+   */
+  const [documentoPendente, setDocumentoPendente] = useState<{
+    titulo: string
+    html: string
+  } | null>(null)
   /**
    * Nome COMO SE FALA — não o nome completo do cadastro.
    *
@@ -210,6 +225,27 @@ export function useCibellyGeneralTools({
         return { ok: false as const, erro: `Não sei emitir "${String(pedido.tipo)}".` }
     }
 
+    // PRIMEIRA CHAMADA: só monta a prévia. Nada é salvo nem impresso ainda —
+    // mesma doutrina do cancelarConsulta (ver acima): uma frase mal entendida
+    // não pode gerar um documento clínico sozinha. O dentista vê o resultado
+    // no centro da tela e só o "sim" dele dispara o resto.
+    if (!pedido.confirmado) {
+      setDocumentoPendente({
+        titulo,
+        html: buildDocument(clinica, { title: titulo, subtitle: paciente.name, body: corpo, styles: CLINICAL_DOCUMENT_STYLES }),
+      })
+      return {
+        ok: true as const,
+        precisaConfirmar: true,
+        documento: { tipo: titulo, resumo },
+        instrucao:
+          'O documento apareceu na tela para o dentista revisar. Diga que está pronto para revisão e pergunte se '
+          + 'pode imprimir. Só chame de novo, com os MESMOS dados e confirmado=true, depois de um "sim" claro — '
+          + 'antes disso não foi salvo nem impresso, então não diga que já saiu.',
+      }
+    }
+
+    // CONFIRMADO: agora sim salva e imprime.
     try {
       // Salva ANTES de imprimir: papel na mão sem registro no prontuário é o
       // pior dos dois mundos — some o rastro de um documento que já circulou.
@@ -226,11 +262,19 @@ export function useCibellyGeneralTools({
         notes: pedido.observacoes,
       })
     } catch (e) {
+      setDocumentoPendente(null)
       return { ok: false as const, erro: errorMessage(e, 'Não foi possível salvar o documento.') }
     }
 
-    imprimir({ title: titulo, subtitle: paciente.name, body: corpo, styles: CLINICAL_DOCUMENT_STYLES })
+    imprimirSemGesto({ title: titulo, subtitle: paciente.name, body: corpo, styles: CLINICAL_DOCUMENT_STYLES })
+    setDocumentoPendente(null)
     return { ok: true as const, resumo }
+  }
+
+  /** Fecha a prévia sem imprimir — o "cancelar"/"x" do modal. Nada precisa ser
+   *  desfeito no banco: nada foi salvo até a confirmação. */
+  function fecharPreviaDocumento() {
+    setDocumentoPendente(null)
   }
 
   /** Consumo ditado durante o atendimento — vai junto no encerramento e dá baixa. */
@@ -1001,6 +1045,8 @@ export function useCibellyGeneralTools({
     /** Consumo ditado na sessão — a página o esvazia ao encerrar o atendimento. */
     materiaisUsadosRef,
     lembretes,
+    documentoPendente,
+    fecharPreviaDocumento,
     consultarPacientes,
     emitirDocumento,
     consultarMateriais,

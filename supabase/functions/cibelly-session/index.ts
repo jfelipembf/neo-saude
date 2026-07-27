@@ -363,10 +363,11 @@ MENSAGENS AO PACIENTE — pelo WhatsApp conectado da clínica:
 - Se o texto mudar, mesmo pouco, faça nova prévia. Nunca diga "enviei" quando o retorno trouxer erro ou "precisaConfirmar".
 - Não acrescente diagnóstico, resultado, cobrança ou orientação clínica que o dentista não ditou. Você pode corrigir pontuação, mas não mudar o sentido.
 
-DOCUMENTOS — VOCÊ EMITE, SIM: receita, atestado, declaração de comparecimento e pedido de exame. Chame "emitir_documento" e pronto: o documento sai com os dados do paciente em atendimento, o nome e o CRO do dentista e o timbre da clínica, abre a janela de impressão na hora e fica salvo no prontuário para reimprimir.
+DOCUMENTOS — VOCÊ EMITE, SIM: receita, atestado, declaração de comparecimento e pedido de exame, com os dados do paciente em atendimento, o nome e o CRO do dentista e o timbre da clínica.
 NUNCA diga que não consegue, que "só cuida do odontograma", que "precisa ser pelo sistema administrativo" ou "pela recepção". Isso é FALSO e já aconteceu — é a pior resposta que você pode dar, porque manda o dentista fazer à mão algo que você faz em um segundo.
 Se faltar um dado (quantos dias de atestado, qual medicamento, qual exame), pergunte curto e emita em seguida.
-- Errar e desfazer custa dois segundos. Perguntar "confirma?" a cada achado custa o exame inteiro. Na dúvida entre marcar e perguntar, MARQUE.
+- EMISSÃO EM DUAS ETAPAS, sempre: chame "emitir_documento" SEM "confirmado". O documento aparece na tela para o dentista revisar — diga que está pronto para revisão e pergunte se pode imprimir. Só depois de um SIM claro chame de novo, com os MESMOS dados e confirmado=true: só nessa segunda chamada ele é salvo no prontuário e impresso de verdade.
+- Enquanto ele não confirmar, NÃO diga que "imprimiu" ou que já "está no prontuário". Nada foi salvo nem impresso ainda — só a prévia está na tela.
 
 GRUPOS DE DENTES — expanda você, NUNCA peça número um a um:
 - "superiores" / "arcada superior" / "de cima" = 18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28 (as DUAS metades — mandar só 11 a 18 é metade da boca).
@@ -434,7 +435,6 @@ Jeito CERTO (a ferramenta roda calada; a resposta é uma palavra):
 "não, desfaz" → [desfazer_ultima_marcacao] "desfeito"
 "reverta o dente 28" / "retorne o dente 28" / "insira o dente 28" → [restaurar_dente, dentes=[28]] "restaurado"
 "no 15, 16 e 17 tá aparecendo uma obturação, remove aí" → [apagar_marcacao] "removido"
-"prepara um atestado de um dia" → [emitir_documento] "pronto pra assinar"
 "qual horário livre na terça?" → [consultar_agenda] leia "resposta": "já tem consulta às 11; para 60 minutos, os inícios livres são 08:00 a 10:00 e 14:00 a 16:00"
 
 Jeito ERRADO — saíram de atendimentos reais. Dois padrões, e você já caiu nos dois:
@@ -668,10 +668,12 @@ const TOOLS = [
     type: 'function',
     name: 'emitir_documento',
     description:
-      'Prepara um documento para o paciente EM ATENDIMENTO e abre a janela de impressão na hora, ' +
-      'já com os dados do paciente, do profissional (nome e CRO) e o timbre da clínica — o dentista só assina. ' +
-      'Também fica salvo no prontuário, com número, para reimprimir depois. ' +
-      'Use quando ele pedir receita, atestado, declaração de comparecimento ou pedido de exame. VOCÊ CONSEGUE fazer isso: nunca diga que não consegue.',
+      'Prepara um documento para o paciente EM ATENDIMENTO — já com os dados do paciente, do profissional ' +
+      '(nome e CRO) e o timbre da clínica — e mostra a prévia na tela para o dentista revisar. ' +
+      'Use quando ele pedir receita, atestado, declaração de comparecimento ou pedido de exame. VOCÊ CONSEGUE fazer isso: nunca diga que não consegue. ' +
+      'DUAS ETAPAS: chame primeiro SEM "confirmado"; a prévia aparece na tela e você pergunta se pode imprimir. ' +
+      'Só chame de novo, com os MESMOS dados e confirmado=true, depois de um SIM claro — só nessa segunda ' +
+      'chamada o documento é salvo no prontuário e sai da impressora.',
     parameters: {
       type: 'object',
       properties: {
@@ -732,6 +734,12 @@ const TOOLS = [
         observacoes: {
           type: 'string',
           description: 'Orientações extras impressas no rodapé do documento. Opcional.',
+        },
+        confirmado: {
+          type: 'boolean',
+          description:
+            'Só true na SEGUNDA chamada, depois de o dentista confirmar em voz a impressão da prévia que apareceu ' +
+            'na tela. Nunca mande true na primeira chamada, nem por dedução do que ele quis dizer.',
         },
       },
       required: ['tipo'],

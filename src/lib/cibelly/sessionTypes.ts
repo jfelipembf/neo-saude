@@ -1,5 +1,3 @@
-import type { ToothProposalResult } from '@/lib/odontogramShell/toothFields'
-
 export type VoiceProvider = 'openai' | 'gemini'
 
 export type CibellyListeningMode = 'patient' | 'general'
@@ -31,6 +29,9 @@ export interface DocumentRequest {
   dentes?: number[]
   justificativa?: string
   observacoes?: string
+  /** Só true na SEGUNDA chamada, depois de o dentista confirmar em voz a
+   *  impressão da prévia que apareceu na tela. Ver emitirDocumento. */
+  confirmado?: boolean
 }
 
 export interface MaterialUsage {
@@ -67,7 +68,7 @@ export interface PatientDirectoryRequest {
 
 export interface CibellyHandlers {
   aoConsultarPacientes?: (pedido?: PatientDirectoryRequest) => Promise<unknown>
-  aoEmitirDocumento?: (pedido: DocumentRequest) => Promise<ToothProposalResult>
+  aoEmitirDocumento?: (pedido: DocumentRequest) => Promise<unknown>
   aoConsultarMateriais?: (busca?: string, somenteAcabando?: boolean) => Promise<unknown>
   aoRegistrarMaterial?: (materiais: MaterialUsage[]) => Promise<unknown>
   aoSolicitarOrcamento?: (pedido: QuoteRequest) => Promise<unknown>

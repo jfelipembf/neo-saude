@@ -75,3 +75,84 @@ export function usePrintDocument() {
     })
   }
 }
+
+/** Depois de quanto tempo desiste de esperar `afterprint` e remove o iframe
+ *  de qualquer jeito — nem todo navegador dispara o evento para o iframe
+ *  (ver usePrintDocumentSemGesto). */
+const REMOCAO_IFRAME_TIMEOUT_MS = 60_000
+
+/**
+ * Imprime SEM depender de um clique — para o único caso do sistema em que a
+ * ação nasce de um comando de voz confirmado, não de um clique do dentista.
+ *
+ * `usePrintDocument` (acima) abre `window.open()`, e todo navegador
+ * moderno BLOQUEIA isso sem um gesto do usuário na pilha de chamada — o que
+ * nunca existe aqui, porque a confirmação chega depois de um round-trip de
+ * voz (fala → transcrição → modelo → ferramenta). A tentativa falharia em
+ * silêncio (`janela === null`), que foi exatamente o sintoma reportado: o
+ * documento gerado, mas nada saindo na impressora.
+ *
+ * A saída é um `<iframe>` escondido na PRÓPRIA página: como não abre aba/
+ * janela nova, o bloqueador de pop-up não entra em ação, e `print()` no
+ * `contentWindow` dele imprime só o conteúdo do iframe — a mesma técnica
+ * usada por qualquer biblioteca de "imprimir sem popup".
+ *
+ * Fica em um hook SEPARADO de propósito: os botões manuais de imprimir
+ * (PrescriptionsPanel, BudgetsPanel, TreatmentsPanel…) continuam usando
+ * `usePrintDocument` sem mudança nenhuma — são cliques de verdade, o
+ * `window.open()` funciona neles, e trocar o mecanismo ali seria risco sem
+ * necessidade.
+ */
+export function usePrintDocumentSemGesto() {
+  const { data: clinica } = useClinic()
+
+  return function imprimirSemGesto(doc: PrintDocumentInput) {
+    const iframe = document.createElement('iframe')
+    iframe.style.position = 'fixed'
+    iframe.style.inset = 'auto 0 0 auto'
+    iframe.style.width = '0'
+    iframe.style.height = '0'
+    iframe.style.border = '0'
+    iframe.setAttribute('aria-hidden', 'true')
+
+    // Anexa ANTES de escrever: `contentWindow` só existe depois que o iframe
+    // entra no DOM. `document.write` + `close()` nele é síncrono — mesma
+    // chamada que `usePrintDocument` já faz na janela popup, sem a corrida de
+    // esperar um `onload` de `srcdoc` (que dispara uma vez para o
+    // "about:blank" inicial e de novo para o conteúdo, em ordem que varia
+    // por navegador).
+    document.body.appendChild(iframe)
+    const janela = iframe.contentWindow
+    if (!janela) { iframe.remove(); return }
+
+    janela.document.write(buildDocument(clinica, doc))
+    janela.document.close()
+
+    let removido = false
+    function remover() {
+      if (removido) return
+      removido = true
+      iframe.remove()
+    }
+
+    // A logo é uma imagem: chamar print() na hora imprimiria o documento antes
+    // dela carregar. Espera cada imagem resolver (ou falhar) e só então imprime.
+    const imagens = Array.from(janela.document.images)
+    Promise.all(
+      imagens.map(img => img.complete
+        ? Promise.resolve()
+        : new Promise<void>(resolve => {
+            img.onload = () => resolve()
+            img.onerror = () => resolve()
+          })),
+    ).then(() => {
+      const logo = janela.document.querySelector<HTMLImageElement>('.clinica-logo')
+      if (logo?.complete && logo.naturalWidth) ajustarLogoImpressa(logo)
+
+      janela.focus()
+      janela.print()
+      janela.addEventListener('afterprint', remover, { once: true })
+      window.setTimeout(remover, REMOCAO_IFRAME_TIMEOUT_MS)
+    })
+  }
+}

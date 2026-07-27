@@ -849,6 +849,29 @@ $raio-item: 10px;
   line-height: 1.5;
 }
 
+// ── Prévia do documento (Cibelly) ────────────────────────────────────────────
+.previaAviso {
+  margin: 0 0 $sp-3;
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+}
+
+// Fundo branco fixo, e não var(--bg-*): o miolo é o MESMO HTML que vai para o
+// papel (buildDocument já força `color-scheme: light`), então a moldura tem
+// de ser clara nos dois temas do app — senão o iframe branco flutua dentro de
+// um quadro escuro no tema escuro.
+.previaDocumento {
+  width: 100%;
+  height: 60vh;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  background: #fff;
+
+  @include mobile {
+    height: 50vh;
+  }
+}
+
 .notaTexto {
   margin: 2px 0 0;
   font-size: $fs-sm;

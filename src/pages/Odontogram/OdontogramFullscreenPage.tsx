@@ -22,6 +22,7 @@ import { useTheme } from '@/context/ThemeProvider'
 import { PatientPicker } from '@/components/PatientPicker/PatientPicker'
 import { CibellyPedalButton } from '@/components/CibellyPedalButton/CibellyPedalButton'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
+import { Modal } from '@/components/Modal/Modal'
 import { Button } from '@/components/Button/Button'
 import { Spinner } from '@/components/Spinner/Spinner'
 import {
@@ -158,7 +159,7 @@ export function OdontogramFullscreenPage() {
    * sincronia e uma delas cancelaria a consulta errada.
    */
   const ferramentas = useCibellyGeneralTools({ patientId, paciente })
-  const { materiaisUsadosRef, lembretes } = ferramentas
+  const { materiaisUsadosRef, lembretes, documentoPendente, fecharPreviaDocumento } = ferramentas
 
   /**
    * O que está marcado no odontograma agora. Sem isto ela era cega ao próprio
@@ -852,6 +853,28 @@ export function OdontogramFullscreenPage() {
         label={botaoPedalRotulo}
         disabledReason={botaoPedalMotivo}
       />
+
+      {/* PRÉVIA DO DOCUMENTO — a Cibelly monta e mostra aqui, mas só salva e
+          manda pra impressora depois de um "sim" falado (ver emitirDocumento
+          em useCibellyGeneralTools.ts). O iframe reproduz o MESMO HTML que
+          vai pro papel, timbre e tudo — o dentista vê exatamente o que vai
+          sair antes de confirmar. */}
+      <Modal
+        open={documentoPendente !== null}
+        onClose={fecharPreviaDocumento}
+        title={documentoPendente?.titulo ?? 'Documento'}
+        size="lg"
+        footer={<Button variant="ghost" onClick={fecharPreviaDocumento}>Cancelar</Button>}
+      >
+        <p className={styles.previaAviso}>Diga “sim” para confirmar a impressão.</p>
+        {documentoPendente && (
+          <iframe
+            className={styles.previaDocumento}
+            title="Prévia do documento"
+            srcDoc={documentoPendente.html}
+          />
+        )}
+      </Modal>
 
       <ConfirmDialog
         open={confirmSaida !== null}

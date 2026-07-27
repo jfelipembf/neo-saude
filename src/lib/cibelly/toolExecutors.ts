@@ -400,10 +400,12 @@ export function createSpecialistExecutors({
         erro: 'Não há paciente em atendimento para emitir documento.',
       }
     }
-    const document = await issue(args as unknown as DocumentRequest)
-    return document.ok
-      ? { ok: true, emitido: document.resumo }
-      : { ok: false, erro: document.erro }
+    // Igual ao Agente de Agenda com cancelar_consulta: o resultado INTEIRO
+    // viaja dentro de "resultado", porque emitir_documento agora é
+    // confirmation: 'tool_managed' — o orquestrador só enxerga
+    // "precisaConfirmar" se ele sobreviver aninhado até aqui (ver
+    // toolResultNeedsConfirmation em orchestrator.ts).
+    return { ok: true, resultado: await issue(args as unknown as DocumentRequest) }
   }
 
   return {

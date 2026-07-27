@@ -116,9 +116,9 @@ export const CIBELLY_TOOL_CATALOG = {
   },
   emitir_documento: {
     domain: 'documents',
-    purpose: 'Emitir receita, atestado, declaração ou pedido de exame.',
+    purpose: 'Preparar e, após confirmação falada, salvar e imprimir receita, atestado, declaração ou pedido de exame.',
     continuation: 'always',
-    confirmation: 'none',
+    confirmation: 'tool_managed',
   },
 } as const satisfies Record<string, CibellyToolDefinition>
 
