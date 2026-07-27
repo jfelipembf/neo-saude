@@ -1021,7 +1021,7 @@ export function OdontogramFullscreenPage() {
     }
   }
 
-  const cibelly = useCibelly(emAtendimento, patientId, {
+  const cibelly = useCibelly(specialty === 'dentistry', patientId, {
     aoEmitirDocumento: emitirDocumento,
     aoConsultarMateriais: consultarMateriais,
     aoRegistrarMaterial: registrarMaterialUsado,
@@ -1036,7 +1036,7 @@ export function OdontogramFullscreenPage() {
     aoConcluirLembrete: concluirLembrete,
   })
   useCibellyPedal({
-    enabled: emAtendimento && cibelly.status === 'listening',
+    enabled: cibelly.status === 'listening',
     patientAvailable: emAtendimento && !!patientId,
     startListening: cibelly.iniciarEscuta,
     stopListening: cibelly.encerrarEscuta,
@@ -1344,8 +1344,9 @@ export function OdontogramFullscreenPage() {
     error: 'Indisponível',
   }[cibelly.status]
   const pedalAtivo = cibelly.modoEscuta !== null
-  const mostrarMolduraCibelly = emAtendimento
-    && (pedalAtivo || emProcessamento || cibelly.status === 'error')
+  const mostrarMolduraCibelly = pedalAtivo
+    || emProcessamento
+    || cibelly.status === 'error'
   const classeChipCibelly = emProcessamento
     ? styles.chipProcessando
     : pedalAtivo
@@ -1359,7 +1360,7 @@ export function OdontogramFullscreenPage() {
       styles.tela,
       mostrarMolduraCibelly ? styles.telaOuvindo : '',
       emProcessamento ? styles.telaProcessando : '',
-      emAtendimento && cibelly.status === 'error' ? styles.telaErro : '',
+      cibelly.status === 'error' ? styles.telaErro : '',
     ].filter(Boolean).join(' ')}>
       <header className={styles.barra}>
         <div className={styles.barraEsquerda}>
@@ -1395,7 +1396,7 @@ export function OdontogramFullscreenPage() {
         </div>
 
         <div className={styles.barraDireita}>
-          {emAtendimento && (
+          {cibelly.status !== 'idle' && (
             <span
               className={`${styles.chip} ${classeChipCibelly}`}
               role="status"

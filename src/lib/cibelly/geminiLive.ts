@@ -217,6 +217,7 @@ export class GeminiLive {
    */
   iniciarEscuta(contexto: string): boolean {
     if (!this.pronta || this.emResposta || this.mic.capturando) return false
+    this.alto.retomar()
     this.audioEnviadoNoTurno = false
     this.contextoDoTurno = contexto
     this.mic.setAtiva(true)

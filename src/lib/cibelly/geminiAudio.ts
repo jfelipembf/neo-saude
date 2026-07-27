@@ -212,6 +212,11 @@ export class ReproducaoDeAudio {
     this.no?.port.postMessage(deBase64PCM16(base64))
   }
 
+  /** Retoma dentro do gesto do pedal para satisfazer a política de autoplay. */
+  retomar(): void {
+    if (this.ctx?.state === 'suspended') void this.ctx.resume()
+  }
+
   /** Corta o que está tocando (a resposta foi interrompida). */
   cortar(): void {
     this.no?.port.postMessage('corta')

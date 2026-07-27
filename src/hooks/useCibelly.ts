@@ -133,11 +133,9 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
   // WebRTC sem parar — derrubando o microfone no meio do exame.
   const handlersRef = useRef(handlers)
   useEffect(() => { handlersRef.current = handlers })
-  // O paciente vai numa ref pelo MESMO motivo dos handlers: como dependência do
-  // efeito, trocar de paciente derrubaria o microfone no meio do exame. É lido
-  // uma vez, na conexão — que é quando a saudação e o prompt são montados. A
-  // tela impede a troca durante o atendimento (o seletor trava e a URL é
-  // devolvida), então este valor não envelhece dentro de uma sessão.
+  // O paciente fica disponível aos callbacks do pedal. Ele também é dependência
+  // da conexão: fora do atendimento pode mudar e a sessão precisa receber o
+  // novo contexto; durante o atendimento o seletor já fica travado.
   const patientIdRef = useRef(patientId)
   useEffect(() => { patientIdRef.current = patientId })
 
@@ -213,6 +211,7 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       const dc = dcRef.current
       const tracks = micStreamRef.current?.getAudioTracks() ?? []
       if (dc?.readyState !== 'open' || tracks.length === 0) return false
+      void audioElRef.current?.play().catch(() => {})
       dc.send(JSON.stringify({
         type: 'conversation.item.create',
         item: {
@@ -734,7 +733,7 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       clearFollowUpAckTimer()
       clearConfirmationFallbackTimer()
     }
-  }, [ativa, cibellyAgent, orchestrator, registrar, reservarFala, preencherFala, publicar, liberarPedal])
+  }, [ativa, patientId, cibellyAgent, orchestrator, registrar, reservarFala, preencherFala, publicar, liberarPedal])
 
   return {
     status,
