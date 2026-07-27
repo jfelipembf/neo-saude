@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import { invalidateFinance } from '@/hooks/useFinance'
 import {
-  addTreatmentSession, addTreatment, listPatientTreatments, previewSessionBilling,
+  addTreatmentSession, addTreatment, countTreatmentReceivables, deleteTreatment,
+  listPatientTreatments, previewSessionBilling,
 } from '@/services/treatmentsService'
 import type { NewTreatmentSession, NewTreatment } from '@/services/treatmentsService'
 import type { SessionBillingChoice } from '@/types/domain'
@@ -44,6 +45,38 @@ export function useAddTreatmentSession() {
       queryClient.invalidateQueries({ queryKey: queryKeys.treatments.byPatient(variables.patientId) })
       invalidateFinance(queryClient)
     },
+  })
+}
+
+/**
+ * Apaga o tratamento inteiro, com os procedimentos dele.
+ *
+ * Invalida o FINANCEIRO junto, e não só o histórico: um tratamento pode ter
+ * sessão sem cobrança que ainda assim aparece em "A faturar". Deixar só o
+ * histórico atualizado repetiria o bug que useAddTreatmentSession já
+ * documenta — a recepção olhando uma lista que não existe mais.
+ */
+export function useDeleteTreatment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ treatmentId }: { treatmentId: string; patientId: string }) =>
+      deleteTreatment(treatmentId),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.treatments.byPatient(variables.patientId) })
+      invalidateFinance(queryClient)
+    },
+  })
+}
+
+/** Cobranças já emitidas a partir deste tratamento — 0 libera a exclusão. */
+export function useTreatmentReceivableCount(treatmentId: string | null) {
+  return useQuery({
+    queryKey: [...queryKeys.treatments.all, 'receivables', treatmentId ?? ''] as const,
+    queryFn: () => countTreatmentReceivables(treatmentId ?? ''),
+    enabled: Boolean(treatmentId),
+    // Pergunta sobre o AGORA: a cobrança pode ter nascido noutra aba enquanto
+    // o diálogo estava aberto.
+    staleTime: 0,
   })
 }
 

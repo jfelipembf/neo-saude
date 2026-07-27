@@ -6,6 +6,10 @@ export type CibellyListeningMode = 'patient' | 'general'
 
 export type CibellyStatus = 'idle' | 'connecting' | 'listening' | 'error'
 
+export interface CibellyToolContext {
+  listeningMode: CibellyListeningMode | null
+}
+
 export interface CibellyActivity {
   id: number
   em: number
@@ -74,7 +78,7 @@ export interface CibellyHandlers {
     hora?: string
     duracao?: number
     dias?: number
-  }) => Promise<unknown>
+  }, context?: CibellyToolContext) => Promise<unknown>
   aoCancelarConsulta?: (p: {
     paciente?: string
     data: string

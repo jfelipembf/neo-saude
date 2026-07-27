@@ -247,3 +247,59 @@ export async function previewSessionBilling(
     })),
   }
 }
+
+/**
+ * Quantas cobranças já nasceram deste tratamento.
+ *
+ * Existe para o diálogo poder RECUSAR antes de perguntar, com o motivo em
+ * português. Sem isto, a exclusão iria ao banco e voltaria como violação de
+ * chave estrangeira (`receivable_treatment_session_id_fkey`) — o banco protege
+ * o dinheiro, mas a mensagem não serve para ninguém ler.
+ */
+export async function countTreatmentReceivables(treatmentId: string): Promise<number> {
+  const { data: sessoes, error: erroSessoes } = await supabase
+    .from('treatment_session')
+    .select('id')
+    .eq('treatment_id', treatmentId)
+  if (erroSessoes) throw erroSessoes
+
+  const ids = (sessoes ?? []).map(s => s.id)
+  if (ids.length === 0) return 0
+
+  const { count, error } = await supabase
+    .from('receivable')
+    .select('id', { count: 'exact', head: true })
+    .in('treatment_session_id', ids)
+  if (error) throw error
+  return count ?? 0
+}
+
+/**
+ * Apaga o tratamento — e, em CASCATA no banco, todos os procedimentos dele:
+ * dentes, etapas, materiais e os SNAPSHOTS DO ODONTOGRAMA daquelas sessões.
+ *
+ * ⚠️ Aquele snapshot é o registro clínico do que foi encontrado na boca no dia,
+ * e é o que um conselho pede numa fiscalização. Não há desfazer. Por isso a
+ * confirmação na tela diz quantos procedimentos vão junto, em vez de perguntar
+ * só "tem certeza?".
+ *
+ * O que NÃO cascateia é o recebível (`on delete no action`): tratamento com
+ * cobrança emitida é recusado pela política do banco. Ver
+ * countTreatmentReceivables — a tela confere antes para explicar o motivo.
+ *
+ * O `.select()` não é enfeite: quando a política de DELETE não casa, o
+ * PostgREST devolve SUCESSO com zero linhas. Sem conferir o que voltou, a tela
+ * anunciava "excluído" e o tratamento continuava na lista — foi exatamente o
+ * que aconteceu. Zero linhas aqui é erro, não sucesso.
+ */
+export async function deleteTreatment(treatmentId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('treatment')
+    .delete()
+    .eq('id', treatmentId)
+    .select('id')
+  if (error) throw error
+  if (!data?.length) {
+    throw new Error('O banco recusou a exclusão deste tratamento.')
+  }
+}

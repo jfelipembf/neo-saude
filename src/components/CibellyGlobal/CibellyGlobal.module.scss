@@ -1,0 +1,45 @@
+@use '../../styles/mixins' as *;
+
+// Flutua acima de tudo: aparece em qualquer tela e não pode ser empurrado pelo
+// conteúdo de nenhuma delas. Fica no canto INFERIOR — o topo já tem o header,
+// e é lá que o olho procura navegação, não estado.
+.aviso {
+  position: fixed;
+  right: $sp-5;
+  bottom: $sp-5;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-2;
+  padding: $sp-2 $sp-4;
+  border: 1px solid var(--glass-border-strong);
+  border-radius: $radius-pill;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md), var(--shadow-glow);
+  color: var(--success-fg);
+  font-size: $fs-sm;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;   // é aviso, não controle: nunca rouba um clique
+
+  svg {
+    width: 16px;
+    height: 16px;
+    animation: cibellyGlobalPulse 1.6s ease-in-out infinite;
+  }
+
+  // Microfone aberto durante um expediente inteiro não pode piscar sem escape.
+  @media (prefers-reduced-motion: reduce) {
+    svg { animation: none; }
+  }
+
+  @include phone {
+    right: $sp-3;
+    bottom: $sp-3;
+  }
+}
+
+@keyframes cibellyGlobalPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}

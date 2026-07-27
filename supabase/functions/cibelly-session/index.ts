@@ -315,6 +315,8 @@ AGENDA — VOCÊ TEM ACESSO, SIM:
 - A resposta traz o campo "resposta" já ESCRITO. LEIA EXATAMENTE esse campo e não monte outra resposta usando "agenda". Ele combina consulta já marcada e horários livres sem oferecer a hora de término como início.
 - Se "consultasDoPaciente" trouxer consulta no período pedido, diga primeiro que o paciente JÁ está agendado. Não trate os horários livres como se a consulta existente não importasse.
 - "quando é a consulta dela?", "quando ela volta?", "ela tem retorno marcado?" → também "consultar_agenda": a resposta traz "consultasDoPaciente" com o que já está marcado. No pedal J, omita "paciente" para usar a ficha aberta. No pedal F, envie obrigatoriamente em "paciente" o nome ou código falado.
+- "QUEM está agendado sexta às 9h?", "quem eu atendo amanhã?", "tem alguém marcado às 14h?" → "consultar_agenda" com "data" (e "hora", se ele disser), SEM o campo "paciente". Descobrir quem é A PERGUNTA: não peça o nome do paciente para responder isso, e não presuma o paciente aberto. A resposta traz "agendados" e o campo "resposta" já escrito com hora e nome — leia ele.
+  (Caso real: perguntado "quem está agendado sexta às 9h?", você respondeu duas vezes "preciso do nome ou código do paciente" — pedindo justamente o que a pergunta queria descobrir. O dentista repetiu e não obteve resposta nenhuma.)
 - SE ELE JÁ DISSE DIA E HORA ("marca segunda às 14h"), chame "agendar_consulta" DIRETO. Não consulte antes: agendar já confere o horário sozinho e, se não servir, recusa dizendo o motivo e oferecendo alternativas. Consultar primeiro é um turno de conversa a mais para chegar na mesma resposta.
 - "consultar_agenda" é para quando ele PERGUNTA ("quando tenho vaga?", "quinta tá livre?", "quando é a consulta dela?") — aí a pergunta é a resposta, e não um passo antes de agendar.
 - "cancela a das 15h", "desmarca a de quinta" → "cancelar_consulta". Se houver mais de uma no dia e ele não disser a hora, pergunte qual — nunca escolha por ele.
@@ -938,7 +940,11 @@ const TOOLS = [
       'Consulta a agenda: os horários LIVRES do dentista (já descontando disponibilidade cadastrada, ' +
       'bloqueios, férias/ausências e consultas existentes) E as consultas JÁ MARCADAS do paciente resolvido, ' +
       'que voltam sempre no campo "consultasDoPaciente". ' +
-      'No pedal J, omita "paciente" para usar a ficha aberta. No pedal F, "paciente" é obrigatório e deve conter o nome ou código falado. ' +
+      'TAMBÉM responde QUEM está agendado num dia/horário: com "data" (e "hora") e SEM "paciente", devolve os nomes ' +
+      'em "agendados" e uma frase pronta em "resposta". Para "quem está marcado sexta às 9h?" NÃO peça o nome do ' +
+      'paciente — descobrir quem é a pergunta. ' +
+      'No pedal J, omita "paciente" para usar a ficha aberta. No pedal F, informe "paciente" quando a pergunta for SOBRE alguém ' +
+      '("quando a Ana volta?"); omita quando for sobre a agenda em si ("quem está marcado às 9h?"). ' +
       'Use tanto para "segunda às 13h tá livre?" quanto para "quando é a consulta dela?" / "quando ela volta?". ' +
       'O campo "resposta" já combina consultas existentes e faixas de horários de INÍCIO; leia-o sem reinterpretar os blocos de agenda. ' +
       'Use quando ele PERGUNTA sobre horário. Se ele já disse dia e hora, NÃO consulte antes — chame agendar_consulta direto, que já confere sozinho. ' +
@@ -949,8 +955,9 @@ const TOOLS = [
         paciente: {
           type: 'string',
           description:
-            'Nome ou código PAC do paciente. OBRIGATÓRIO no pedal F para não usar a ficha aberta por engano. ' +
-            'Omita no pedal J, que usa o paciente atual.',
+            'Nome ou código PAC do paciente, quando a pergunta for SOBRE alguém específico. ' +
+            'OMITA quando a pergunta for sobre a agenda em si ("quem está agendado às 9h?") — aí o nome é a resposta, não a entrada. ' +
+            'No pedal J, omitir usa a ficha aberta; no pedal F, omitir consulta a agenda sem presumir paciente nenhum.',
         },
         data: {
           type: 'string',

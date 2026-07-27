@@ -26,9 +26,7 @@ export interface CibellyUsageRow {
   endedAt: string
 }
 
-/** Grava UMA sessão de voz encerrada. Chamado no fim de useCibelly.ts — nunca
- *  lança: perder este registro não pode derrubar o encerramento do atendimento. */
-export async function recordCibellyUsage(params: {
+export interface DadosDeUso {
   patientId: string | null
   provider: Provedor
   model: string
@@ -39,37 +37,102 @@ export async function recordCibellyUsage(params: {
    *  isso à parte (whisper-1) — no Gemini o áudio dele já está nos tokens de
    *  entrada normais, então este parâmetro é ignorado fora do ramo 'openai'. */
   transcricaoLigada: boolean
-}): Promise<void> {
+}
+
+/**
+ * O que a linha precisa e que NÃO dá para descobrir enquanto a aba morre:
+ * durante `pagehide` nada assíncrono termina. Por isso é colhido na CONEXÃO e
+ * guardado — ver recordCibellyUsageOnUnload.
+ */
+export interface ContextoDeGravacao {
+  clinicId: string | null
+  professionalId: string | null
+  accessToken: string | null
+}
+
+/** Colhe o contexto na conexão, enquanto ainda dá tempo de esperar promessa. */
+export async function prepareCibellyUsageContext(): Promise<ContextoDeGravacao> {
+  const { data } = await supabase.auth.getSession()
+  let professionalId: string | null = null
+  try { professionalId = await getCurrentProfessionalId() } catch { /* sem perfil */ }
+  return {
+    clinicId: getCurrentClinicId(),
+    professionalId,
+    accessToken: data.session?.access_token ?? null,
+  }
+}
+
+/** Monta a linha. Separado do envio porque o caminho do unload não pode await. */
+function montarLinha(params: DadosDeUso, ctx: Pick<ContextoDeGravacao, 'clinicId' | 'professionalId'>) {
+  const duracaoSegundos = (params.endedAt.getTime() - params.startedAt.getTime()) / 1000
+  return {
+    clinic_id: ctx.clinicId,
+    patient_id: params.patientId,
+    professional_id: ctx.professionalId,
+    provider: params.provider,
+    model: params.model,
+    text_input_tokens: params.uso.textoEntrada,
+    audio_input_tokens: params.uso.audioEntrada,
+    text_cached_tokens: params.uso.textoEntradaCache,
+    audio_cached_tokens: params.uso.audioEntradaCache,
+    text_output_tokens: params.uso.textoSaida,
+    audio_output_tokens: params.uso.audioSaida,
+    cost_usd: calcularCustoUsd(params.uso, params.provider, params.model),
+    whisper_cost_usd: params.provider === 'openai' && params.transcricaoLigada
+      ? calcularCustoWhisperUsd(duracaoSegundos)
+      : 0,
+    started_at: params.startedAt.toISOString(),
+    ended_at: params.endedAt.toISOString(),
+  }
+}
+
+/** Sessão sem token nenhum (conectou e caiu na hora) não vira linha. */
+function semUso(uso: UsoBruto): boolean {
+  return Object.values(uso).every(v => v === 0)
+}
+
+/**
+ * GRAVA A SESSÃO QUANDO A ABA ESTÁ FECHANDO — e este é o caminho NORMAL, não o
+ * excepcional: a Cibelly conecta ao carregar o app e a sessão só termina quando
+ * a aba fecha. O cleanup de efeito do React não roda no unload, então enquanto
+ * só existia aquele caminho quase nenhuma sessão virava linha — 11 gravadas
+ * contra uma fatura da Google 4× maior.
+ *
+ * `fetch` com `keepalive: true` em vez de `sendBeacon`: o beacon não deixa
+ * mandar cabeçalho, e sem `Authorization` a RLS recusa o insert.
+ */
+export function recordCibellyUsageOnUnload(params: DadosDeUso, ctx: ContextoDeGravacao): void {
+  if (semUso(params.uso) || !ctx.accessToken) return
+  const url = import.meta.env.VITE_SUPABASE_URL
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  if (!url || !anonKey) return
+  try {
+    void fetch(`${url}/rest/v1/cibelly_usage`, {
+      method: 'POST',
+      keepalive: true,
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${ctx.accessToken}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(montarLinha(params, ctx)),
+    }).catch(() => {})
+  } catch { /* aba morrendo: não há a quem reclamar */ }
+}
+
+/** Grava UMA sessão de voz encerrada. Chamado no fim de useCibelly.ts — nunca
+ *  lança: perder este registro não pode derrubar o encerramento do atendimento. */
+export async function recordCibellyUsage(params: DadosDeUso): Promise<void> {
   // Sessão sem nenhum token real (conectou e desconectou na hora, sem turno
   // nenhum) não vira linha — só polui a comparação com zeros.
-  const custoUsd = calcularCustoUsd(params.uso, params.provider, params.model)
-  const semUso = Object.values(params.uso).every(v => v === 0)
-  if (semUso) return
-
-  const duracaoSegundos = (params.endedAt.getTime() - params.startedAt.getTime()) / 1000
-  const whisperCostUsd = params.provider === 'openai' && params.transcricaoLigada
-    ? calcularCustoWhisperUsd(duracaoSegundos)
-    : 0
+  if (semUso(params.uso)) return
 
   try {
-    const professionalId = await getCurrentProfessionalId()
-    const { error } = await supabase.from('cibelly_usage').insert({
-      clinic_id: getCurrentClinicId(),
-      patient_id: params.patientId,
-      professional_id: professionalId,
-      provider: params.provider,
-      model: params.model,
-      text_input_tokens: params.uso.textoEntrada,
-      audio_input_tokens: params.uso.audioEntrada,
-      text_cached_tokens: params.uso.textoEntradaCache,
-      audio_cached_tokens: params.uso.audioEntradaCache,
-      text_output_tokens: params.uso.textoSaida,
-      audio_output_tokens: params.uso.audioSaida,
-      cost_usd: custoUsd,
-      whisper_cost_usd: whisperCostUsd,
-      started_at: params.startedAt.toISOString(),
-      ended_at: params.endedAt.toISOString(),
-    })
+    const { error } = await supabase.from('cibelly_usage').insert(montarLinha(params, {
+      clinicId: getCurrentClinicId(),
+      professionalId: await getCurrentProfessionalId().catch(() => null),
+    }))
     if (error) console.error('[Cibelly] falha ao gravar custo da sessão:', error)
   } catch (e) {
     console.error('[Cibelly] falha ao gravar custo da sessão:', e)

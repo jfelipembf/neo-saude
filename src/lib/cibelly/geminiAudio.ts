@@ -118,29 +118,31 @@ function deBase64PCM16(base64: string): Float32Array {
   return saida
 }
 
-/** Captura do microfone a 16 kHz, entregando pedaços já em base64. */
+/**
+ * Captura do microfone a 16 kHz, entregando pedaços já em base64.
+ *
+ * ⚠️ O MICROFONE SÓ É ADQUIRIDO ENQUANTO O PEDAL ESTÁ PRESSIONADO.
+ *
+ * A versão anterior abria o microfone em `iniciar()` e fazia push-to-talk com
+ * `track.enabled = false`. Isso não fecha nada: medido no navegador, com
+ * `enabled = false` o `readyState` continua "live" — o dispositivo segue
+ * capturando e o indicador do sistema fica aceso. Só `stop()` devolve o
+ * microfone.
+ *
+ * Com a assistente rodando em todas as telas, aquilo era microfone adquirido o
+ * expediente inteiro numa sala com paciente. Agora `iniciar()` só monta o
+ * pipeline de áudio (contexto e worklet); a trilha nasce em `setAtiva(true)` e
+ * morre em `setAtiva(false)`.
+ */
 export class CapturaDeMicrofone {
   private ctx: AudioContext | null = null
   private stream: MediaStream | null = null
+  private fonte: MediaStreamAudioSourceNode | null = null
   private no: AudioWorkletNode | null = null
   private ativa = false
 
+  /** Monta o pipeline SEM tocar no microfone. Chamado uma vez, na conexão. */
   async iniciar(aoCapturar: (base64: string) => void): Promise<void> {
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        sampleRate: 16000,
-        channelCount: 1,
-        // Explícito pelo mesmo motivo do provedor da OpenAI — e aqui importa
-        // ainda mais, porque não há AEC de WebRTC por baixo (ver o topo).
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    })
-    // Push-to-talk: a permissão e o pipeline ficam prontos, mas a trilha só
-    // produz áudio enquanto um dos pedais estiver fisicamente pressionado.
-    this.setAtiva(false)
-
     this.ctx = new AudioContext({ sampleRate: 16000 })
     const url = urlDoWorklet(CAPTURA_WORKLET)
     try {
@@ -153,14 +155,50 @@ export class CapturaDeMicrofone {
     this.no.port.onmessage = e => {
       if (this.ativa) aoCapturar(paraBase64PCM16(e.data as Float32Array))
     }
-    this.ctx.createMediaStreamSource(this.stream).connect(this.no)
   }
 
   setAtiva(ativa: boolean): void {
+    if (ativa === this.ativa) return
     this.ativa = ativa
-    this.stream?.getAudioTracks().forEach(track => {
-      track.enabled = ativa
-    })
+    if (ativa) void this.abrirMicrofone()
+    else this.soltarMicrofone()
+  }
+
+  private async abrirMicrofone(): Promise<void> {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate: 16000,
+          channelCount: 1,
+          // Explícito pelo mesmo motivo do provedor da OpenAI — e aqui importa
+          // ainda mais, porque não há AEC de WebRTC por baixo (ver o topo).
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      })
+      // Soltou o pedal enquanto a permissão resolvia: não deixa trilha órfã
+      // capturando com o indicador aceso.
+      if (!this.ativa || !this.ctx || !this.no) {
+        stream.getTracks().forEach(t => t.stop())
+        return
+      }
+      this.stream = stream
+      this.fonte = this.ctx.createMediaStreamSource(stream)
+      this.fonte.connect(this.no)
+    } catch (erro) {
+      console.error('[Cibelly] não foi possível abrir o microfone:', erro)
+      this.ativa = false
+    }
+  }
+
+  private soltarMicrofone(): void {
+    this.fonte?.disconnect()
+    this.fonte = null
+    // `stop()`, e não `enabled = false`: é o que apaga o indicador do sistema
+    // e devolve o dispositivo — o ponto inteiro desta classe.
+    this.stream?.getTracks().forEach(t => t.stop())
+    this.stream = null
   }
 
   get capturando(): boolean {
@@ -168,17 +206,12 @@ export class CapturaDeMicrofone {
   }
 
   parar(): void {
-    this.setAtiva(false)
+    this.ativa = false
+    this.soltarMicrofone()
     if (this.no) { this.no.port.onmessage = null; this.no.disconnect() }
-    // Soltar as TRILHAS é o que apaga o indicador de microfone do sistema —
-    // fechar só o contexto deixaria o mic "ligado" aos olhos de quem está na
-    // cadeira.
-    this.stream?.getTracks().forEach(t => t.stop())
     void this.ctx?.close()
     this.no = null
-    this.stream = null
     this.ctx = null
-    this.ativa = false
   }
 }
 

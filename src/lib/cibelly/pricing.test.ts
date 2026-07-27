@@ -92,6 +92,54 @@ describe('acumularGemini', () => {
     expect(r.audioEntrada).toBe(200)
     expect(r.audioSaida).toBe(20)
   })
+
+  // A Live API chama a saída de `responseTokenCount`, e NÃO de
+  // `candidatesTokenCount` como o generateContent normal. Ler o campo errado
+  // não dá erro — grava zero. Foi o que fez a fatura da Google vir 4× maior
+  // que o card do Dashboard, então este caso é o que trava a regressão.
+  it('lê a saída de responseTokenCount, o campo real da Live API', () => {
+    const meta: UsageMetadataGemini = {
+      promptTokenCount: 17500,
+      promptTokensDetails: [{ modality: 'TEXT', tokenCount: 17500 }],
+      responseTokenCount: 480,
+      responseTokensDetails: [{ modality: 'AUDIO', tokenCount: 480 }],
+    }
+    const r = acumularGemini(USO_ZERADO, meta)
+    expect(r.textoEntrada).toBe(17500)
+    expect(r.audioSaida).toBe(480)
+  })
+
+  it('cai em candidatesTokenCount só quando responseTokenCount não vem', () => {
+    const r = acumularGemini(USO_ZERADO, { candidatesTokenCount: 30 })
+    expect(r.audioSaida).toBe(30)
+  })
+
+  it('response tem precedência sobre candidates quando os dois vêm', () => {
+    const r = acumularGemini(USO_ZERADO, { responseTokenCount: 80, candidatesTokenCount: 30 })
+    expect(r.audioSaida).toBe(80)
+  })
+
+  it('prompt de ferramenta entra como ENTRADA', () => {
+    const meta: UsageMetadataGemini = {
+      toolUsePromptTokenCount: 1200,
+      toolUsePromptTokensDetails: [{ modality: 'TEXT', tokenCount: 1200 }],
+    }
+    expect(acumularGemini(USO_ZERADO, meta).textoEntrada).toBe(1200)
+  })
+
+  it('raciocínio entra como texto de SAÍDA', () => {
+    expect(acumularGemini(USO_ZERADO, { thoughtsTokenCount: 250 }).textoSaida).toBe(250)
+  })
+
+  it('conteúdo em cache não é cobrado como entrada cheia', () => {
+    const meta: UsageMetadataGemini = {
+      cachedContentTokenCount: 9000,
+      cacheTokensDetails: [{ modality: 'TEXT', tokenCount: 9000 }],
+    }
+    const r = acumularGemini(USO_ZERADO, meta)
+    expect(r.textoEntradaCache).toBe(9000)
+    expect(r.textoEntrada).toBe(0)
+  })
 })
 
 describe('calcularCustoUsd', () => {

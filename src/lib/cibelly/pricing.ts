@@ -139,12 +139,31 @@ export function acumularOpenAI(acc: UsoBruto, usage: UsoRealtimeOpenAI | undefin
   }
 }
 
-/** Formato de `usageMetadata` no protocolo BidiGenerateContent do Gemini Live. */
+/**
+ * Formato de `usageMetadata` no protocolo BidiGenerateContent do Gemini Live.
+ *
+ * ⚠️ O LADO DA SAÍDA CHAMA `responseTokenCount`, não `candidatesTokenCount`.
+ * A Live API foge da convenção do generateContent normal, e ler o campo errado
+ * não dá erro nenhum: `undefined ?? 0` vira zero e a sessão inteira é gravada
+ * como se ela nunca tivesse falado. Foi exatamente o que aconteceu — 11 sessões
+ * com saída zerada, e o painel da Google cobrando 4× o que o cartão mostrava.
+ * `candidates*` fica como fallback só porque outras superfícies da API usam.
+ */
 export interface UsageMetadataGemini {
   promptTokenCount?: number
+  responseTokenCount?: number
   candidatesTokenCount?: number
+  /** Prompt das chamadas de ferramenta — cobrado como ENTRADA, e nesta
+   *  assistente é justamente o que mais roda. */
+  toolUsePromptTokenCount?: number
+  /** Raciocínio dos modelos "thinking" — cobrado como SAÍDA. */
+  thoughtsTokenCount?: number
+  cachedContentTokenCount?: number
   promptTokensDetails?: { modality?: string; tokenCount?: number }[]
+  responseTokensDetails?: { modality?: string; tokenCount?: number }[]
   candidatesTokensDetails?: { modality?: string; tokenCount?: number }[]
+  toolUsePromptTokensDetails?: { modality?: string; tokenCount?: number }[]
+  cacheTokensDetails?: { modality?: string; tokenCount?: number }[]
 }
 
 /** Mesmo princípio do acumulador da OpenAI: sem detalhe por modalidade,
@@ -164,13 +183,25 @@ export function acumularGemini(acc: UsoBruto, meta: UsageMetadataGemini | undefi
   }
 
   const entrada = porModalidade(meta.promptTokensDetails, meta.promptTokenCount ?? 0)
-  const saida = porModalidade(meta.candidatesTokensDetails, meta.candidatesTokenCount ?? 0)
+  const ferramentas = porModalidade(
+    meta.toolUsePromptTokensDetails,
+    meta.toolUsePromptTokenCount ?? 0,
+  )
+  const cache = porModalidade(meta.cacheTokensDetails, meta.cachedContentTokenCount ?? 0)
+  const saida = porModalidade(
+    meta.responseTokensDetails ?? meta.candidatesTokensDetails,
+    meta.responseTokenCount ?? meta.candidatesTokenCount ?? 0,
+  )
 
   return {
-    ...acc,
-    textoEntrada: acc.textoEntrada + entrada.texto,
-    audioEntrada: acc.audioEntrada + entrada.audio,
-    textoSaida: acc.textoSaida + saida.texto,
+    textoEntrada: acc.textoEntrada + entrada.texto + ferramentas.texto,
+    audioEntrada: acc.audioEntrada + entrada.audio + ferramentas.audio,
+    textoEntradaCache: acc.textoEntradaCache + cache.texto,
+    audioEntradaCache: acc.audioEntradaCache + cache.audio,
+    // O raciocínio entra como TEXTO de saída: é o que ele é, e a tabela do
+    // Gemini cobra saída de texto mais barato que saída de áudio — somar em
+    // áudio inflaria a conta por engano.
+    textoSaida: acc.textoSaida + saida.texto + (meta.thoughtsTokenCount ?? 0),
     audioSaida: acc.audioSaida + saida.audio,
   }
 }

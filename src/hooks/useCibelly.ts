@@ -8,7 +8,10 @@ import {
   acumularGemini, acumularOpenAI, USO_ZERADO,
   type Provedor, type UsoBruto,
 } from '@/lib/cibelly/pricing'
-import { recordCibellyUsage } from '@/services/cibellyUsageService'
+import {
+  prepareCibellyUsageContext, recordCibellyUsage, recordCibellyUsageOnUnload,
+  type ContextoDeGravacao,
+} from '@/services/cibellyUsageService'
 import { CibellyAgent } from '@/lib/cibelly/cibellyAgent'
 import { isClearAffirmativeConfirmation } from '@/lib/cibelly/confirmationIntent'
 import { requestsLowStockQuote } from '@/lib/cibelly/workflowIntent'
@@ -19,6 +22,7 @@ import {
   shouldTranscribeUser,
 } from '@/lib/cibelly/sessionUtils'
 import { createSpecialistExecutors } from '@/lib/cibelly/toolExecutors'
+import { surfaceRefusal, type CibellyToolSurface } from '@/lib/cibelly/toolSurface'
 import { createOpenAIRealtimeEventHandler } from '@/lib/cibelly/openAIRealtimeEvents'
 import {
   pedalScopeError,
@@ -39,6 +43,7 @@ export type {
   PatientMessageRequest,
   QuoteRequest,
   CibellyListeningMode as ModoEscutaCibelly,
+  CibellyToolContext,
   VoiceProvider as ProvedorDeVoz,
 } from '@/lib/cibelly/sessionTypes'
 
@@ -77,7 +82,18 @@ const CONFIRMATION_FALLBACK_DELAY_MS = 400
  * @param ativa Liga/desliga a sessão. O microfone fica mudo até um pedal ser
  *   mantido pressionado e volta a ficar mudo assim que ele é solto.
  */
-export function useCibelly(ativa: boolean, patientId: string | null, handlers: CibellyHandlers = {}) {
+export function useCibelly(
+  ativa: boolean,
+  patientId: string | null,
+  handlers: CibellyHandlers = {},
+  /**
+   * ONDE a sessão roda. Fora do odontograma o motor do desenho não está
+   * montado, e as ferramentas de dente precisam ser RECUSADAS em vez de
+   * chamadas — senão ela anuncia "marcado" para um comando que se perdeu.
+   * Ver lib/cibelly/toolSurface.ts.
+   */
+  surface: CibellyToolSurface = 'odontogram',
+) {
   const [status, setStatus] = useState<CibellyStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   /** Frase pronta do que foi marcado — já contando só os dentes que entraram. */
@@ -101,6 +117,10 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
   const dcRef = useRef<RTCDataChannel | null>(null)
   const audioElRef = useRef<HTMLAudioElement | null>(null)
   const micStreamRef = useRef<MediaStream | null>(null)
+  /** Pedal pressionado AGORA. A aquisição do microfone é assíncrona; sem isto,
+   *  soltar o pedal antes de a permissão resolver deixaria uma trilha órfã
+   *  capturando com o indicador aceso. */
+  const escutandoRef = useRef(false)
   const modoDoTurnoRef = useRef<CibellyListeningMode | null>(null)
   const modoCapturaRef = useRef<CibellyListeningMode | null>(null)
   const pedalBloqueadoRef = useRef(false)
@@ -128,6 +148,9 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
   /** A transcrição do dentista (whisper-1) estava ligada nesta sessão? Só
    *  importa pro cálculo do custo — ver cibellyUsageService.ts. */
   const transcricaoLigadaRef = useRef(false)
+  /** Clínica, profissional e token colhidos na CONEXÃO: o caminho do
+   *  fechamento da aba não pode esperar promessa nenhuma. */
+  const contextoDeUsoRef = useRef<ContextoDeGravacao | null>(null)
 
   // O callback vive numa ref, e não nas deps do efeito: a página recria o
   // objeto de handlers a cada render, e como deps isso reconectaria a sessão
@@ -208,10 +231,25 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         return geminiRef.current?.iniciarEscuta(instruction) ?? false
       }
 
-      if (orchestrator.snapshot.busy) return false
       const dc = dcRef.current
-      const tracks = micStreamRef.current?.getAudioTracks() ?? []
-      if (dc?.readyState !== 'open' || tracks.length === 0) return false
+      const pc = pcRef.current
+      if (dc?.readyState !== 'open' || !pc) return false
+
+      // O PEDAL INTERROMPE. Antes, `busy` fazia esta função devolver false
+      // enquanto ela falava: apertar o F no meio de uma resposta longa não
+      // fazia nada e o dentista esperava ela terminar de ler uma lista que não
+      // queria ouvir. `response.cancel` corta a geração no servidor; o
+      // `srcObject = null` cala o que já está no alto-falante, porque o áudio
+      // em trânsito continuaria tocando depois do cancelamento.
+      if (orchestrator.snapshot.busy) {
+        dc.send(JSON.stringify({ type: 'response.cancel' }))
+        const audioEl = audioElRef.current
+        if (audioEl) {
+          const stream = audioEl.srcObject
+          audioEl.srcObject = null
+          audioEl.srcObject = stream
+        }
+      }
       void audioElRef.current?.play().catch(() => {})
       dc.send(JSON.stringify({
         type: 'conversation.item.create',
@@ -221,20 +259,52 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
           content: [{ type: 'input_text', text: instruction }],
         },
       }))
-      tracks.forEach(track => {
-        track.enabled = true
-      })
+
+      // ⚠️ O MICROFONE É ADQUIRIDO AQUI, e não na conexão.
+      //
+      // Antes a trilha nascia junto com a sessão e o push-to-talk era só
+      // `track.enabled = false`. Isso NÃO fecha o microfone: medido no
+      // navegador, com `enabled = false` o `readyState` continua "live" — o
+      // dispositivo segue capturando e o indicador do sistema fica aceso. Só
+      // `stop()` libera de fato.
+      //
+      // Com a Cibelly em todas as telas, aquilo virava microfone adquirido o
+      // expediente inteiro numa sala com paciente. Agora ele abre ao apertar o
+      // pedal e FECHA ao soltar.
+      void (async () => {
+        try {
+          const mic = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          })
+          // Soltou o pedal (ou a sessão caiu) enquanto a permissão resolvia:
+          // não deixa uma trilha órfã capturando.
+          if (cancelled || !escutandoRef.current) {
+            mic.getTracks().forEach(t => t.stop())
+            return
+          }
+          micStreamRef.current = mic
+          const sender = pc.getSenders().find(s => !s.track || s.track.kind === 'audio')
+          await sender?.replaceTrack(mic.getAudioTracks()[0] ?? null)
+        } catch (err) {
+          console.error('[Cibelly] não foi possível abrir o microfone:', err)
+        }
+      })()
+      escutandoRef.current = true
       return true
     }
 
     function encerrarEscutaPeloPedal() {
+      escutandoRef.current = false
       if (provedor === 'gemini') {
         geminiRef.current?.encerrarEscuta()
         return
       }
-      micStreamRef.current?.getAudioTracks().forEach(track => {
-        track.enabled = false
-      })
+      // `stop()`, não `enabled = false`: é o que apaga o indicador e devolve o
+      // dispositivo ao sistema (ver o comentário na função acima).
+      const sender = pcRef.current?.getSenders().find(s => s.track?.kind === 'audio')
+      void sender?.replaceTrack(null)
+      micStreamRef.current?.getTracks().forEach(track => track.stop())
+      micStreamRef.current = null
     }
 
     iniciarEscutaRef.current = iniciarEscutaPeloPedal
@@ -454,6 +524,9 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         usoRef.current = USO_ZERADO
         inicioSessaoRef.current = new Date()
         transcricaoLigadaRef.current = shouldTranscribeUser()
+        // Colhido AGORA porque no `pagehide` nada assíncrono termina — ver
+        // recordCibellyUsageOnUnload.
+        void prepareCibellyUsageContext().then(ctx => { contextoDeUsoRef.current = ctx })
 
         // getUserMedia só existe em contexto seguro (https, ou http só em
         // localhost) — vale para os dois provedores, então a checagem vem antes
@@ -539,18 +612,14 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         // sai pelo alto-falante e volta pelo microfone, e o consultório tem
         // sugador e aspirador ligados. Sem cancelamento de eco, a própria voz
         // da Cibelly dispara o detector de fala do servidor.
-        const mic = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        })
-        if (cancelled) { mic.getTracks().forEach(t => t.stop()); return }
-        mic.getAudioTracks().forEach(track => {
-          track.enabled = false
-        })
-        micStreamRef.current = mic
-
         const pc = new RTCPeerConnection()
         pcRef.current = pc
-        mic.getTracks().forEach(track => pc.addTrack(track, mic))
+        // NENHUM microfone é aberto aqui. O transceiver reserva o lugar do
+        // áudio na negociação (o SDP precisa prever o envio), e a trilha de
+        // verdade entra por `replaceTrack` só quando o pedal é apertado — ver
+        // iniciarEscutaPeloPedal. Abrir o microfone na conexão deixava o
+        // dispositivo capturando o expediente inteiro.
+        pc.addTransceiver('audio', { direction: 'sendrecv' })
 
         const audioEl = document.createElement('audio')
         audioEl.autoplay = true
@@ -609,6 +678,11 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       nome: string,
       rawArgs: Record<string, unknown>,
     ): Promise<Record<string, unknown>> {
+      // A superfície vem ANTES do pedal: não adianta discutir escopo de pedal
+      // para uma ferramenta que nem existe nesta tela.
+      const foraDaSuperficie = surfaceRefusal(nome, surface)
+      if (foraDaSuperficie) return { ok: false, erro: foraDaSuperficie }
+
       const scopeError = pedalScopeError(
         modoDoTurnoRef.current,
         orchestrator.getTool(nome)?.domain,
@@ -690,7 +764,37 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
 
     connect()
 
+    /**
+     * MEDIÇÃO TEMPORÁRIA — o fechamento da aba é o CAMINHO NORMAL desta
+     * sessão, não a exceção: a Cibelly conecta ao carregar o app e só termina
+     * quando a aba fecha. O cleanup abaixo não roda no unload (o React não
+     * executa cleanup de efeito quando a página morre), então sem este
+     * listener quase nenhuma sessão virava linha — e a fatura da Google veio
+     * 4× maior que o card do Dashboard.
+     *
+     * `pagehide` e não `beforeunload`: é o que dispara também no Safari/iOS e
+     * quando a página vai para o cache de retorno.
+     */
+    function gravarNoFechamento() {
+      const ctx = contextoDeUsoRef.current
+      if (!provedorUsoRef.current || !ctx) return
+      recordCibellyUsageOnUnload({
+        patientId: patientIdRef.current,
+        provider: provedorUsoRef.current,
+        model: modeloUsoRef.current,
+        uso: usoRef.current,
+        startedAt: inicioSessaoRef.current,
+        endedAt: new Date(),
+        transcricaoLigada: transcricaoLigadaRef.current,
+      }, ctx)
+      // Zera para o cleanup não gravar a mesma sessão de novo se a aba
+      // sobreviver (bfcache) e o efeito desmontar depois.
+      provedorUsoRef.current = null
+    }
+    window.addEventListener('pagehide', gravarNoFechamento)
+
     return () => {
+      window.removeEventListener('pagehide', gravarNoFechamento)
       cancelled = true
       encerrarEscutaPeloPedal()
       iniciarEscutaRef.current = () => false
@@ -734,7 +838,11 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       clearFollowUpAckTimer()
       clearConfirmationFallbackTimer()
     }
-  }, [ativa, patientId, cibellyAgent, orchestrator, registrar, reservarFala, preencherFala, publicar, liberarPedal])
+    // `surface` entra nas deps porque decide QUAIS ferramentas a sessão
+    // atende; mudá-la sem reconectar deixaria a sessão com o conjunto antigo.
+    // Na prática é constante por montagem (a tela cheia usa 'odontogram', o
+    // provider global usa 'global'), então isto não reconecta nada hoje.
+  }, [ativa, patientId, surface, cibellyAgent, orchestrator, registrar, reservarFala, preencherFala, publicar, liberarPedal])
 
   return {
     status,

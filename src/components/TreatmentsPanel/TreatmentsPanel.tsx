@@ -13,6 +13,7 @@ import { Toggle } from '@/components/Toggle/Toggle'
 import { useToast } from '@/components/Toast/Toast'
 import {
   usePatientTreatments, useCreateTreatment, useAddTreatmentSession, useSessionBillingPreview,
+  useDeleteTreatment, useTreatmentReceivableCount,
 } from '@/hooks/useTreatments'
 import { SessionBillingLine } from './SessionBillingLine'
 import { useTheme } from '@/context/ThemeProvider'
@@ -21,7 +22,7 @@ import { esc } from '@/utils/printDocument'
 import { toIsoDate } from '@/utils/date'
 import { useProfessionalName } from '@/hooks/useDisplayNames'
 import { formatBRL, parseBRL } from '@/utils/format'
-import { IconPlus, IconPrint, IconTasks, IconChevronRight, IconX } from '@/components/icons'
+import { IconPlus, IconPrint, IconTasks, IconChevronRight, IconTrash, IconX } from '@/components/icons'
 import { LIGHT_THEME, DARK_THEME } from '@/lib/odontogramShell/theme'
 import { hideDefaultLayers } from '@/lib/odontogramShell/layers'
 import type { SessionBillingChoice, UsedMaterial, TreatmentSession, Treatment } from '@/types/domain'
@@ -101,6 +102,11 @@ export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps
   const { data: treatments, isLoading } = usePatientTreatments(patientId)
   const { mutate: create, isPending: creating } = useCreateTreatment()
   const { mutate: addSession, isPending: adding } = useAddTreatmentSession()
+  const { mutate: excluir, isPending: excluindo } = useDeleteTreatment()
+  /** Tratamento na mira da exclusão — abre o diálogo e dispara a checagem de
+   *  cobrança, que decide se a exclusão é possível. */
+  const [aExcluir, setAExcluir] = useState<Treatment | null>(null)
+  const { data: cobrancas, isLoading: conferindoCobranca } = useTreatmentReceivableCount(aExcluir?.id ?? null)
   const print = usePrintDocument()
   const { theme } = useTheme()
   const dark = theme === 'dark'
@@ -457,6 +463,14 @@ export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps
                         Novo procedimento
                       </Button>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      iconLeft={<IconTrash />}
+                      title="Excluir tratamento"
+                      aria-label={`Excluir o tratamento ${t.procedure}`}
+                      onClick={() => setAExcluir(t)}
+                    />
                   </div>
                 </header>
 
@@ -565,6 +579,51 @@ export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps
             />
           </div>
         </Modal>
+
+        {/*
+          EXCLUIR TRATAMENTO — não tem desfazer.
+
+          A mensagem diz o que vai junto (os procedimentos e o registro do
+          odontograma daquelas datas) em vez de perguntar só "tem certeza?": o
+          snapshot do odontograma é o registro clínico do que foi encontrado na
+          boca no dia, e é o que um conselho pede numa fiscalização.
+
+          Com cobrança emitida, o botão de confirmar fica TRAVADO. O banco já
+          recusaria (o recebível não cascateia), mas voltaria como violação de
+          chave estrangeira — erro que não diz nada a quem está usando.
+        */}
+        <ConfirmDialog
+          open={aExcluir !== null}
+          onClose={() => setAExcluir(null)}
+          onConfirm={() => {
+            if (!aExcluir) return
+            const nome = aExcluir.procedure
+            excluir({ treatmentId: aExcluir.id, patientId }, {
+              onSuccess: () => toast.success(`Tratamento "${nome}" excluído.`),
+              // Mostra o motivo REAL: uma recusa do banco vira uma frase na
+              // tela, não um "não foi possível" que não diz o que fazer.
+              onError: e => toast.error(
+                e instanceof Error && e.message ? e.message : 'Não foi possível excluir o tratamento.',
+              ),
+            })
+            setAExcluir(null)
+          }}
+          title="Excluir tratamento?"
+          message={
+            conferindoCobranca
+              ? 'Conferindo se há cobrança emitida…'
+              : cobrancas
+                ? `"${aExcluir?.procedure}" tem ${cobrancas === 1 ? 'uma cobrança emitida' : `${cobrancas} cobranças emitidas`} e por isso não pode ser excluído. Cancele a cobrança no Financeiro primeiro.`
+                : `"${aExcluir?.procedure}" será apagado com ${
+                  (aExcluir?.sessions.length ?? 0) === 1
+                    ? 'o procedimento registrado nele'
+                    : `os ${aExcluir?.sessions.length ?? 0} procedimentos registrados nele`
+                }, incluindo o odontograma daquelas datas. Não há como desfazer.`
+          }
+          variant="danger"
+          confirmLabel="Excluir"
+          confirmDisabled={excluindo || conferindoCobranca || Boolean(cobrancas)}
+        />
       </div>
     )
   }
@@ -744,6 +803,7 @@ export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps
         />
         <Toggle label="Tratamento finalizado" checked={finished} onChange={setFinished} />
       </ConfirmDialog>
+
     </div>
   )
 }

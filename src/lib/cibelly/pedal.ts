@@ -43,8 +43,12 @@ export function pedalScopeError(
   const namesAnotherPatient = typeof args.paciente === 'string'
     && args.paciente.trim().length > 0
   if (mode === 'general') {
-    const patientRequired = toolName === 'consultar_agenda'
-      || toolName === 'agendar_consulta'
+    // Só quem ESCREVE exige paciente. `consultar_agenda` é leitura, e exigir
+    // paciente nela invertia a pergunta mais natural do modo geral: "quem está
+    // agendado sexta às 9h?" não tem paciente para informar — descobrir quem é
+    // É a pergunta. Barrada, ela respondia "preciso do nome do paciente" em
+    // laço, e o dentista repetia a pergunta sem nunca conseguir a resposta.
+    const patientRequired = toolName === 'agendar_consulta'
       || toolName === 'cancelar_consulta'
     if (patientRequired && !namesAnotherPatient) {
       return 'No pedal F, diga o nome ou código do paciente. Nenhuma consulta foi alterada.'

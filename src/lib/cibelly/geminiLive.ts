@@ -216,7 +216,18 @@ export class GeminiLive {
    * junto do primeiro chunk para um toque vazio não criar uma resposta.
    */
   iniciarEscuta(contexto: string): boolean {
-    if (!this.pronta || this.emResposta || this.mic.capturando) return false
+    if (!this.pronta || this.mic.capturando) return false
+
+    // O PEDAL INTERROMPE. Antes, `emResposta` fazia esta função devolver false
+    // enquanto ela falava: apertar o F no meio de uma resposta longa não fazia
+    // nada, e o dentista ficava esperando ela terminar de ler uma lista que
+    // não queria ouvir. Cortar o áudio que está tocando é o comportamento de
+    // qualquer rádio de push-to-talk — quem aperta tem a palavra.
+    if (this.emResposta) {
+      this.alto.cortar()
+      this.atualizarProcessamento(false)
+    }
+
     this.alto.retomar()
     this.audioEnviadoNoTurno = false
     this.contextoDoTurno = contexto
