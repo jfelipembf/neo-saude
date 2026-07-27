@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { IconMic } from '@/components/icons'
 import { Spinner } from '@/components/Spinner/Spinner'
 import type { CibellyListeningMode } from '@/lib/cibelly/sessionTypes'
@@ -27,6 +28,16 @@ interface CibellyPedalButtonProps {
  * e dedo com o mesmo par de handlers — sem ramos separados de touch/mouse —,
  * e `setPointerCapture` mantém os eventos chegando neste botão mesmo se o
  * dedo escorregar para fora dele enquanto está pressionado.
+ *
+ * PORTAL PARA `document.body`, e não renderizado no lugar — um pedal físico
+ * funciona não importa o que esteja na tela, então este substituto provisório
+ * precisa da mesma garantia. Antes, renderizado dentro de `.tela`, ele ficava
+ * PRESO na stacking context dali: o overlay de qualquer `Modal` (portado
+ * direto pro body, z-index acima) cobria a tela inteira e o botão ficava
+ * visualmente por baixo — clicável em teoria, mas com o overlay do modal
+ * roubando o ponteiro por cima. Foi assim que a prévia do documento (que
+ * também é um Modal) deixou o botão apertável sem efeito nenhum bem na hora
+ * em que ele mais importa: confirmar a impressão com um "sim".
  */
 export function CibellyPedalButton({
   mode,
@@ -75,7 +86,7 @@ export function CibellyPedalButton({
     onStop()
   }
 
-  return (
+  return createPortal(
     <button
       type="button"
       className={`${styles.botao} ${active ? styles.botaoAtivo : ''}`}
@@ -89,6 +100,7 @@ export function CibellyPedalButton({
       onContextMenu={event => event.preventDefault()}
     >
       {processing ? <Spinner size="sm" /> : <IconMic />}
-    </button>
+    </button>,
+    document.body,
   )
 }

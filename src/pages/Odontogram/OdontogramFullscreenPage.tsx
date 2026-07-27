@@ -872,6 +872,10 @@ export function OdontogramFullscreenPage() {
             className={styles.previaDocumento}
             title="Prévia do documento"
             srcDoc={documentoPendente.html}
+            // Fora da ordem de Tab: um clique de leitura dentro do iframe não
+            // deveria prender o foco de teclado lá, porque o pedal J escuta no
+            // window de FORA — um frame com foco não deixa a tecla chegar nele.
+            tabIndex={-1}
           />
         )}
       </Modal>

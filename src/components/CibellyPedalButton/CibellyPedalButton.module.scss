@@ -8,7 +8,11 @@
   position: fixed;
   right: $sp-5;
   bottom: $sp-5;
-  z-index: 5;
+  // Acima do overlay de QUALQUER Modal (z-index 100, ver Modal.module.scss):
+  // este botão é portado pro body de propósito (ver o componente) para nunca
+  // ficar por baixo de um diálogo — inclusive a prévia de documento que ele
+  // mesmo precisa confirmar.
+  z-index: 110;
   display: flex;
   align-items: center;
   justify-content: center;
