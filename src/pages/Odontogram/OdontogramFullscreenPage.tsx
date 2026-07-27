@@ -20,6 +20,7 @@ import { readOdontogram, travarEscritaNoOdontograma } from '@/lib/odontogramShel
 import { agruparAchados, notasLivres } from '@/utils/toothNoteGroups'
 import { resumoPorDente, resumoUltimosAtendimentos } from '@/utils/clinicalHistorySpeech'
 import { resolverPedidoDeOrcamento } from '@/utils/quoteRequest'
+import { descreverPaciente, resolverDestinatario } from '@/utils/messageRecipient'
 import { matchesSearch } from '@/utils/search'
 import { OdontogramTimeline } from './OdontogramTimeline'
 import { pediuCancelamento } from '@/utils/cancelIntent'
@@ -828,55 +829,78 @@ export function OdontogramFullscreenPage() {
   }
 
   /**
-   * O destinatário é sempre o paciente aberto. A primeira chamada só devolve a
-   * prévia; a segunda precisa repetir exatamente paciente + texto.
+   * Mensagem ao paciente. SEM o campo `paciente`, o destinatário é o que está
+   * aberto no odontograma; COM ele, o cadastro é consultado por nome.
+   *
+   * A resolução por nome mora em utils/messageRecipient.ts e nunca escolhe
+   * entre homônimos — duas "Ana" viram pergunta, não aposta. O número não
+   * trafega aqui em momento nenhum: vai o ID, e o servidor resolve o telefone
+   * dentro da clínica.
+   *
+   * A primeira chamada só devolve a prévia; a segunda precisa repetir
+   * exatamente paciente + texto (a impressão digital inclui o ID, então
+   * confirmar para um paciente não envia para outro).
    */
   async function enviarMensagemPaciente(pedido: PatientMessageRequest) {
-    if (!patientId || !paciente) {
-      return { ok: false, erro: 'Nenhum paciente em atendimento.' }
+    let alvoId = patientId
+    let alvoNome = paciente ? `${paciente.name} (${paciente.code})` : ''
+
+    if (pedido.paciente?.trim()) {
+      const escolha = resolverDestinatario(pacientes ?? [], pedido.paciente)
+      if (!escolha.ok) return { ok: false, erro: escolha.erro }
+      alvoId = escolha.paciente.id
+      alvoNome = descreverPaciente(escolha.paciente)
+    } else {
+      if (!patientId || !paciente) {
+        return { ok: false, erro: 'Nenhum paciente em atendimento. Diga o nome de quem deve receber.' }
+      }
+      if (!paciente.whatsapp) {
+        return { ok: false, erro: `${paciente.name} não tem WhatsApp cadastrado.` }
+      }
     }
-    if (!paciente.whatsapp) {
-      return { ok: false, erro: `${paciente.name} não tem WhatsApp cadastrado.` }
-    }
+    if (!alvoId) return { ok: false, erro: 'Não consegui identificar o destinatário.' }
 
     const mensagem = pedido.mensagem.trim()
     if (!mensagem) return { ok: false, erro: 'A mensagem está vazia.' }
 
     if (!pedido.confirmado) {
-      pendingPatientMessageRef.current = pendingMessageConfirmation([patientId], mensagem)
+      pendingPatientMessageRef.current = pendingMessageConfirmation([alvoId], mensagem)
       return {
         ok: true,
         precisaConfirmar: true,
-        destinatario: paciente.name,
+        destinatario: alvoNome,
         mensagem,
         instrucao:
-          'Leia o destinatário e a mensagem. Só chame novamente com confirmado=true depois de um sim claro.',
+          'Leia o destinatário COMPLETO (nome e código) e a mensagem. Só chame novamente com confirmado=true depois de um sim claro.',
       }
     }
 
-    if (!matchesPendingMessage(pendingPatientMessageRef.current, [patientId], mensagem)) {
-      pendingPatientMessageRef.current = pendingMessageConfirmation([patientId], mensagem)
+    if (!matchesPendingMessage(pendingPatientMessageRef.current, [alvoId], mensagem)) {
+      pendingPatientMessageRef.current = pendingMessageConfirmation([alvoId], mensagem)
       return {
         ok: true,
         precisaConfirmar: true,
-        destinatario: paciente.name,
+        destinatario: alvoNome,
         mensagem,
         instrucao:
-          'A confirmação anterior não corresponde a esta mensagem. Leia novamente e aguarde um sim claro.',
+          'A confirmação anterior não corresponde a este paciente ou a esta mensagem. Leia novamente e aguarde um sim claro.',
       }
     }
 
     pendingPatientMessageRef.current = null
     try {
       const envio = await sendWhatsAppMessage(
-        [{ type: 'patient', id: patientId }],
+        [{ type: 'patient', id: alvoId }],
         mensagem,
       )
       return {
         ok: true,
         enviado: envio.sent > 0,
         reutilizado: envio.results.some(item => item.reused),
-        destinatario: paciente.name,
+        // `alvoNome`, e não o paciente aberto: com destinatário por nome os
+        // dois divergem, e confirmar em voz alta o nome errado depois de já
+        // ter enviado é pior do que não confirmar nada.
+        destinatario: alvoNome,
       }
     } catch (error) {
       return { ok: false, erro: mensagemDeErroDoWhatsApp(error) }

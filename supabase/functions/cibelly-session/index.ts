@@ -337,7 +337,10 @@ MATERIAIS E ESTOQUE — você também cuida disso:
 
 MENSAGENS AO PACIENTE — pelo WhatsApp conectado da clínica:
 - "mande uma mensagem para a paciente dizendo que...", "avise a paciente que..." → "enviar_mensagem_paciente".
-- A mensagem é SEMPRE para o paciente aberto no odontograma. A ferramenta não recebe nome nem número. Se ele pedir outro paciente, diga para abrir o odontograma daquela pessoa; nunca tente localizar ou escolher por conta própria.
+- OUTRO PACIENTE, não o da tela: "avisa a Ana que atrasei", "manda mensagem pro João dizendo que..." → mesma ferramenta, com o campo "paciente" preenchido com o NOME como ele falou. Sem esse campo, vai para quem está aberto no odontograma.
+- Se houver MAIS DE UM paciente com aquele nome, a ferramenta recusa e devolve a lista com o código de cada um ("Ana Paula Souza (PAC-000002); Ana Maria Ferreira (PAC-000003)"). LEIA a lista e pergunte qual — nunca escolha, nem pelo primeiro, nem pelo mais parecido. Mandar recado para a paciente errada não se desfaz.
+- Você NUNCA recebe nem manda número de telefone. O contato é resolvido pelo sistema, a partir do cadastro.
+- Ao ler a prévia, diga o nome COMPLETO e o código como voltaram — é assim que o dentista percebe se é a pessoa certa.
 - ENVIO EM DUAS ETAPAS, sempre: primeira chamada SEM "confirmado". Leia nome e mensagem exatamente como voltarem e pergunte se pode enviar. Só depois de um SIM claro chame de novo, com o MESMO texto e confirmado=true.
 - Se o texto mudar, mesmo pouco, faça nova prévia. Nunca diga "enviei" quando o retorno trouxer erro ou "precisaConfirmar".
 - Não acrescente diagnóstico, resultado, cobrança ou orientação clínica que o dentista não ditou. Você pode corrigir pontuação, mas não mudar o sentido.
@@ -463,6 +466,17 @@ function hojeDoCliente(body: Record<string, unknown>): string {
   return /^\d{4}-\d{2}-\d{2}$/.test(bruto) ? bruto : ''
 }
 
+const OUTPUT_CONTRACT = `
+
+CONTRATO FINAL DE RESPOSTA:
+- Se houver ferramenta adequada, chame-a antes de produzir qualquer áudio. Não diga "certo", "beleza", "vou fazer" nem anuncie a ação.
+- Prévia de orçamento por WhatsApp: diga somente os fornecedores e pergunte "posso enviar?". Não repita materiais e texto, salvo se o dentista pedir.
+- Prévia de mensagem ao paciente: diga nome completo, código e texto uma única vez; depois pergunte "posso enviar?".
+- Envio concluído: uma frase, "Enviado para <destinatários>."
+- Erro de ferramenta: diga apenas o motivo devolvido e a correção necessária.
+- Nunca mude para foto, pós-operatório ou outro assunto que o dentista não mencionou. Se a fala continuar incompreensível, diga apenas "não peguei, repete?".
+- No máximo duas frases curtas por resposta, exceto quando a pergunta exigir datas, horários ou conteúdo clínico.`.trimEnd()
+
 function buildInstructions(nome: string | null, titulo: string | null, paciente: string, hojeIso: string): string {
   const sobrePaciente = paciente
     ? `\n\nPACIENTE DO PRONTUÁRIO: ${paciente}. Este nome identifica a ficha aberta; NÃO é o nome de quem está falando com você. Nunca use ${paciente} como vocativo ao pedir confirmação ao dentista. Só diga o nome do paciente como dado quando a ação for sobre agenda, mensagem ou documento desse paciente. Não mencione o paciente em estoque, compras ou fornecedores.`
@@ -476,7 +490,9 @@ function buildInstructions(nome: string | null, titulo: string | null, paciente:
   if (!nome) {
     return `${INSTRUCTIONS}
 
-INTERLOCUTOR: o nome do dentista não está disponível. Quem fala continua sendo o dentista. Não use o nome do paciente nem qualquer outro nome como vocativo.${sobrePaciente}${ancora}`
+INTERLOCUTOR: o nome do dentista não está disponível. Quem fala continua sendo o dentista. Não use o nome do paciente nem qualquer outro nome como vocativo.${sobrePaciente}${ancora}
+
+${OUTPUT_CONTRACT}`
   }
 
   // Com título conhecido é ordem direta; sem ele, a escolha vai para o modelo,
@@ -488,7 +504,9 @@ INTERLOCUTOR: o nome do dentista não está disponível. Quem fala continua send
 
   return `${INSTRUCTIONS}
 
-INTERLOCUTOR: quem fala com você é o dentista ${nome}. ${regra} Somente este nome pode ser usado como vocativo. Nunca chame só pelo primeiro nome sem o título, e nunca invente sobrenome. Se a pessoa corrigir o tratamento, passe a usar o que ela pediu pelo resto da conversa.${sobrePaciente}${ancora}`
+INTERLOCUTOR: quem fala com você é o dentista ${nome}. ${regra} Somente este nome pode ser usado como vocativo. Nunca chame só pelo primeiro nome sem o título, e nunca invente sobrenome. Se a pessoa corrigir o tratamento, passe a usar o que ela pediu pelo resto da conversa.${sobrePaciente}${ancora}
+
+${OUTPUT_CONTRACT}`
 }
 
 const TOOLS = [
@@ -796,9 +814,14 @@ const TOOLS = [
     type: 'function',
     name: 'enviar_mensagem_paciente',
     description:
-      'Prepara e envia uma mensagem pelo WhatsApp para o paciente que está aberto no odontograma. ' +
-      'Não recebe paciente nem número: nunca use para outra pessoa. DUAS ETAPAS: primeira chamada sem confirmado; ' +
-      'leia o nome e o texto devolvidos e pergunte se pode enviar. Só repita o MESMO texto com confirmado=true depois de um sim claro.',
+      'Prepara e envia uma mensagem pelo WhatsApp para um paciente da clínica. ' +
+      'SEM o campo "paciente", vai para quem está aberto no odontograma (o caso comum). ' +
+      'COM o campo "paciente", procura no cadastro pelo NOME — use quando o dentista citar outra pessoa ' +
+      '("avisa a Ana que atrasei"). NUNCA aceita número de telefone: quem resolve o contato é o sistema. ' +
+      'Se houver mais de um paciente com aquele nome, a ferramenta RECUSA e devolve a lista com o código de cada um — ' +
+      'leia a lista e pergunte qual, nunca escolha por conta própria. ' +
+      'DUAS ETAPAS: primeira chamada sem confirmado; leia o nome COMPLETO com o código e o texto devolvidos e pergunte ' +
+      'se pode enviar. Só repita o MESMO texto com confirmado=true depois de um sim claro.',
     parameters: {
       type: 'object',
       properties: {
@@ -806,6 +829,12 @@ const TOOLS = [
           type: 'string',
           description:
             'Texto que será enviado. Preserve o sentido exato do que o dentista ditou; não acrescente informação clínica.',
+        },
+        paciente: {
+          type: 'string',
+          description:
+            'Nome do paciente, como o dentista falou, quando NÃO for o que está aberto na tela. '
+            + 'Omita para mandar ao paciente em atendimento. Nunca preencha com telefone.',
         },
         confirmado: {
           type: 'boolean',
@@ -1236,6 +1265,9 @@ Deno.serve(async req => {
         instructions: instrucoes,
         tools: TOOLS,
         tool_choice: 'auto',
+        // Evita respostas longas acidentais sem apertar chamadas de ferramenta
+        // ou respostas clínicas que realmente precisam de algum conteúdo.
+        max_output_tokens: 512,
         audio: {
           input: {
             // Transcrição da fala do DENTISTA — para o painel de Atividade
@@ -1258,6 +1290,11 @@ Deno.serve(async req => {
             turn_detection: {
               type: 'server_vad',
               threshold: 0.65,
+              // O navegador enfileira `response.create` depois do commit do
+              // áudio. Com criação automática + interrupt_response=false, o
+              // servidor tenta responder por cima da fala anterior e devolve
+              // "active response in progress".
+              create_response: false,
               interrupt_response: false,
             },
           },
