@@ -45,7 +45,7 @@ export interface DadosDeUso {
  * guardado — ver recordCibellyUsageOnUnload.
  */
 export interface ContextoDeGravacao {
-  clinicId: string | null
+  clinicId: string
   professionalId: string | null
   accessToken: string | null
 }
