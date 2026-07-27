@@ -6,6 +6,7 @@ import { hideDefaultLayers } from '@/lib/odontogramShell/layers'
 import {
   useCibelly,
   type DocumentRequest,
+  type PatientDirectoryRequest,
   type PatientMessageRequest,
   type QuoteRequest,
 } from '@/hooks/useCibelly'
@@ -22,6 +23,7 @@ import { agruparAchados, notasLivres } from '@/utils/toothNoteGroups'
 import { resumoPorDente, resumoUltimosAtendimentos } from '@/utils/clinicalHistorySpeech'
 import { resolverPedidoDeOrcamento } from '@/utils/quoteRequest'
 import { descreverPaciente, resolverDestinatario } from '@/utils/messageRecipient'
+import { queryPatientDirectory } from '@/lib/cibelly/patientDirectory'
 import { matchesSearch } from '@/utils/search'
 import { OdontogramTimeline } from './OdontogramTimeline'
 import { pediuCancelamento } from '@/utils/cancelIntent'
@@ -385,6 +387,10 @@ export function OdontogramFullscreenPage() {
       // Frase pronta, mesmo molde das datas e da agenda: ler não erra.
       resposta: marcados.map(m => `dente ${m.dente}: ${m.achados}${m.nota ? ` (anotação: ${m.nota})` : ''}`).join('; '),
     }
+  }
+
+  async function consultarPacientes(pedido?: PatientDirectoryRequest) {
+    return queryPatientDirectory(pacientes ?? [], pedido)
   }
 
   /**
@@ -1022,6 +1028,7 @@ export function OdontogramFullscreenPage() {
   }
 
   const cibelly = useCibelly(specialty === 'dentistry', patientId, {
+    aoConsultarPacientes: consultarPacientes,
     aoEmitirDocumento: emitirDocumento,
     aoConsultarMateriais: consultarMateriais,
     aoRegistrarMaterial: registrarMaterialUsado,

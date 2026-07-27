@@ -35,6 +35,7 @@ export type {
   CibellyActivity as AtividadeCibelly,
   DocumentRequest,
   MaterialUsage,
+  PatientDirectoryRequest,
   PatientMessageRequest,
   QuoteRequest,
   CibellyListeningMode as ModoEscutaCibelly,

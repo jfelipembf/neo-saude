@@ -9,6 +9,7 @@ function executorsWith(inventory: SpecialistToolExecutor): CibellySpecialistExec
   const unused = async () => ({ ok: true })
   return {
     odontogram: unused,
+    patients: unused,
     records: unused,
     schedule: unused,
     inventory,

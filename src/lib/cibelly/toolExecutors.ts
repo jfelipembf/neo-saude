@@ -16,6 +16,7 @@ import type {
   CibellyHandlers,
   DocumentRequest,
   MaterialUsage,
+  PatientDirectoryRequest,
   PatientMessageRequest,
   QuoteRequest,
 } from './sessionTypes'
@@ -216,6 +217,25 @@ export function createSpecialistExecutors({
     }
   }
 
+  async function executePatients({
+    name,
+    args,
+  }: DelegatedToolCall): Promise<Record<string, unknown>> {
+    if (name !== 'consultar_pacientes') {
+      return {
+        ok: false,
+        erro: `Ferramenta fora do Agente de Pacientes: ${name}`,
+      }
+    }
+    const consult = getHandlers().aoConsultarPacientes
+    return consult
+      ? {
+        ok: true,
+        diretorio: await consult(args as PatientDirectoryRequest),
+      }
+      : { ok: false, erro: 'Não consegui consultar os pacientes agora.' }
+  }
+
   async function executeSchedule({
     name,
     args,
@@ -385,6 +405,7 @@ export function createSpecialistExecutors({
 
   return {
     odontogram: executeOdontogram,
+    patients: executePatients,
     records: executeRecords,
     schedule: executeSchedule,
     inventory: executeInventory,

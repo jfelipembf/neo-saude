@@ -56,7 +56,13 @@ export interface PatientMessageRequest {
   confirmado?: boolean
 }
 
+export interface PatientDirectoryRequest {
+  busca?: string
+  situacao?: 'ativos' | 'inativos' | 'todos'
+}
+
 export interface CibellyHandlers {
+  aoConsultarPacientes?: (pedido?: PatientDirectoryRequest) => Promise<unknown>
   aoEmitirDocumento?: (pedido: DocumentRequest) => Promise<ToothProposalResult>
   aoConsultarMateriais?: (busca?: string, somenteAcabando?: boolean) => Promise<unknown>
   aoRegistrarMaterial?: (materiais: MaterialUsage[]) => Promise<unknown>

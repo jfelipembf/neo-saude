@@ -20,13 +20,12 @@
  * clínica (ver evolution-send).
  */
 
-import { matchesSearch } from '@/utils/search'
+import {
+  resolvePatientReference,
+  type PatientDirectoryEntry,
+} from '@/lib/cibelly/patientDirectory'
 
-export interface PacienteParaMensagem {
-  id: string
-  code: string
-  name: string
-  commonName?: string
+export interface PacienteParaMensagem extends PatientDirectoryEntry {
   whatsapp?: string
 }
 
@@ -43,36 +42,18 @@ export function resolverDestinatario(
   pacientes: PacienteParaMensagem[],
   termo: string,
 ): ResolucaoDeDestinatario {
-  const busca = termo.trim()
-  if (!busca) return { ok: false, erro: 'Diga o nome do paciente.' }
-
-  // Nome completo bate primeiro; só depois a busca por partes. Assim "Ana
-  // Paula" não fica ambígua num cadastro que também tem "Ana Paula Souza".
-  const exato = pacientes.filter(
-    p => p.name.trim().toLowerCase() === busca.toLowerCase()
-      || p.commonName?.trim().toLowerCase() === busca.toLowerCase(),
-  )
-  const achados = exato.length
-    ? exato
-    : pacientes.filter(p => matchesSearch(p.name, busca) || (p.commonName && matchesSearch(p.commonName, busca)))
-
-  if (achados.length === 0) {
-    return { ok: false, erro: `Não encontrei paciente com o nome "${busca}".` }
-  }
-
-  // ⚠️ O CORAÇÃO DESTE ARQUIVO. Com mais de um candidato ela NÃO escolhe —
-  // nem o primeiro, nem o mais parecido, nem o mais recente. Devolve a lista
-  // com o código de cada um (que é o que desempata na fala) e pergunta.
-  if (achados.length > 1) {
-    const lista = achados.slice(0, 8).map(descreverPaciente).join('; ')
-    const resto = achados.length > 8 ? ` e mais ${achados.length - 8}` : ''
+  if (!termo.trim()) return { ok: false, erro: 'Diga o nome do paciente.' }
+  const resolution = resolvePatientReference(pacientes, termo)
+  if (!resolution.ok) {
     return {
       ok: false,
-      erro: `Há mais de um paciente com esse nome: ${lista}${resto}. Pergunte qual, pelo nome completo ou pelo código.`,
+      erro: resolution.error
+        .replace('Não encontrei paciente com nome ou código "', 'Não encontrei paciente com o nome "')
+        .replace('Há mais de um paciente:', 'Há mais de um paciente com esse nome:'),
     }
   }
 
-  const paciente = achados[0]
+  const paciente = resolution.patient
   if (!paciente.whatsapp) {
     return { ok: false, erro: `${descreverPaciente(paciente)} não tem WhatsApp cadastrado.` }
   }

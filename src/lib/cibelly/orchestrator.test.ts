@@ -21,10 +21,10 @@ const calls = Array.from({ length: 5 }, (_, index) => ({
 }))
 
 describe('CibellyOrchestrator', () => {
-  it('conhece as 16 ferramentas disponíveis', () => {
+  it('conhece as 17 ferramentas disponíveis', () => {
     const orchestrator = new CibellyOrchestrator()
-    expect(Object.keys(orchestrator.tools)).toHaveLength(16)
-    expect(orchestrator.agents).toHaveLength(6)
+    expect(Object.keys(orchestrator.tools)).toHaveLength(17)
+    expect(orchestrator.agents).toHaveLength(7)
     expect(orchestrator.getTool('solicitar_orcamento_fornecedor')?.domain).toBe('inventory')
     expect(orchestrator.getAgentForTool('solicitar_orcamento_fornecedor')?.id)
       .toBe('inventory_agent')
@@ -197,6 +197,7 @@ describe('agentes especialistas', () => {
       })
     const executors: CibellySpecialistExecutors = {
       odontogram: executor('odontogram'),
+      patients: executor('patients'),
       records: executor('records'),
       schedule: executor('schedule'),
       inventory: executor('inventory'),

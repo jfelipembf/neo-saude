@@ -257,6 +257,7 @@ CONTROLE POR PEDAL — REGRA DE ESCOPO:
 - Você só recebe áudio enquanto o dentista mantém um pedal pressionado. Cada turno começa com uma mensagem interna "[CONTROLE DO PEDAL: ...]". Nunca leia, mencione nem responda essa mensagem; use-a apenas para limitar o turno.
 - PACIENTE ATUAL (tecla J): trate SOMENTE do paciente em atendimento. Pode usar odontograma, histórico, agenda, lembretes, documentos e mensagem para esse paciente. Estoque, fornecedores, administração, assunto geral e outro paciente estão fora do escopo; responda somente "Use o pedal F para essa demanda.".
 - MODO GERAL (tecla F): trate demandas gerais e de outra pessoa. Não presuma que a fala é sobre o paciente aberto. Se uma ação depender de paciente, use apenas o nome ou código falado nesse turno; se não houver identificação suficiente, pergunte.
+- No modo GERAL, "quais pacientes estão cadastrados?", "procure a Ana", "tem algum Lucas?" e perguntas de cadastro usam consultar_pacientes. Você TEM acesso ao diretório: nunca mande procurar na recepção ou no administrativo.
 - O escopo vale também para respostas sem ferramenta. Nunca responda uma pergunta geral ou sobre outra pessoa no modo PACIENTE ATUAL.
 
 ORDEM DAS COISAS — SEGUNDA REGRA ABSOLUTA: primeiro a ferramenta, DEPOIS a fala. Sempre nessa ordem, sem exceção.
@@ -291,6 +292,14 @@ COMO VOCÊ AJUDA:
 
 HISTÓRICO DO PACIENTE — "o que a gente fez da última vez?", "já passei antibiótico pra ela?", "quando foi a última consulta?" → "consultar_historico". A resposta vem com o campo "resposta" JÁ ESCRITO — leia ele, não tente resumir a lista de atendimentos por conta própria. Ela é grande e sintetizar sozinha é o jeito de travar no meio da fala.
 - "o que foi feito no dente 26 na consulta de março?", "quando fizemos a última restauração no 14?" — PERGUNTA COM DENTE E/OU DATA sobre o PASSADO: chame "consultar_historico" passando "dente" e/ou "data". Sem esses campos ela só vê os atendimentos mais recentes e pode simplesmente não achar algo mais antigo. De novo: leia o campo "resposta" que voltar.
+
+CADASTRO DE PACIENTES — use no pedal F:
+- "quais pacientes estão cadastrados?", "liste os pacientes", "procure a Ana", "tem algum Lucas?", "qual o código da Maria?" → consultar_pacientes.
+- Sem busca, a ferramenta lista até 20 nomes com código e informa o total. Se houver mais, peça um nome ou código para filtrar; não tente ler centenas de nomes.
+- Com busca, leia o campo "resposta" exatamente como voltou. Nome completo e código são o identificador falado seguro.
+- Nunca diga que não consegue puxar a lista, que precisa acessar o administrativo ou que o dentista deve procurar na recepção. Isso é falso.
+- O agente de pacientes localiza a pessoa; a ação seguinte vai ao agente adequado. Mensagem para outro paciente usa enviar_mensagem_paciente com o mesmo nome ou código.
+- Não exponha telefone, CPF, UUID ou endereço na fala. A ferramenta já omite esses dados.
 
 LEMBRETES — o dentista deixa recado para o PRÓXIMO atendimento do paciente:
 - "me lembre no próximo atendimento da paciente de usar outro material", "anota pra próxima que eu tenho que conferir a oclusão", "da próxima vez me lembra de..." → "criar_lembrete". Vale só para o paciente em atendimento; a ferramenta nem recebe nome.
@@ -866,6 +875,32 @@ const TOOLS = [
           type: 'array',
           items: { type: 'integer' },
           description: 'Dentes a consultar, em FDI. Omita para ler a boca inteira.',
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    name: 'consultar_pacientes',
+    description:
+      'Consulta o diretório de pacientes da clínica no MODO GERAL (pedal F). ' +
+      'Use para listar pacientes cadastrados, procurar alguém por nome, nome comum ou código PAC, ' +
+      'e consultar situação, convênio ou última visita. Sem busca, devolve até 20 nomes e o total. ' +
+      'Nunca diga que não tem acesso ao cadastro: chame esta ferramenta. ' +
+      'O retorno omite telefone, CPF, endereço e UUID de propósito.',
+    parameters: {
+      type: 'object',
+      properties: {
+        busca: {
+          type: 'string',
+          description:
+            'Nome, nome comum ou código humano do paciente, como "Ana", "Felipe" ou "PAC-000042". ' +
+            'Omita para listar os pacientes cadastrados.',
+        },
+        situacao: {
+          type: 'string',
+          enum: ['ativos', 'inativos', 'todos'],
+          description: 'Filtro de situação. Padrão: todos.',
         },
       },
     },

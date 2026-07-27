@@ -1,5 +1,6 @@
 export type CibellyToolDomain =
   | 'odontogram'
+  | 'patients'
   | 'records'
   | 'schedule'
   | 'inventory'
@@ -44,6 +45,12 @@ export const CIBELLY_TOOL_CATALOG = {
   ler_odontograma: {
     domain: 'odontogram',
     purpose: 'Ler os achados atuais do odontograma.',
+    continuation: 'always',
+    confirmation: 'none',
+  },
+  consultar_pacientes: {
+    domain: 'patients',
+    purpose: 'Listar e localizar pacientes por nome, nome comum, código ou situação.',
     continuation: 'always',
     confirmation: 'none',
   },
@@ -119,6 +126,7 @@ export type CibellyToolName = keyof typeof CIBELLY_TOOL_CATALOG
 
 const DOMAIN_LABELS: Record<CibellyToolDomain, string> = {
   odontogram: 'ODONTOGRAMA',
+  patients: 'PACIENTES',
   records: 'PRONTUÁRIO',
   schedule: 'AGENDA',
   inventory: 'ESTOQUE E COMPRAS',

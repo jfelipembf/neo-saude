@@ -2,6 +2,7 @@ import { communicationAgent } from './communicationAgent.ts'
 import { documentsAgent } from './documentsAgent.ts'
 import { inventoryAgent } from './inventoryAgent.ts'
 import { odontogramAgent } from './odontogramAgent.ts'
+import { patientsAgent } from './patientsAgent.ts'
 import { recordsAgent } from './recordsAgent.ts'
 import { scheduleAgent } from './scheduleAgent.ts'
 import {
@@ -16,6 +17,7 @@ import {
 
 export const CIBELLY_SPECIALIST_AGENTS = Object.freeze([
   odontogramAgent,
+  patientsAgent,
   recordsAgent,
   scheduleAgent,
   inventoryAgent,

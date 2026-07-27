@@ -37,14 +37,15 @@ export function pedalTurnInstruction(
 export function pedalScopeError(
   mode: CibellyListeningMode | null,
   domain: CibellyToolDomain | undefined,
-  toolName: string,
+  _toolName: string,
   args: Record<string, unknown>,
 ): string | null {
   if (mode !== 'patient') return null
-  const namesAnotherPatient = toolName === 'enviar_mensagem_paciente'
-    && typeof args.paciente === 'string'
+  const namesAnotherPatient = typeof args.paciente === 'string'
     && args.paciente.trim().length > 0
-  if (domain !== 'inventory' && !namesAnotherPatient) return null
+  if (domain !== 'inventory'
+      && domain !== 'patients'
+      && !namesAnotherPatient) return null
 
   return 'O pedal J atende somente o paciente atual. Use o pedal F para demandas gerais, fornecedores ou outro paciente.'
 }

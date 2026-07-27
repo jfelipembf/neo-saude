@@ -35,6 +35,12 @@ describe('pedal da Cibelly', () => {
     )).toContain('pedal F')
     expect(pedalScopeError(
       'patient',
+      'patients',
+      'consultar_pacientes',
+      {},
+    )).toContain('pedal F')
+    expect(pedalScopeError(
+      'patient',
       'odontogram',
       'marcar_dente',
       { dentes: [24] },

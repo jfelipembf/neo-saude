@@ -61,4 +61,26 @@ describe('executores especialistas da Cibelly', () => {
       erro: 'WhatsApp desconectado.',
     })
   })
+
+  it('delega a consulta do diretório ao Agente de Pacientes', async () => {
+    const consult = vi.fn(async () => ({
+      total: 1,
+      resposta: 'Paciente encontrado: Lucas Silva (PAC-000001).',
+    }))
+    const harness = setup({ aoConsultarPacientes: consult })
+
+    const result = await harness.agent.executeTool(
+      'consultar_pacientes',
+      { busca: 'Lucas' },
+      harness.executors,
+    )
+
+    expect(consult).toHaveBeenCalledWith({ busca: 'Lucas' })
+    expect(result).toMatchObject({
+      ok: true,
+      diretorio: {
+        total: 1,
+      },
+    })
+  })
 })
