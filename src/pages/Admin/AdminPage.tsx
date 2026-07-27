@@ -5,6 +5,7 @@ import { Tabs } from '@/components/Tabs/Tabs'
 import { IconAdmin } from '@/components/icons'
 import { RoomsTab } from './Rooms/RoomsTab'
 import { MaterialsTab } from './Materials/MaterialsTab'
+import { SuppliersTab } from './Suppliers/SuppliersTab'
 import { ServicesTab } from './Services/ServicesTab'
 import { TestsTab } from './Tests/TestsTab'
 import { EvolutionTemplatesTab } from './EvolutionTemplates/EvolutionTemplatesTab'
@@ -20,7 +21,7 @@ import { appliesToSpecialty } from '@/constants'
 import type { ClinicSpecialty } from '@/types/domain'
 import styles from './AdminPage.module.scss'
 
-type TabKey = 'rooms' | 'materials' | 'services' | 'tests' | 'evolutionTemplates' | 'classes' | 'insurances' | 'commissions' | 'roles' | 'collaborators' | 'goals' | 'audit'
+type TabKey = 'rooms' | 'materials' | 'suppliers' | 'services' | 'tests' | 'evolutionTemplates' | 'classes' | 'insurances' | 'commissions' | 'roles' | 'collaborators' | 'goals' | 'audit'
 
 // `specialties`/`excludeSpecialties` filtram a aba por ramo (ver constants/specialty).
 // Serviços/Contratos não se aplicam à odontologia (que trabalha por procedimentos
@@ -29,6 +30,8 @@ const TABS: { key: TabKey; label: string; specialties?: ClinicSpecialty[]; exclu
   { key: 'rooms',     label: 'Salas' },
   // Materiais (insumos/estoque) não se aplica à fisioterapia → escondido nesse ramo.
   { key: 'materials', label: 'Materiais', excludeSpecialties: ['physiotherapy'] },
+  // Fornecedores dos materiais — só existe onde Materiais existe: odontologia.
+  { key: 'suppliers', label: 'Fornecedores', specialties: ['dentistry'] },
   { key: 'services',  label: 'Serviços', excludeSpecialties: ['dentistry'] },
   // Testes/escalas de avaliação — específico de fisioterapia.
   { key: 'tests',     label: 'Testes', specialties: ['physiotherapy'] },
@@ -65,6 +68,7 @@ export function AdminPage() {
 
       {tab === 'rooms'     && <RoomsTab />}
       {tab === 'materials' && <MaterialsTab />}
+      {tab === 'suppliers' && <SuppliersTab />}
       {tab === 'services'  && <ServicesTab />}
       {tab === 'tests'     && <TestsTab />}
       {tab === 'evolutionTemplates' && <EvolutionTemplatesTab />}

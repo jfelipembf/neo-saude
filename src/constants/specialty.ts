@@ -38,3 +38,11 @@ export const PROFESSIONAL_SIGNATURE_LABEL: Partial<Record<ClinicSpecialty, strin
   dentistry: 'Cirurgião-dentista',
   physiotherapy: 'Fisioterapeuta',
 }
+
+/** Selo curto ao lado da logo (Header) indicando o ramo da clínica logada.
+ *  Só os ramos já em uso têm rótulo — os demais (nutrition, psychology,
+ *  personal_training) ficam sem selo até entrarem em operação. */
+export const SPECIALTY_BADGE_LABEL: Partial<Record<ClinicSpecialty, string>> = {
+  dentistry: 'Odonto',
+  physiotherapy: 'Fisio',
+}

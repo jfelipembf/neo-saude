@@ -45,6 +45,7 @@ interface ContactRow {
 interface PatientFormState {
   firstName: string
   lastName: string
+  commonName: string
   sex: Gender | ''
   birthDateIso: string   // aaaa-mm-dd (input date)
   email: string
@@ -59,7 +60,7 @@ interface PatientFormState {
 }
 
 const EMPTY_FORM: PatientFormState = {
-  firstName: '', lastName: '', sex: '', birthDateIso: '',
+  firstName: '', lastName: '', commonName: '', sex: '', birthDateIso: '',
   email: '', phone: '', whatsapp: '',
   cep: '', state: '', city: '', neighborhood: '', street: '', number: '',
 }
@@ -89,10 +90,18 @@ export function PatientsPage() {
     id: p.id, kind: 'patient', name: p.name, phone: p.phone, whatsapp: p.whatsapp,
     photo: p.photo, status: p.status, insurance: p.insurance, lastVisit: p.lastVisit,
   }))
-  const leadRows: ContactRow[] = (leads ?? []).map(l => ({
-    id: l.id, kind: 'lead', name: l.name, phone: l.phone,
-    status: l.status, source: l.source, interest: l.interest,
-  }))
+  // Lead JÁ CONVERTIDO sai da lista: a conversão não apaga o lead (ele vira
+  // histórico do funil, com patient_id preenchido), então sem este filtro a
+  // mesma pessoa aparecia DUAS vezes na aba "Todos" — a linha de paciente e a
+  // linha antiga de lead, esta última ainda com a pílula laranja "Lead" e
+  // levando para /leads/:id em vez do prontuário. Era o que parecia
+  // "o paciente continua com estilo de lead".
+  const leadRows: ContactRow[] = (leads ?? [])
+    .filter(l => l.status !== 'converted' && !l.patientId)
+    .map(l => ({
+      id: l.id, kind: 'lead', name: l.name, phone: l.phone,
+      status: l.status, source: l.source, interest: l.interest,
+    }))
   const rows = view === 'patients' ? patientRows
     : view === 'leads' ? leadRows
     : [...patientRows, ...leadRows]
@@ -143,6 +152,7 @@ export function PatientsPage() {
       {
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
+        commonName: form.commonName.trim() || undefined,
         sex: form.sex || undefined,
         // input date entrega 'aaaa-mm-dd'; o domínio guarda 'dd/mm/aaaa'.
         birthDate: form.birthDateIso ? form.birthDateIso.split('-').reverse().join('/') : undefined,
@@ -326,6 +336,13 @@ export function PatientsPage() {
                 onChange={e => set('lastName')(e.target.value)}
               />
             </div>
+            <Input
+              label="Nome comum / nome social"
+              placeholder="Felipe"
+              hint="Como a pessoa é chamada no dia a dia, e o nome que a assistente de voz fala em voz alta no atendimento. Vazio, ela deduz do nome completo."
+              value={form.commonName}
+              onChange={e => set('commonName')(e.target.value)}
+            />
             <div className={styles.grid2}>
               <Select
                 label="Sexo"

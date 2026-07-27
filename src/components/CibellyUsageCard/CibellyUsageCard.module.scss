@@ -1,0 +1,91 @@
+@use '../../styles/mixins' as *;
+
+// ⚠️ TEMPORÁRIO — ver o comentário no topo de CibellyUsageCard.tsx.
+.card {
+  @include card;
+  padding: $sp-4;
+}
+
+.titulo {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  margin: 0 0 $sp-2;
+  font-size: $fs-md;
+  font-weight: 700;
+  color: var(--text-primary);
+
+  svg { width: 18px; height: 18px; color: var(--warning-fg); }
+}
+
+.aviso {
+  margin: 0 0 $sp-3;
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.resumo {
+  margin-bottom: $sp-3;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+
+  strong { color: var(--text-primary); }
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+// Coluna estreita (340px, a mesma da Agenda do dia) — cada sessão vira um
+// cartãozinho de duas linhas, não uma linha de tabela com 6 colunas fixas.
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: $sp-2 $sp-3;
+  border-radius: $radius-sm;
+  background: var(--bg-elevated);
+  font-size: $fs-xs;
+}
+
+.linha1,
+.linha2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+}
+
+.provedor {
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: $radius-pill;
+  flex-shrink: 0;
+}
+.openai { background: var(--accent-bg); color: var(--accent-fg); }
+.gemini { background: rgba(var(--primary-rgb), 0.12); color: var(--primary-fg); }
+
+.modelo {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.custo { color: var(--text-primary); font-weight: 700; flex-shrink: 0; }
+
+.paciente {
+  color: var(--text-primary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.detalhe { color: var(--text-muted); flex-shrink: 0; white-space: nowrap; }

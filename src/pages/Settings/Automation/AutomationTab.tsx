@@ -9,8 +9,11 @@ import { useToast } from '@/components/Toast/Toast'
 import { useAutomations, useSaveAutomation } from '@/hooks/useWhatsApp'
 import { useWhatsAppConnection } from '@/hooks/useWhatsApp'
 import type { WhatsAppAutomation } from '@/types/domain'
-import { AUTOMATION_CATALOG, COMMON_VARIABLES } from './automations'
-import type { AutomationCatalog } from './automations'
+import {
+  AUTOMATION_CATALOG,
+  COMMON_VARIABLES,
+  type AutomationCatalog,
+} from '@/constants/whatsappAutomations'
 import styles from './AutomationTab.module.scss'
 
 /** Aba "Automação": mensagens disparadas por evento no WhatsApp conectado. */
@@ -34,9 +37,14 @@ export function AutomationTab() {
 
       {AUTOMATION_CATALOG.map(item => {
         // Sem registro salvo ainda (clínica nova / sem conexão): o card aparece
-        // do mesmo jeito, num padrão inativo e vazio pronto para configurar.
+        // com um modelo inativo pronto para revisar e ativar.
         const current = automations.find(a => a.trigger === item.trigger)
-          ?? { trigger: item.trigger, status: 'inactive' as const, message: '', sendTime: undefined }
+          ?? {
+            trigger: item.trigger,
+            status: 'inactive' as const,
+            message: item.defaultMessage,
+            sendTime: item.defaultSendTime,
+          }
         return <AutomationCard key={item.trigger} catalog={item} automation={current} />
       })}
     </div>
@@ -71,7 +79,10 @@ function AutomationCard({ catalog, automation }: AutomationCardProps) {
           ...payload,
         },
       },
-      { onSuccess: () => toast.success(successMessage) },
+      {
+        onSuccess: () => toast.success(successMessage),
+        onError: () => toast.error('Não foi possível salvar a automação.'),
+      },
     )
   }
 
@@ -83,6 +94,7 @@ function AutomationCard({ catalog, automation }: AutomationCardProps) {
         <Toggle
           label={active ? 'Ativa' : 'Inativa'}
           checked={active}
+          disabled={saving}
           onChange={v => persist(
             { status: v ? 'active' : 'inactive' },
             v ? 'Automação ativada!' : 'Automação desativada.',

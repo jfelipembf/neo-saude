@@ -8,14 +8,18 @@ import { EvolutionTemplatePicker } from '@/components/EvolutionTemplatePicker/Ev
 import { Select } from '@/components/Select/Select'
 import { SoapEditor } from '@/components/SoapEditor/SoapEditor'
 import { Textarea } from '@/components/Textarea/Textarea'
+import { Toggle } from '@/components/Toggle/Toggle'
 import { useToast } from '@/components/Toast/Toast'
 import { SCHEDULE_TAGS } from '@/constants'
-import { useCreateScheduleAppointment, useUpdateScheduleAppointment, useUpdateClinicalNote } from '@/hooks/useSchedule'
+import {
+  useCreateScheduleAppointment, useScheduleAppointments, useUpdateScheduleAppointment,
+  useSendAppointmentConfirmation, useUpdateClinicalNote,
+} from '@/hooks/useSchedule'
 import { useAppointmentAttachments, useDeleteDocument, useUploadDocument } from '@/hooks/useDocuments'
 import { usePatients } from '@/hooks/usePatients'
 import { useProfessionals } from '@/hooks/useProfessionals'
 import { useRooms } from '@/hooks/useRooms'
-import { useAvailabilityTemplate } from '@/hooks/useProfessionalAvailability'
+import { useAvailabilityTemplate, useBlockedSlots, useAbsences } from '@/hooks/useProfessionalAvailability'
 import { usePatientEntitlements } from '@/hooks/usePatientEntitlements'
 import { usePatientName, useProfessionalName } from '@/hooks/useDisplayNames'
 import { usePreviousSessionNote } from '@/hooks/usePatientClinicalNotes'
@@ -23,13 +27,14 @@ import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { useSession } from '@/context/SessionProvider'
 import { userMessage } from '@/lib/errors'
 import { esc } from '@/utils/printDocument'
-import { addMinutes, toIsoDate, isoToBrDate, localDate, parseBrDate } from '@/utils/date'
+import { addMinutes, toIsoDate, isoToBrDate, parseBrDate } from '@/utils/date'
 import { digitsOnly, initials } from '@/utils/text'
 import {
   isBlankSoap, isSameSoapNote, normalizeSoapNote, soapPlainText, soapToHtml,
 } from '@/utils/soap'
 import { isImageFile } from '@/utils/files'
 import { isEntitlementActive } from '@/utils/entitlements'
+import { checkSlot, UNAVAILABLE_LABEL } from '@/utils/availability'
 import { PROFESSIONAL_SIGNATURE_LABEL } from '@/constants'
 import { IconDocument, IconEmail, IconImage, IconPhone, IconPrint, IconTrash, IconWhatsApp } from '@/components/icons'
 import type {
@@ -97,6 +102,19 @@ const SITUACAO_TOAST: Record<AppointmentStatus, string> = {
   canceled:   'Consulta cancelada.',
 }
 
+function confirmationFailureMessage(reason?: string) {
+  const messages: Record<string, string> = {
+    automation_inactive: 'a automação “Após o agendamento” está inativa',
+    whatsapp_not_connected: 'o WhatsApp da clínica não está conectado',
+    recipient_without_whatsapp: 'o paciente não possui um WhatsApp válido',
+    invalid_phone: 'o telefone do paciente é inválido',
+    clinic_rate_limited: 'o limite temporário de mensagens da clínica foi atingido',
+    recipient_rate_limited: 'esse paciente recebeu muitas mensagens recentemente',
+    confirmation_disabled: 'a confirmação está desativada para essa consulta',
+  }
+  return messages[reason ?? ''] ?? 'houve uma falha no envio pelo WhatsApp'
+}
+
 /** Duração (min) entre '07:30' e '08:00' — para editar uma sessão existente. */
 function durationBetween(start: string, end: string) {
   const [startH, startM] = start.split(':').map(Number)
@@ -133,6 +151,8 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
   const { data: rooms } = useRooms()
   const { mutate: create, isPending: creating } = useCreateScheduleAppointment()
   const { mutate: update, isPending: saving } = useUpdateScheduleAppointment()
+  const { mutate: sendConfirmation, isPending: sendingConfirmation } =
+    useSendAppointmentConfirmation()
   const { mutate: saveNote, isPending: savingNote } = useUpdateClinicalNote()
 
   const patientName = usePatientName()
@@ -140,13 +160,23 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
   const printDocument = usePrintDocument()
   const [professionalId, setProfessionalId] = useState('')
   // Disponibilidade do profissional escolhido — barra salvar fora do horário
-  // dele (ver isWithinAvailability abaixo).
+  // dele (ver motivoIndisponivel abaixo). Bloqueio e ausência entram junto:
+  // antes só o template era consultado, e por isso dava para agendar em cima
+  // das férias de alguém.
   const { data: availability } = useAvailabilityTemplate(professionalId)
+  const { data: absences } = useAbsences(professionalId)
   const [patientSearch, setPatientSearch] = useState('')
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const [dateIso, setDateIso] = useState(() => toIsoDate(new Date()))
+  // Bloqueios e consultas do DIA em foco — as duas peças que faltavam para a
+  // checagem ser a mesma da grade da Agenda. Janela de um dia só: aqui não se
+  // agenda a semana, e puxar mais seria carregar dado que ninguém lê.
+  const { data: blockedSlots } = useBlockedSlots(professionalId, dateIso, dateIso)
+  const { data: dayAppointments } = useScheduleAppointments(dateIso, dateIso)
   const [time, setTime] = useState('07:30')
   const [duration, setDuration] = useState('60')
+  /** Encaixe declarado: tira a consulta da trava de agenda dupla do banco. */
+  const [encaixe, setEncaixe] = useState(false)
   const [room, setRoom] = useState('')
   const [notes, setNotes] = useState('')
   const [status, setStatus] = useState<AppointmentStatus>('scheduled')
@@ -281,11 +311,25 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
    * Profissional SEM grade configurada (nenhuma linha ainda) não bloqueia —
    * é o estado de quem ainda não usou a aba Disponibilidade do perfil dele.
    */
-  function isWithinAvailability() {
-    if (!availability || availability.length === 0) return true
-    const weekday = localDate(dateIso).getDay()
-    const hour = Number(time.split(':')[0])
-    return availability.some(s => s.weekday === weekday && s.hour === hour)
+  function motivoIndisponivel() {
+    // Profissional SEM grade configurada não bloqueia: é o estado de quem ainda
+    // não usou a aba Disponibilidade do perfil. Fora isso, vale a regra
+    // COMPLETA (utils/availability), a mesma que a grade da Agenda aplica —
+    // antes daqui só se olhava o template, então era possível agendar em cima
+    // de bloqueio, de férias e de consulta já marcada.
+    if (!availability || availability.length === 0) return null
+    if (encaixe) return null   // encaixe é a decisão consciente de sobrepor
+
+    return checkSlot(
+      {
+        template: availability,
+        blocked: blockedSlots ?? [],
+        absences: absences ?? [],
+        // Na edição, a própria consulta não conta como conflito com ela mesma.
+        appointments: (dayAppointments ?? []).filter(a => a.id !== slot?.id),
+      },
+      dateIso, time, Number(duration) || 60, toIsoDate(new Date()),
+    )
   }
 
   /** Monta o payload da consulta com um status específico. */
@@ -310,6 +354,7 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
       // O seletor de confirmação saiu do modal; preserva o que a consulta já
       // tinha (ou liga por padrão numa consulta nova).
       sendConfirmation: slot?.sendConfirmation ?? true,
+      isOverbook: encaixe,
       // Imutável: numa edição, sempre o que a consulta já tinha — o campo só
       // aparece (e só é lido) numa consulta NOVA.
       entitlementId: slot ? slot.entitlementId : (entitlementId || undefined),
@@ -331,8 +376,15 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
       setError('Informe o horário.')
       return
     }
-    if (!isWithinAvailability()) {
-      setError('Fora do horário de disponibilidade deste profissional.')
+    const impedimento = motivoIndisponivel()
+    if (impedimento) {
+      // Diz QUAL é o problema (férias, bloqueio, horário ocupado…) em vez do
+      // genérico "fora da disponibilidade", e aponta a saída quando ela existe.
+      setError(
+        impedimento === 'ocupado'
+          ? `${UNAVAILABLE_LABEL[impedimento]}. Marque "Encaixe" para sobrepor.`
+          : `Não dá para agendar: ${UNAVAILABLE_LABEL[impedimento]}.`,
+      )
       return
     }
     if (requiresEntitlement && !entitlementId) {
@@ -355,34 +407,56 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
   function submitAppointment() {
     // Salvar mantém a situação atual (a situação muda pelos botões dedicados).
     const payload = buildPayload(status)
-    const options = {
-      onSuccess: () => {
-        // O prontuário tem botão próprio, mas quem aperta "Salvar"
-        // espera que o modal INTEIRO seja salvo — fechar aqui com evolução
-        // digitada e não salva era o mesmo texto perdido do confirmOnClose.
-        if (slot && noteDirty) {
-          saveNote(
-            { appointmentId: slot.id, note: noteToSave, patientId: slot.patientId },
-            {
-              onSuccess: () => { toast.success('Agendamento e prontuário salvos!'); onClose() },
-              // A consulta já foi salva; só o prontuário falhou. O modal fica
-              // aberto com o texto na tela em vez de fechar e descartá-lo.
-              onError: (e: unknown) => setError(userMessage(e, 'A consulta foi salva, mas o prontuário não. Tente salvar o prontuário novamente.')),
-            },
+    const onError = (e: unknown) =>
+      setError(userMessage(e, 'Não foi possível salvar a consulta. Tente novamente.'))
+
+    if (slot) {
+      update({ id: slot.id, payload }, {
+        onSuccess: () => {
+          // O prontuário tem botão próprio, mas quem aperta "Salvar"
+          // espera que o modal INTEIRO seja salvo — fechar aqui com evolução
+          // digitada e não salva era o mesmo texto perdido do confirmOnClose.
+          if (noteDirty) {
+            saveNote(
+              { appointmentId: slot.id, note: noteToSave, patientId: slot.patientId },
+              {
+                onSuccess: () => { toast.success('Agendamento e prontuário salvos!'); onClose() },
+                // A consulta já foi salva; só o prontuário falhou. O modal fica
+                // aberto com o texto na tela em vez de fechar e descartá-lo.
+                onError: (e: unknown) => setError(userMessage(e, 'A consulta foi salva, mas o prontuário não. Tente salvar o prontuário novamente.')),
+              },
+            )
+            return
+          }
+          toast.success('Agendamento atualizado!')
+          onClose()
+        },
+        onError,
+      })
+      return
+    }
+
+    create(payload, {
+      onSuccess: created => {
+        if (created.confirmation.status === 'sent') {
+          toast.success('Consulta agendada e confirmação enviada!')
+        } else if (created.confirmation.status === 'pending') {
+          toast.info('Consulta agendada. A confirmação já está em processamento.')
+        } else {
+          toast.info(
+            `Consulta agendada, mas a confirmação não foi enviada porque ${
+              confirmationFailureMessage(created.confirmation.reason)
+            }.`,
           )
-          return
         }
-        toast.success(slot ? 'Agendamento atualizado!' : 'Consulta agendada!')
         onClose()
       },
       // A sala é trava real de banco (exclude using gist — ver
       // appointment_room_overlap_ex): duas consultas ativas não cabem na
       // mesma sala no mesmo horário. userMessage traduz o erro da constraint;
       // o modal fica aberto com o aviso em vez de fechar como se tivesse dado certo.
-      onError: (e: unknown) => setError(userMessage(e, 'Não foi possível salvar a consulta. Tente novamente.')),
-    }
-    if (slot) update({ id: slot.id, payload }, options)
-    else create(payload, options)
+      onError,
+    })
   }
 
   /**
@@ -505,6 +579,33 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
       confirmOnCloseMessage="O que você escreveu no prontuário desta sessão ainda não foi salvo. Fechar agora descarta a evolução."
       footer={requestClose => (
         <>
+          {slot && !canceled && (
+            <Button
+              variant="ghost"
+              iconLeft={<IconWhatsApp />}
+              loading={sendingConfirmation}
+              onClick={() => sendConfirmation(slot.id, {
+                onSuccess: result => {
+                  if (result.status === 'sent') {
+                    toast.success(
+                      result.reused
+                        ? 'A confirmação desta consulta já foi enviada.'
+                        : 'Confirmação enviada pelo WhatsApp!',
+                    )
+                  } else if (result.status === 'pending') {
+                    toast.info('A confirmação já está em processamento.')
+                  } else {
+                    toast.error(
+                      `Não foi possível enviar: ${confirmationFailureMessage(result.reason)}.`,
+                    )
+                  }
+                },
+                onError: () => toast.error('Não foi possível solicitar o envio da confirmação.'),
+              })}
+            >
+              Enviar confirmação
+            </Button>
+          )}
           {/* WhatsApp: abre a conversa com o paciente (usa o WhatsApp se houver,
               senão o telefone). Substitui o antigo seletor de confirmação. */}
           {currentPatient && (currentPatient.whatsapp || currentPatient.phone) && (
@@ -677,6 +778,16 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
             onChange={e => setDuration(e.target.value)}
           />
         </div>
+
+        {/* Encaixe: a declaração de que a sobreposição é proposital. O banco
+            tem trava de agenda dupla do profissional (appointment_professional_
+            overlap_ex) e ela IGNORA as linhas marcadas aqui — é o que mantém o
+            encaixe possível sem deixar o choque acidental passar. */}
+        <Toggle
+          label="Encaixe (permite sobrepor outra consulta deste profissional)"
+          checked={encaixe}
+          onChange={v => { setEncaixe(v); setError('') }}
+        />
 
         <Select
           label="Sala"

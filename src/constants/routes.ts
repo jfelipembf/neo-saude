@@ -32,6 +32,16 @@ export const SYSTEM_ROUTES = {
   UNAUTHORIZED: '/sem-acesso',
 } as const
 
+/**
+ * Rotas autenticadas SEM o AppLayout — tela cheia, sem header nem navegação.
+ * Ainda atrás do AuthGuard (ver AppRouter.tsx: irmã de <AppLayout/>, não
+ * filha). Reservada para ferramentas pontuais que precisam do espaço inteiro
+ * da tela; hoje só o odontograma standalone (ícone no Header, só odontologia).
+ */
+export const FULLSCREEN_ROUTES = {
+  ODONTOGRAM: '/odontograma',
+} as const
+
 /** Páginas do app para o controle de acesso por cargo (aba Cargos). */
 export const APP_PAGES: { value: import('@/types/domain').AppPage; label: string }[] = [
   { value: 'dashboard',     label: 'Dashboard' },

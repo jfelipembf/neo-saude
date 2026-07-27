@@ -29,3 +29,25 @@ export function parseBRL(text: string) {
 export function parsePercent(text: string) {
   return Number(text.replace(',', '.'))
 }
+
+/**
+ * CPF com máscara: '12345678901' → '123.456.789-01'.
+ *
+ * Existe porque documento impresso (receita, atestado) mostra CPF, e o valor
+ * guardado é só dígito — sem isto sairia "12345678901" no papel. Entrada que
+ * não tiver 11 dígitos volta como veio: melhor mostrar o que existe do que
+ * esconder um cadastro pela metade.
+ */
+export function formatCpf(cpf: string | undefined | null) {
+  const d = (cpf ?? '').replace(/\D/g, '')
+  if (d.length !== 11) return cpf ?? ''
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
+}
+
+/** Telefone com máscara: 10 dígitos → (79) 9999-1234; 11 → (79) 99999-1234. */
+export function formatPhone(phone: string | undefined | null) {
+  const d = (phone ?? '').replace(/\D/g, '')
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  return phone ?? ''
+}

@@ -79,6 +79,7 @@
   display: flex;
   justify-content: flex-end;
   gap: $sp-2;
+  flex-wrap: wrap;
   padding: $sp-4 $sp-5;
   border-top: 1px solid var(--glass-border);
 }

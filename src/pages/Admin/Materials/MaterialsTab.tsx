@@ -1,20 +1,17 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Table } from '@/components/Table/Table'
-import type { TableColumn } from '@/components/Table/Table'
 import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
+import { EmptyState } from '@/components/EmptyState/EmptyState'
+import { FormSection } from '@/components/FormSection/FormSection'
 import { Input } from '@/components/Input/Input'
-import { Modal } from '@/components/Modal/Modal'
-import { PerPageSelect } from '@/components/PerPageSelect/PerPageSelect'
-import { PhotoInput } from '@/components/PhotoInput/PhotoInput'
-import { Pagination } from '@/components/Pagination/Pagination'
+import { MultiSelect } from '@/components/MultiSelect/MultiSelect'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
+import { PhotoInput } from '@/components/PhotoInput/PhotoInput'
+import { SideList } from '@/components/SideList/SideList'
 import { useToast } from '@/components/Toast/Toast'
 import { useMaterials, useCreateMaterial, useUpdateMaterial } from '@/hooks/useMaterials'
-import { useDebounce } from '@/hooks/useDebounce'
-import { matchesSearch } from '@/utils/search'
-import { IconCashRegister, IconPlus, IconSearch, IconEdit } from '@/components/icons'
+import { useSuppliers } from '@/hooks/useSuppliers'
 import type { Material } from '@/types/domain'
 import styles from './MaterialsTab.module.scss'
 
@@ -36,10 +33,11 @@ interface MaterialFormState {
   minQuantity: string
   expiryDateIso: string    // aaaa-mm-dd (input date)
   notes: string
+  supplierIds: string[]
 }
 
 const EMPTY_FORM: MaterialFormState = {
-  name: '', photo: undefined, inStock: '1', minQuantity: '1', expiryDateIso: '', notes: '',
+  name: '', photo: undefined, inStock: '1', minQuantity: '1', expiryDateIso: '', notes: '', supplierIds: [],
 }
 
 /** Monta o formulário a partir do material cadastrado (validade dd/mm/aaaa → input date). */
@@ -51,58 +49,61 @@ function formFromMaterial(m: Material): MaterialFormState {
     minQuantity: String(m.minQuantity),
     expiryDateIso: m.expiryDate ? m.expiryDate.split('/').reverse().join('-') : '',
     notes: m.notes ?? '',
+    supplierIds: m.supplierIds,
   }
 }
 
-/** Aba "Materiais": tabela no padrão do projeto (por página + busca + paginação). */
+/** Aba "Materiais": lista lateral + formulário (mesmo desenho de Comissões/Colaboradores). */
 export function MaterialsTab() {
   const toast = useToast()
   const { data: materials, isLoading } = useMaterials()
-  const { mutate: create, isPending: creating } = useCreateMaterial()
+  const { data: suppliers } = useSuppliers()
+  const { mutate: create, isPending: creatingMut } = useCreateMaterial()
   const { mutate: update, isPending: saving } = useUpdateMaterial()
 
-  const [modalOpen, setModalOpen] = useState(false)
-  // Material em edição — null significa que o modal é de cadastro novo.
-  const [editing, setEditing] = useState<Material | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<MaterialFormState>(EMPTY_FORM)
   const [nameError, setNameError] = useState('')
 
-  // Paginação + busca (mesmo desenho da lista de pacientes).
-  const [page, setPage] = useState(1)
-  const [perPage, setPerPage] = useState(10)
-  const [search, setSearch] = useState('')
+  if (isLoading) return <PageLoader />
 
-  const term = useDebounce(search)
-  const filtered = (materials ?? []).filter(m =>
-    matchesSearch(m.name, term) || matchesSearch(m.notes ?? '', term),
-  )
+  // Ordem alfabética pelo nome (pt-BR: acentos não bagunçam a ordenação).
+  const list = [...(materials ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+  const selected = list.find(m => m.id === selectedId) ?? null
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage))
-  const currentPage = Math.min(page, totalPages)
-  const visible = filtered.slice((currentPage - 1) * perPage, currentPage * perPage)
+  const items = list.map(m => ({
+    id: m.id,
+    label: m.name,
+    sublabel: `${m.inStock} em estoque`,
+    avatarUrl: m.photo,
+    avatar: true,
+  }))
 
   const set = (field: keyof MaterialFormState) => (value: string) => {
     setForm(current => ({ ...current, [field]: value }))
     if (field === 'name') setNameError('')
   }
 
+  function selectMaterial(id: string) {
+    const m = list.find(x => x.id === id)
+    if (!m) return
+    setForm(formFromMaterial(m))
+    setNameError('')
+    setCreating(false)
+    setSelectedId(id)
+  }
+
   function openNew() {
-    setEditing(null)
     setForm(EMPTY_FORM)
     setNameError('')
-    setModalOpen(true)
+    setCreating(true)
+    setSelectedId(null)
   }
 
-  function openEdit(material: Material) {
-    setEditing(material)
-    setForm(formFromMaterial(material))
-    setNameError('')
-    setModalOpen(true)
-  }
-
-  function closeModal() {
-    setModalOpen(false)
-    setEditing(null)
+  function handleCancel() {
+    setSelectedId(null)
+    setCreating(false)
     setForm(EMPTY_FORM)
     setNameError('')
   }
@@ -121,151 +122,121 @@ export function MaterialsTab() {
       // input date entrega 'aaaa-mm-dd'; o domínio guarda 'dd/mm/aaaa'.
       expiryDate: form.expiryDateIso ? form.expiryDateIso.split('-').reverse().join('/') : undefined,
       notes: form.notes.trim() || undefined,
+      supplierIds: form.supplierIds,
     }
     const options = {
       onSuccess: () => {
-        toast.success(editing ? 'Material atualizado!' : 'Material cadastrado!')
-        closeModal()
+        toast.success(selected ? 'Material atualizado!' : 'Material cadastrado!')
+        handleCancel()
       },
     }
-    if (editing) update({ id: editing.id, payload }, options)
+    if (selected) update({ id: selected.id, payload }, options)
     else create(payload, options)
   }
 
-  const columns: TableColumn<Material>[] = [
-    {
-      key: 'name',
-      label: 'Material',
-      render: m => (
-        <span className={styles.materialCell}>
-          {m.photo ? (
-            <img src={m.photo} alt="" className={styles.thumb} />
-          ) : (
-            <span className={styles.semThumb}><IconCashRegister /></span>
-          )}
-          {m.name}
-        </span>
-      ),
-    },
-    { key: 'inStock',  label: 'Em estoque',  render: m => <>{m.inStock}</> },
-    { key: 'minQuantity',  label: 'Qtd. mínima', hideOnMobile: true, render: m => <>{m.minQuantity}</> },
-    { key: 'expiryDate',   label: 'Validade', hideOnMobile: true,    render: m => <>{m.expiryDate ?? '—'}</> },
-    { key: 'notes', label: 'Observação', hideOnMobile: true, render: m => <>{m.notes ?? '—'}</> },
-    { key: 'status',     label: 'Status',      render: m => <Badge status={materialStatus(m)} /> },
-    {
-      key: 'actions',
-      label: 'Ação',
-      render: m => (
-        <Button
-          variant="ghost"
-          size="sm"
-          iconLeft={<IconEdit />}
-          title="Editar material"
-          aria-label={`Editar ${m.name}`}
-          onClick={() => openEdit(m)}
-        />
-      ),
-    },
-  ]
-
   return (
-    <>
-      {isLoading ? (
-        <PageLoader />
-      ) : (
-        <Table
-          columns={columns}
-          data={visible}
-          rowKey={m => m.id}
-          emptyMessage={term ? 'Nenhum material encontrado para a busca.' : 'Nenhum material cadastrado.'}
-          toolbar={
-            <>
-              <PerPageSelect perPage={perPage} onChange={n => { setPerPage(n); setPage(1) }} />
-              <div className={styles.toolbarDireita}>
-                <Input
-                  size="sm"
-                  iconLeft={<IconSearch />}
-                  placeholder="Buscar material..."
-                  value={search}
-                  onChange={e => { setSearch(e.target.value); setPage(1) }}
-                  aria-label="Buscar material"
-                  className={styles.busca}
-                />
-                <Button size="sm" iconLeft={<IconPlus />} onClick={openNew}>
-                  Novo material
-                </Button>
-              </div>
-            </>
-          }
-          footer={
-            <Pagination
-              page={currentPage}
-              totalPages={totalPages}
-              onChange={setPage}
-              totalItems={filtered.length}
-              itemsPerPage={perPage}
-            />
-          }
-        />
-      )}
+    <div className={styles.layout}>
+      <SideList
+        title="Materiais"
+        size="lg"
+        items={items}
+        selectedId={creating ? null : selectedId}
+        onSelect={id => selectMaterial(String(id))}
+        onAdd={openNew}
+        searchPlaceholder="Buscar material..."
+        emptyText="Nenhum material cadastrado"
+      />
 
-      <Modal
-        open={modalOpen}
-        onClose={closeModal}
-        title={editing ? 'Editar material' : 'Novo material'}
-        footer={
+      <div className={styles.formArea}>
+        {!creating && !selected ? (
+          <EmptyState
+            title="Nenhum material selecionado"
+            description="Selecione um material na lista ao lado, ou clique em + para cadastrar um novo."
+          />
+        ) : (
           <>
-            <Button variant="ghost" onClick={closeModal}>Cancelar</Button>
-            <Button type="submit" form="form-new-material" loading={creating || saving}>
-              {editing ? 'Salvar' : 'Cadastrar material'}
-            </Button>
+            <form id="form-material" className={styles.formRoot} onSubmit={handleSave}>
+              <FormSection
+                title={creating ? 'Novo material' : selected!.name}
+                actions={selected && <Badge status={materialStatus(selected)} />}
+              >
+                <div className={styles.fields}>
+                  <PhotoInput
+                    label="Foto do material"
+                    size="portrait"
+                    value={form.photo}
+                    onChange={url => setForm(current => ({ ...current, photo: url }))}
+                    folder="materials"
+                  />
+
+                  <div className={styles.fieldStack}>
+                    <Input
+                      label="Nome do produto"
+                      placeholder="Ex: Resina Fotopolimerizável A2"
+                      value={form.name}
+                      onChange={e => set('name')(e.target.value)}
+                      error={nameError}
+                      autoFocus
+                    />
+                    <div className={styles.grid2}>
+                      <Input
+                        label="Em estoque"
+                        type="number"
+                        min={0}
+                        value={form.inStock}
+                        onChange={e => set('inStock')(e.target.value)}
+                      />
+                      <Input
+                        label="Qtd. mínima"
+                        type="number"
+                        min={0}
+                        value={form.minQuantity}
+                        onChange={e => set('minQuantity')(e.target.value)}
+                      />
+                    </div>
+                    <Input
+                      label="Validade"
+                      type="date"
+                      value={form.expiryDateIso}
+                      onChange={e => set('expiryDateIso')(e.target.value)}
+                    />
+                    <Input
+                      label="Observação"
+                      placeholder="Ex: Lote 123"
+                      value={form.notes}
+                      onChange={e => set('notes')(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </FormSection>
+
+              <FormSection
+                title="Fornecedores"
+                description="Um material pode ter mais de um fornecedor."
+              >
+                <MultiSelect
+                  placeholder="Selecione os fornecedores…"
+                  hint="Os escolhidos aparecem no campo. Cadastre novos em Administrativo → Fornecedores."
+                  emptyMessage="Nenhum fornecedor cadastrado ainda. Cadastre em Administrativo → Fornecedores."
+                  // O e-mail vai como linha secundária: é por ele que a Cibelly
+                  // dispara pedido de orçamento, então fornecedor sem e-mail
+                  // fica visível na hora de escolher, não na hora de precisar.
+                  options={(suppliers ?? []).map(s => ({ value: s.id, label: s.name, meta: s.email }))}
+                  value={form.supplierIds}
+                  onChange={ids => setForm(f => ({ ...f, supplierIds: ids }))}
+                />
+              </FormSection>
+            </form>
+
+            <div className={styles.acoesBar}>
+              <Button variant="ghost" onClick={handleCancel} disabled={creatingMut || saving}>Cancelar</Button>
+              <Button type="submit" form="form-material" loading={creatingMut || saving}>
+                {creating ? 'Cadastrar material' : 'Salvar'}
+              </Button>
+            </div>
           </>
-        }
-      >
-        <form id="form-new-material" className={styles.form} onSubmit={handleSave}>
-          <Input
-            label="Nome do produto"
-            placeholder="Ex: Resina Fotopolimerizável A2"
-            value={form.name}
-            onChange={e => set('name')(e.target.value)}
-            error={nameError}
-            autoFocus
-          />
-
-          <div className={styles.grid2}>
-            <Input
-              label="Em estoque"
-              type="number"
-              min={0}
-              value={form.inStock}
-              onChange={e => set('inStock')(e.target.value)}
-            />
-            <Input
-              label="Qtd. mínima"
-              type="number"
-              min={0}
-              value={form.minQuantity}
-              onChange={e => set('minQuantity')(e.target.value)}
-            />
-          </div>
-
-          <Input
-            label="Validade"
-            type="date"
-            value={form.expiryDateIso}
-            onChange={e => set('expiryDateIso')(e.target.value)}
-          />
-
-          <Input
-            label="Observação"
-            placeholder="Ex: Lote 123"
-            value={form.notes}
-            onChange={e => set('notes')(e.target.value)}
-          />
-
-          <PhotoInput label="Foto do material" value={form.photo} onChange={url => setForm(current => ({ ...current, photo: url }))} folder="materials" />
-        </form>
-      </Modal>
-    </>
+        )}
+      </div>
+    </div>
   )
 }

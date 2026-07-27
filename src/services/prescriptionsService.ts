@@ -14,6 +14,7 @@ type PrescriptionRow = {
   issued_on: string
   professional_id: string | null
   body: string | null
+  notes: string | null
 }
 
 type MedRow = { prescription_id: string; name: string; dosage: string; quantity: string | null }
@@ -21,7 +22,7 @@ type MedRow = { prescription_id: string; name: string; dosage: string; quantity:
 export async function listPatientPrescriptions(patientId: string): Promise<Prescription[]> {
   const { data, error } = await supabase
     .from('prescription')
-    .select('id, clinic_id, code, patient_id, type, title, issued_on, professional_id, body')
+    .select('id, clinic_id, code, patient_id, type, title, issued_on, professional_id, body, notes')
     .eq('patient_id', patientId)
     .order('issued_on', { ascending: false })
   if (error) throw error
@@ -53,6 +54,7 @@ export async function listPatientPrescriptions(patientId: string): Promise<Presc
     professionalId: row.professional_id ?? undefined,
     medications: byPrescription.get(row.id),
     text: row.body ?? undefined,
+    notes: row.notes ?? undefined,
   }))
 }
 
@@ -75,6 +77,10 @@ export async function addPrescription(payload: NewPrescription): Promise<void> {
     issued_on: brToIsoDate(payload.date) ?? undefined,
     professional_id: payload.professionalId ?? null,
     body: payload.text ?? null,
+    // `notes` estava faltando: o modal coletava "Observações", o GRANT permitia
+    // gravar, e o insert simplesmente não mandava — o campo sumia em silêncio a
+    // cada prescrição emitida.
+    notes: payload.notes?.trim() || null,
   }
   const { data, error } = await supabase
     .from('prescription')

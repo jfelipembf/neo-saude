@@ -9,7 +9,7 @@ import { addMinutes } from '@/utils/date'
 // (`schedule_slot` ficou reservada para regras recorrentes; a Agenda não a usa.)
 
 const COLUMNS =
-  'id, clinic_id, patient_id, professional_id, room_id, service, date, start_time, duration_minutes, status, notes, color, send_confirmation, entitlement_id, clinical_note'
+  'id, clinic_id, patient_id, professional_id, room_id, service, date, start_time, duration_minutes, status, notes, color, send_confirmation, is_overbook, entitlement_id, clinical_note'
 
 type AppointmentRow = {
   id: string
@@ -25,6 +25,7 @@ type AppointmentRow = {
   notes: string | null
   color: string | null
   send_confirmation: boolean
+  is_overbook: boolean
   entitlement_id: string | null
   // O CHECK `appointment_clinical_note_shape_ck` já garante no BANCO que só
   // existem as quatro chaves do SOAP, cada uma string — por isso a linha entra
@@ -84,6 +85,7 @@ export async function listScheduleAppointments(fromIso: string, toIso: string): 
     status: row.status,
     notes: row.notes ?? undefined,
     sendConfirmation: row.send_confirmation,
+    isOverbook: row.is_overbook,
     entitlementId: row.entitlement_id ?? undefined,
     clinicalNote: row.clinical_note ?? undefined,
   }))
@@ -91,6 +93,18 @@ export async function listScheduleAppointments(fromIso: string, toIso: string): 
 
 /** Dados do modal de agendamento (criação e edição usam o mesmo shape). */
 export type EditScheduledAppointment = ClientPayload<ScheduledAppointment>
+
+export interface AppointmentConfirmationResult {
+  ok: boolean
+  status: 'sent' | 'pending' | 'skipped' | 'failed'
+  reason?: string
+  reused?: boolean
+}
+
+export interface CreatedScheduleAppointment {
+  id: string
+  confirmation: AppointmentConfirmationResult
+}
 
 async function toRow(clinicId: string, payload: EditScheduledAppointment) {
   const { byName } = await roomMaps(clinicId)
@@ -105,20 +119,64 @@ async function toRow(clinicId: string, payload: EditScheduledAppointment) {
     status: payload.status,
     notes: payload.notes ?? null,
     color: payload.color ?? null,
-    send_confirmation: payload.sendConfirmation ?? false,
+    send_confirmation: payload.sendConfirmation ?? true,
+    is_overbook: payload.isOverbook ?? false,
   }
 }
 
-export async function addScheduleAppointment(payload: EditScheduledAppointment): Promise<void> {
-  const clinicId = getCurrentClinicId()
-  const { error } = await supabase.from('appointment').insert({
-    clinic_id: clinicId,
-    // Só entra no INSERT: a coluna é imutável depois de criada (sem GRANT de
-    // update nela — ver 20260724150000_sales_and_entitlements).
-    entitlement_id: payload.entitlementId ?? null,
-    ...(await toRow(clinicId, payload)),
-  })
+export async function sendAppointmentConfirmation(
+  appointmentId: string,
+  force = false,
+): Promise<AppointmentConfirmationResult> {
+  const { data, error } = await supabase.functions.invoke<AppointmentConfirmationResult>(
+    'appointment-confirmation',
+    {
+      body: {
+        clinicId: getCurrentClinicId(),
+        appointmentId,
+        force,
+      },
+    },
+  )
   if (error) throw error
+  if (!data) throw new Error('appointment_confirmation_failed')
+  return data
+}
+
+export async function addScheduleAppointment(
+  payload: EditScheduledAppointment,
+): Promise<CreatedScheduleAppointment> {
+  const clinicId = getCurrentClinicId()
+  const { data, error } = await supabase
+    .from('appointment')
+    .insert({
+      clinic_id: clinicId,
+      // Só entra no INSERT: a coluna é imutável depois de criada (sem GRANT de
+      // update nela — ver 20260724150000_sales_and_entitlements).
+      entitlement_id: payload.entitlementId ?? null,
+      ...(await toRow(clinicId, payload)),
+    })
+    .select('id')
+    .single()
+  if (error) throw error
+
+  try {
+    return {
+      id: data.id,
+      confirmation: await sendAppointmentConfirmation(data.id),
+    }
+  } catch {
+    // A consulta já foi criada. Não a transforma em erro de agendamento, pois
+    // uma tentativa do usuário duplicaria a consulta; a UI informa a falha.
+    return {
+      id: data.id,
+      confirmation: {
+        ok: false,
+        status: 'failed',
+        reason: 'confirmation_request_failed',
+      },
+    }
+  }
 }
 
 export async function updateScheduleAppointment(id: string, payload: EditScheduledAppointment): Promise<void> {

@@ -47,6 +47,26 @@
   }
 }
 
+// Separador entre a logo e o selo de ramo (Odonto/Fisio…).
+.brandDivider {
+  width: 1px;
+  height: 26px;
+  background: var(--glass-border);
+}
+
+// Selo curto indicando o ramo da clínica logada — fonte cursiva e cor
+// diferente do verde da logo (--primary), pra não competir com a marca.
+.brandBadge {
+  font-family: 'Segoe Script', 'Bradley Hand', 'Brush Script MT', cursive;
+  font-size: 20px;
+  font-style: italic;
+  font-weight: 700;
+  color: var(--accent-fg);
+  white-space: nowrap;
+
+  @include phone { display: none; }
+}
+
 // Segunda barra, abaixo da barra de marca/ações.
 // No DESKTOP sem overflow: um submenu (dropdown absoluto) seria cortado pelo scroll.
 // No phone os rótulos somem — os itens ficam só com os ícones.
@@ -106,6 +126,45 @@
 
 .linkLabel {
   @include phone { display: none; }   // phone: só ícones (labels voltam no tablet+)
+}
+
+// Atalho de IA (odontoIA) fixo no canto direito da barra de navegação —
+// fora do trecho que rola no mobile, sempre visível.
+.aiBtn {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  height: 34px;
+  padding: 0 $sp-3;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-sm;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    background: var(--glass-bg-hover);
+    border-color: var(--primary);
+    box-shadow: var(--shadow-glow);
+  }
+}
+
+.aiIcon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.aiLabel {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+
+  @include phone { display: none; }   // phone: só o ícone, como os demais itens
 }
 
 .actions {
