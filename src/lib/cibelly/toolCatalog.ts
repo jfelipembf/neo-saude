@@ -6,6 +6,7 @@ export type CibellyToolDomain =
   | 'inventory'
   | 'communication'
   | 'documents'
+  | 'finance'
 
 export type ToolContinuationPolicy = 'always' | 'on_failure' | 'on_attention'
 export type ToolConfirmationPolicy = 'none' | 'tool_managed'
@@ -72,6 +73,12 @@ export const CIBELLY_TOOL_CATALOG = {
     continuation: 'always',
     confirmation: 'none',
   },
+  consultar_financeiro_paciente: {
+    domain: 'finance',
+    purpose: 'Consultar o financeiro de um paciente — em aberto, último pagamento, produção ainda não cobrada. SÓ LEITURA: não dá baixa nem cancela título.',
+    continuation: 'always',
+    confirmation: 'none',
+  },
   consultar_agenda: {
     domain: 'schedule',
     purpose: 'Consultar consultas existentes e horários disponíveis para o paciente atual ou outro identificado.',
@@ -132,6 +139,7 @@ const DOMAIN_LABELS: Record<CibellyToolDomain, string> = {
   inventory: 'ESTOQUE E COMPRAS',
   communication: 'COMUNICAÇÃO',
   documents: 'DOCUMENTOS',
+  finance: 'FINANCEIRO (só leitura)',
 }
 
 export function isCibellyToolName(name: string): name is CibellyToolName {

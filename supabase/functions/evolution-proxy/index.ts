@@ -4,6 +4,7 @@ import {
   createEvolutionInstance,
   evolutionConfigured,
   logoutEvolutionInstance,
+  type EvolutionWebhook,
 } from "../_shared/evolution.ts";
 
 const cors = {
@@ -217,6 +218,17 @@ Deno.serve(async (request) => {
     return Boolean(data);
   }
 
+  // Só o "create" (primeiro pareamento) usa isto — de propósito NÃO é
+  // reafirmado em "connect"/reconexão, pra não somar uma chamada nova à
+  // Evolution API num caminho que já foi clicado repetidamente antes (ver o
+  // comentário em connectEvolutionInstance, _shared/evolution.ts).
+  const webhook: EvolutionWebhook = {
+    url: `${SUPABASE_URL}/functions/v1/evolution-webhook?secret=${
+      encodeURIComponent(WEBHOOK_SECRET)
+    }`,
+    events: ["CONNECTION_UPDATE", "QRCODE_UPDATED", "MESSAGES_UPSERT"],
+  };
+
   try {
     if (action === "create" || action === "connect") {
       const stored = await readConnection();
@@ -248,14 +260,7 @@ Deno.serve(async (request) => {
     }
 
     if (action === "create") {
-      const webhookUrl =
-        `${SUPABASE_URL}/functions/v1/evolution-webhook?secret=${
-          encodeURIComponent(WEBHOOK_SECRET)
-        }`;
-      const result = await createEvolutionInstance(instanceName, {
-        url: webhookUrl,
-        events: ["CONNECTION_UPDATE", "QRCODE_UPDATED"],
-      });
+      const result = await createEvolutionInstance(instanceName, webhook);
       if (!result.ok) {
         await upsertConnection({
           status: "disconnected",

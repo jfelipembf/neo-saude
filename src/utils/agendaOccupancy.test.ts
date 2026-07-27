@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  consultasDoDia, consultasNoHorario, textoDaOcupacao, type ConsultaNaAgenda,
+  consultasDoDia, consultasNoHorario, perguntaAmplaDemais, textoDaOcupacao,
+  PERGUNTA_DO_RECORTE, type ConsultaNaAgenda,
 } from './agendaOccupancy'
 
 function consulta(
@@ -94,5 +95,44 @@ describe('textoDaOcupacao', () => {
   it('sem atividade não deixa parêntese vazio', () => {
     const semAtividade = [consulta('a', '08:00', '09:00', { activity: '' })]
     expect(textoDaOcupacao(semAtividade, nome)).toBe('08:00 Michelle Dratovsky')
+  })
+})
+
+describe('perguntaAmplaDemais', () => {
+  // "Como está minha agenda?" — nenhum recorte: é a pergunta que virava meio
+  // minuto de locução lendo dia a dia quem está marcado e todas as vagas.
+  it('sem dia, sem paciente e sem foco, é ampla demais', () => {
+    expect(perguntaAmplaDemais({ temPacienteAlvo: false })).toBe(true)
+  })
+
+  it('um dia nomeado já é recorte suficiente', () => {
+    expect(perguntaAmplaDemais({ data: '2026-07-31', temPacienteAlvo: false })).toBe(false)
+  })
+
+  // "essa semana" continua amplo: são 7 dias de lista.
+  it('período de vários dias sem foco continua amplo', () => {
+    expect(perguntaAmplaDemais({ data: '2026-07-31', dias: 7, temPacienteAlvo: false })).toBe(true)
+  })
+
+  it('dias sem data também é amplo', () => {
+    expect(perguntaAmplaDemais({ dias: 7, temPacienteAlvo: false })).toBe(true)
+  })
+
+  // Perguntar sobre ALGUÉM já é o recorte: "a Ana tem consulta essa semana?"
+  it('com paciente-alvo, nunca pergunta de volta', () => {
+    expect(perguntaAmplaDemais({ dias: 7, temPacienteAlvo: true })).toBe(false)
+    expect(perguntaAmplaDemais({ temPacienteAlvo: true })).toBe(false)
+  })
+
+  // Depois de ele escolher, a ferramenta responde — não pergunta de novo.
+  it('com foco escolhido, responde mesmo sem dia', () => {
+    expect(perguntaAmplaDemais({ temPacienteAlvo: false, foco: 'vagas' })).toBe(false)
+    expect(perguntaAmplaDemais({ dias: 7, temPacienteAlvo: false, foco: 'agendamentos' })).toBe(false)
+  })
+
+  it('a pergunta oferece as três saídas', () => {
+    expect(PERGUNTA_DO_RECORTE).toContain('agendamentos')
+    expect(PERGUNTA_DO_RECORTE).toContain('horários livres')
+    expect(PERGUNTA_DO_RECORTE).toContain('dia específico')
   })
 })

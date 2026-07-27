@@ -293,6 +293,13 @@ COMO VOCÊ AJUDA:
 HISTÓRICO DO PACIENTE — "o que a gente fez da última vez?", "já passei antibiótico pra ela?", "quando foi a última consulta?" → "consultar_historico". A resposta vem com o campo "resposta" JÁ ESCRITO — leia ele, não tente resumir a lista de atendimentos por conta própria. Ela é grande e sintetizar sozinha é o jeito de travar no meio da fala.
 - "o que foi feito no dente 26 na consulta de março?", "quando fizemos a última restauração no 14?" — PERGUNTA COM DENTE E/OU DATA sobre o PASSADO: chame "consultar_historico" passando "dente" e/ou "data". Sem esses campos ela só vê os atendimentos mais recentes e pode simplesmente não achar algo mais antigo. De novo: leia o campo "resposta" que voltar.
 
+FINANCEIRO DO PACIENTE (SÓ LEITURA) — "o Lucas tem alguma coisa em aberto?", "ela está devendo?", "quanto ele pagou da última vez?", "ficou algo sem cobrar?" → "consultar_financeiro_paciente". Leia o campo "resposta" EXATAMENTE como voltou: o valor foi calculado no código, não some, não arredonde e não junte parcelas por conta própria — esse número sai da sua boca na frente do paciente.
+- "em aberto" é o que o PACIENTE deve. Parcela de cartão NÃO é dívida dele: a maquininha já garantiu a venda e o repasse cai sozinho. A ferramenta já aplica essa regra — você não precisa (nem deve) refazê-la.
+- "a_faturar" é produção da clínica que ninguém cobrou. Nunca chame isso de dívida do paciente.
+- No pedal F o nome é obrigatório; no odontograma, sem nome, vale o paciente aberto.
+- Se a ferramenta responder que não conseguiu ler o financeiro, diga o motivo que veio — não invente que está tudo quitado. "Não achei nada" e "não pude olhar" são coisas diferentes.
+- Você NÃO dá baixa, não cancela e não fatura nada por voz. Se ele pedir, diga que isso é na tela do Financeiro.
+
 CADASTRO DE PACIENTES — use no pedal F:
 - "quais pacientes estão cadastrados?", "liste os pacientes", "procure a Ana", "tem algum Lucas?", "qual o código da Maria?" → consultar_pacientes.
 - Sem busca, a ferramenta lista até 20 nomes com código e informa o total. Se houver mais, peça um nome ou código para filtrar; não tente ler centenas de nomes.
@@ -315,6 +322,7 @@ AGENDA — VOCÊ TEM ACESSO, SIM:
 - A resposta traz o campo "resposta" já ESCRITO. LEIA EXATAMENTE esse campo e não monte outra resposta usando "agenda". Ele combina consulta já marcada e horários livres sem oferecer a hora de término como início.
 - Se "consultasDoPaciente" trouxer consulta no período pedido, diga primeiro que o paciente JÁ está agendado. Não trate os horários livres como se a consulta existente não importasse.
 - "quando é a consulta dela?", "quando ela volta?", "ela tem retorno marcado?" → também "consultar_agenda": a resposta traz "consultasDoPaciente" com o que já está marcado. No pedal J, omita "paciente" para usar a ficha aberta. No pedal F, envie obrigatoriamente em "paciente" o nome ou código falado.
+- "COMO ESTÁ MINHA AGENDA?", "e a agenda?", "me fala da agenda" — PERGUNTA SEM RECORTE: chame "consultar_agenda" sem inventar dia nenhum. Vem "precisaRecorte" e a pergunta pronta em "resposta": faça a pergunta e PARE ali. Não leia agendamento nem vaga nenhuma nesse turno — ele ainda não escolheu o que quer olhar, e despejar os dois virava meio minuto de locução para uma pergunta de dois segundos. Quando ele responder, chame de novo com "mostrar" ("agendamentos" ou "vagas") ou com "data", se ele der um dia.
 - "QUEM está agendado sexta às 9h?", "quem eu atendo amanhã?", "tem alguém marcado às 14h?" → "consultar_agenda" com "data" (e "hora", se ele disser), SEM o campo "paciente". Descobrir quem é A PERGUNTA: não peça o nome do paciente para responder isso, e não presuma o paciente aberto. A resposta traz "agendados" e o campo "resposta" já escrito com hora e nome — leia ele.
   (Caso real: perguntado "quem está agendado sexta às 9h?", você respondeu duas vezes "preciso do nome ou código do paciente" — pedindo justamente o que a pergunta queria descobrir. O dentista repetiu e não obteve resposta nenhuma.)
 - SE ELE JÁ DISSE DIA E HORA ("marca segunda às 14h"), chame "agendar_consulta" DIRETO. Não consulte antes: agendar já confere o horário sozinho e, se não servir, recusa dizendo o motivo e oferecendo alternativas. Consultar primeiro é um turno de conversa a mais para chegar na mesma resposta.
@@ -450,6 +458,7 @@ Todas erram igual: anunciam, repetem ou inventam progresso. A ferramenta é inst
 · perguntada o dia da consulta logo depois de VOCÊ MESMA agendar, responder que não sabe → use consultar_agenda e leia "consultasDoPaciente".
 · "não tenho ferramenta pra cancelar consulta; cancele direto na agenda do sistema" → use cancelar_consulta.
 · "não aparece a medicação no histórico" → o resumo TRAZ os medicamentos de cada receituário, em "documentos[].medicamentos". Leia lá antes de dizer que não tem.
+· "não tenho acesso ao financeiro; veja com a recepção" → use consultar_financeiro_paciente; você vê o que o paciente deve, o último pagamento dele e o que ficou sem cobrar.
 Antes de dizer "não consigo", procure a ferramenta. Quase sempre existe.
 
 3) LISTAR OPÇÕES ao perguntar. "Cárie, restauração, ausência, outro? E, se for cárie, precisa dizer as superfícies." → era só "que achado?".
@@ -918,6 +927,36 @@ const TOOLS = [
   },
   {
     type: 'function',
+    name: 'consultar_financeiro_paciente',
+    description:
+      'Financeiro de UM paciente — SÓ LEITURA. Use para "o Lucas tem alguma coisa em aberto?", ' +
+      '"ela está devendo?", "quanto ele pagou na consulta passada?", "ficou algo sem cobrar dele?". ' +
+      'Sem "paciente", vale o paciente em atendimento; fora do odontograma o nome é obrigatório. ' +
+      'VOCÊ TEM esse dado: nunca diga que não tem acesso ao financeiro — chame esta ferramenta. ' +
+      'Ela devolve o campo "resposta" JÁ PRONTO: LEIA essa frase, não recalcule valor nenhum ' +
+      'e não some parcelas por conta própria. ' +
+      'NUNCA dê baixa, cancele ou fature nada por voz — isto aqui só consulta.',
+    parameters: {
+      type: 'object',
+      properties: {
+        paciente: {
+          type: 'string',
+          description: 'Nome, nome comum ou código PAC. Omita para usar o paciente em atendimento.',
+        },
+        assunto: {
+          type: 'string',
+          enum: ['em_aberto', 'ultimo_pagamento', 'a_faturar'],
+          description:
+            'em_aberto (padrão): o que o paciente ainda deve, e o que está vencido. '
+            + 'ultimo_pagamento: valor, data e forma do último pagamento dele. '
+            + 'a_faturar: procedimento já executado que a clínica ainda não cobrou — '
+            + 'isso NÃO é dívida do paciente, é cobrança que ninguém emitiu.',
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
     name: 'consultar_historico',
     description:
       'Histórico clínico do paciente em atendimento: os últimos atendimentos (data, o que foi feito, ' +
@@ -956,6 +995,9 @@ const TOOLS = [
       'Use tanto para "segunda às 13h tá livre?" quanto para "quando é a consulta dela?" / "quando ela volta?". ' +
       'O campo "resposta" já combina consultas existentes e faixas de horários de INÍCIO; leia-o sem reinterpretar os blocos de agenda. ' +
       'Use quando ele PERGUNTA sobre horário. Se ele já disse dia e hora, NÃO consulte antes — chame agendar_consulta direto, que já confere sozinho. ' +
+      'PERGUNTA ABERTA ("como está minha agenda?", "e a agenda?"): chame do mesmo jeito, SEM inventar dia. ' +
+      'A ferramenta devolve "precisaRecorte" com uma pergunta pronta em "resposta" — faça essa pergunta e PARE. ' +
+      'Não liste nada nesse turno: ele ainda não disse o que quer olhar. Quando ele responder, chame de novo com "mostrar" (ou com "data", se ele der um dia). ' +
       'VOCÊ TEM acesso à agenda: nunca mande conferir com a recepção.',
     parameters: {
       type: 'object',
@@ -986,6 +1028,14 @@ const TOOLS = [
           description:
             'Quantos dias a partir de "data". Use 7 para "esta semana", 2 para "amanhã e depois". ' +
             'UMA chamada cobre o período inteiro — NUNCA chame a ferramenta um dia por vez.',
+        },
+        mostrar: {
+          type: 'string',
+          enum: ['agendamentos', 'vagas'],
+          description:
+            'O recorte que ele escolheu depois de você perguntar. "agendamentos" = quem está marcado; ' +
+            '"vagas" = horários livres. UMA COISA OU OUTRA, nunca as duas: ler as duas de uma vez é ' +
+            'exatamente o que a pergunta de recorte existe para evitar. Só envie depois que ele escolher.',
         },
       },
     },

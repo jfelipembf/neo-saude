@@ -14,7 +14,7 @@ import {
   useSendWhatsAppTest,
 } from '@/hooks/useWhatsApp'
 import type { WhatsAppPairingResult } from '@/services/whatsappService'
-import { formatPhone } from '@/utils/format'
+import { displayPhone } from '@/utils/format'
 import styles from './WhatsAppTab.module.scss'
 
 function connectionError(error: unknown): string {
@@ -29,14 +29,6 @@ function connectionError(error: unknown): string {
     return 'A Evolution API recusou a conexão. Confira o servidor e tente novamente.'
   }
   return 'Não foi possível gerar o QR Code. Tente novamente.'
-}
-
-function displayPhone(phone?: string): string {
-  if (!phone) return 'Não informado'
-  if (phone.startsWith('55') && (phone.length === 12 || phone.length === 13)) {
-    return `+55 ${formatPhone(phone.slice(2))}`
-  }
-  return formatPhone(phone) || phone
 }
 
 /** O que a Edge Function aceita: 10 a 13 dígitos (com ou sem o 55). */

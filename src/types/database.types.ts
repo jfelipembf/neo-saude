@@ -5267,6 +5267,66 @@ export type Database = {
           },
         ]
       }
+      whatsapp_inbound_message: {
+        Row: {
+          body: string
+          clinic_id: string
+          created_at: string
+          dismissed: boolean
+          dismissed_at: string | null
+          id: string
+          patient_id: string | null
+          provider_message_id: string | null
+          sender_name: string | null
+          sender_phone: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          body: string
+          clinic_id: string
+          created_at?: string
+          dismissed?: boolean
+          dismissed_at?: string | null
+          id?: string
+          patient_id?: string | null
+          provider_message_id?: string | null
+          sender_name?: string | null
+          sender_phone: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          body?: string
+          clinic_id?: string
+          created_at?: string
+          dismissed?: boolean
+          dismissed_at?: string | null
+          id?: string
+          patient_id?: string | null
+          provider_message_id?: string | null
+          sender_name?: string | null
+          sender_phone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_inbound_message_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinic"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_inbound_message_patient_fk"
+            columns: ["patient_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "patient"
+            referencedColumns: ["id", "clinic_id"]
+          },
+        ]
+      }
     }
     Views: {
       bank_account_balance: {

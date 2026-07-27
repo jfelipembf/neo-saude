@@ -51,3 +51,12 @@ export function formatPhone(phone: string | undefined | null) {
   if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
   return phone ?? ''
 }
+
+/** Telefone no formato canônico do WhatsApp (55DDDNNNNNNNN) → '+55 (79) 99999-1234'. */
+export function displayPhone(phone?: string | null): string {
+  if (!phone) return 'Não informado'
+  if (phone.startsWith('55') && (phone.length === 12 || phone.length === 13)) {
+    return `+55 ${formatPhone(phone.slice(2))}`
+  }
+  return formatPhone(phone) || phone
+}

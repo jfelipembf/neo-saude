@@ -81,3 +81,40 @@ export function textoDaOcupacao(
     .map(c => `${c.startTime} ${nomeDoPaciente(c.patientId)}${c.activity ? ` (${c.activity})` : ''}`)
     .join('; ')
 }
+
+/** O que a pergunta sobre a agenda quer ver. */
+export type FocoDaAgenda = 'agendamentos' | 'vagas'
+
+/**
+ * A PERGUNTA ABERTA NÃO VIRA LOCUÇÃO.
+ *
+ * "Como está minha agenda?" devolvia, para cada dia do período, quem está
+ * marcado E todas as faixas livres — meio minuto de leitura em voz alta para
+ * uma pergunta de dois segundos. E o dentista não pediu nada disso: ele ainda
+ * nem sabe o que quer olhar.
+ *
+ * A regra é de RECORTE, não de tamanho: sem um dia definido, sem um paciente e
+ * sem dizer o que quer ver, não existe resposta curta possível — então a
+ * ferramenta devolve a pergunta em vez de despejar a agenda. Um dia específico
+ * já é recorte suficiente e passa direto.
+ *
+ * Fica no código, e não no prompt, pelo mesmo motivo das outras: regra de
+ * "seja mais breve" é a classe que falha; ferramenta que não tem o que
+ * despejar nunca despeja.
+ */
+export function perguntaAmplaDemais(pedido: {
+  data?: string
+  dias?: number
+  temPacienteAlvo: boolean
+  foco?: FocoDaAgenda
+}): boolean {
+  if (pedido.temPacienteAlvo || pedido.foco) return false
+  // Um único dia nomeado é recorte bastante: "quem está agendado sexta?"
+  // responde em uma frase.
+  if (pedido.data && (pedido.dias ?? 1) === 1) return false
+  return true
+}
+
+/** As três saídas que o dentista tem — ditas como quem oferece, não como menu. */
+export const PERGUNTA_DO_RECORTE =
+  'Quer ver os agendamentos, os horários livres, ou de um dia específico?'

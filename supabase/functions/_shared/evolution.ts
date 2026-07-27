@@ -124,7 +124,7 @@ export async function fetchEvolutionState(
   return mapEvolutionState(response.ok ? state : undefined);
 }
 
-interface EvolutionWebhook {
+export interface EvolutionWebhook {
   url: string;
   events: string[];
 }
@@ -138,7 +138,7 @@ interface EvolutionConnectResult {
   error?: string;
 }
 
-async function ensureEvolutionWebhook(
+export async function ensureEvolutionWebhook(
   instanceName: string,
   webhook: EvolutionWebhook,
 ) {
@@ -207,6 +207,15 @@ export async function createEvolutionInstance(
 export async function connectEvolutionInstance(
   instanceName: string,
 ): Promise<EvolutionConnectResult> {
+  // NÃO chama ensureEvolutionWebhook aqui, de propósito: esta função roda a
+  // cada "reconectar"/"renovar QR" — uma ação já usada para recuperar de
+  // problema de sessão, e um número já foi bloqueado pela Meta antes por
+  // causa não totalmente esclarecida. Somar uma chamada nova à Evolution API
+  // num caminho que já existia (e que pode ser clicado várias vezes seguidas
+  // numa reconexão problemática) é risco que não vale a pena pra só reafirmar
+  // webhook. Clínicas que pareraram antes do evento MESSAGES_UPSERT existir
+  // precisam de UM desconectar+reconectar completo (ação deliberada, feita
+  // uma vez) pra pegar a lista de eventos nova — ver createEvolutionInstance.
   const connected = await connectedInstance(instanceName);
   if (connected) return connected;
 

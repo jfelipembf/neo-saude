@@ -1,0 +1,96 @@
+@use '../../styles/mixins' as *;
+
+// Canto SUPERIOR direito — o Toast (transitório) já ocupa o inferior direito;
+// os dois nunca se sobrepõem.
+.stack {
+  position: fixed;
+  top: $sp-6;
+  right: $sp-6;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  max-width: 360px;
+
+  @include mobile {
+    top: $sp-3;
+    right: $sp-3;
+    left: $sp-3;
+    max-width: none;
+  }
+}
+
+.cartao {
+  display: flex;
+  align-items: flex-start;
+  gap: $sp-3;
+  padding: $sp-3 $sp-4;
+  background: var(--modal-bg);
+  border: 1px solid var(--glass-border);
+  border-left: 3px solid $success;
+  border-radius: $radius-md;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(12px);
+  animation: whatsappNotificacaoEntra 0.2s ease;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: $success;
+  }
+}
+
+.corpo {
+  min-width: 0;
+  flex: 1;
+}
+
+.remetente {
+  display: block;
+  margin-bottom: 2px;
+  font-size: $fs-sm;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.texto {
+  margin: 0;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  // Resposta de paciente pode vir longa — a notificação não pode crescer até
+  // tomar a tela inteira.
+  overflow-y: auto;
+  max-height: 120px;
+  white-space: pre-wrap;
+}
+
+.fechar {
+  @include focus-ring;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  border-radius: $radius-sm;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover {
+    background: var(--glass-bg-hover);
+    color: var(--text-primary);
+  }
+}
+
+@keyframes whatsappNotificacaoEntra {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}

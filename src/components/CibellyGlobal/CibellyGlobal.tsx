@@ -42,6 +42,7 @@ export function CibellyGlobal() {
     aoConsultarAgenda: ferramentas.consultarAgenda,
     aoAgendar: ferramentas.agendarConsulta,
     aoConsultarHistorico: ferramentas.consultarHistorico,
+    aoConsultarFinanceiro: ferramentas.consultarFinanceiroPaciente,
     aoCancelarConsulta: ferramentas.cancelarConsulta,
     aoCriarLembrete: ferramentas.criarLembrete,
     aoConcluirLembrete: ferramentas.concluirLembrete,

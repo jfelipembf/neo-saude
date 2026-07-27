@@ -1,5 +1,6 @@
 import { communicationAgent } from './communicationAgent.ts'
 import { documentsAgent } from './documentsAgent.ts'
+import { financeAgent } from './financeAgent.ts'
 import { inventoryAgent } from './inventoryAgent.ts'
 import { odontogramAgent } from './odontogramAgent.ts'
 import { patientsAgent } from './patientsAgent.ts'
@@ -23,6 +24,7 @@ export const CIBELLY_SPECIALIST_AGENTS = Object.freeze([
   inventoryAgent,
   communicationAgent,
   documentsAgent,
+  financeAgent,
 ] as const)
 
 const agentsByDomain = new Map<CibellyToolDomain, CibellySpecialistAgent>(

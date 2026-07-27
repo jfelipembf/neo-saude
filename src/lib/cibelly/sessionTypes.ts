@@ -89,6 +89,11 @@ export interface CibellyHandlers {
   }) => Promise<unknown>
   aoLerOdontograma?: (p: { dentes?: number[] }) => Promise<unknown>
   aoConsultarHistorico?: (p?: { data?: string; dente?: number }) => Promise<unknown>
+  /** SÓ LEITURA — ver consultarFinanceiroPaciente em useCibellyGeneralTools.ts. */
+  aoConsultarFinanceiro?: (p: {
+    paciente?: string
+    assunto?: 'em_aberto' | 'ultimo_pagamento' | 'a_faturar'
+  }) => Promise<unknown>
   aoCriarLembrete?: (p: { texto: string }) => Promise<unknown>
   aoConcluirLembrete?: (p: { id: string }) => Promise<unknown>
   aoAgendar?: (p: {

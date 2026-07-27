@@ -196,6 +196,7 @@ export function OdontogramFullscreenPage() {
     aoConsultarAgenda: ferramentas.consultarAgenda,
     aoAgendar: ferramentas.agendarConsulta,
     aoConsultarHistorico: ferramentas.consultarHistorico,
+    aoConsultarFinanceiro: ferramentas.consultarFinanceiroPaciente,
     aoLerOdontograma: lerOdontograma,
     aoCancelarConsulta: ferramentas.cancelarConsulta,
     aoCriarLembrete: ferramentas.criarLembrete,

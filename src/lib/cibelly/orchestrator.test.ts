@@ -21,13 +21,16 @@ const calls = Array.from({ length: 5 }, (_, index) => ({
 }))
 
 describe('CibellyOrchestrator', () => {
-  it('conhece as 17 ferramentas disponíveis', () => {
+  it('conhece as 18 ferramentas disponíveis', () => {
     const orchestrator = new CibellyOrchestrator()
-    expect(Object.keys(orchestrator.tools)).toHaveLength(17)
-    expect(orchestrator.agents).toHaveLength(7)
+    expect(Object.keys(orchestrator.tools)).toHaveLength(18)
+    expect(orchestrator.agents).toHaveLength(8)
     expect(orchestrator.getTool('solicitar_orcamento_fornecedor')?.domain).toBe('inventory')
     expect(orchestrator.getAgentForTool('solicitar_orcamento_fornecedor')?.id)
       .toBe('inventory_agent')
+    expect(orchestrator.getTool('consultar_financeiro_paciente')?.domain).toBe('finance')
+    expect(orchestrator.getAgentForTool('consultar_financeiro_paciente')?.id)
+      .toBe('finance_agent')
     expect(orchestrator.getTool('ferramenta_inventada')).toBeNull()
     expect(orchestrator.getAgentForTool('ferramenta_inventada')).toBeNull()
   })
@@ -203,6 +206,7 @@ describe('agentes especialistas', () => {
       inventory: executor('inventory'),
       communication: executor('communication'),
       documents: executor('documents'),
+      finance: executor('finance'),
     }
 
     const result = await new CibellyAgent().executeTool(

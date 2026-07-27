@@ -50,6 +50,7 @@ export const queryKeys = {
   whatsapp: {
     connection:    ['whatsapp', 'connection'] as const,
     automations: ['whatsapp', 'automations'] as const,
+    inboundMessages: ['whatsapp', 'inboundMessages'] as const,
   },
   subscription: {
     plan:     ['subscription', 'plan'] as const,

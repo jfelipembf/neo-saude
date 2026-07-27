@@ -25,12 +25,19 @@ import {
   matchesPendingMessage, pendingMessageConfirmation,
   type PendingMessageConfirmation,
 } from '@/lib/cibelly/messageConfirmation'
-import { consultasDoDia, consultasNoHorario, textoDaOcupacao } from '@/utils/agendaOccupancy'
+import {
+  consultasDoDia, consultasNoHorario, perguntaAmplaDemais, textoDaOcupacao,
+  PERGUNTA_DO_RECORTE, type FocoDaAgenda,
+} from '@/utils/agendaOccupancy'
 import { chooseRoom } from '@/utils/roomChoice'
 import { descreverPaciente, resolverDestinatario } from '@/utils/messageRecipient'
 import { spokenName } from '@/utils/spokenName'
 import { resolverPedidoDeOrcamento } from '@/utils/quoteRequest'
 import { resumoPorDente, resumoUltimosAtendimentos } from '@/utils/clinicalHistorySpeech'
+import {
+  dividaDoPaciente, restanteDoTitulo, resumoAFaturar,
+  resumoDoQueDeve, resumoDoUltimoPagamento,
+} from '@/utils/patientFinanceSpeech'
 import { pediuCancelamento } from '@/utils/cancelIntent'
 import { dataPorExtenso, distanciaDeHoje, fimDeSemana, datasAmbiguas } from '@/utils/spokenDate'
 import { addMinutes, formatLongDate, toIsoDate, isoToBrDate } from '@/utils/date'
@@ -45,6 +52,7 @@ import { buildDocument } from '@/utils/printDocument'
 import { listMaterialsWithSuppliers } from '@/services/materialsService'
 import { sendWhatsAppMessage } from '@/services/whatsappService'
 import { searchPatientHistory } from '@/services/odontogramService'
+import { listPatientReceivables, listUnbilledSessions } from '@/services/financeService'
 import {
   checkSlot, freeSlotsOfDay, mergeFreeSlots, nextFreeSlots, formatFreeStartRanges,
   UNAVAILABLE_LABEL, type AvailabilityInput,
@@ -410,12 +418,98 @@ export function useCibellyGeneralTools({
     return { ok: true, concluido: alvo.texto }
   }
 
+  /**
+   * "O Lucas tem alguma coisa em aberto?" — SÓ LEITURA.
+   *
+   * Nada aqui mexe em dinheiro: não dá baixa, não cancela, não fatura. Dar
+   * baixa por voz é outra ferramenta, com confirmação obrigatória, e ela não
+   * existe ainda de propósito.
+   *
+   * A PERMISSÃO NÃO É REGRA DE PROMPT: a consulta sai com o JWT do próprio
+   * dentista, então quem não tem a feature `finance` no perfil de acesso
+   * simplesmente não lê a tabela — a RLS recusa antes de qualquer frase ser
+   * montada. O `catch` transforma essa recusa numa explicação, em vez de
+   * deixá-la virar "não encontrei nada", que soaria como "está tudo quitado".
+   *
+   * As frases saem prontas de patientFinanceSpeech.ts (17 testes), e não da
+   * cabeça do modelo: o número vai ser dito em voz alta na frente do paciente.
+   */
+  async function consultarFinanceiroPaciente(p: {
+    paciente?: string
+    assunto?: 'em_aberto' | 'ultimo_pagamento' | 'a_faturar'
+  }) {
+    /**
+     * Sem nome, vale o paciente ABERTO — e a separação entre as superfícies já
+     * garante o comportamento certo sem flag nenhuma: na superfície global o
+     * hook recebe `patientId: null` (ver CibellyGlobal.tsx), então lá o silêncio
+     * sobre quem é vira um pedido de nome, não um palpite sobre quem está na
+     * cadeira. No odontograma há cadeira, e usá-la é o esperado.
+     */
+    let alvoId: string | null = null
+    if (p.paciente?.trim()) {
+      const resolution = resolvePatientReference(pacientes ?? [], p.paciente)
+      if (!resolution.ok) return { ok: false, erro: resolution.error }
+      alvoId = resolution.patient.id
+    } else {
+      alvoId = patientId
+    }
+    if (!alvoId) {
+      return { ok: false, erro: 'De qual paciente? Me diz o nome ou o código PAC.' }
+    }
+
+    const nome = nomeFaladoDoPaciente(alvoId)
+    const assunto = p.assunto ?? 'em_aberto'
+
+    try {
+      if (assunto === 'a_faturar') {
+        const todas = await listUnbilledSessions()
+        const doPaciente = todas.filter(s => s.patientId === alvoId)
+        return {
+          ok: true,
+          resposta: resumoAFaturar(doPaciente, nome),
+          procedimentos: doPaciente.map(s => ({
+            descricao: s.description, data: s.date, valor: s.amount,
+          })),
+        }
+      }
+
+      const titulos = await listPatientReceivables(alvoId)
+      if (assunto === 'ultimo_pagamento') {
+        return { ok: true, resposta: resumoDoUltimoPagamento(titulos, nome) }
+      }
+
+      const abertos = dividaDoPaciente(titulos)
+      return {
+        ok: true,
+        resposta: resumoDoQueDeve(titulos, nome),
+        // O detalhe vai junto para ela responder "quais?" sem outra chamada —
+        // só o que o paciente deve, nunca as parcelas de cartão.
+        emAberto: abertos.map(r => ({
+          descricao: r.description,
+          vencimento: r.dueDate,
+          valor: restanteDoTitulo(r),
+          vencido: r.status === 'overdue',
+        })),
+      }
+    } catch (e) {
+      return {
+        ok: false,
+        erro: errorMessage(
+          e,
+          'Não consegui ler o financeiro deste paciente — pode ser que o seu perfil de acesso não tenha o Financeiro liberado.',
+        ),
+      }
+    }
+  }
+
   async function consultarAgenda(p: {
     paciente?: string
     data?: string
     hora?: string
     duracao?: number
     dias?: number
+    /** O recorte que ele escolheu ao responder PERGUNTA_DO_RECORTE. */
+    mostrar?: FocoDaAgenda
   }, context?: CibellyToolContext) {
     if (!profId) {
       return { ok: false, erro: 'Seu login não está vinculado a um cadastro de profissional, então não sei de qual agenda falar.' }
@@ -496,10 +590,25 @@ export function useCibellyGeneralTools({
       }
     }
 
+    /**
+     * "COMO ESTÁ MINHA AGENDA?" — devolve a PERGUNTA, não a agenda.
+     *
+     * Vem antes de qualquer ramo que monte lista: sem dia definido, sem
+     * paciente e sem dizer o que quer ver, a resposta honesta é um recorte, e
+     * qualquer coisa que a ferramenta devolvesse aqui viraria locução. Por isso
+     * o retorno não traz vaga nem agendamento nenhum — ela não tem o que ler
+     * além da pergunta. Ver perguntaAmplaDemais em utils/agendaOccupancy.ts.
+     */
+    if (perguntaAmplaDemais({
+      data: p.data, dias: p.dias, temPacienteAlvo: Boolean(pacienteAlvo), foco: p.mostrar,
+    })) {
+      return { ok: true, precisaRecorte: true, resposta: PERGUNTA_DO_RECORTE }
+    }
+
     // `dias` sem `data` é "a partir de hoje" — é como ele pergunta ("tenho
     // consulta essa semana?"), e sem isto a chamada caía no caminho antigo, que
     // devolve uma vaga por dia em vez dos blocos do período.
-    if (p.data || p.dias) {
+    if (p.data || p.dias || p.mostrar) {
       const inicioIso = p.data ?? hojeIso
       // PERÍODO numa chamada só. Sem isto, perguntada sobre "esta semana" ela
       // chamava a ferramenta um dia por vez — sete idas medidas num atendimento
@@ -553,7 +662,8 @@ export function useCibellyGeneralTools({
         ? ' Não há outro horário livre nesse período.'
         : ` Para uma consulta de ${duracao} minutos, os horários de início livres são ${resumoLivres}.`
 
-      // AS VAGAS SÓ ENTRAM QUANDO HÁ UM PACIENTE EM VISTA.
+      // AS VAGAS SÓ ENTRAM QUANDO HÁ UM PACIENTE EM VISTA — ou quando ele
+      // PEDIU as vagas.
       //
       // "Quem está agendado sexta?" é pergunta sobre a agenda, não pedido de
       // horário — e a resposta vinha com a lista de quem está marcado MAIS
@@ -562,18 +672,24 @@ export function useCibellyGeneralTools({
       //
       // Com paciente-alvo o par continua fazendo sentido: quem pergunta "a Ana
       // tem consulta essa semana?" quer saber se tem e, se não, quando dá.
-      const resposta = pacienteAlvo ? consultasTexto + vagasTexto : consultasTexto
+      //
+      // `mostrar` é o recorte que ele escolheu depois de PERGUNTA_DO_RECORTE:
+      // uma coisa ou a outra, nunca as duas — foi para não ler as duas que a
+      // pergunta existe.
+      const resposta = p.mostrar === 'vagas'
+        ? vagasTexto.trim()
+        : p.mostrar === 'agendamentos'
+          ? consultasTexto
+          : pacienteAlvo ? consultasTexto + vagasTexto : consultasTexto
 
       return { ok: true, resposta, consultasDoPaciente: noPeriodo, agenda }
     }
-    // Sem data, sem hora e sem paciente: "como está a agenda?". Responde as
-    // próximas vagas, que é a única leitura possível sem nenhum recorte.
+    // O que sobra é "quando é a consulta dela?" — alguém nomeado, sem dia.
+    // Sem paciente E sem recorte, perguntaAmplaDemais já devolveu a pergunta lá
+    // em cima; a checagem aqui é o compilador cobrando que o invariante seja
+    // dito, e não presumido.
     if (!pacienteAlvo) {
-      return {
-        ok: true,
-        resposta: 'Diga o dia (e a hora, se quiser) para eu ver quem está agendado, ou o nome do paciente.',
-        proximasVagas: nextFreeSlots(disponibilidade(), hojeIso, duracao, hojeIso, 5),
-      }
+      return { ok: true, precisaRecorte: true, resposta: PERGUNTA_DO_RECORTE }
     }
     return {
       ok: true,
@@ -1056,6 +1172,7 @@ export function useCibellyGeneralTools({
     consultarAgenda,
     agendarConsulta,
     consultarHistorico,
+    consultarFinanceiroPaciente,
     cancelarConsulta,
     criarLembrete,
     concluirLembrete,

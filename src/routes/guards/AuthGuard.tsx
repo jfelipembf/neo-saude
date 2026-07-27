@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useSession } from '@/context/SessionProvider'
 import { AUTH_ROUTES } from '@/constants'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
+import { WhatsAppReplyNotifications } from '@/components/WhatsAppReplyNotifications/WhatsAppReplyNotifications'
 
 /**
  * Bloqueia rotas autenticadas: sem sessão → redireciona para o login,
@@ -19,5 +20,10 @@ export function AuthGuard() {
     return <Navigate to={AUTH_ROUTES.LOGIN} state={{ from: location }} replace />
   }
 
-  return <Outlet />
+  return <>
+    <Outlet />
+    {/* Cobre AppLayout E a tela cheia do odontograma (rota IRMÃ dele, ver
+        AppRouter.tsx) — as duas vivem dentro deste mesmo guard. */}
+    <WhatsAppReplyNotifications />
+  </>
 }

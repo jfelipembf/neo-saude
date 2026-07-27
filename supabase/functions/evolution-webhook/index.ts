@@ -3,6 +3,7 @@ import {
   extractEvolutionPhone,
   fetchEvolutionPhone,
   mapEvolutionState,
+  normalizeWhatsappNumber,
   pickEvolutionQr,
 } from "../_shared/evolution.ts";
 
@@ -58,6 +59,50 @@ Deno.serve(async (request) => {
         qr_expires_at: new Date(Date.now() + 2 * 60_000).toISOString(),
         last_error: null,
       }).eq("session_ref", instanceName);
+      return json({ ok: true });
+    }
+
+    if (event === "MESSAGES_UPSERT") {
+      // A Evolution/Baileys manda ora um objeto único em `data`, ora um lote
+      // em `data.messages[]` — cobre os dois formatos. NÃO verificado ainda
+      // contra um payload real desta instância; conferir com get_logs no
+      // primeiro teste de verdade (mandar um WhatsApp pro número da clínica).
+      const items = Array.isArray(payload?.data?.messages)
+        ? payload.data.messages
+        : [payload?.data];
+
+      for (const item of items) {
+        const key = item?.key ?? {};
+        if (key.fromMe) continue; // eco da própria clínica — não é resposta do paciente
+
+        const phone = normalizeWhatsappNumber(String(key?.remoteJid ?? ""));
+        const body = item?.message?.conversation
+          ?? item?.message?.extendedTextMessage?.text
+          ?? item?.message?.imageMessage?.caption
+          ?? item?.message?.videoMessage?.caption
+          ?? null;
+        if (!phone || !body) continue;
+
+        const { data: patient } = await admin
+          .from("patient")
+          .select("id, name")
+          .eq("clinic_id", connection.clinic_id)
+          .eq("whatsapp", phone)
+          .maybeSingle();
+
+        const { error } = await admin.from("whatsapp_inbound_message").insert({
+          clinic_id: connection.clinic_id,
+          patient_id: patient?.id ?? null,
+          sender_phone: phone,
+          sender_name: patient?.name ?? item?.pushName ?? null,
+          body,
+          provider_message_id: key?.id ?? null,
+        });
+        // 23505 = mesma mensagem já gravada (retry do webhook) — silencioso e esperado.
+        if (error && error.code !== "23505") {
+          console.error("[evolution-webhook] inbound insert falhou", error);
+        }
+      }
       return json({ ok: true });
     }
 

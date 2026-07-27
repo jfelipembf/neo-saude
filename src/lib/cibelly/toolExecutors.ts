@@ -408,6 +408,32 @@ export function createSpecialistExecutors({
     return { ok: true, resultado: await issue(args as unknown as DocumentRequest) }
   }
 
+  /**
+   * FINANCEIRO — só leitura. Não há ramo de escrita aqui de propósito: dar
+   * baixa em título por voz precisa de confirmação falada, e essa ferramenta
+   * ainda não existe.
+   */
+  async function executeFinance({
+    name,
+    args,
+  }: DelegatedToolCall): Promise<Record<string, unknown>> {
+    const handlers = getHandlers()
+    if (name === 'consultar_financeiro_paciente') {
+      return handlers.aoConsultarFinanceiro
+        ? {
+          ok: true,
+          financeiro: await handlers.aoConsultarFinanceiro(
+            args as {
+              paciente?: string
+              assunto?: 'em_aberto' | 'ultimo_pagamento' | 'a_faturar'
+            },
+          ),
+        }
+        : { ok: false, erro: 'Não consegui ler o financeiro agora.' }
+    }
+    return { ok: false, erro: `Ferramenta financeira desconhecida: ${name}` }
+  }
+
   return {
     odontogram: executeOdontogram,
     patients: executePatients,
@@ -416,5 +442,6 @@ export function createSpecialistExecutors({
     inventory: executeInventory,
     communication: executeCommunication,
     documents: executeDocuments,
+    finance: executeFinance,
   }
 }

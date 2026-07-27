@@ -15,6 +15,7 @@ function executorsWith(inventory: SpecialistToolExecutor): CibellySpecialistExec
     inventory,
     communication: unused,
     documents: unused,
+    finance: unused,
   }
 }
 

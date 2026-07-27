@@ -25,7 +25,7 @@ export const GOAL_METRICS: GoalMetric[] = [
 export const GOAL_METRIC_LABEL: Record<GoalMetric, string> = {
   appointments_scheduled: 'Consultas agendadas',
   appointments_completed: 'Consultas realizadas',
-  revenue:                'Faturamento do mês',
+  revenue:                'Ganhos do mês',
   // "Gastos" e não "Despesas": é o termo que o app já usa para o MESMO número
   // na legenda do FinanceChart. Duas palavras para a mesma coisa fazem o
   // usuário procurar a diferença que não existe.
