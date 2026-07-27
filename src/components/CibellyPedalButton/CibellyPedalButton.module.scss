@@ -1,0 +1,66 @@
+@use '../../styles/mixins' as *;
+
+// Flutua no canto INFERIOR — o topo já tem a barra da tela; é lá que o olho
+// procura navegação, não o pedal. Tamanho grande de propósito: é para segurar
+// com o polegar sem mirar, a mesma folga de um botão físico.
+.botao {
+  @include focus-ring;
+  position: fixed;
+  right: $sp-5;
+  bottom: $sp-5;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border: none;
+  border-radius: $radius-pill;
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: transform 0.1s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  // Segurar não pode virar seleção de texto/callout do iOS nem "puxar para
+  // atualizar" da página — é a mesma razão de existir de um botão físico.
+  touch-action: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+
+  svg { width: 26px; height: 26px; }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+    box-shadow: none;
+  }
+
+  &:not(:disabled):hover { box-shadow: var(--shadow-md), var(--shadow-glow); }
+
+  @include phone {
+    right: $sp-3;
+    bottom: $sp-3;
+    width: 56px;
+    height: 56px;
+
+    svg { width: 22px; height: 22px; }
+  }
+}
+
+// Dedo segurando: encolhe (feedback tátil de "pressionado") e acende o
+// mesmo verde + halo que a moldura da tela inteira usa para "ouvindo" — é o
+// mesmo aviso, só que embaixo do polegar em vez de na borda da janela.
+.botaoAtivo {
+  transform: scale(0.92);
+  box-shadow: var(--shadow-glow);
+  animation: cibellyPedalBotaoPulso 1.6s ease-in-out infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes cibellyPedalBotaoPulso {
+  0%, 100% { box-shadow: var(--shadow-glow); }
+  50% { box-shadow: var(--shadow-md); }
+}

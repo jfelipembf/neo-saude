@@ -20,6 +20,7 @@ import {
 import { useSession } from '@/context/SessionProvider'
 import { useTheme } from '@/context/ThemeProvider'
 import { PatientPicker } from '@/components/PatientPicker/PatientPicker'
+import { CibellyPedalButton } from '@/components/CibellyPedalButton/CibellyPedalButton'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { Button } from '@/components/Button/Button'
 import { Spinner } from '@/components/Spinner/Spinner'
@@ -523,6 +524,15 @@ export function OdontogramFullscreenPage() {
         ? styles.chipReady
         : styles[`chip${cibelly.status[0].toUpperCase()}${cibelly.status.slice(1)}`]
 
+  // BOTÃO NA TELA, NO LUGAR DO PEDAL J FÍSICO — que ainda não chegou. Mesmo
+  // paciente-atual do teclado (ver useCibellyPedal acima); some sozinho
+  // quando o pedal de verdade estiver em todo consultório.
+  const botaoPedalHabilitado = cibelly.status === 'listening' && !!patientId
+  const botaoPedalMotivo = !patientId
+    ? 'Escolha um paciente para falar com a Cibelly'
+    : statusTexto
+  const botaoPedalRotulo = `Segure para falar com a Cibelly${patientName ? ` sobre ${patientName}` : ''}`
+
   return (
     <div className={[
       styles.tela,
@@ -831,6 +841,17 @@ export function OdontogramFullscreenPage() {
           </aside>
         </div>
       </div>
+
+      <CibellyPedalButton
+        mode="patient"
+        enabled={botaoPedalHabilitado}
+        active={cibelly.modoEscuta === 'patient'}
+        processing={emProcessamento}
+        onStart={cibelly.iniciarEscuta}
+        onStop={cibelly.encerrarEscuta}
+        label={botaoPedalRotulo}
+        disabledReason={botaoPedalMotivo}
+      />
 
       <ConfirmDialog
         open={confirmSaida !== null}
