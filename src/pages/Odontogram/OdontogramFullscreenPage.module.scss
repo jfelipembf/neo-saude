@@ -36,12 +36,8 @@ $raio-item: 10px;
   }
 }
 
-// ATENDIMENTO ABERTO — a tela inteira avisa.
-//
-// Antes só havia um chip no canto. Com o paciente na cadeira e o dentista a um
-// metro da tela, de luva, um chip não se vê; uma moldura viva sim. E como o
-// microfone fica aberto na frente de outra pessoa, "está gravando" tem de ser
-// impossível de não notar.
+// ÁUDIO SENDO CAPTURADO — a tela inteira avisa. Sem pedal pressionado não há
+// moldura: o pipeline continua pronto, mas nenhum áudio sai do navegador.
 .telaOuvindo::after {
   content: '';
   position: absolute;
@@ -194,6 +190,12 @@ $raio-item: 10px;
   border-color: var(--warning-fg);
   color: var(--warning-fg);
   background: transparent;
+}
+
+.chipReady {
+  border-color: var(--glass-border-strong);
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
 }
 
 // Ouvindo é o único estado que se anuncia: verde + halo, para o dentista saber

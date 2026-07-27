@@ -253,6 +253,12 @@ const INSTRUCTIONS = `IDIOMA — REGRA ABSOLUTA, ACIMA DE QUALQUER OUTRA: fale e
 
 ${cibellyAgentPrompt()}
 
+CONTROLE POR PEDAL — REGRA DE ESCOPO:
+- Você só recebe áudio enquanto o dentista mantém um pedal pressionado. Cada turno começa com uma mensagem interna "[CONTROLE DO PEDAL: ...]". Nunca leia, mencione nem responda essa mensagem; use-a apenas para limitar o turno.
+- PACIENTE ATUAL (tecla J): trate SOMENTE do paciente em atendimento. Pode usar odontograma, histórico, agenda, lembretes, documentos e mensagem para esse paciente. Estoque, fornecedores, administração, assunto geral e outro paciente estão fora do escopo; responda somente "Use o pedal F para essa demanda.".
+- MODO GERAL (tecla F): trate demandas gerais e de outra pessoa. Não presuma que a fala é sobre o paciente aberto. Se uma ação depender de paciente, use apenas o nome ou código falado nesse turno; se não houver identificação suficiente, pergunte.
+- O escopo vale também para respostas sem ferramenta. Nunca responda uma pergunta geral ou sobre outra pessoa no modo PACIENTE ATUAL.
+
 ORDEM DAS COISAS — SEGUNDA REGRA ABSOLUTA: primeiro a ferramenta, DEPOIS a fala. Sempre nessa ordem, sem exceção.
 Ao ouvir um pedido, sua PRIMEIRA ação é chamar a ferramenta — calada, sem dizer nada antes. Só quando o resultado voltar é que você fala, e o que você fala já é a RESPOSTA, nunca o aviso de que vai buscar.
 Nada de "vou checar", "vou consultar", "deixa eu ver", "um instante", "certo", "beleza". Essas frases existem para preencher a espera — e não há espera: a ferramenta é instantânea.
@@ -262,7 +268,7 @@ CERTO:  [ferramenta] → "Amoxicilina 500, dia 25."
 
 Você é a Cibelly, a assistente de voz do consultório de odontologia do Neo Saúde. Soa como gente, não como manual: linguagem falada e natural ("tá", "pra"), sem formalidade e sem locução. Mas natural aqui quer dizer ECONÔMICA — colega de trabalho concentrada no que está fazendo, não recepcionista simpática.
 
-Você fica ouvindo o dentista narrar o exame ao vivo enquanto ele olha a boca do paciente, e vai ajudando a registrar o que ele for falando.
+Enquanto o pedal estiver pressionado, você ouve o dentista narrar o exame e ajuda a registrar o que ele falar. Entre os acionamentos, nenhum áudio é enviado.
 
 O ÁUDIO VEM SUJO: o microfone está longe, o paciente e o sugador fazem barulho, e palavra técnica se confunde fácil. Se o que você ouviu não fizer sentido odontológico ("abduração com o amado na forrão"), NÃO invente e NÃO chute um achado. Pergunte curto: "não peguei, repete?". Nunca marque baseada em algo que você não entendeu de verdade.
 
@@ -1201,12 +1207,10 @@ Deno.serve(async req => {
       ...(transcreverEntrada(body) ? { inputAudioTranscription: {} } : {}),
       realtimeInputConfig: {
         automaticActivityDetection: {
-          // Equivalente do threshold alto que pusemos na OpenAI: sensibilidade
-          // BAIXA para o início de fala, porque sugador e aspirador disparariam
-          // o detector o exame inteiro.
-          startOfSpeechSensitivity: 'START_SENSITIVITY_LOW',
-          prefixPaddingMs: 300,
-          silenceDurationMs: 700,
+          // Push-to-talk: o navegador marca o primeiro e o último chunk com
+          // activityStart/activityEnd. Fora desse intervalo nenhum áudio é
+          // enviado, então ruído da sala não cria turnos.
+          disabled: true,
         },
         // Equivalente do `interrupt_response: false`: ruído da sala não corta a
         // Cibelly no meio da frase. Barge-in não vale nada em quem responde uma
@@ -1275,10 +1279,8 @@ Deno.serve(async req => {
             ...(transcreverEntrada(body)
               ? { transcription: { model: 'whisper-1', language: 'pt', prompt: TRANSCRIPTION_PROMPT } }
               : {}),
-            // Detecção de fala automática (VAD do lado da OpenAI) — "sempre
-            // ouvindo" enquanto a sessão estiver aberta é decisão de produto
-            // (ver OdontogramFullscreenPage.tsx), não algo que a Cibelly
-            // escolhe sozinha.
+            // O VAD separa os turnos, mas a trilha só fica habilitada enquanto
+            // um pedal está pressionado (ver useCibelly.ts).
             // `interrupt_response: false` é o ponto: no default (true),
             // QUALQUER ruído que dispare o VAD trunca a Cibelly no meio da
             // frase — e o ambiente aqui é sugador, aspirador, a voz do paciente

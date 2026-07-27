@@ -2,6 +2,8 @@ import type { ToothProposalResult } from '@/lib/odontogramShell/toothFields'
 
 export type VoiceProvider = 'openai' | 'gemini'
 
+export type CibellyListeningMode = 'patient' | 'general'
+
 export type CibellyStatus = 'idle' | 'connecting' | 'listening' | 'error'
 
 export interface CibellyActivity {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { errorMessage } from '@/utils/errors'
 import { toIsoDate } from '@/utils/date'
@@ -20,8 +20,13 @@ import {
 } from '@/lib/cibelly/sessionUtils'
 import { createSpecialistExecutors } from '@/lib/cibelly/toolExecutors'
 import { createOpenAIRealtimeEventHandler } from '@/lib/cibelly/openAIRealtimeEvents'
+import {
+  pedalScopeError,
+  pedalTurnInstruction,
+} from '@/lib/cibelly/pedal'
 import type {
   CibellyHandlers,
+  CibellyListeningMode,
   CibellyStatus,
 } from '@/lib/cibelly/sessionTypes'
 import { useCibellyActivity } from './useCibellyActivity'
@@ -32,6 +37,7 @@ export type {
   MaterialUsage,
   PatientMessageRequest,
   QuoteRequest,
+  CibellyListeningMode as ModoEscutaCibelly,
   VoiceProvider as ProvedorDeVoz,
 } from '@/lib/cibelly/sessionTypes'
 
@@ -67,11 +73,8 @@ const FOLLOW_UP_ACK_TIMEOUT_MS = 5_000
 const CONFIRMATION_FALLBACK_DELAY_MS = 400
 
 /**
- * @param ativa Liga/desliga a escuta. A Cibelly só conecta quando o
- *   atendimento é iniciado de propósito: num consultório, microfone aberto o
- *   tempo todo em que a tela está aberta capta a conversa entre pacientes.
- *   Desligar encerra a sessão WebRTC E solta o microfone (o LED do aparelho
- *   apaga — é o sinal que a pessoa na cadeira enxerga).
+ * @param ativa Liga/desliga a sessão. O microfone fica mudo até um pedal ser
+ *   mantido pressionado e volta a ficar mudo assim que ele é solto.
  */
 export function useCibelly(ativa: boolean, patientId: string | null, handlers: CibellyHandlers = {}) {
   const [status, setStatus] = useState<CibellyStatus>('idle')
@@ -80,6 +83,7 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
   const [lastApplied, setLastApplied] = useState<string | null>(null)
   /** Indica resposta ou ferramenta em andamento nos dois provedores. */
   const [processando, setProcessando] = useState(false)
+  const [modoEscuta, setModoEscuta] = useState<CibellyListeningMode | null>(null)
   const [cibellyAgent] = useState(() => new CibellyAgent())
   const orchestrator = cibellyAgent.orchestrator
   const {
@@ -96,6 +100,14 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
   const dcRef = useRef<RTCDataChannel | null>(null)
   const audioElRef = useRef<HTMLAudioElement | null>(null)
   const micStreamRef = useRef<MediaStream | null>(null)
+  const modoDoTurnoRef = useRef<CibellyListeningMode | null>(null)
+  const modoCapturaRef = useRef<CibellyListeningMode | null>(null)
+  const pedalBloqueadoRef = useRef(false)
+  const pedalUnlockTimerRef = useRef(0)
+  const iniciarEscutaRef = useRef<(mode: CibellyListeningMode) => boolean>(
+    () => false,
+  )
+  const encerrarEscutaRef = useRef<() => void>(() => {})
   /** Fotos do estado antes de cada marcação — pilha do "desfaz aí". */
   const historicoRef = useRef<string[]>([])
 
@@ -129,6 +141,38 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
   const patientIdRef = useRef(patientId)
   useEffect(() => { patientIdRef.current = patientId })
 
+  const liberarPedal = useCallback(() => {
+    pedalBloqueadoRef.current = false
+    setProcessando(false)
+    if (pedalUnlockTimerRef.current) {
+      window.clearTimeout(pedalUnlockTimerRef.current)
+      pedalUnlockTimerRef.current = 0
+    }
+  }, [])
+
+  const iniciarEscuta = useCallback((mode: CibellyListeningMode): boolean => {
+    if (mode === 'patient' && !patientIdRef.current) return false
+    if (pedalBloqueadoRef.current || modoCapturaRef.current) return false
+    const started = iniciarEscutaRef.current(mode)
+    if (!started) return false
+    modoDoTurnoRef.current = mode
+    modoCapturaRef.current = mode
+    setModoEscuta(mode)
+    return true
+  }, [])
+
+  const encerrarEscuta = useCallback(() => {
+    if (!modoCapturaRef.current) return
+    modoCapturaRef.current = null
+    encerrarEscutaRef.current()
+    setModoEscuta(null)
+    pedalBloqueadoRef.current = true
+    setProcessando(true)
+    // Um toque sem fala pode não gerar evento final do provedor. A trava não
+    // pode inutilizar o pedal nesse caso.
+    pedalUnlockTimerRef.current = window.setTimeout(liberarPedal, 5_000)
+  }, [liberarPedal])
+
   const [previouslyActive, setPreviouslyActive] = useState(ativa)
   if (ativa !== previouslyActive) {
     setPreviouslyActive(ativa)
@@ -138,6 +182,7 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       setStatus('idle')
       setError(null)
       setProcessando(false)
+      setModoEscuta(null)
     }
   }
 
@@ -153,6 +198,47 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
     // não faz sentido, e a URL é a mesma a sessão inteira.
     const provedor = resolveVoiceProvider()
     orchestrator.reset()
+
+    function iniciarEscutaPeloPedal(mode: CibellyListeningMode): boolean {
+      if (cancelled || (mode === 'patient' && !patientIdRef.current)) {
+        return false
+      }
+      const instruction = pedalTurnInstruction(mode)
+
+      if (provedor === 'gemini') {
+        return geminiRef.current?.iniciarEscuta(instruction) ?? false
+      }
+
+      if (orchestrator.snapshot.busy) return false
+      const dc = dcRef.current
+      const tracks = micStreamRef.current?.getAudioTracks() ?? []
+      if (dc?.readyState !== 'open' || tracks.length === 0) return false
+      dc.send(JSON.stringify({
+        type: 'conversation.item.create',
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: instruction }],
+        },
+      }))
+      tracks.forEach(track => {
+        track.enabled = true
+      })
+      return true
+    }
+
+    function encerrarEscutaPeloPedal() {
+      if (provedor === 'gemini') {
+        geminiRef.current?.encerrarEscuta()
+        return
+      }
+      micStreamRef.current?.getAudioTracks().forEach(track => {
+        track.enabled = false
+      })
+    }
+
+    iniciarEscutaRef.current = iniciarEscutaPeloPedal
+    encerrarEscutaRef.current = encerrarEscutaPeloPedal
 
     function sincronizarProcessamento() {
       if (provedor === 'openai') setProcessando(orchestrator.snapshot.busy)
@@ -386,7 +472,14 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
           if (!setup) throw new Error('Sessão da Cibelly incompleta (setup ausente).')
           const live = new GeminiLive(token, setup, {
             aoConectar: () => { if (!cancelled) { setStatus('listening'); bipDeSessao() } },
-            aoErrar: msg => { if (!cancelled) { setStatus('error'); setError(msg); registrar({ tipo: 'erro', texto: msg }) } },
+            aoErrar: msg => {
+              if (!cancelled) {
+                liberarPedal()
+                setStatus('error')
+                setError(msg)
+                registrar({ tipo: 'erro', texto: msg })
+              }
+            },
             aoFalar: texto => registrar({ tipo: 'fala', texto }),
             aoOuvir: texto => {
               registrar({ tipo: 'dentista', texto })
@@ -395,12 +488,16 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
                 texto,
               )
             },
-            aoTurnoConcluido: finishConfirmationVoiceTurn,
+            aoTurnoConcluido: () => {
+              finishConfirmationVoiceTurn()
+              liberarPedal()
+            },
             // MEDIÇÃO TEMPORÁRIA — ver src/lib/cibelly/pricing.ts.
             aoMedirUso: meta => { usoRef.current = acumularGemini(usoRef.current, meta) },
             aoProcessando: setProcessando,
             aoFechar: msg => {
               if (cancelled || !msg) return
+              liberarPedal()
               setStatus('error')
               setError(msg)
             },
@@ -446,6 +543,9 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
           audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         })
         if (cancelled) { mic.getTracks().forEach(t => t.stop()); return }
+        mic.getAudioTracks().forEach(track => {
+          track.enabled = false
+        })
         micStreamRef.current = mic
 
         const pc = new RTCPeerConnection()
@@ -509,6 +609,19 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       nome: string,
       rawArgs: Record<string, unknown>,
     ): Promise<Record<string, unknown>> {
+      const scopeError = pedalScopeError(
+        modoDoTurnoRef.current,
+        orchestrator.getTool(nome)?.domain,
+        nome,
+        rawArgs,
+      )
+      if (scopeError) {
+        return {
+          ok: false,
+          erro: scopeError,
+        }
+      }
+
       const result = await cibellyAgent.executeTool(
         nome,
         rawArgs,
@@ -572,12 +685,18 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
         usoRef.current = acumularOpenAI(usoRef.current, usage)
       },
       setError,
+      onIdle: liberarPedal,
     })
 
     connect()
 
     return () => {
       cancelled = true
+      encerrarEscutaPeloPedal()
+      iniciarEscutaRef.current = () => false
+      encerrarEscutaRef.current = () => {}
+      modoCapturaRef.current = null
+      liberarPedal()
 
       // MEDIÇÃO TEMPORÁRIA — grava a sessão que está encerrando. Fogo-e-esqueça
       // (sem await: cleanup de efeito não pode ser async) — a própria função
@@ -615,7 +734,16 @@ export function useCibelly(ativa: boolean, patientId: string | null, handlers: C
       clearFollowUpAckTimer()
       clearConfirmationFallbackTimer()
     }
-  }, [ativa, cibellyAgent, orchestrator, registrar, reservarFala, preencherFala, publicar])
+  }, [ativa, cibellyAgent, orchestrator, registrar, reservarFala, preencherFala, publicar, liberarPedal])
 
-  return { status, error, lastApplied, atividade, processando }
+  return {
+    status,
+    error,
+    lastApplied,
+    atividade,
+    processando,
+    modoEscuta,
+    iniciarEscuta,
+    encerrarEscuta,
+  }
 }

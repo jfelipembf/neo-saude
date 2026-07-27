@@ -32,6 +32,7 @@ interface OpenAIRealtimeEventHandlerOptions {
   ) => Promise<Record<string, unknown>>
   measureUsage: (usage: UsoRealtimeOpenAI | undefined) => void
   setError: (message: string | null) => void
+  onIdle?: () => void
 }
 
 export function createOpenAIRealtimeEventHandler({
@@ -51,6 +52,7 @@ export function createOpenAIRealtimeEventHandler({
   executeTool,
   measureUsage,
   setError,
+  onIdle,
 }: OpenAIRealtimeEventHandlerOptions) {
   let userTurnQueuedDuringResponseRequest = false
 
@@ -159,12 +161,14 @@ export function createOpenAIRealtimeEventHandler({
     const calls = extractFunctionCalls(event)
     if (calls.length === 0) {
       if (type === 'response.done') continueWhenReady()
+      if (orchestrator.snapshot.phase === 'idle') onIdle?.()
       return
     }
 
     const newCalls = orchestrator.claimToolCalls(calls)
     if (newCalls.length === 0) {
       continueWhenReady()
+      if (orchestrator.snapshot.phase === 'idle') onIdle?.()
       return
     }
     syncProcessing()
@@ -218,5 +222,6 @@ export function createOpenAIRealtimeEventHandler({
     }
 
     continueWhenReady()
+    if (orchestrator.snapshot.phase === 'idle') onIdle?.()
   }
 }

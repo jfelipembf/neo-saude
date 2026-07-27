@@ -9,6 +9,7 @@ import {
   type PatientMessageRequest,
   type QuoteRequest,
 } from '@/hooks/useCibelly'
+import { useCibellyPedal } from '@/hooks/useCibellyPedal'
 import { useCreatePrescription } from '@/hooks/usePrescriptions'
 import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { useCurrentUser } from '@/hooks/useUser'
@@ -1034,6 +1035,12 @@ export function OdontogramFullscreenPage() {
     aoCriarLembrete: criarLembrete,
     aoConcluirLembrete: concluirLembrete,
   })
+  useCibellyPedal({
+    enabled: emAtendimento && cibelly.status === 'listening',
+    patientAvailable: emAtendimento && !!patientId,
+    startListening: cibelly.iniciarEscuta,
+    stopListening: cibelly.encerrarEscuta,
+  })
   const [appliedSeen, setAppliedSeen] = useState<typeof cibelly.lastApplied>(null)
   const [showApplied, setShowApplied] = useState(false)
 
@@ -1311,29 +1318,46 @@ export function OdontogramFullscreenPage() {
     return <Navigate to={APP_ROUTES.DASHBOARD} replace />
   }
 
-  // Enquanto ela está processando/respondendo, falar por cima faz o SERVIDOR
-  // (não o nosso código) tentar abrir uma resposta nova em cima de uma já
-  // ativa — a API recusa, e como quem tentou foi o servidor sozinho, aquele
-  // comando falado simplesmente some, sem chamar ferramenta nenhuma. Esse
-  // estado avisa quando esperar, para o dentista não perder o comando.
   const emProcessamento = cibelly.status === 'listening' && cibelly.processando
   const statusTexto = {
     idle: 'Cibelly em espera',
     connecting: 'Conectando a Cibelly…',
-    listening: emProcessamento ? 'Cibelly processando… aguarde' : `Cibelly ouvindo${patientName ? ` · ${patientName}` : ''}`,
+    listening: emProcessamento
+      ? 'Cibelly processando… aguarde'
+      : cibelly.modoEscuta === 'patient'
+        ? `Ouvindo paciente${patientName ? ` · ${patientName}` : ''}`
+        : cibelly.modoEscuta === 'general'
+          ? 'Ouvindo demanda geral'
+          : 'Pedal pronto',
     error: cibelly.error ?? 'Cibelly indisponível',
   }[cibelly.status]
   const statusTextoCurto = {
     idle: 'Em espera',
     connecting: 'Conectando…',
-    listening: emProcessamento ? 'Processando · aguarde' : 'Ouvindo',
+    listening: emProcessamento
+      ? 'Processando'
+      : cibelly.modoEscuta === 'patient'
+        ? 'Paciente'
+        : cibelly.modoEscuta === 'general'
+          ? 'Geral'
+          : 'Pedal pronto',
     error: 'Indisponível',
   }[cibelly.status]
+  const pedalAtivo = cibelly.modoEscuta !== null
+  const mostrarMolduraCibelly = emAtendimento
+    && (pedalAtivo || emProcessamento || cibelly.status === 'error')
+  const classeChipCibelly = emProcessamento
+    ? styles.chipProcessando
+    : pedalAtivo
+      ? styles.chipListening
+      : cibelly.status === 'listening'
+        ? styles.chipReady
+        : styles[`chip${cibelly.status[0].toUpperCase()}${cibelly.status.slice(1)}`]
 
   return (
     <div className={[
       styles.tela,
-      emAtendimento ? styles.telaOuvindo : '',
+      mostrarMolduraCibelly ? styles.telaOuvindo : '',
       emProcessamento ? styles.telaProcessando : '',
       emAtendimento && cibelly.status === 'error' ? styles.telaErro : '',
     ].filter(Boolean).join(' ')}>
@@ -1373,7 +1397,7 @@ export function OdontogramFullscreenPage() {
         <div className={styles.barraDireita}>
           {emAtendimento && (
             <span
-              className={`${styles.chip} ${emProcessamento ? styles.chipProcessando : styles[`chip${cibelly.status[0].toUpperCase()}${cibelly.status.slice(1)}`]}`}
+              className={`${styles.chip} ${classeChipCibelly}`}
               role="status"
               aria-live="polite"
               title={statusTexto}

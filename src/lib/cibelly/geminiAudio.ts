@@ -123,6 +123,7 @@ export class CapturaDeMicrofone {
   private ctx: AudioContext | null = null
   private stream: MediaStream | null = null
   private no: AudioWorkletNode | null = null
+  private ativa = false
 
   async iniciar(aoCapturar: (base64: string) => void): Promise<void> {
     this.stream = await navigator.mediaDevices.getUserMedia({
@@ -136,6 +137,9 @@ export class CapturaDeMicrofone {
         autoGainControl: true,
       },
     })
+    // Push-to-talk: a permissão e o pipeline ficam prontos, mas a trilha só
+    // produz áudio enquanto um dos pedais estiver fisicamente pressionado.
+    this.setAtiva(false)
 
     this.ctx = new AudioContext({ sampleRate: 16000 })
     const url = urlDoWorklet(CAPTURA_WORKLET)
@@ -146,11 +150,25 @@ export class CapturaDeMicrofone {
     }
 
     this.no = new AudioWorkletNode(this.ctx, 'captura-pcm')
-    this.no.port.onmessage = e => aoCapturar(paraBase64PCM16(e.data as Float32Array))
+    this.no.port.onmessage = e => {
+      if (this.ativa) aoCapturar(paraBase64PCM16(e.data as Float32Array))
+    }
     this.ctx.createMediaStreamSource(this.stream).connect(this.no)
   }
 
+  setAtiva(ativa: boolean): void {
+    this.ativa = ativa
+    this.stream?.getAudioTracks().forEach(track => {
+      track.enabled = ativa
+    })
+  }
+
+  get capturando(): boolean {
+    return this.ativa
+  }
+
   parar(): void {
+    this.setAtiva(false)
     if (this.no) { this.no.port.onmessage = null; this.no.disconnect() }
     // Soltar as TRILHAS é o que apaga o indicador de microfone do sistema —
     // fechar só o contexto deixaria o mic "ligado" aos olhos de quem está na
@@ -160,6 +178,7 @@ export class CapturaDeMicrofone {
     this.no = null
     this.stream = null
     this.ctx = null
+    this.ativa = false
   }
 }
 

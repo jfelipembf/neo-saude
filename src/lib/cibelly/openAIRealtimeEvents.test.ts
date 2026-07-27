@@ -9,6 +9,7 @@ function realtimeMessage(event: unknown): MessageEvent<string> {
 function createHarness(orchestrator = new CibellyOrchestrator()) {
   const continueWhenReady = vi.fn()
   const register = vi.fn()
+  const onIdle = vi.fn()
   const handler = createOpenAIRealtimeEventHandler({
     orchestrator,
     getDataChannel: () => null,
@@ -26,8 +27,9 @@ function createHarness(orchestrator = new CibellyOrchestrator()) {
     executeTool: vi.fn(async () => ({ ok: true })),
     measureUsage: vi.fn(),
     setError: vi.fn(),
+    onIdle,
   })
-  return { continueWhenReady, handler, orchestrator, register }
+  return { continueWhenReady, handler, onIdle, orchestrator, register }
 }
 
 describe('fila de eventos da OpenAI Realtime', () => {
@@ -72,5 +74,19 @@ describe('fila de eventos da OpenAI Realtime', () => {
     expect(harness.register).not.toHaveBeenCalled()
     expect(harness.continueWhenReady).not.toHaveBeenCalled()
     consoleError.mockRestore()
+  })
+
+  it('libera o próximo acionamento quando o turno termina ocioso', async () => {
+    const consoleDebug = vi.spyOn(console, 'debug').mockImplementation(() => {})
+    const harness = createHarness()
+    harness.orchestrator.responseStarted()
+
+    await harness.handler(realtimeMessage({
+      type: 'response.done',
+      response: { output: [] },
+    }))
+
+    expect(harness.onIdle).toHaveBeenCalledTimes(1)
+    consoleDebug.mockRestore()
   })
 })

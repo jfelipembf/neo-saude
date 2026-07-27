@@ -53,6 +53,9 @@ export class GeminiLive {
   private alto = new ReproducaoDeAudio()
   private pronta = false
   private encerrado = false
+  private emResposta = false
+  private audioEnviadoNoTurno = false
+  private contextoDoTurno = ''
 
   // Campos declarados e atribuídos à mão, e não como parâmetro-propriedade do
   // construtor: o projeto compila com `erasableSyntaxOnly`, que proíbe sintaxe
@@ -105,6 +108,11 @@ export class GeminiLive {
     if (msg.setupComplete) {
       this.pronta = true
       await this.mic.iniciar(base64 => {
+        if (!this.audioEnviadoNoTurno) {
+          this.enviar({ realtimeInput: { activityStart: {} } })
+          this.enviar({ realtimeInput: { text: this.contextoDoTurno } })
+          this.audioEnviadoNoTurno = true
+        }
         this.enviar({ realtimeInput: { audio: { mimeType: 'audio/pcm;rate=16000', data: base64 } } })
       })
       this.handlers.aoConectar?.()
@@ -135,7 +143,7 @@ export class GeminiLive {
     if (msg.toolCall) {
       // Chamando ferramenta agora, resposta falada vem em seguida — mesmo
       // sinal de "espera" que o response.created da OpenAI dá.
-      this.handlers.aoProcessando?.(true)
+      this.atualizarProcessamento(true)
       const { functionCalls } = msg.toolCall as { functionCalls?: ChamadaDeFerramenta[] }
       const respostas = []
       for (const chamada of functionCalls ?? []) {
@@ -173,25 +181,65 @@ export class GeminiLive {
     const ouvido = conteudo.inputTranscription?.text
     if (ouvido?.trim()) this.handlers.aoOuvir?.(ouvido.trim())
 
-    if (conteudo.interrupted) { this.alto.cortar(); this.handlers.aoProcessando?.(false); return }
+    if (conteudo.interrupted) {
+      this.alto.cortar()
+      this.atualizarProcessamento(false)
+      return
+    }
 
     for (const parte of conteudo.modelTurn?.parts ?? []) {
-      if (parte.inlineData?.data) void this.alto.tocar(parte.inlineData.data)
+      if (parte.inlineData?.data) {
+        this.atualizarProcessamento(true)
+        void this.alto.tocar(parte.inlineData.data)
+      }
     }
 
     // `turnComplete` fecha o turno dela — o sinal de "pode falar de novo".
     if (conteudo.turnComplete) {
-      this.handlers.aoProcessando?.(false)
+      this.atualizarProcessamento(false)
       this.handlers.aoTurnoConcluido?.()
     }
+  }
+
+  private atualizarProcessamento(emAndamento: boolean) {
+    if (this.emResposta === emAndamento) return
+    this.emResposta = emAndamento
+    this.handlers.aoProcessando?.(emAndamento)
   }
 
   private enviar(msg: unknown) {
     if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg))
   }
 
-  /** Está ouvindo de verdade (setup aceito e microfone aberto). */
-  get ouvindo(): boolean { return this.pronta }
+  /**
+   * Abre um turno de push-to-talk. `activityStart` e o contexto só são enviados
+   * junto do primeiro chunk para um toque vazio não criar uma resposta.
+   */
+  iniciarEscuta(contexto: string): boolean {
+    if (!this.pronta || this.emResposta || this.mic.capturando) return false
+    this.audioEnviadoNoTurno = false
+    this.contextoDoTurno = contexto
+    this.mic.setAtiva(true)
+    return true
+  }
+
+  /**
+   * Fecha explicitamente a atividade. Um novo turno pode usar o mesmo stream
+   * sem reconectar o WebSocket.
+   */
+  encerrarEscuta(): boolean {
+    if (!this.mic.capturando) return false
+    this.mic.setAtiva(false)
+    if (this.audioEnviadoNoTurno) {
+      this.enviar({ realtimeInput: { activityEnd: {} } })
+    }
+    this.contextoDoTurno = ''
+    return true
+  }
+
+  get ouvindo(): boolean {
+    return this.mic.capturando
+  }
 
   /** Injeta uma conferência textual sem reabrir o microfone ou outra conexão. */
   enviarTexto(texto: string): void {
@@ -207,6 +255,9 @@ export class GeminiLive {
   encerrar(): void {
     this.encerrado = true
     this.pronta = false
+    this.emResposta = false
+    this.audioEnviadoNoTurno = false
+    this.contextoDoTurno = ''
     this.mic.parar()
     this.alto.parar()
     this.ws?.close(1000)
