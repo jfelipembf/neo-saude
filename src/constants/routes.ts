@@ -40,6 +40,12 @@ export const SYSTEM_ROUTES = {
  */
 export const FULLSCREEN_ROUTES = {
   ODONTOGRAM: '/odontograma',
+  /** Tela de atendimento (medicina) — `?consulta=<id>`. */
+  CONSULTATION: '/atendimento',
+  /** Tela de atendimento (fisioterapia) — `?sessao=<id>`. Rota própria e não um
+   *  parâmetro na de cima: as duas telas têm centro e painéis diferentes, e um
+   *  `?tipo=` faria a página decidir em tempo de render qual delas é. */
+  PHYSIO_SESSION: '/sessao',
 } as const
 
 /** Páginas do app para o controle de acesso por cargo (aba Cargos). */

@@ -4,6 +4,7 @@ import { useToast } from '@/components/Toast/Toast'
 import { useServices } from '@/hooks/useServices'
 import { useCheckoutSale } from '@/hooks/useSales'
 import { userMessage } from '@/lib/errors'
+import { SINGLE_ACT_MODALITIES } from '@/types/domain'
 import { toIsoDate } from '@/utils/date'
 import { SalesSelectionPanel } from './SalesSelectionPanel'
 import { SalesCartPanel } from './SalesCartPanel'
@@ -56,9 +57,13 @@ export function SalesPointModal({ open, onClose, patientId }: SalesPointModalPro
       id: s.id,
       name: s.name,
       price: s.price,
-      detail: s.modality === 'package'
-        ? `Pacote · ${s.sessions ?? 0} sessões`
-        : `Contrato · ${s.durationQty} ${s.durationUnit === 'days' ? 'dias' : s.durationUnit === 'weeks' ? 'semanas' : 'meses'}`,
+      // Ato único (consulta/procedimento) não tem vigência nem sessões: sem
+      // este ramo o carrinho anunciaria "Contrato · 0 meses" para uma consulta.
+      detail: SINGLE_ACT_MODALITIES.includes(s.modality)
+        ? (s.modality === 'consultation' ? 'Consulta' : 'Procedimento')
+        : s.modality === 'package'
+          ? `Pacote · ${s.sessions ?? 0} sessões`
+          : `Contrato · ${s.durationQty} ${s.durationUnit === 'days' ? 'dias' : s.durationUnit === 'weeks' ? 'semanas' : 'meses'}`,
     }))
 
   const subtotal = cart.reduce((sum, i) => sum + i.price, 0)

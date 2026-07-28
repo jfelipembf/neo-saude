@@ -31,14 +31,17 @@ const TABS: { key: TabKey; label: string; specialties?: ClinicSpecialty[]; exclu
   // Materiais (insumos/estoque) não se aplica à fisioterapia → escondido nesse ramo.
   { key: 'materials', label: 'Materiais', excludeSpecialties: ['physiotherapy'] },
   // Fornecedores dos materiais — só existe onde Materiais existe: odontologia.
-  { key: 'suppliers', label: 'Fornecedores', specialties: ['dentistry'] },
+  // Consultório médico que faz procedimento compra insumo como o odonto — daí
+  // Materiais e Fornecedores valerem para os dois.
+  { key: 'suppliers', label: 'Fornecedores', specialties: ['dentistry', 'medicine'] },
   { key: 'services',  label: 'Serviços', excludeSpecialties: ['dentistry'] },
   // Testes/escalas de avaliação — específico de fisioterapia.
   { key: 'tests',     label: 'Testes', specialties: ['physiotherapy'] },
   // Modelos de evolução SOAP (o "usar modelo" do prontuário) — o prontuário
   // por sessão só existe em fisioterapia, a aba acompanha.
-  { key: 'evolutionTemplates', label: 'Modelos de evolução', specialties: ['physiotherapy'] },
-  { key: 'classes',   label: 'Turmas' },
+  { key: 'evolutionTemplates', label: 'Modelos de evolução', specialties: ['physiotherapy', 'medicine'] },
+  // Turma é atendimento coletivo — não existe em consultório médico.
+  { key: 'classes',   label: 'Turmas', excludeSpecialties: ['medicine'] },
   { key: 'insurances', label: 'Convênios' },
   { key: 'commissions', label: 'Comissões' },
   { key: 'roles',    label: 'Cargos' },

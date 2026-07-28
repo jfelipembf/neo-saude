@@ -18,6 +18,33 @@
 .group--md { height: $ctrl-h-md; }
 .group--lg { height: $ctrl-h-lg; }
 
+// Variante que QUEBRA (prop `wrap`): para colunas estreitas e telas pequenas,
+// onde a fileira rígida saía do contêiner. Com quebra, a altura passa a ser a
+// soma das fileiras, então cada segmento carrega a sua — `height: 100%` do
+// grupo não serve mais de referência.
+.group--wrap {
+  height: auto;
+  flex-wrap: wrap;
+  flex-shrink: 1;
+  // A régua de baixo passa a vir dos próprios segmentos (abaixo). Mantê-la
+  // aqui também desenharia duas linhas coladas embaixo da última fileira.
+  border-bottom: none;
+
+  // Os segmentos dividem a largura e completam a última fileira, em vez de
+  // deixarem um degrau à direita.
+  .segment {
+    flex: 1 1 auto;
+    justify-content: center;
+    // Régua embaixo também: com duas fileiras, só a da direita não separa
+    // uma linha da outra. `overflow: hidden` do grupo apara a da última.
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  &.group--sm .segment { height: $ctrl-h-sm; }
+  &.group--md .segment { height: $ctrl-h-md; }
+  &.group--lg .segment { height: $ctrl-h-lg; }
+}
+
 .segment {
   display: inline-flex;
   align-items: center;

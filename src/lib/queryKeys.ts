@@ -59,6 +59,8 @@ export const queryKeys = {
   appointments: {
     all:    ['appointments'] as const,
     detail: (id: string) => ['appointments', id] as const,
+    /** Evolução livre da consulta médica (tela de atendimento). */
+    medicalRecord: (id: string) => ['appointments', id, 'medical-record'] as const,
     // Prefixada por 'appointments' de propósito: invalidar a agenda (marcar
     // presença/falta) tem de refazer os cartões do topo junto, e o prefixo
     // garante isso sem uma segunda invalidação que alguém esqueceria.
@@ -98,6 +100,16 @@ export const queryKeys = {
   user: {
     me: ['user', 'me'] as const,
   },
+  /** Ficha estruturada de UMA consulta (seções + peso/altura/IMC). */
+  consultationChart: (appointmentId: string) => ['consultationChart', appointmentId] as const,
+  /** Modelos de texto por seção da ficha — por clínica, poucos, lista inteira. */
+  noteTemplates: ['noteTemplates'] as const,
+  /** Catálogo de medicamentos (CMED). Dado de referência global — a chave não
+   *  leva clínica nenhuma, porque a resposta é a mesma para todas. */
+  drugCatalog: (termo: string) => ['drugCatalog', termo] as const,
+  /** Lista de espera da agenda — invalidada inteira a cada mudança: é uma fila
+   *  curta, e recortar por status só criaria chance de a tela ficar velha. */
+  waitingList: ['waitingList'] as const,
   finance: {
     // PREFIXO DE TODO O MÓDULO. Um movimento de dinheiro nunca mexe em uma
     // lista só: dar baixa num título altera o saldo do banco, o fluxo de caixa
@@ -110,6 +122,10 @@ export const queryKeys = {
     // diferente e não pode compartilhar cache. Continua sob o prefixo
     // ['finance'], então as mutations do módulo a invalidam junto com o resto.
     cashFlow: (days: number) => ['finance', 'cashFlow', days] as const,
+    // A matriz depende da janela, do agrupamento e da conta — os quatro entram
+    // na key, senão trocar de mês devolveria a tabela do mês anterior do cache.
+    cashFlowMatrix: (from: string, to: string, granularity: string, bankAccountId?: string) =>
+      ['finance', 'cashFlowMatrix', from, to, granularity, bankAccountId ?? 'all'] as const,
     payables:    ['finance', 'payables'] as const,
     receivables: ['finance', 'receivables'] as const,
     // Vendas (recebíveis quitados) de um período. Sob 'finance' de propósito: dar
@@ -196,8 +212,26 @@ export const queryKeys = {
   },
   // Catálogo de serviços (Administrativo → Serviços). Base do PDV e dos contratos
   // de fisioterapia.
+  // Medicação em uso do paciente, com histórico.
+  medications: {
+    byPatient: (patientId: string) => ['medications', patientId] as const,
+  },
+  // Achados que se acumulam no paciente (tela de atendimento).
+  clinicalEntries: {
+    byPatient: (patientId: string) => ['clinical-entries', patientId] as const,
+  },
+  // CID-10 — tabela pública do DATASUS, buscada no servidor.
+  cid10: {
+    search: (termo: string) => ['cid10', termo] as const,
+  },
+  // Guias TISS (Financeiro → Guias TISS).
+  tissGuides: {
+    all: ['tiss-guides'] as const,
+  },
   services: {
     all: ['services'] as const,
+    /** Preços negociados de UM serviço, um por convênio (TISS). */
+    insurancePrices: (serviceId: string) => ['services', 'insurance-prices', serviceId] as const,
   },
   // Catálogo de testes/escalas de fisioterapia (Administrativo → Testes).
   tests: {

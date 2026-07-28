@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId, type ClientPayload } from '@/lib/tenant'
 import type { Insert, ClientInsert } from '@/lib/db'
 import { brToIsoDate, isoToBrDate, localDate, toIsoDate, addMonths, addDays } from '@/utils/date'
+import type { CashFlowCell, CashFlowGranularity } from '@/utils/cashFlowMatrix'
 import { formatBRL } from '@/utils/format'
 import type {
   Acquirer, BankAccount, Payable, Receivable, ReceivableDebtor,
@@ -62,6 +63,47 @@ export async function getCashFlow(
       entryCount: Number(d.entry_count),
       inflows: Number(d.inflows),
       outflows: Number(d.outflows),
+    })),
+  }
+}
+
+/**
+ * FLUXO DE CAIXA EM MATRIZ (RPC cash_flow_matrix): categoria raiz × período.
+ *
+ * A RPC segue as MESMAS regras de data e valor de `getCashFlow` — quitado conta
+ * quando o dinheiro se mexeu, em aberto conta no vencimento. Duas telas de caixa
+ * que discordam do saldo é pior que uma tela a menos.
+ *
+ * Devolve as células soltas; quem monta a tabela é `utils/cashFlowMatrix`, que
+ * é puro e testado. O `opening_balance` já vem com tudo que aconteceu ANTES da
+ * janela somado — é o "Saldo anterior" da primeira coluna.
+ */
+export async function getCashFlowMatrix(
+  from: string,
+  to: string,
+  granularity: CashFlowGranularity,
+  bankAccountId?: string,
+): Promise<{ openingBalance: number; cells: CashFlowCell[] }> {
+  const { data, error } = await supabase.rpc('cash_flow_matrix', {
+    p_from: from,
+    p_to: to,
+    p_granularity: granularity,
+    p_bank_account: bankAccountId ?? undefined,
+  })
+  if (error) throw error
+
+  const c = data as unknown as {
+    opening_balance: number
+    cells: { bucket: string; kind: 'revenue' | 'expense'; category: string; amount: number; count: number }[]
+  }
+  return {
+    openingBalance: Number(c.opening_balance),
+    cells: (c.cells ?? []).map(x => ({
+      bucket: x.bucket,
+      kind: x.kind,
+      category: x.category,
+      amount: Number(x.amount),
+      count: Number(x.count),
     })),
   }
 }

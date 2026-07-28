@@ -3,8 +3,11 @@ import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/PageHeader/PageHeader'
 import { ScheduleBoard } from '@/components/ScheduleBoard/ScheduleBoard'
 import { AppointmentModal } from '@/components/AppointmentModal/AppointmentModal'
+import { Button } from '@/components/Button/Button'
+import { WaitingListDrawer } from '@/components/WaitingList/WaitingListDrawer'
+import { useWaitingList } from '@/hooks/useWaitingList'
 import { usePatientName } from '@/hooks/useDisplayNames'
-import { IconSchedule } from '@/components/icons'
+import { IconClock, IconSchedule } from '@/components/icons'
 import type { ScheduledAppointment } from '@/types/domain'
 
 interface ModalState {
@@ -21,6 +24,11 @@ export function SchedulePage() {
   // Modal de agendamento: null = fechado; { slot } = edição; { initial } =
   // novo, pré-preenchido pelo "+" da grade.
   const [modal, setModal] = useState<ModalState | null>(null)
+
+  // Lista de espera: painel lateral, não rota — a fila só serve ao lado da
+  // grade (alguém desmarca, procura-se quem chamar, volta-se para o horário).
+  const [filaAberta, setFilaAberta] = useState(false)
+  const { data: fila } = useWaitingList()
 
   // Modo "Matricular": chega aqui pelo botão do perfil do paciente
   // (?enroll=<patientId>&entitlement=<entitlementId>) — ScheduleBoard troca
@@ -43,7 +51,17 @@ export function SchedulePage() {
 
   return (
     <>
-      <PageHeader title="Agenda" icon={<IconSchedule />} />
+      <PageHeader
+        title="Agenda"
+        icon={<IconSchedule />}
+        actions={
+          <Button variant="outline" iconLeft={<IconClock />} onClick={() => setFilaAberta(true)}>
+            {/* A CONTAGEM no próprio botão: uma fila que ninguém vê é uma fila
+                que ninguém percorre, e o número é o que faz a recepção abrir. */}
+            Lista de espera{fila?.length ? ` (${fila.length})` : ''}
+          </Button>
+        }
+      />
 
       {/* Grade semanal de horários — clicar num card abre a edição; o "+" de
           uma célula disponível abre uma consulta nova já pré-preenchida. */}
@@ -53,6 +71,8 @@ export function SchedulePage() {
         enrollTarget={enrollTarget}
         onEnrollDone={exitEnrollMode}
       />
+
+      <WaitingListDrawer open={filaAberta} onClose={() => setFilaAberta(false)} />
 
       <AppointmentModal
         open={modal !== null}

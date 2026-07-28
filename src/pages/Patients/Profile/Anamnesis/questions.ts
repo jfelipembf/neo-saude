@@ -176,12 +176,44 @@ const PHYSIOTHERAPY_SECTION: AnamnesisSection = {
   ],
 }
 
+/**
+ * Só medicina — o enxuto de propósito.
+ *
+ * Para o médico a "Saúde geral" já É o corpo da anamnese, não o preâmbulo dela;
+ * o que faltava era a queixa e os dois hábitos que mudam conduta. Um template
+ * médico completo (história da doença atual, CID, revisão de sistemas) não cabe
+ * num seed genérico — cada especialidade médica pede o seu, e a clínica ajusta
+ * em Administrativo → Anamnese. Os códigos são reaproveitados dos outros ramos
+ * justamente para não inflar o tipo Anamnesis com campo novo sem necessidade.
+ */
+const MEDICINE_SECTION: AnamnesisSection = {
+  title: 'Queixa e hábitos',
+  description: 'Motivo da consulta e hábitos que pesam na conduta.',
+  questions: [
+    { field: 'chiefComplaint', question: 'Queixa principal', type: 'longText' },
+    {
+      field: 'smokes', question: 'Fuma?', type: 'options', options: YES_NO,
+      detail: { field: 'smokingAmount', label: 'Quantidade por dia', when: ['yes'] },
+    },
+    {
+      field: 'physicalActivity', question: 'Pratica atividade física regularmente?', type: 'options', options: YES_NO,
+      detail: { field: 'physicalActivityDetails', label: 'Qual e com que frequência', when: ['yes'] },
+    },
+  ],
+}
+
 /** As seções da ficha, no ramo da clínica atual. Núcleo sempre entra; a segunda
  *  seção varia por especialidade (ausente = ramo ainda sem questionário próprio
- *  — ver comentário de seed_anamnesis_template). */
+ *  — ver comentário de seed_anamnesis_template).
+ *
+ *  ⚠️ Estas seções têm de bater com o que seed_anamnesis_template gravou: a RPC
+ *  save_anamnesis valida cada código contra o template ATIVO da clínica e recusa
+ *  o que não existir nele. Desenhar aqui um campo que o template não tem é o
+ *  jeito de o formulário salvar em silêncio sem gravar aquele campo. */
 export function sectionsForSpecialty(specialty: ClinicSpecialty | undefined): AnamnesisSection[] {
   if (specialty === 'dentistry') return [CORE_SECTION, DENTISTRY_SECTION]
   if (specialty === 'physiotherapy') return [CORE_SECTION, PHYSIOTHERAPY_SECTION]
+  if (specialty === 'medicine') return [CORE_SECTION, MEDICINE_SECTION]
   return [CORE_SECTION]
 }
 

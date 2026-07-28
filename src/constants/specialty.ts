@@ -37,6 +37,25 @@ export function appliesToSpecialty(specialty: ClinicSpecialty | undefined, item:
 export const PROFESSIONAL_SIGNATURE_LABEL: Partial<Record<ClinicSpecialty, string>> = {
   dentistry: 'Cirurgião-dentista',
   physiotherapy: 'Fisioterapeuta',
+  medicine: 'Médico',
+}
+
+/**
+ * Como o profissional é CHAMADO nos formulários — curto, diferente da
+ * assinatura do documento impresso.
+ *
+ * Existe porque o campo do agendamento estava com "Dentista" escrito num
+ * ternário: fisioterapia virava "Fisioterapeuta" e QUALQUER outro ramo caía em
+ * "Dentista". Com um terceiro ramo isso deixa de ser detalhe e vira um médico
+ * escolhendo o "Dentista" na própria agenda.
+ */
+export const PROFESSIONAL_FIELD_LABEL: Record<ClinicSpecialty, string> = {
+  dentistry: 'Dentista',
+  physiotherapy: 'Fisioterapeuta',
+  medicine: 'Médico',
+  nutrition: 'Nutricionista',
+  psychology: 'Psicólogo',
+  personal_training: 'Personal trainer',
 }
 
 /** Selo curto ao lado da logo (Header) indicando o ramo da clínica logada.
@@ -45,4 +64,5 @@ export const PROFESSIONAL_SIGNATURE_LABEL: Partial<Record<ClinicSpecialty, strin
 export const SPECIALTY_BADGE_LABEL: Partial<Record<ClinicSpecialty, string>> = {
   dentistry: 'Odonto',
   physiotherapy: 'Fisio',
+  medicine: 'Med',
 }

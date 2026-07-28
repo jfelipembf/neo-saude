@@ -1,10 +1,11 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
+import type { CashFlowGranularity } from '@/utils/cashFlowMatrix'
 import {
   addAcquirer, addBankAccount, settlePayable, settleReceivable,
   cancelPayable, cancelReceivable, getCashFlow,
-  getFinanceSeries, listAcquirers, listBankAccounts, listPayables,
+  getCashFlowMatrix, getFinanceSeries, listAcquirers, listBankAccounts, listPayables,
   listReceivables, listPatientReceivables, updateAcquirer, updateBankAccount,
   reversePayable, reverseReceivable, settleReceivablesBatch,
   listCollectionAttempts, addCollectionAttempt, addPayable, addPayableSeries,
@@ -47,6 +48,21 @@ export function useCashFlow(days: CashFlowHorizon) {
   return useQuery({
     queryKey: queryKeys.finance.cashFlow(days),
     queryFn: () => getCashFlow(days),
+  })
+}
+
+/** Matriz do fluxo de caixa (categoria × período) da janela escolhida. */
+export function useCashFlowMatrix(
+  janela: { from: string; to: string },
+  granularity: CashFlowGranularity,
+  bankAccountId?: string,
+) {
+  return useQuery({
+    queryKey: queryKeys.finance.cashFlowMatrix(janela.from, janela.to, granularity, bankAccountId),
+    queryFn: () => getCashFlowMatrix(janela.from, janela.to, granularity, bankAccountId),
+    // A janela anterior continua servindo enquanto a nova chega: sem isto, cada
+    // clique na seta pisca a tabela inteira em branco.
+    placeholderData: anterior => anterior,
   })
 }
 

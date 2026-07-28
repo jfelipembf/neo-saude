@@ -1,11 +1,11 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
 import { signAssetUrl } from '@/lib/storage'
-import { cepToDb, cnpjToDb, emailToDb, phoneToDb, ufToDb } from '@/utils/text'
+import { cepToDb, cnpjToDb, digitsOnly, emailToDb, phoneToDb, ufToDb } from '@/utils/text'
 import type { ClinicData } from '@/types/domain'
 
 // Colunas lidas/escritas na tabela `clinic`. `logo_url` ↔ domínio `photo`.
-const CLINIC_COLUMNS = 'id, specialty, logo_url, name, cnpj, email, phone, cep, state, city, neighborhood, street, number'
+const CLINIC_COLUMNS = 'id, specialty, logo_url, name, cnpj, email, phone, cep, state, city, neighborhood, street, number, cnes'
 
 type ClinicRow = {
   id: string
@@ -21,6 +21,7 @@ type ClinicRow = {
   neighborhood: string | null
   street: string | null
   number: string | null
+  cnes: string | null
 }
 
 function toClinicData(row: ClinicRow): ClinicData {
@@ -38,6 +39,7 @@ function toClinicData(row: ClinicRow): ClinicData {
     neighborhood: row.neighborhood ?? '',
     street: row.street ?? '',
     number: row.number ?? '',
+    cnes: row.cnes ?? undefined,
   }
 }
 
@@ -73,6 +75,9 @@ export async function updateClinic(payload: ClinicData): Promise<void> {
       neighborhood: payload.neighborhood,
       street: payload.street,
       number: payload.number,
+      // Só dígitos: o CNES vai no XML sem máscara, e guardar formatado
+      // obrigaria a limpar em toda leitura.
+      cnes: digitsOnly(payload.cnes ?? '') || null,
     })
     .eq('id', getCurrentClinicId())
   if (error) throw error

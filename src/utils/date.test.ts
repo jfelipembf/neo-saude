@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { addMonths, addDays, parseBrDate, toIsoDate, toShortDateWithYear, localDate, formatLongDate } from './date'
+import { addMonths, addDays, parseBrDate, toIsoDate, toShortDateWithYear, localDate, formatLongDate, isoToBrDate } from './date'
 
 // Datas são a fonte silenciosa de bug em software de clínica: vencimento de
 // parcela que pula o mês, dia da semana que escorrega no fuso, fim de mês que
@@ -63,6 +63,44 @@ describe('parseBrDate / localDate — fuso', () => {
 
   it('faz ida e volta entre os dois formatos', () => {
     expect(toIsoDate(parseBrDate('22/07/2026'))).toBe('2026-07-22')
+  })
+})
+
+// As duas formas que o Postgres devolve chegam aqui misturadas: `date` para
+// vencimento e data do fato, `timestamptz` para created_at/updated_at.
+describe('isoToBrDate — coluna date e coluna timestamptz', () => {
+  it('converte a data pura sem escorregar de dia', () => {
+    expect(isoToBrDate('2026-07-27')).toBe('27/07/2026')
+  })
+
+  // Era o bug do anexo: 'aaaa-mm-ddTHH:MM:SSZ' quebrado no '-' fazia
+  // Number('27T12:34:56Z') virar NaN, e a tela exibia "NaN/NaN/NaN".
+  it('converte o timestamp completo do banco', () => {
+    expect(isoToBrDate('2026-07-27T12:34:56.789Z')).toBe('27/07/2026')
+  })
+
+  it('aceita também o timestamp separado por espaço', () => {
+    expect(isoToBrDate('2026-07-27 12:34:56+00')).toBe('27/07/2026')
+  })
+
+  // O horário do timestamp é UTC e precisa virar hora local — no Brasil
+  // (UTC-3) 02:10Z de dia 27 ainda é a noite do dia 26.
+  it('traz o timestamp para o fuso local antes de cortar o dia', () => {
+    const esperado = toShortDateWithYear(new Date('2026-07-27T02:10:00Z'))
+    expect(isoToBrDate('2026-07-27T02:10:00Z')).toBe(esperado)
+  })
+
+  it('nulo e vazio não viram texto', () => {
+    expect(isoToBrDate(null)).toBeUndefined()
+    expect(isoToBrDate(undefined)).toBeUndefined()
+    expect(isoToBrDate('')).toBeUndefined()
+  })
+
+  // Melhor o campo sumir do que a tela mostrar "NaN/NaN/NaN", que não avisa
+  // o usuário nem de que houve erro.
+  it('data impossível vira undefined, não NaN', () => {
+    expect(isoToBrDate('nao-e-data')).toBeUndefined()
+    expect(isoToBrDate('2026-13-45T99:99:99Z')).toBeUndefined()
   })
 })
 

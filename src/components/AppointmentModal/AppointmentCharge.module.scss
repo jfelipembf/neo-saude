@@ -1,0 +1,98 @@
+@use '../../styles/mixins' as *;
+
+.painel {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+// Consulta de convênio não é venda — o aviso diz PARA ONDE ir, não só que não
+// dá. Ver o comentário no topo de AppointmentCharge.tsx.
+.avisoConvenio {
+  margin: 0;
+  padding: $sp-3;
+  border-radius: $radius-md;
+  background: var(--bg-base);
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+}
+
+.totais {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+}
+
+.total {
+  color: var(--text-primary);
+  font-size: $fs-lg;
+}
+
+.pagamentos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+}
+
+.pagamento {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+  font-size: $fs-sm;
+}
+
+.valor {
+  margin-left: auto;
+  color: var(--success-fg);
+}
+
+.rodape {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: $sp-3;
+
+  @include phone {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.saldo {
+  color: var(--warning-fg);
+  font-size: $fs-sm;
+}
+
+// A venda finalizada FICA na tela — toast some em três segundos e a recepção
+// cobra de novo por não saber se entrou. Ver o comentário do estado `finalizada`.
+.finalizada {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  padding: $sp-4;
+  border-radius: $radius-md;
+  border: 1px solid var(--success-fg);
+  background: var(--bg-base);
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.finalizadaTitulo {
+  color: var(--success-fg);
+  font-size: $fs-md;
+}
+
+.finalizadaValor {
+  color: var(--text-primary);
+  font-size: $fs-lg;
+}
+
+.finalizadaFormas {
+  color: var(--text-secondary);
+}

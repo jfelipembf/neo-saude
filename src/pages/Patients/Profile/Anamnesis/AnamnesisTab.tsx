@@ -10,9 +10,10 @@ import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { esc } from '@/utils/printDocument'
 import { PROFESSIONAL_SIGNATURE_LABEL } from '@/constants'
 import type { Anamnesis, ClinicSpecialty, PatientCustomQuestion } from '@/types/domain'
+import { AnamnesisAnswers } from './AnamnesisAnswers'
 import { AnamnesisForm } from './AnamnesisForm'
 import { CustomQuestionsSection } from './CustomQuestionsSection'
-import { sectionsForSpecialty, answerLabel, isAlert } from './questions'
+import { sectionsForSpecialty, answerLabel } from './questions'
 import type { AnamnesisSection } from './questions'
 import styles from './Anamnesis.module.scss'
 
@@ -126,30 +127,7 @@ export function AnamnesisTab({ patientId, patientName }: AnamnesisTabProps) {
               </div>
             </div>
 
-            {sections.map(section => (
-              <section key={section.title} className={styles.secao}>
-                <h3 className={styles.secaoTitulo}>{section.title}</h3>
-
-                <dl className={styles.respostas}>
-                  {section.questions.map(p => {
-                    const value = record[p.field]
-                    const detail = p.detail ? record[p.detail.field] : undefined
-                    const alert = p.type === 'options' && isAlert(p.field, value)
-                    const open = p.type !== 'options'
-
-                    return (
-                      <div key={p.field} className={`${styles.resposta} ${open ? styles['resposta--aberta'] : ''}`}>
-                        <dt>{p.question}</dt>
-                        <dd className={alert ? styles.alerta : undefined}>
-                          {p.type === 'options' ? answerLabel(p, value) : (value || '—')}
-                          {detail && <span className={styles.detalhe}>{p.detail!.label}: {detail}</span>}
-                        </dd>
-                      </div>
-                    )
-                  })}
-                </dl>
-              </section>
-            ))}
+            <AnamnesisAnswers record={record} sections={sections} />
           </>
         )}
 

@@ -26,6 +26,7 @@
 export type ClinicSpecialty =
   | 'dentistry'
   | 'physiotherapy'
+  | 'medicine'
   | 'nutrition'
   | 'psychology'
   | 'personal_training'
@@ -62,6 +63,16 @@ export interface Patient {
   neighborhood?: string
   street?: string       // logradouro (rua) — exigido em documento e NFS-e
   number?: string
+  // ── TISS (beneficiário) ──
+  /** Número da carteirinha na operadora — é ele que identifica a pessoa na
+   *  guia, não o CPF. */
+  insuranceCard?: string
+  /** Validade da carteirinha. Vencida na data do atendimento é glosa. */
+  insuranceCardValidUntil?: string   // dd/mm/aaaa
+  /** Nome do plano dentro da operadora (ex.: "Nacional Enfermaria"). */
+  insurancePlan?: string
+  /** Cartão Nacional de Saúde — opcional na maioria das guias. */
+  cns?: string
 }
 
 export interface Appointment {
@@ -97,7 +108,17 @@ export interface Professional {
   specialty: string
   description?: string     // breve explicação da especialidade (lista de profissionais)
   rating?: number          // nota média de atendimento (0–5)
-  license: string       // conselho + número (CRM, CRO, CREFITO…)
+  license: string       // conselho + número (CRM, CRO, CREFITO…) — texto impresso
+  // ── TISS (executante) ──
+  // Separados de `license` de propósito: sigla, número e UF vão em tags
+  // DISTINTAS do XML, e extrair isso de um texto livre como "CRO/SE 12345"
+  // seria adivinhação a cada emissão. `license` segue sendo o que se imprime.
+  /** Sigla do conselho (CRM, CRO, CREFITO...). */
+  council?: string
+  /** UF do conselho. */
+  councilState?: string
+  /** CBO-S: ocupação do executante na Classificação Brasileira de Ocupações. */
+  cbo?: string
   color?: string           // cor de identificação (agenda, gráficos) — hex
   photo?: string           // URL do avatar (cai nas iniciais quando não houver)
   status: ActiveStatus
@@ -122,6 +143,58 @@ export interface Professional {
 }
 
 // ── Convênios aceitos pela clínica (aba do Administrativo) ───────────────────
+/**
+ * Um medicamento do catálogo da CMED/ANVISA.
+ *
+ * É o PRODUTO comercial (marca + apresentação); `substances` traz os princípios
+ * ativos, que numa associação são mais de um. Sem posologia e sem indicação —
+ * essas vivem na bula, que se abre por link (ver utils/anvisaBula).
+ */
+export interface DrugProduct {
+  id: string
+  /** Marca comercial. Num genérico, é o próprio princípio ativo. */
+  name: string
+  presentation?: string
+  manufacturer?: string
+  /** Princípios ativos. Mais de um quando é associação. */
+  substances: string[]
+  therapeuticClass?: string
+  /** Genérico, Similar, Novo, Específico, Biológico, Fitoterápico. */
+  productType?: string
+  tarja?: string
+  hospitalOnly: boolean
+  anvisaRegistro?: string
+}
+
+/** Estado de uma entrada da lista de espera da agenda. */
+export type WaitingListStatus = 'waiting' | 'scheduled' | 'canceled'
+
+/**
+ * Uma pessoa na LISTA DE ESPERA: quer ser atendida e não achou horário.
+ *
+ * O contato é copiado do cadastro na entrada e fica editável aqui — quem está
+ * na fila é ligado quando vaga algo, e o telefone que vale é o que a pessoa
+ * deu na hora. O NOME, ao contrário, vem sempre do cadastro: congelá-lo faria
+ * a fila mostrar o nome antigo depois de uma correção.
+ */
+export interface WaitingListEntry {
+  id: string
+  clinicId: string
+  patientId: string
+  patientName: string
+  insuranceId?: string
+  insuranceName?: string
+  email?: string
+  mobilePhone?: string
+  homePhone?: string
+  notes?: string
+  status: WaitingListStatus
+  /** A consulta que tirou a pessoa da fila. */
+  appointmentId?: string
+  /** Entrada na fila (dd/mm/aaaa) — a ordem é esta, não a alfabética. */
+  createdAt: string
+}
+
 export interface Insurance {
   id: string
   clinicId: string
@@ -132,6 +205,12 @@ export interface Insurance {
   payoutDays?: number  // em quantos dias o convênio repassa
   notes?: string
   status: ActiveStatus
+  // ── TISS ──
+  /** Código do PRESTADOR nesta operadora — é um por convênio, não o CNPJ. */
+  providerCode?: string
+  /** Versão do padrão TISS que ESTA operadora aceita. Operadoras migram em
+   *  datas diferentes, então não dá para ter uma versão global da clínica. */
+  tissVersion?: string
 }
 
 // ── Serviços / Contratos (Administrativo → Serviços) ─────────────────────────
@@ -139,7 +218,15 @@ export interface Insurance {
 //   · common  = Contrato Comum   — vigência por Duração & Período (ex.: 12 meses)
 //   · package = Pacote de sessões — nº de sessões + validade de uso
 // price = Valor Base (total), parcelável em até maxInstallments. Base do PDV.
-export type ServiceModality = 'common' | 'package'
+// MEDICINA vende ATO, não contrato:
+//   · consultation = Consulta     — cobrada uma vez, sem vigência nem pacote
+//   · procedure    = Procedimento — idem, valor próprio por procedimento
+// `checkout_sale` só cria direito a sessões para 'package', então estas duas
+// nascem como venda avulsa sem entitlement — é o comportamento certo.
+export type ServiceModality = 'common' | 'package' | 'consultation' | 'procedure'
+
+/** As duas modalidades de ATO (medicina): preço único, sem duração nem sessões. */
+export const SINGLE_ACT_MODALITIES: ServiceModality[] = ['consultation', 'procedure']
 export type DurationUnit    = 'days' | 'weeks' | 'months'
 
 export interface Service {
@@ -155,6 +242,82 @@ export interface Service {
   maxInstallments: number
   description?: string
   status: ActiveStatus       // inactive = fora do catálogo de novas vendas
+  // ── TISS ──
+  /** Código do procedimento na TUSS — é por ele que a operadora sabe o que
+   *  foi feito. */
+  tussCode?: string
+  /** Tabela de origem do código (22 = procedimentos, 18/19/20 = materiais,
+   *  medicamentos e taxas, 00 = própria da operadora). O mesmo número em
+   *  tabelas diferentes é procedimento diferente. */
+  tussTable?: string
+}
+
+// ── TISS: a guia (Financeiro → Guias TISS) ──────────────────────────────────
+export type TissGuideKind   = 'consultation' | 'sp_sadt'
+export type TissGuideStatus = 'draft' | 'issued' | 'canceled'
+
+export interface TissGuideProcedure {
+  id: string
+  guideId: string
+  serviceId?: string
+  tussTable: string
+  tussCode: string
+  description: string
+  quantity: number
+  unitPrice: number
+  amount: number
+}
+
+/**
+ * A guia é DOCUMENTO, não consulta: `frozen` guarda a cópia do cadastro no
+ * momento da EMISSÃO. Enquanto é rascunho vem vazio e a tela lê o cadastro ao
+ * vivo — ver tissGuidesService.ts.
+ */
+export interface TissGuide {
+  id: string
+  clinicId: string
+  /** Referência humana sequencial por clínica (GUI-000001). */
+  code: string
+  kind: TissGuideKind
+  status: TissGuideStatus
+  insuranceId: string
+  patientId: string
+  professionalId: string
+  appointmentId?: string
+  treatmentSessionId?: string
+  servedOn: string       // dd/mm/aaaa
+  servedOnIso: string    // aaaa-mm-dd — usado na checagem de validade da carteirinha
+  issuedOn?: string      // dd/mm/aaaa
+  /** 1=primeira, 2=seguimento, 3=pré-natal, 4=por encaminhamento (tabela 50). */
+  consultationType?: number
+  /** 0=não, 1=trabalho, 2=trânsito, 9=outros (tabela 36). */
+  accidentIndication: number
+  notes?: string
+  total: number
+  frozen: {
+    providerCode?: string
+    cnes?: string
+    insuranceAns?: string
+    patientName?: string
+    patientCard?: string
+    patientCns?: string
+    professionalName?: string
+    council?: string
+    councilNumber?: string
+    councilState?: string
+    cbo?: string
+  }
+  procedimentos: TissGuideProcedure[]
+}
+
+/** Quanto UMA operadora paga por UM serviço. A mesma consulta vale diferente em
+ *  cada convênio, e nenhum desses valores é o preço particular. */
+export interface InsuranceServicePrice {
+  id: string
+  clinicId: string
+  insuranceId: string
+  serviceId: string
+  price: number
 }
 
 // ── Ponto de Venda (carrinho do perfil do paciente) ──────────────────────────
@@ -705,6 +868,9 @@ export interface Prescription {
   medications?: PrescribedMedication[]  // só receituário
   text?: string         // prontuário / atestado / documento
   notes?: string
+  /** SOLICITAÇÃO DE EXAME: quando o resultado foi entregue. Ausente = ainda
+   *  aguardando. Não usado nos demais tipos. */
+  deliveredOn?: string   // dd/mm/aaaa
 }
 
 // ── Cargos e acesso às páginas (aba do Administrativo) ───────────────────────
@@ -785,6 +951,9 @@ export interface ClinicData extends Address {
   cnpj: string
   email: string
   phone: string
+  /** CNES — Cadastro Nacional de Estabelecimentos de Saúde. Obrigatório na guia
+   *  TISS; sem ele a operadora recusa o lote. */
+  cnes?: string
 }
 
 // O RESPONSÁVEL TÉCNICO não tem tipo próprio: pela norma do conselho ele é
@@ -947,7 +1116,12 @@ export interface ScheduledAppointment {
 }
 
 // ── Documentos do paciente (aba do perfil) ───────────────────────────────────
+/** Divisões da aba Documentos — o que o paciente TRAZ, arquivado por tipo. */
+export type PatientDocumentCategory = 'certificate' | 'exam' | 'report' | 'other'
+
 export interface PatientDocument {
+  /** Divisão em que o documento aparece. Antigo sem classificação cai em `other`. */
+  category: PatientDocumentCategory
   id: string
   clinicId: string
   patientId: string
@@ -961,6 +1135,8 @@ export interface PatientDocument {
   url?: string
   /** Anexo de uma SESSÃO específica (aba Prontuários) — undefined = documento geral do paciente. */
   appointmentId?: string
+  /** Resultado anexado a uma SOLICITAÇÃO de exame. Ausente = anexo avulso. */
+  prescriptionId?: string
 }
 
 // ── Histórico de consultas (timeline do perfil do paciente) ──────────────────

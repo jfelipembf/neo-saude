@@ -19,6 +19,9 @@ interface ProfessionalFormState {
   birthDateIso: string   // aaaa-mm-dd (input date)
   specialty: string
   license: string
+  council: string
+  councilState: string
+  cbo: string
   description: string
   email: string
   phone: string
@@ -45,6 +48,9 @@ function formStateFromProfessional(p: Professional): ProfessionalFormState {
     birthDateIso: p.birthDate ? p.birthDate.split('/').reverse().join('-') : '',
     specialty: p.specialty,
     license: p.license,
+    council: p.council ?? '',
+    councilState: p.councilState ?? '',
+    cbo: p.cbo ?? '',
     description: p.description ?? '',
     email: p.email ?? '',
     phone: p.phone ?? '',
@@ -94,6 +100,9 @@ export function PersonalDataForm({ professional, pendingPhoto, onClose }: Person
           birthDate: form.birthDateIso ? form.birthDateIso.split('-').reverse().join('/') : '',
           specialty: form.specialty.trim(),
           license: form.license.trim(),
+          council: form.council.trim().toUpperCase() || undefined,
+          councilState: form.councilState.trim().toUpperCase() || undefined,
+          cbo: form.cbo.trim() || undefined,
           // Vazio limpa o campo — `undefined` (não enviado) preservaria o valor.
           description: form.description.trim(),
           email: form.email.trim(),
@@ -157,6 +166,33 @@ export function PersonalDataForm({ professional, pendingPhoto, onClose }: Person
           <div className={shared.grid2}>
             <Input label="Especialidade" value={form.specialty} onChange={e => set('specialty')(e.target.value)} />
             <Input label="Registro (conselho)" placeholder="Ex: CRO/SE 4567" value={form.license} onChange={e => set('license')(e.target.value)} />
+          </div>
+          {/* ── TISS ──
+              Separados do "Registro" acima, que é o texto IMPRESSO no rodapé
+              dos documentos. Na guia, sigla, UF e CBO vão em tags distintas do
+              XML — extrair isso de "CRO/SE 4567" seria adivinhação a cada
+              emissão. Só preenche quem fatura convênio. */}
+          <div className={shared.grid3}>
+            <Input
+              label="Conselho (sigla)"
+              placeholder="CRM, CRO, CREFITO..."
+              value={form.council}
+              onChange={e => set('council')(e.target.value)}
+            />
+            <Input
+              label="UF do conselho"
+              placeholder="SE"
+              maxLength={2}
+              value={form.councilState}
+              onChange={e => set('councilState')(e.target.value)}
+            />
+            <Input
+              label="CBO-S"
+              placeholder="Ex: 225125"
+              inputMode="numeric"
+              value={form.cbo}
+              onChange={e => set('cbo')(e.target.value)}
+            />
           </div>
           <Textarea
             label="Sobre a atuação"

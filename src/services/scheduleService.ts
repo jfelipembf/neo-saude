@@ -9,7 +9,7 @@ import { addMinutes } from '@/utils/date'
 // (`schedule_slot` ficou reservada para regras recorrentes; a Agenda não a usa.)
 
 const COLUMNS =
-  'id, clinic_id, patient_id, professional_id, room_id, service, date, start_time, duration_minutes, status, notes, color, send_confirmation, is_overbook, entitlement_id, clinical_note'
+  'id, clinic_id, patient_id, professional_id, room_id, service, date, start_time, duration_minutes, status, notes, color, send_confirmation, is_overbook, entitlement_id, clinical_note, medical_record'
 
 type AppointmentRow = {
   id: string
@@ -31,6 +31,7 @@ type AppointmentRow = {
   // existem as quatro chaves do SOAP, cada uma string — por isso a linha entra
   // como SoapNote em vez de Json solto, sem validar de novo na leitura.
   clinical_note: SoapNote | null
+  medical_record: string | null
 }
 
 // 'HH:MM:SS' (banco) → 'HH:MM' (domínio).

@@ -27,7 +27,7 @@ interface QuickAccessItem {
 const ITEMS: QuickAccessItem[] = [
   { key: 'services-pricing', label: 'Preços', image: pricesImage, to: `${APP_ROUTES.ADMIN}?tab=services` },
   // Perfil do profissional já na aba Agenda → sub-aba Disponibilidade.
-  { key: 'availability', label: 'Horário', image: agendaImage, pickProfessional: '?tab=schedule&view=availability' },
+  { key: 'availability', label: 'Horário', image: agendaImage, pickProfessional: '?tab=availability' },
   // Lista de pacientes já com o modal de cadastro aberto.
   { key: 'new-patient', label: 'Paciente', image: patientsImage, to: `${APP_ROUTES.PATIENTS}?new=1` },
   // Lista de profissionais já com o modal de cadastro aberto.

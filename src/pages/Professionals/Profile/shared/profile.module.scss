@@ -66,6 +66,22 @@
   }
 }
 
+// Trio do TISS (conselho, UF, CBO): colapsa para 1 coluna no phone, como o
+// grid2 ao lado — os três campos são curtos e não cabem lado a lado lá.
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $sp-3;
+
+  @include mobile {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @include phone {
+    grid-template-columns: 1fr;
+  }
+}
+
 .formAcoes {
   display: flex;
   justify-content: flex-end;

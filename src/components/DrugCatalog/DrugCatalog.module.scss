@@ -1,0 +1,139 @@
+@use '../../styles/mixins' as *;
+
+.busca {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  margin-bottom: $sp-3;
+}
+
+// Procedência visível, não em nota de rodapé escondida: catálogo de
+// medicamento desatualizado apresentado como atual é o risco principal desta
+// tela, e dizer de onde o dado vem é o mínimo.
+.fonte {
+  margin: 0;
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+// Enquanto a busca seguinte não chega, a lista anterior continua legível mas
+// esmaecida — some a piscada em branco a cada tecla sem fingir que o resultado
+// já é o novo.
+.listaCarregando { opacity: 0.55; }
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  padding: $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-lg;
+}
+
+.linhaTopo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+}
+
+.nome {
+  font-size: $fs-sm;
+  color: var(--text-primary);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+// ── Tarja: é a informação de PRESCRIÇÃO da lista ─────────────────────────────
+.tarja {
+  flex-shrink: 0;
+  padding: 1px $sp-2;
+  border-radius: $radius-pill;
+  border: 1px solid var(--glass-border);
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.tarjaVermelha { border-color: var(--danger-fg); color: var(--danger-fg); }
+.tarjaRestrita { border-color: var(--warning-fg); color: var(--warning-fg); }
+
+// Preta é a que muda o bloco de receituário (notificação de receita), então é
+// a única PREENCHIDA: contorno colocaria as três no mesmo peso visual.
+.tarjaPreta {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+// ── Princípios ativos, clicáveis ─────────────────────────────────────────────
+// Clicar busca por aquele princípio ativo. É como se filtra por ele sem um
+// campo de filtro à parte — e numa associação cada componente vira um caminho.
+.substancias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-1;
+}
+
+.substancia {
+  padding: 1px $sp-2;
+  border: 1px dashed var(--glass-border);
+  border-radius: $radius-pill;
+  background: transparent;
+  font-family: inherit;
+  font-size: $fs-xs;
+  color: var(--primary-fg);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: var(--glass-bg-hover);
+    border-color: var(--primary-fg);
+  }
+}
+
+.apresentacao {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+  flex-wrap: wrap;
+  padding-top: $sp-2;
+  border-top: 1px solid var(--glass-border);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  flex: 1;
+  min-width: 0;
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.hospitalar {
+  flex-shrink: 0;
+  padding: 1px $sp-2;
+  border: 1px solid var(--warning-fg);
+  border-radius: $radius-pill;
+  color: var(--warning-fg);
+  white-space: nowrap;
+}

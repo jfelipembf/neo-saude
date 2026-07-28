@@ -13,6 +13,7 @@ import { BanksTab } from './Banks/BanksTab'
 import { AcquirersTab } from './Acquirers/AcquirersTab'
 import { CategoriesTab } from './Categories/CategoriesTab'
 import { CostCentersTab } from './CostCenters/CostCentersTab'
+import { TissGuidesTab } from './TissGuides/TissGuidesTab'
 import styles from './FinancePage.module.scss'
 
 // "A faturar" vive DENTRO de Contas a Receber (tudo que é dinheiro a entrar num
@@ -25,9 +26,9 @@ import styles from './FinancePage.module.scss'
 // referência do segmento (Simples Dental) resolve conferência diária com
 // relatório sobre os lançamentos — não com ritual de sessão (isso é para
 // operação com várias recepcionistas no dinheiro físico, caso Feegow).
-type TabKey = 'cashFlow' | 'sales' | 'payables' | 'receivables' | 'delinquency' | 'categories' | 'costCenters' | 'banks' | 'acquirers'
+type TabKey = 'cashFlow' | 'sales' | 'payables' | 'receivables' | 'delinquency' | 'tissGuides' | 'categories' | 'costCenters' | 'banks' | 'acquirers'
 
-const TAB_KEYS: TabKey[] = ['cashFlow', 'sales', 'payables', 'receivables', 'delinquency', 'categories', 'costCenters', 'banks', 'acquirers']
+const TAB_KEYS: TabKey[] = ['cashFlow', 'sales', 'payables', 'receivables', 'delinquency', 'tissGuides', 'categories', 'costCenters', 'banks', 'acquirers']
 
 export function FinancePage() {
   // Deep-link ?tab=<key> (ex.: atalho "Início rápido" do Dashboard) — sem
@@ -48,6 +49,7 @@ export function FinancePage() {
     { key: 'payables',       label: 'Contas a Pagar' },
     { key: 'receivables',     label: 'Contas a Receber', badge: unbilled?.length ?? 0 },
     { key: 'delinquency',    label: 'Inadimplência' },
+    { key: 'tissGuides',     label: 'Guias TISS' },
     { key: 'categories',     label: 'Categorias' },
     { key: 'costCenters',    label: 'Centros de custo' },
     { key: 'banks',          label: 'Contas bancárias' },
@@ -67,6 +69,7 @@ export function FinancePage() {
       {tab === 'payables'       && <PayableTab />}
       {tab === 'receivables'     && <ReceivableTab />}
       {tab === 'delinquency'    && <DelinquencyTab />}
+      {tab === 'tissGuides'     && <TissGuidesTab />}
       {tab === 'categories'     && <CategoriesTab />}
       {tab === 'costCenters'    && <CostCentersTab />}
       {tab === 'banks'          && <BanksTab />}

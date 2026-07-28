@@ -1,18 +1,12 @@
 import { useState } from 'react'
 import { Button } from '@/components/Button/Button'
-import { Input } from '@/components/Input/Input'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { useToast } from '@/components/Toast/Toast'
 import { DAY_OF_WEEK_SHORT, DAY_OF_WEEK_LONG } from '@/constants'
 import {
   useAvailabilityTemplate,
   useSetAvailabilityTemplate,
-  useAbsences,
-  useAddAbsence,
-  useRemoveAbsence,
 } from '@/hooks/useProfessionalAvailability'
-import { localDate, toShortDateWithYear } from '@/utils/date'
-import { IconTrash } from '@/components/icons'
 import styles from './AvailabilityPanel.module.scss'
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6]   // Seg…Sáb — decisão de produto (ver plano)
@@ -111,75 +105,6 @@ export function AvailabilityPanel({ professionalId }: AvailabilityPanelProps) {
             )
           }))}
         </div>
-      </div>
-
-      <AbsencesSection professionalId={professionalId} />
-    </div>
-  )
-}
-
-/** Períodos em que o profissional fica indisponível o dia INTEIRO (viagem,
- *  férias, atestado) — separado da grade recorrente acima (ver
- *  professional_absence na migration: dia inteiro, não célula por célula). */
-function AbsencesSection({ professionalId }: { professionalId: string }) {
-  const toast = useToast()
-  const { data: absences } = useAbsences(professionalId)
-  const { mutate: add, isPending: adding } = useAddAbsence(professionalId)
-  const { mutate: remove } = useRemoveAbsence(professionalId)
-
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [reason, setReason] = useState('')
-
-  function handleAdd() {
-    add(
-      { startDate, endDate, reason: reason.trim() || undefined },
-      {
-        onSuccess: () => {
-          setStartDate('')
-          setEndDate('')
-          setReason('')
-          toast.success('Ausência registrada!')
-        },
-        onError: () => toast.error('Não foi possível salvar. Tente novamente.'),
-      },
-    )
-  }
-
-  return (
-    <div className={styles.absences}>
-      <h3 className={styles.absencesTitle}>Ausências (viagem, férias, atestado)</h3>
-
-      {(absences ?? []).length > 0 && (
-        <ul className={styles.absenceList}>
-          {absences!.map(a => (
-            <li key={a.id} className={styles.absenceItem}>
-              <span className={styles.absencePeriod}>
-                {toShortDateWithYear(localDate(a.startDate))} – {toShortDateWithYear(localDate(a.endDate))}
-              </span>
-              {a.reason && <span className={styles.absenceReason}>{a.reason}</span>}
-              <Button
-                variant="ghost"
-                size="sm"
-                iconLeft={<IconTrash />}
-                aria-label="Remover ausência"
-                onClick={() => remove(a.id)}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className={styles.absenceForm}>
-        <Input type="date" label="De" value={startDate} onChange={e => setStartDate(e.target.value)} />
-        <Input type="date" label="Até" value={endDate} onChange={e => setEndDate(e.target.value)} />
-        <Input
-          label="Motivo (opcional)"
-          placeholder="Viagem, férias..."
-          value={reason}
-          onChange={e => setReason(e.target.value)}
-        />
-        <Button onClick={handleAdd} loading={adding} disabled={!startDate || !endDate}>Adicionar</Button>
       </div>
     </div>
   )

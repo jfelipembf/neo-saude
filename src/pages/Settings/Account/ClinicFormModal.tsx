@@ -76,6 +76,16 @@ export function ClinicFormModal({ clinic, onClose }: ClinicFormModalProps) {
         </div>
 
         <div className={styles.grid2}>
+          {/* CNES: obrigatório em toda guia TISS. Fica aqui, junto do CNPJ,
+              porque é identificação do ESTABELECIMENTO — não é dado de
+              convênio, é dado da clínica. */}
+          <Input
+            label="CNES"
+            placeholder="Cadastro Nacional de Estabelecimentos de Saúde"
+            inputMode="numeric"
+            value={form.cnes ?? ''}
+            onChange={e => set('cnes')(e.target.value)}
+          />
           <Input
             label="Telefone"
             type="tel"

@@ -1,0 +1,39 @@
+@use '../../../styles/mixins' as *;
+
+.barra {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: $sp-3;
+
+  @include phone {
+    justify-content: stretch;
+
+    > * { width: 100%; }
+  }
+}
+
+// A pendência é o texto que resolve o problema — cor de alerta, não de erro:
+// nada está quebrado, só falta cadastro.
+.pendencia {
+  color: var(--warning-fg);
+}
+
+.pronta {
+  margin: 0;
+  padding: $sp-3;
+  color: var(--success-fg);
+  font-size: $fs-sm;
+}
+
+.aviso {
+  margin: 0;
+  padding: $sp-3;
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+}
+
+.formNova {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}

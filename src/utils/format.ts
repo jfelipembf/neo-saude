@@ -44,6 +44,14 @@ export function formatCpf(cpf: string | undefined | null) {
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
 }
 
+/** CNPJ com máscara: 12345678000190 → 12.345.678/0001-90. Fora de 14 dígitos
+ *  devolve como veio — cadastro incompleto não vira máscara torta no recibo. */
+export function formatCnpj(cnpj: string | undefined | null) {
+  const d = (cnpj ?? '').replace(/\D/g, '')
+  if (d.length !== 14) return cnpj ?? ''
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`
+}
+
 /** Telefone com máscara: 10 dígitos → (79) 9999-1234; 11 → (79) 99999-1234. */
 export function formatPhone(phone: string | undefined | null) {
   const d = (phone ?? '').replace(/\D/g, '')

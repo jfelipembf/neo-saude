@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
 import { isoToBrDate } from '@/utils/date'
-import type { PatientDocument } from '@/types/domain'
+import type { PatientDocument, PatientDocumentCategory } from '@/types/domain'
 
 // Anexos do paciente: o ARQUIVO vive no Storage (bucket privado) e os METADADOS
 // na tabela patient_document. Caminho: {clinic_id}/{patient_id}/{uuid}-{arquivo}
@@ -30,6 +30,10 @@ export interface NewDocument {
   file: File
   /** Anexo de uma SESSÃO específica (aba Prontuários) — omitido = documento geral do paciente. */
   appointmentId?: string
+  /** Resultado de uma SOLICITAÇÃO de exame — amarra o arquivo ao pedido. */
+  prescriptionId?: string
+  /** Divisão da aba Documentos. Omitido = `other`. */
+  category?: PatientDocumentCategory
 }
 
 type DocumentRow = {
@@ -44,10 +48,12 @@ type DocumentRow = {
   storage_path: string
   created_at: string
   appointment_id: string | null
+  prescription_id: string | null
+  category: PatientDocumentCategory
 }
 
 const ROW_COLUMNS =
-  'id, clinic_id, patient_id, name, description, file_name, mime_type, size_bytes, storage_path, created_at, appointment_id'
+  'id, clinic_id, patient_id, name, description, file_name, mime_type, size_bytes, storage_path, created_at, appointment_id, prescription_id, category'
 
 async function rowsToDocuments(rows: DocumentRow[]): Promise<PatientDocument[]> {
   if (rows.length === 0) return []
@@ -66,16 +72,28 @@ async function rowsToDocuments(rows: DocumentRow[]): Promise<PatientDocument[]> 
     uploadedAt: isoToBrDate(r.created_at) ?? '',
     url: signed?.[i]?.signedUrl ?? undefined,
     appointmentId: r.appointment_id ?? undefined,
+    prescriptionId: r.prescription_id ?? undefined,
+    category: r.category ?? 'other',
   }))
 }
 
-/** Documentos GERAIS do paciente (aba Documentos) — não inclui anexos de sessão. */
+/**
+ * TODOS os documentos do paciente (aba Documentos), inclusive os anexados
+ * durante um atendimento.
+ *
+ * O filtro `appointment_id is null` que existia aqui escondia da aba o
+ * resultado de exame anexado na consulta — que é justamente o que alguém
+ * procura ao abrir "Documentos" do paciente. Ver o anexo só dentro da sessão em
+ * que ele entrou obriga a lembrar de qual sessão foi.
+ *
+ * A visão por SESSÃO continua existindo na aba Prontuários
+ * (`listAppointmentAttachments`); são recortes diferentes do mesmo acervo.
+ */
 export async function listPatientDocuments(patientId: string): Promise<PatientDocument[]> {
   const { data, error } = await supabase
     .from('patient_document')
     .select(ROW_COLUMNS)
     .eq('patient_id', patientId)
-    .is('appointment_id', null)
     .order('created_at', { ascending: false })
   if (error) throw error
   return rowsToDocuments(data as DocumentRow[])
@@ -110,6 +128,8 @@ export async function addDocument(payload: NewDocument): Promise<void> {
     size_bytes: payload.file.size,
     storage_path: path,
     appointment_id: payload.appointmentId ?? null,
+    prescription_id: payload.prescriptionId ?? null,
+    category: payload.category ?? 'other',
   })
   // Falhou o metadado? não deixa o objeto órfão no Storage.
   if (error) {

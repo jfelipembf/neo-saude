@@ -7,7 +7,7 @@ import { brToIsoDate, isoToBrDate } from '@/utils/date'
 import type { Patient, Gender } from '@/types/domain'
 
 const COLUMNS =
-  'id, clinic_id, code, name, common_name, cpf, phone, insurance_id, last_visit, status, photo_url, sex, birth_date, email, whatsapp, cep, state, city, neighborhood, street, number'
+  'id, clinic_id, code, name, common_name, cpf, phone, insurance_id, last_visit, status, photo_url, sex, birth_date, email, whatsapp, cep, state, city, neighborhood, street, number, insurance_card, insurance_card_valid_until, insurance_plan, cns'
 
 // Rótulo do "sem convênio": no banco é insurance_id NULL (não é linha de insurance).
 const PARTICULAR = 'Particular'
@@ -34,6 +34,10 @@ type PatientRow = {
   neighborhood: string | null
   street: string | null
   number: string | null
+  insurance_card: string | null
+  insurance_card_valid_until: string | null
+  insurance_plan: string | null
+  cns: string | null
 }
 
 /** Convênios da clínica como mapa id→nome (o domínio usa o NOME). */
@@ -78,6 +82,10 @@ function toPatient(row: PatientRow, insMap: Map<string, string>): Patient {
     neighborhood: row.neighborhood ?? undefined,
     street: row.street ?? undefined,
     number: row.number ?? undefined,
+    insuranceCard: row.insurance_card ?? undefined,
+    insuranceCardValidUntil: isoToBrDate(row.insurance_card_valid_until),
+    insurancePlan: row.insurance_plan ?? undefined,
+    cns: row.cns ?? undefined,
   }
 }
 
@@ -132,6 +140,9 @@ export interface NewPatient {
 
 /** Cadastra um paciente novo (entra ativo, sem convênio/última visita). */
 export async function addPatient(payload: NewPatient): Promise<void> {
+  // Os campos TISS (carteirinha, plano, CNS) NÃO entram aqui: o cadastro rápido
+  // pede o mínimo para a pessoa existir, e carteirinha se preenche na ficha,
+  // com a operadora escolhida. Ver updatePatient.
   const { firstName, lastName, commonName, birthDate, sex, email, phone, whatsapp, cep, state, city, neighborhood, street, number } = payload
   const row: ClientInsert<'patient'> = {
     clinic_id: getCurrentClinicId(),
@@ -157,13 +168,23 @@ export async function addPatient(payload: NewPatient): Promise<void> {
 /** Dados do formulário de edição (tudo do cadastro + convênio). */
 export interface EditPatient extends NewPatient {
   insurance: string
+  // ── TISS (beneficiário) ── só na EDIÇÃO: o cadastro rápido cria a pessoa,
+  // a carteirinha se preenche na ficha, junto da operadora escolhida.
+  insuranceCard?: string
+  insuranceCardValidUntil?: string   // dd/mm/aaaa
+  insurancePlan?: string
+  cns?: string
 }
 
 /** Atualiza o cadastro do paciente (inclui o convênio, resolvido para insurance_id). */
 export async function updatePatient(id: string, payload: EditPatient): Promise<void> {
   const clinicId = getCurrentClinicId()
   const insuranceId = await insuranceIdByName(clinicId, payload.insurance)
-  const { firstName, lastName, commonName, birthDate, sex, email, phone, whatsapp, cep, state, city, neighborhood, street, number } = payload
+  const {
+    firstName, lastName, commonName, birthDate, sex, email, phone, whatsapp,
+    cep, state, city, neighborhood, street, number,
+    insuranceCard, insuranceCardValidUntil, insurancePlan, cns,
+  } = payload
   const { error } = await supabase
     .from('patient')
     .update({
@@ -181,6 +202,11 @@ export async function updatePatient(id: string, payload: EditPatient): Promise<v
       neighborhood: neighborhood ?? null,
       street: street ?? null,
       number: number ?? null,
+      // ── TISS (beneficiário) ── Carteirinha e CNS vão sem máscara no XML.
+      insurance_card: insuranceCard?.trim() || null,
+      insurance_card_valid_until: brToIsoDate(insuranceCardValidUntil),
+      insurance_plan: insurancePlan?.trim() || null,
+      cns: cns ? digitsOnly(cns) || null : null,
     })
     .eq('id', id)
   if (error) throw error

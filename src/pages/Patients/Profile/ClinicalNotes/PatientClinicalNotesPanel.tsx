@@ -30,7 +30,17 @@ function NoteCard({ note }: { note: SessionClinicalNote }) {
         <span className={styles.notaAtividade}>{note.activity}</span>
       </header>
 
-      <SoapNoteView note={note.note} />
+      {/* SOAP quando existe; o texto corrido da tela de Atendimento entra
+          abaixo. Uma sessão pode ter um, outro ou os dois — são colunas
+          diferentes da mesma consulta. */}
+      {note.note && <SoapNoteView note={note.note} />}
+      {note.evolution && (
+        <div
+          className={styles.evolucao}
+          // Mesmo HTML que o editor gravou saneado (DOMPurify no RichTextEditor).
+          dangerouslySetInnerHTML={{ __html: note.evolution }}
+        />
+      )}
 
       {attachments && attachments.length > 0 && (
         <div className={styles.notaAnexos}>

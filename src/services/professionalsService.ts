@@ -10,7 +10,7 @@ import type { Professional, EducationItem, ExperienceItem, ProfessionalEarning, 
 /** Núcleo do profissional (sem currículo) — interno ao módulo. `ProfessionalRow`
  *  segue exportado porque userService monta a linha a partir do mesmo recorte. */
 const PROFESSIONAL_CORE_COLUMNS =
-  'id, clinic_id, code, name, specialty, description, rating, license, color, photo_url, status, sex, birth_date, email, phone, whatsapp, cep, state, city, neighborhood, number, specializations, courses, languages'
+  'id, clinic_id, code, name, specialty, description, rating, license, color, photo_url, status, sex, birth_date, email, phone, whatsapp, cep, state, city, neighborhood, number, specializations, courses, languages, council, council_state, cbo'
 
 export type ProfessionalRow = {
   id: string
@@ -37,6 +37,9 @@ export type ProfessionalRow = {
   specializations: string[]
   courses: string[]
   languages: string[]
+  council: string | null
+  council_state: string | null
+  cbo: string | null
 }
 
 function toProfessionalCore(row: ProfessionalRow): Professional {
@@ -65,6 +68,9 @@ function toProfessionalCore(row: ProfessionalRow): Professional {
     specializations: row.specializations ?? [],
     courses: row.courses ?? [],
     languages: row.languages ?? [],
+    council: row.council ?? undefined,
+    councilState: row.council_state ?? undefined,
+    cbo: row.cbo ?? undefined,
   }
 }
 
@@ -146,6 +152,10 @@ export interface EditProfessional {
   name?: string
   specialty?: string
   license?: string
+  // ── TISS (executante) ── ver o comentário no tipo Professional.
+  council?: string
+  councilState?: string
+  cbo?: string
   description?: string
   color?: string
   photo?: string
@@ -174,6 +184,8 @@ const SCALAR_MAP: Record<string, string> = {
   color: 'color', photo: 'photo_url', sex: 'sex', email: 'email', phone: 'phone', whatsapp: 'whatsapp',
   cep: 'cep', state: 'state', city: 'city', neighborhood: 'neighborhood', number: 'number',
   status: 'status', specializations: 'specializations', courses: 'courses', languages: 'languages',
+  // ── TISS (executante) ── sigla, UF e CBO em tags separadas da guia.
+  council: 'council', councilState: 'council_state', cbo: 'cbo',
 }
 
 /** Regrava a formação acadêmica (tabela filha). `undefined` = o form não enviou
@@ -265,6 +277,9 @@ export async function addProfessional(payload: NewProfessional): Promise<string>
     specializations: payload.specializations ?? [],
     courses: payload.courses ?? [],
     languages: payload.languages ?? [],
+    council: payload.council ?? null,
+    council_state: ufToDb(payload.councilState),
+    cbo: payload.cbo ?? null,
   }
 
   const { data, error } = await supabase

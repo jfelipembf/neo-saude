@@ -3,7 +3,7 @@ import { getCurrentClinicId, type ClientPayload } from '@/lib/tenant'
 import { phoneToDb, emailToDb } from '@/utils/text'
 import type { Insurance } from '@/types/domain'
 
-const COLUMNS = 'id, clinic_id, name, ans, phone, email, payout_days, notes, status'
+const COLUMNS = 'id, clinic_id, name, ans, phone, email, payout_days, notes, status, provider_code, tiss_version'
 
 type InsuranceRow = {
   id: string
@@ -15,6 +15,8 @@ type InsuranceRow = {
   payout_days: number | null
   notes: string | null
   status: Insurance['status']
+  provider_code: string | null
+  tiss_version: string | null
 }
 
 function toInsurance(row: InsuranceRow): Insurance {
@@ -28,6 +30,8 @@ function toInsurance(row: InsuranceRow): Insurance {
     payoutDays: row.payout_days ?? undefined,
     notes: row.notes ?? undefined,
     status: row.status,
+    providerCode: row.provider_code ?? undefined,
+    tissVersion: row.tiss_version ?? undefined,
   }
 }
 
@@ -53,6 +57,8 @@ function toRow(payload: EditInsurance) {
     payout_days: payload.payoutDays ?? null,
     notes: payload.notes ?? null,
     status: payload.status,
+    provider_code: payload.providerCode ?? null,
+    tiss_version: payload.tissVersion ?? null,
   }
 }
 

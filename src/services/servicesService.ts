@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId, type ClientPayload } from '@/lib/tenant'
 import type { Service } from '@/types/domain'
 
-const COLUMNS = 'id, clinic_id, name, modality, price, duration_qty, duration_unit, sessions, weekly_limit, max_installments, description, status'
+const COLUMNS = 'id, clinic_id, name, modality, price, duration_qty, duration_unit, sessions, weekly_limit, max_installments, description, status, tuss_code, tuss_table'
 
 type ServiceRow = {
   id: string
@@ -17,6 +17,8 @@ type ServiceRow = {
   max_installments: number
   description: string | null
   status: Service['status']
+  tuss_code: string | null
+  tuss_table: string | null
 }
 
 function toService(row: ServiceRow): Service {
@@ -33,6 +35,8 @@ function toService(row: ServiceRow): Service {
     maxInstallments: Number(row.max_installments),
     description: row.description ?? undefined,
     status: row.status,
+    tussCode: row.tuss_code ?? undefined,
+    tussTable: row.tuss_table ?? undefined,
   }
 }
 
@@ -61,6 +65,8 @@ function toRow(payload: EditService) {
     max_installments: payload.maxInstallments,
     description: payload.description ?? null,
     status: payload.status,
+    tuss_code: payload.tussCode ?? null,
+    tuss_table: payload.tussTable ?? null,
   }
 }
 

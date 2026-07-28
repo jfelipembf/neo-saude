@@ -42,10 +42,26 @@ export function brToIsoDate(br: string | null | undefined): string | null {
   return Number.isNaN(d.getTime()) ? null : toIsoDate(d)
 }
 
-/** 'aaaa-mm-dd' (banco) → 'dd/mm/aaaa' do domínio (null/vazio → undefined). */
+/**
+ * Data do banco → 'dd/mm/aaaa' do domínio (null/vazio/inválido → undefined).
+ *
+ * Aceita os DOIS formatos que o Postgres devolve, porque eles pedem leituras
+ * opostas:
+ *
+ *  · `date` — 'aaaa-mm-dd'. Não pode passar por `new Date`, que a leria como
+ *    meia-noite UTC e devolveria o dia ANTERIOR no fuso do Brasil.
+ *  · `timestamptz` — '2026-07-27T02:10:00Z'. Aí `new Date` é justamente quem
+ *    sabe trazer para o fuso local — e 02:10Z ainda é dia 26 aqui.
+ *
+ * Tratar os dois igual erra um dos dois: passar o timestamp por `localDate`
+ * fazia `Number('27T02:10:00Z')` virar NaN e imprimir "NaN/NaN/NaN" na tela.
+ */
 export function isoToBrDate(iso: string | null | undefined): string | undefined {
   if (!iso) return undefined
-  return toShortDateWithYear(localDate(iso))
+  const d = /[T ]/.test(iso) ? new Date(iso) : localDate(iso)
+  // Data impossível não vira texto: melhor o campo sumir do que a tela exibir
+  // "NaN/NaN/NaN", que não diz ao usuário nem que houve erro.
+  return Number.isNaN(d.getTime()) ? undefined : toShortDateWithYear(d)
 }
 
 /** '07:30' + 30min → '08:00' (hora do fim a partir da duração; vira ao passar

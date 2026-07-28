@@ -17,6 +17,7 @@ const TreatmentsPanel = lazy(() =>
 )
 import { DocumentsUpload } from '@/components/DocumentsUpload/DocumentsUpload'
 import { AnamnesisTab } from './Anamnesis/AnamnesisTab'
+import { ClinicalHistoryTab } from './ClinicalHistory/ClinicalHistoryTab'
 import { PatientTestsPanel } from './Tests/PatientTestsPanel'
 import { PatientClinicalNotesPanel } from './ClinicalNotes/PatientClinicalNotesPanel'
 import { PatientEnrollmentsPanel } from './Enrollments/PatientEnrollmentsPanel'
@@ -32,6 +33,7 @@ import { usePatient, useUpdatePatient, useUpdatePatientPhoto } from '@/hooks/use
 import { uploadImage } from '@/lib/storage'
 import { IconUser, IconEdit, IconPhone, IconMessage, IconEmail, IconCamera, IconCart, IconPlus } from '@/components/icons'
 import { initials, digitsOnly } from '@/utils/text'
+import { brToIsoDate, isoToBrDate } from '@/utils/date'
 import { isEntitlementActive } from '@/utils/entitlements'
 import { useSession } from '@/context/SessionProvider'
 import { appliesToSpecialty } from '@/constants'
@@ -39,8 +41,8 @@ import type { Patient, Gender, ClinicSpecialty, PatientServiceEntitlement } from
 import styles from './PatientProfilePage.module.scss'
 
 type TabKey =
-  | 'personal' | 'anamnesis' | 'treatment' | 'quotes' | 'tests' | 'clinicalNotes' | 'enrollments'
-  | 'prescriptions' | 'payments' | 'documents'
+  | 'personal' | 'anamnesis' | 'clinicalHistory' | 'treatment' | 'quotes' | 'tests'
+  | 'clinicalNotes' | 'enrollments' | 'prescriptions' | 'payments' | 'documents'
 
 // `specialties`/`excludeSpecialties` restringem a aba a certos ramos (ver
 // constants/specialty). Ausente = núcleo (todo ramo). Tratamento hoje é o
@@ -48,13 +50,23 @@ type TabKey =
 // (vira a aba Testes, com os testes/escalas de avaliação do paciente), e
 // Prescrições também não: o fisioterapeuta prescreve conduta no prontuário
 // da sessão, não receituário.
+//
+// ⚠️ RAMO NOVO ENTRA SOZINHO EM TODA DENYLIST. `excludeSpecialties` só nomeia
+// quem NÃO vê, então medicina precisou ser escrita à mão em Orçamentos —
+// consultório cobra consulta e procedimento, não monta plano de tratamento
+// orçado. Ao acrescentar o próximo ramo, revise esta lista inteira: o silêncio
+// aqui significa "vê", e não "ninguém decidiu ainda".
 const TABS: { key: TabKey; label: string; specialties?: ClinicSpecialty[]; excludeSpecialties?: ClinicSpecialty[] }[] = [
   { key: 'personal',      label: 'Dados pessoais' },
   { key: 'anamnesis',     label: 'Anamnese' },
+  // Problemas de saúde, antecedentes, histórico familiar, riscos e medicação —
+  // tudo anotado na tela de Atendimento. Sem esta aba, os dados existiam no
+  // banco e só eram alcançáveis de dentro de uma consulta ABERTA.
+  { key: 'clinicalHistory', label: 'Histórico clínico' },
   { key: 'treatment',     label: 'Tratamento',  specialties: ['dentistry'] },
-  { key: 'quotes',        label: 'Orçamentos',  excludeSpecialties: ['physiotherapy'] },
+  { key: 'quotes',        label: 'Orçamentos',  excludeSpecialties: ['physiotherapy', 'medicine'] },
   { key: 'tests',         label: 'Testes',      specialties: ['physiotherapy'] },
-  { key: 'clinicalNotes', label: 'Prontuários', specialties: ['physiotherapy'] },
+  { key: 'clinicalNotes', label: 'Prontuários', specialties: ['physiotherapy', 'medicine'] },
   { key: 'enrollments',   label: 'Matrículas',  specialties: ['physiotherapy'] },
   { key: 'prescriptions', label: 'Prescrições', excludeSpecialties: ['physiotherapy'] },
   { key: 'payments',      label: 'Pagamentos' },
@@ -71,6 +83,10 @@ interface PatientFormState {
   phone: string
   whatsapp: string
   insurance: string
+  insuranceCard: string
+  insuranceCardValidUntilIso: string
+  insurancePlan: string
+  cns: string
   cep: string
   state: string
   city: string
@@ -92,6 +108,10 @@ function formFromPatient(p: Patient): PatientFormState {
     phone: p.phone,
     whatsapp: p.whatsapp ?? '',
     insurance: p.insurance,
+    insuranceCard: p.insuranceCard ?? '',
+    insuranceCardValidUntilIso: brToIsoDate(p.insuranceCardValidUntil) ?? '',
+    insurancePlan: p.insurancePlan ?? '',
+    cns: p.cns ?? '',
     cep: p.cep ?? '',
     state: p.state ?? '',
     city: p.city ?? '',
@@ -227,6 +247,10 @@ export function PatientProfilePage() {
           phone: form.phone.trim(),
           whatsapp: form.whatsapp.trim() || undefined,
           insurance: form.insurance,
+          insuranceCard: form.insuranceCard.trim() || undefined,
+          insuranceCardValidUntil: isoToBrDate(form.insuranceCardValidUntilIso),
+          insurancePlan: form.insurancePlan.trim() || undefined,
+          cns: form.cns.trim() || undefined,
           cep: form.cep.trim() || undefined,
           state: form.state.trim().toUpperCase() || undefined,
           city: form.city.trim() || undefined,
@@ -478,6 +502,43 @@ export function PatientProfilePage() {
                   value={form.insurance}
                   onChange={e => set('insurance')(e.target.value)}
                 />
+                {/* ── TISS (beneficiário) ──
+                    Só aparece com convênio escolhido: quem é particular não tem
+                    carteirinha, e o campo vazio na ficha dele é ruído.
+                    A validade importa tanto quanto o número — carteirinha
+                    vencida na data do atendimento volta glosada. */}
+                {form.insurance && form.insurance !== 'Particular' && (
+                  <>
+                    <div className={styles.grid2}>
+                      <Input
+                        label="Carteirinha"
+                        placeholder="Número na operadora"
+                        value={form.insuranceCard}
+                        onChange={e => set('insuranceCard')(e.target.value)}
+                      />
+                      <Input
+                        label="Validade da carteirinha"
+                        type="date"
+                        value={form.insuranceCardValidUntilIso}
+                        onChange={e => set('insuranceCardValidUntilIso')(e.target.value)}
+                      />
+                    </div>
+                    <div className={styles.grid2}>
+                      <Input
+                        label="Plano"
+                        placeholder="Ex: Nacional Enfermaria"
+                        value={form.insurancePlan}
+                        onChange={e => set('insurancePlan')(e.target.value)}
+                      />
+                      <Input
+                        label="CNS (Cartão Nacional de Saúde)"
+                        inputMode="numeric"
+                        value={form.cns}
+                        onChange={e => set('cns')(e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
               </section>
 
               <section className={styles.formSection}>
@@ -544,6 +605,9 @@ export function PatientProfilePage() {
           )}
           {activeTab === 'tests' && (
             <PatientTestsPanel patientId={patient.id} />
+          )}
+          {activeTab === 'clinicalHistory' && (
+            <ClinicalHistoryTab patientId={patient.id} />
           )}
           {activeTab === 'clinicalNotes' && (
             <PatientClinicalNotesPanel patientId={patient.id} />

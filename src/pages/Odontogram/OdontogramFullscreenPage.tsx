@@ -24,6 +24,7 @@ import { CibellyPedalButton } from '@/components/CibellyPedalButton/CibellyPedal
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { Modal } from '@/components/Modal/Modal'
 import { Button } from '@/components/Button/Button'
+import { DrugCatalogDrawer } from '@/components/DrugCatalog/DrugCatalogDrawer'
 import { Spinner } from '@/components/Spinner/Spinner'
 import {
   IconX, IconMic, IconCheck, IconTooth, IconDocument, IconMessage,
@@ -119,6 +120,10 @@ export function OdontogramFullscreenPage() {
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>('odontogram')
   const [sujo, setSujo] = useState(false)
   const [erroSalvar, setErroSalvar] = useState<string | null>(null)
+  // Gaveta do catálogo de medicamentos. Fica aqui com os outros estados de UI:
+  // declarada mais abaixo, caía depois de um return antecipado e quebrava a
+  // ordem dos hooks.
+  const [catalogoAberto, setCatalogoAberto] = useState(false)
 
   /**
    * Qual dia da ficha está na tela. `null` = ficha corrente ("Atual"), a única
@@ -573,6 +578,13 @@ export function OdontogramFullscreenPage() {
               Salvar
             </Button>
           )}
+
+          {/* Consulta de medicamento fica na barra e NÃO depende de paciente
+              escolhido: a pergunta "qual a apresentação da clindamicina?"
+              aparece antes de abrir a ficha de alguém. */}
+          <Button variant="ghost" size="md" onClick={() => setCatalogoAberto(true)}>
+            Medicamentos
+          </Button>
         </div>
 
         <div className={styles.barraDireita}>
@@ -843,6 +855,8 @@ export function OdontogramFullscreenPage() {
           </aside>
         </div>
       </div>
+
+      <DrugCatalogDrawer open={catalogoAberto} onClose={() => setCatalogoAberto(false)} />
 
       <CibellyPedalButton
         mode="patient"

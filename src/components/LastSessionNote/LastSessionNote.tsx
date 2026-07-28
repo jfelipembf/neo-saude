@@ -73,7 +73,12 @@ export function LastSessionNote({ patientId, beforeDateIso, beforeStartTime, onR
 
       {note && expanded && (
         <div className={styles.body}>
-          <SoapNoteView note={note.note} size="sm" />
+          {/* Sessão registrada só pela tela de Atendimento não tem SOAP — o
+              texto corrido dela entra logo abaixo. */}
+          {note.note && <SoapNoteView note={note.note} size="sm" />}
+          {note.evolution && (
+            <div dangerouslySetInnerHTML={{ __html: note.evolution }} />
+          )}
         </div>
       )}
 

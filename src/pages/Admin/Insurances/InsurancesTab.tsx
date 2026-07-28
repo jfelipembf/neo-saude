@@ -23,6 +23,8 @@ import styles from './InsurancesTab.module.scss'
 interface InsuranceFormState {
   name: string
   ans: string
+  providerCode: string
+  tissVersion: string
   phone: string
   email: string
   payoutDays: string      // texto do input; vira número ao salvar
@@ -31,13 +33,16 @@ interface InsuranceFormState {
 }
 
 const EMPTY_FORM: InsuranceFormState = {
-  name: '', ans: '', phone: '', email: '', payoutDays: '', notes: '', active: true,
+  name: '', ans: '', providerCode: '', tissVersion: '',
+  phone: '', email: '', payoutDays: '', notes: '', active: true,
 }
 
 function formFromInsurance(c: Insurance): InsuranceFormState {
   return {
     name: c.name,
     ans: c.ans ?? '',
+    providerCode: c.providerCode ?? '',
+    tissVersion: c.tissVersion ?? '',
     phone: c.phone ?? '',
     email: c.email ?? '',
     payoutDays: c.payoutDays != null ? String(c.payoutDays) : '',
@@ -106,6 +111,8 @@ export function InsurancesTab() {
     const payload: EditInsurance = {
       name: form.name.trim(),
       ans: form.ans.trim() || undefined,
+      providerCode: form.providerCode.trim() || undefined,
+      tissVersion: form.tissVersion.trim() || undefined,
       phone: form.phone.trim() || undefined,
       email: form.email.trim() || undefined,
       payoutDays: form.payoutDays.trim() ? Math.max(0, Number(form.payoutDays) || 0) : undefined,
@@ -222,6 +229,24 @@ export function InsurancesTab() {
               placeholder="Ex: 30"
               value={form.payoutDays}
               onChange={e => set('payoutDays')(e.target.value)}
+            />
+          </div>
+          {/* ── TISS ──
+              O código do prestador é POR OPERADORA (não é o CNPJ), e a versão
+              do padrão também: as operadoras migram em datas diferentes, então
+              não existe uma versão única da clínica. */}
+          <div className={styles.grid2}>
+            <Input
+              label="Código do prestador nesta operadora"
+              placeholder="O código que ELA te deu"
+              value={form.providerCode}
+              onChange={e => set('providerCode')(e.target.value)}
+            />
+            <Input
+              label="Versão TISS aceita"
+              placeholder="Ex: 4.01.00"
+              value={form.tissVersion}
+              onChange={e => set('tissVersion')(e.target.value)}
             />
           </div>
           <div className={styles.grid2}>

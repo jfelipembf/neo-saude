@@ -47,6 +47,11 @@ export const STATUS_MAP: Record<string, StatusEntry> = {
   pending: { variant: 'warning', label: 'Pendente' },
   overdue: { variant: 'danger',  label: 'Vencido' },
 
+  // ── Guias TISS ──
+  // 'canceled' já registrado acima com o rótulo "Cancelada" — serve à guia.
+  draft:  { variant: 'gray',    label: 'Rascunho' },
+  issued: { variant: 'success', label: 'Emitida' },
+
   // ── Orçamentos ──
   // 'pending' já registrado no Financeiro — rótulo "Pendente" serve aos dois.
   approved: { variant: 'success', label: 'Aprovado' },

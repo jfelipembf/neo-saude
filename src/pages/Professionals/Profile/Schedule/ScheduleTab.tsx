@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Calendar } from '@/components/Calendar/Calendar'
 import { Button } from '@/components/Button/Button'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
-import { SegmentedControl } from '@/components/SegmentedControl/SegmentedControl'
 import { IconSchedule, IconPhone, IconMessage, IconEye } from '@/components/icons'
 import { buildRoute, DAY_OF_WEEK_LONG } from '@/constants'
 import { useScheduleAppointments } from '@/hooks/useSchedule'
@@ -11,7 +10,6 @@ import { usePatients } from '@/hooks/usePatients'
 import { toIsoDate, localDate } from '@/utils/date'
 import { digitsOnly } from '@/utils/text'
 import type { Professional } from '@/types/domain'
-import { AvailabilityPanel } from './AvailabilityPanel'
 import shared from '../shared/profile.module.scss'
 import styles from './ScheduleTab.module.scss'
 
@@ -19,23 +17,16 @@ interface ScheduleTabProps {
   professional: Professional
 }
 
-type View = 'appointments' | 'availability'
-
-const VIEW_OPTIONS = [
-  { value: 'appointments' as const, label: 'Consultas' },
-  { value: 'availability' as const, label: 'Disponibilidade' },
-]
-
-/** Aba "Agenda": alterna entre as consultas já marcadas (calendário + lista
- *  do dia) e a grade de disponibilidade recorrente do profissional. */
+/**
+ * Aba "Agenda": as consultas já marcadas do profissional — calendário com os
+ * dias que têm atendimento e a lista do dia escolhido.
+ *
+ * A grade de disponibilidade saiu daqui e virou aba própria
+ * (AvailabilityTab): é configuração de quando ele PODE atender, não leitura do
+ * que está marcado, e como segmento dentro desta aba só era achada por quem já
+ * sabia que existia.
+ */
 export function ScheduleTab({ professional }: ScheduleTabProps) {
-  // Deep-link ?view=availability (ex.: atalho "Início rápido" do Dashboard)
-  // — sem ele (ou com valor inválido) cai na view padrão, Consultas.
-  const [searchParams] = useSearchParams()
-  const requestedView = searchParams.get('view')
-  const [view, setView] = useState<View>(
-    () => VIEW_OPTIONS.some(o => o.value === requestedView) ? (requestedView as View) : 'appointments',
-  )
   const navigate = useNavigate()
   const today = new Date()
   const fromIso = toIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 182))
@@ -64,12 +55,9 @@ export function ScheduleTab({ professional }: ScheduleTabProps) {
     <section className={shared.formCard} aria-label="Agenda">
       <div className={shared.detalheHead}>
         <h2 className={shared.formTitulo}>Agenda</h2>
-        <SegmentedControl options={VIEW_OPTIONS} value={view} onChange={setView} />
       </div>
 
-      {view === 'availability' && <AvailabilityPanel professionalId={professional.id} />}
-
-      {view === 'appointments' && (professionalSlots.length === 0 ? (
+      {professionalSlots.length === 0 ? (
         <EmptyState
           icon={<IconSchedule />}
           title="Nenhuma consulta agendada"
@@ -144,7 +132,7 @@ export function ScheduleTab({ professional }: ScheduleTabProps) {
             )}
           </div>
         </div>
-      ))}
+      )}
     </section>
   )
 }

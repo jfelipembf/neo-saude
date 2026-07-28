@@ -1,0 +1,94 @@
+@use '../../../../styles/mixins' as *;
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.bloco {
+  @include card;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  padding: $sp-4;
+}
+
+.titulo {
+  font-size: $fs-sm;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  padding-bottom: $sp-1;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.subtitulo {
+  font-size: $fs-xs;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+// Data (ou parentesco) em cima, achado embaixo — mesma leitura da timeline do
+// atendimento, para quem vê as duas telas não ter de reaprender a ordem.
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: $sp-2;
+  border-bottom: 1px solid var(--glass-border);
+
+  &:last-child { border-bottom: none; padding-bottom: 0; }
+}
+
+// Medicação encerrada continua visível, mas recuada no peso: é histórico, não
+// o que o paciente toma hoje.
+.itemFraco .itemTitulo { color: var(--text-secondary); font-weight: 500; }
+
+.itemTitulo {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  font-size: $fs-sm;
+  color: var(--text-primary);
+}
+
+.itemTexto {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+// text-secondary e não muted: é data de fato clínico, lida de perto.
+.itemData {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.selo {
+  padding: 1px $sp-2;
+  border: 1px solid var(--primary-fg);
+  border-radius: $radius-pill;
+  font-size: $fs-xs;
+  font-weight: 500;
+  color: var(--primary-fg);
+}
+
+.vazio {
+  margin: 0;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}

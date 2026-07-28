@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { isBlankSoap } from '@/utils/soap'
+import { textoDoHtml } from '@/utils/htmlExcerpt'
 import type { SoapNote } from '@/types/domain'
 
 // Prontuário por SESSÃO (aba "Prontuários" do perfil + painel "Última sessão"
@@ -7,8 +8,13 @@ import type { SoapNote } from '@/types/domain'
 // duas formas e cada uma grava num lugar:
 //   • individual → appointment.clinical_note            (AppointmentModal)
 //   • em turma   → class_group_attendance.clinical_note (ClassAttendanceModal)
+//   • consulta   → appointment.medical_record           (tela de Atendimento)
 // Ler só a primeira escondia do histórico do paciente TODA evolução escrita
-// numa turma. Aqui as duas viram uma lista só.
+// numa turma. Aqui as três viram uma lista só.
+//
+// `clinical_note` e `medical_record` são COLUNAS DIFERENTES da mesma tabela: a
+// primeira é o SOAP estruturado do modal, a segunda é o texto corrido da tela
+// cheia de atendimento. Uma linha pode ter as duas, e a tela mostra as duas.
 //
 // Nota vazia não é nota: o CHECK do banco recusa seção em branco, mas nada
 // impede uma linha antiga/torta de chegar sem nenhuma seção preenchida — e aí
@@ -32,10 +38,13 @@ export interface SessionClinicalNote {
   activity: string
   /** Quem atendeu — o NOME é resolvido na tela (useProfessionalName). */
   professionalId?: string
-  /** A evolução em si, já nas quatro seções (ver appointment.clinical_note).
-   *  Quem precisa dela num HTML só (impressão, leitura corrida) usa
-   *  soapToHtml — a fonte continua sendo a nota estruturada. */
-  note: SoapNote
+  /** A evolução em SOAP (ver appointment.clinical_note). `null` quando a sessão
+   *  só tem o texto corrido da tela de atendimento — sintetizar um SOAP falso a
+   *  partir do HTML mentiria sobre a estrutura do que foi escrito. */
+  note: SoapNote | null
+  /** Texto corrido escrito na tela de Atendimento (appointment.medical_record),
+   *  em HTML. Independente do SOAP: a sessão pode ter um, outro ou os dois. */
+  evolution?: string
 }
 
 /** Janela de busca comum às duas fontes (dia exato, "até tal dia", teto de linhas). */
@@ -54,9 +63,11 @@ function byMostRecent(a: SessionClinicalNote, b: SessionClinicalNote) {
 async function listAppointmentNotes(patientId: string, window: NoteWindow): Promise<SessionClinicalNote[]> {
   let query = supabase
     .from('appointment')
-    .select('id, date, start_time, service, professional_id, clinical_note')
+    .select('id, date, start_time, service, professional_id, clinical_note, medical_record')
     .eq('patient_id', patientId)
-    .not('clinical_note', 'is', null)
+    // Basta UMA das duas colunas ter conteúdo — o `or` é só o pré-filtro barato
+    // no banco; o descarte de nota vazia continua abaixo.
+    .or('clinical_note.not.is.null,medical_record.not.is.null')
   if (window.fromIso) query = query.gte('date', window.fromIso)
   if (window.toIso) query = query.lte('date', window.toIso)
 
@@ -65,17 +76,26 @@ async function listAppointmentNotes(patientId: string, window: NoteWindow): Prom
   if (error) throw error
 
   return (data ?? [])
-    .filter(row => !isBlankSoap(row.clinical_note as SoapNote | null))
-    .map(row => ({
-      id: row.id as string,
-      source: 'appointment' as const,
-      appointmentId: row.id as string,
-      date: row.date as string,
-      startTime: (row.start_time as string).slice(0, 5),
-      activity: row.service as string,
-      professionalId: (row.professional_id as string | null) ?? undefined,
-      note: row.clinical_note as SoapNote,
-    }))
+    .map(row => {
+      const soap = row.clinical_note as SoapNote | null
+      const evolucao = (row.medical_record as string | null) ?? ''
+      return {
+        id: row.id as string,
+        source: 'appointment' as const,
+        appointmentId: row.id as string,
+        date: row.date as string,
+        startTime: (row.start_time as string).slice(0, 5),
+        activity: row.service as string,
+        professionalId: (row.professional_id as string | null) ?? undefined,
+        note: isBlankSoap(soap) ? null : soap,
+        // `<p></p>` do editor conta como vazio: sem isto, abrir a tela de
+        // atendimento e não escrever nada marcaria o dia no calendário.
+        evolution: textoDoHtml(evolucao).trim() ? evolucao : undefined,
+      }
+    })
+    // Sessão sem NENHUMA das duas coisas não é prontuário — ficaria marcada no
+    // calendário e abriria em branco.
+    .filter(nota => nota.note !== null || nota.evolution !== undefined)
 }
 
 /** Sessões de TURMA com evolução escrita (chamada do ClassAttendanceModal).

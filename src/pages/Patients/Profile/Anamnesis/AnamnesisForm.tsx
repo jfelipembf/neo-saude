@@ -42,6 +42,9 @@ function emptyFormFor(specialty: ClinicSpecialty | undefined): EditAnamnesis {
       smokes: 'no',
     }
   }
+  if (specialty === 'medicine') {
+    return { ...CORE_EMPTY, smokes: 'no', physicalActivity: 'no' }
+  }
   if (specialty === 'physiotherapy') {
     return {
       ...CORE_EMPTY,
@@ -68,11 +71,20 @@ interface AnamnesisFormProps {
   patientId: string
   record: Anamnesis | null
   onClose: () => void
+  /**
+   * Modo COLUNA ESTREITA — o painel da tela de atendimento.
+   *
+   * Tira o cartão e o título: lá o painel já tem moldura e cabeçalho próprios,
+   * e o formulário chegava como um cartão dentro de outro, com "Editar
+   * anamnese" logo abaixo de "Anamnese". As perguntas e o salvamento são
+   * exatamente os mesmos — é a MESMA ficha, vista de outro lugar.
+   */
+  compact?: boolean
 }
 
 /** Formulário da anamnese — as perguntas vêm de `questions.ts`, então incluir
  *  uma pergunta nova não exige mexer aqui. */
-export function AnamnesisForm({ patientId, record, onClose }: AnamnesisFormProps) {
+export function AnamnesisForm({ patientId, record, onClose, compact = false }: AnamnesisFormProps) {
   const toast = useToast()
   const { specialty } = useSession()
   const { mutate: save, isPending: saving } = useSaveAnamnesis(patientId)
@@ -95,10 +107,12 @@ export function AnamnesisForm({ patientId, record, onClose }: AnamnesisFormProps
   }
 
   return (
-    <section className={styles.card} aria-label="Editar anamnese">
-      <div className={styles.head}>
-        <h2 className={styles.titulo}>{record ? 'Editar anamnese' : 'Preencher anamnese'}</h2>
-      </div>
+    <section className={compact ? styles.compacto : styles.card} aria-label="Editar anamnese">
+      {!compact && (
+        <div className={styles.head}>
+          <h2 className={styles.titulo}>{record ? 'Editar anamnese' : 'Preencher anamnese'}</h2>
+        </div>
+      )}
 
       <form className={styles.form} onSubmit={handleSave}>
         {sections.map(section => (
@@ -115,10 +129,16 @@ export function AnamnesisForm({ patientId, record, onClose }: AnamnesisFormProps
                   {q.type === 'options' ? (
                     <>
                       <span className={styles.pergunta}>{q.question}</span>
+                      {/* `wrap`: as opções daqui têm rótulo longo ("Controlada
+                          com medicamento", "Durante a higiene") e a ficha é
+                          usada tanto na coluna estreita do atendimento quanto
+                          no celular. Sem quebrar, a última opção saía do
+                          contêiner — e opção que transborda não se marca. */}
                       <SegmentedControl
                         options={q.options!}
                         value={String(value)}
                         onChange={v => set(q.field, v)}
+                        wrap
                       />
                     </>
                   ) : q.type === 'longText' ? (

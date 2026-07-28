@@ -125,6 +125,12 @@ export async function saveAnamnesis(patientId: string, p: EditAnamnesis, special
       dailyImpact: withDetail(p.dailyImpact ?? 'no', p.dailyImpactDetails),
       redFlags: withDetail(p.redFlags ?? 'no', p.redFlagsDetails),
     })
+  } else if (specialty === 'medicine') {
+    // `chiefComplaint` já vai em coreAnswers; aqui só os dois hábitos.
+    Object.assign(answers, {
+      smokes: withDetail(p.smokes ?? 'no', p.smokingAmount),
+      physicalActivity: withDetail(p.physicalActivity ?? 'no', p.physicalActivityDetails),
+    })
   } else if (specialty === 'dentistry' || specialty === undefined) {
     // undefined (sessão ainda resolvendo) cai no ramo odontológico por ser o
     // template histórico do produto — só é alcançado num instante de boot raro.

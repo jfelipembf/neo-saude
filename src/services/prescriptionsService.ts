@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId, type ClientPayload } from '@/lib/tenant'
 import type { ClientInsert, Insert } from '@/lib/db'
-import { brToIsoDate, isoToBrDate } from '@/utils/date'
+import { brToIsoDate, isoToBrDate, toIsoDate } from '@/utils/date'
 import type { Prescription, PrescribedMedication } from '@/types/domain'
 
 type PrescriptionRow = {
@@ -12,6 +12,7 @@ type PrescriptionRow = {
   type: Prescription['type']
   title: string
   issued_on: string
+  delivered_at: string | null
   professional_id: string | null
   body: string | null
   notes: string | null
@@ -22,7 +23,7 @@ type MedRow = { prescription_id: string; name: string; dosage: string; quantity:
 export async function listPatientPrescriptions(patientId: string): Promise<Prescription[]> {
   const { data, error } = await supabase
     .from('prescription')
-    .select('id, clinic_id, code, patient_id, type, title, issued_on, professional_id, body, notes')
+    .select('id, clinic_id, code, patient_id, type, title, issued_on, professional_id, body, notes, delivered_at')
     .eq('patient_id', patientId)
     .order('issued_on', { ascending: false })
   if (error) throw error
@@ -55,6 +56,7 @@ export async function listPatientPrescriptions(patientId: string): Promise<Presc
     medications: byPrescription.get(row.id),
     text: row.body ?? undefined,
     notes: row.notes ?? undefined,
+    deliveredOn: isoToBrDate(row.delivered_at),
   }))
 }
 
@@ -66,6 +68,26 @@ export type NewPrescription = ClientPayload<Prescription>
 // 'prescription' e CHECK. Como todo cadastro filho, o cliente não tem GRANT de
 // coluna nela (nem em id/created_at) — mandá-la dá "permission denied for table".
 // O default preenche, e a FK garante que só receituário aceita medicamento.
+
+/**
+ * Marca (ou desmarca) o resultado do exame como ENTREGUE.
+ *
+ * Existe separado do anexo porque as duas coisas acontecem em ordens
+ * diferentes: o paciente traz o papel, o médico lê e devolve — resultado
+ * entregue, arquivo nenhum. Derivar "entregue" da existência de anexo perderia
+ * esse caso, que é o mais comum no consultório.
+ */
+export async function setPrescriptionDelivered(
+  id: string, entregue: boolean,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('prescription')
+    .update({ delivered_at: entregue ? toIsoDate(new Date()) : null })
+    .eq('id', id)
+    .select('id')
+  if (error) throw error
+  if (!data?.length) throw new Error('Não foi possível atualizar a entrega.')
+}
 
 export async function addPrescription(payload: NewPrescription): Promise<void> {
   const clinicId = getCurrentClinicId()
@@ -102,4 +124,49 @@ export async function addPrescription(payload: NewPrescription): Promise<void> {
     const { error: medError } = await supabase.from('prescription_medication').insert(meds)
     if (medError) throw medError
   }
+}
+
+/** O que dá para corrigir num documento já emitido. */
+export interface EditPrescription {
+  title: string
+  text?: string
+  notes?: string
+  /** dd/mm/aaaa */
+  date?: string
+}
+
+/**
+ * Corrige um documento emitido.
+ *
+ * NÃO troca paciente nem tipo: `patient_id` e `type` não têm GRANT de coluna, e
+ * é de propósito — mudar o paciente de um atestado já impresso é falsificação,
+ * não edição. O tipo ainda é a coluna discriminadora da FK com
+ * prescription_medication (só receita aceita medicamento).
+ */
+export async function updatePrescription(id: string, payload: EditPrescription): Promise<void> {
+  const { data, error } = await supabase
+    .from('prescription')
+    .update({
+      title: payload.title,
+      body: payload.text ?? null,
+      notes: payload.notes?.trim() || null,
+      ...(payload.date ? { issued_on: brToIsoDate(payload.date) ?? undefined } : {}),
+    })
+    .eq('id', id)
+    .select('id')
+  if (error) throw error
+  // Zero linhas = a RLS recusou. Sem conferir, a tela diria "salvo" e o
+  // documento continuaria como estava — mesmo bug silencioso da exclusão de
+  // tratamento.
+  if (!data?.length) throw new Error('Não foi possível alterar este documento.')
+}
+
+export async function removePrescription(id: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('prescription')
+    .delete()
+    .eq('id', id)
+    .select('id')
+  if (error) throw error
+  if (!data?.length) throw new Error('Não foi possível excluir este documento.')
 }

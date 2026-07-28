@@ -15,6 +15,40 @@
   padding: $sp-5;
 }
 
+/**
+ * COLUNA ESTREITA — a ficha dentro do painel da tela de atendimento.
+ *
+ * Mesmas classes, mesmo componente: só cai para uma coluna e larga o cartão,
+ * porque lá o painel já tem moldura e cabeçalho. Variante aqui, e não uma
+ * segunda folha na pasta do atendimento, para as duas telas não divergirem
+ * quando alguém mexer no destaque de alergia ou no recuo do detalhe.
+ */
+.compacto {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+
+  // Pergunta e resposta empilhadas: em 400px, "Já teve reação com anestesia
+  // dental?" e "Não" lado a lado deixam a pergunta em quatro linhas de duas
+  // palavras.
+  .respostas { grid-template-columns: 1fr; }
+
+  .resposta {
+    flex-direction: column;
+    align-items: stretch;
+    gap: $sp-1;
+
+    dd {
+      align-items: flex-start;
+      text-align: left;
+      max-width: 100%;
+    }
+  }
+
+  // O detalhe já é estreito; o teto de 480px do perfil não tem o que fazer aqui.
+  .detalheCampo { max-width: 100%; }
+}
+
 .head {
   display: flex;
   align-items: flex-start;

@@ -38,6 +38,12 @@ export function TodayAppointmentsList({ appointments }: TodayAppointmentsListPro
   // o gate de especialidade (só faz sentido em odontologia) — ver comment do
   // showOdontogram em Header.tsx.
   const showOdontoActions = specialty === 'dentistry' && canView('patients')
+  // MEDICINA entra na tela de atendimento (tela cheia) a partir daqui — é o
+  // caminho de entrada dela, como o "Odonto IA" é o da odontologia.
+  const showConsultaAction = specialty === 'medicine' && canView('patients')
+  // FISIOTERAPIA tem a sua: mesma tela cheia, prontuário SOAP no centro e
+  // painel de Testes. Rota própria (`/sessao`), não a mesma com um parâmetro.
+  const showSessaoAction = specialty === 'physiotherapy' && canView('patients')
 
   // Mais cedo primeiro — é a ordem em que o profissional vai VIVER o dia.
   const sorted = useMemo(
@@ -64,6 +70,56 @@ export function TodayAppointmentsList({ appointments }: TodayAppointmentsListPro
       className: styles.colStatus,
       render: a => <Badge status={a.status} />,
     },
+    ...(showConsultaAction ? [{
+      key: 'actions',
+      label: 'Ações',
+      render: (a: ScheduledAppointment) => (
+        <span className={styles.acoes}>
+          <Button
+            variant="outline"
+            size="sm"
+            iconLeft={<IconUser />}
+            onClick={e => { e.stopPropagation(); navigate(buildRoute.patientProfile(a.patientId)) }}
+          >
+            Perfil
+          </Button>
+          <Button
+            size="sm"
+            onClick={e => {
+              e.stopPropagation()
+              navigate(`${FULLSCREEN_ROUTES.CONSULTATION}?consulta=${a.id}`)
+            }}
+          >
+            Iniciar atendimento
+          </Button>
+        </span>
+      ),
+    }] : []),
+    ...(showSessaoAction ? [{
+      key: 'actions',
+      label: '',
+      render: (a: ScheduledAppointment) => (
+        <span className={styles.acoes}>
+          <Button
+            size="sm"
+            variant="outline"
+            iconLeft={<IconUser />}
+            onClick={e => { e.stopPropagation(); navigate(buildRoute.patientProfile(a.patientId)) }}
+          >
+            Perfil
+          </Button>
+          <Button
+            size="sm"
+            onClick={e => {
+              e.stopPropagation()
+              navigate(`${FULLSCREEN_ROUTES.PHYSIO_SESSION}?sessao=${a.id}`)
+            }}
+          >
+            Iniciar sessão
+          </Button>
+        </span>
+      ),
+    }] : []),
     ...(showOdontoActions ? [{
       key: 'actions',
       label: 'Ações',

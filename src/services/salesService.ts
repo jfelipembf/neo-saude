@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
 import { isoToBrDate } from '@/utils/date'
+import { PAYMENT_METHOD_LABEL } from '@/constants/payments'
 import type { Receivable, PaymentMethod, PaymentStatus, ReceivableDebtor } from '@/types/domain'
 import type { DashboardRange } from '@/utils/period'
 
@@ -80,6 +81,10 @@ interface PaymentPlanLine {
 
 export interface CheckoutSalePayload {
   patientId: string
+  /** Consulta que originou a venda. Presente = a venda fica AMARRADA a ela, e
+   *  o banco recusa uma segunda venda para a mesma consulta (índice único
+   *  parcial sale_appointment_uk). Ausente = venda avulsa do PDV. */
+  appointmentId?: string
   saleDateIso: string   // aaaa-mm-dd — já vem assim do <Input type="date">
   discount: number
   items: CartLine[]
@@ -89,7 +94,11 @@ export interface CheckoutSalePayload {
 /** Fecha a venda: grava sale/sale_item, cria o direito a sessões das linhas de
  *  pacote e gera os recebíveis do plano de pagamento (RPC checkout_sale). */
 export async function checkoutSale(payload: CheckoutSalePayload): Promise<string> {
-  const { data, error } = await supabase.rpc('checkout_sale', {
+  // Com consulta, a RPC que amarra: venda e vínculo nascem na MESMA transação.
+  // Gravar o elo num segundo UPDATE deixaria venda órfã se a rede caísse.
+  const rpc = payload.appointmentId ? 'checkout_sale_for_appointment' : 'checkout_sale'
+  const { data, error } = await supabase.rpc(rpc, {
+    ...(payload.appointmentId ? { p_appointment: payload.appointmentId } : {}),
     p_patient: payload.patientId,
     p_sale_date: payload.saleDateIso,
     p_discount: payload.discount,
@@ -105,4 +114,74 @@ export async function checkoutSale(payload: CheckoutSalePayload): Promise<string
   })
   if (error) throw error
   return data
+}
+
+/**
+ * Esta consulta já foi paga?
+ *
+ * Pergunta ao banco, não ao cache: a recepção pode ter cobrado noutra aba
+ * enquanto o modal estava aberto, e é justamente esse o caso que a trava
+ * precisa pegar.
+ */
+export interface VendaDaConsulta {
+  id: string
+  /** BRUTO — é o que vai no recibo do paciente (docs/modelo-contabil.md). */
+  total: number
+  saleDate: string
+  /** O que foi vendido, para a descrição do recibo. */
+  description: string
+  /** Formas usadas, já escritas ("Crédito 3x + Pix"). */
+  paymentMethods: string
+}
+
+export async function findSaleByAppointment(
+  appointmentId: string,
+): Promise<VendaDaConsulta | null> {
+  const clinicId = getCurrentClinicId()
+  const { data, error } = await supabase
+    .from('sale')
+    .select('id, total, sale_date')
+    .eq('clinic_id', clinicId)
+    .eq('appointment_id', appointmentId)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+
+  const saleId = data.id as string
+  // Itens e títulos em paralelo: o recibo precisa do QUE foi vendido e de COMO
+  // foi pago, e nenhum dos dois depende do outro.
+  const [itens, titulos] = await Promise.all([
+    supabase.from('sale_item').select('name, quantity').eq('clinic_id', clinicId).eq('sale_id', saleId),
+    supabase.from('receivable').select('method, installment_count')
+      .eq('clinic_id', clinicId).eq('sale_id', saleId).order('installment_number'),
+  ])
+  if (itens.error) throw itens.error
+  if (titulos.error) throw titulos.error
+
+  const descricao = (itens.data ?? [])
+    .map(i => (Number(i.quantity) > 1 ? `${i.quantity}× ${i.name}` : String(i.name)))
+    .join(', ')
+
+  // Uma linha por FORMA, não por parcela: um crédito em 3x gera três títulos, e
+  // listar "Crédito, Crédito, Crédito" no recibo é ruído.
+  const formas = new Map<string, number>()
+  for (const t of titulos.data ?? []) {
+    const metodo = t.method as PaymentMethod | null
+    if (!metodo) continue
+    formas.set(metodo, Math.max(formas.get(metodo) ?? 1, Number(t.installment_count) || 1))
+  }
+  const paymentMethods = [...formas.entries()]
+    .map(([metodo, parcelas]) => {
+      const rotulo = PAYMENT_METHOD_LABEL[metodo as PaymentMethod] ?? metodo
+      return parcelas > 1 ? `${rotulo} ${parcelas}x` : rotulo
+    })
+    .join(' + ')
+
+  return {
+    id: saleId,
+    total: Number(data.total),
+    saleDate: isoToBrDate(data.sale_date as string) ?? '',
+    description: descricao || 'Atendimento',
+    paymentMethods,
+  }
 }

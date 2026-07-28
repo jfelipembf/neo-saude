@@ -25,6 +25,8 @@ import { usePatientName, useProfessionalName } from '@/hooks/useDisplayNames'
 import { usePreviousSessionNote } from '@/hooks/usePatientClinicalNotes'
 import { usePrintDocument } from '@/hooks/usePrintDocument'
 import { useSession } from '@/context/SessionProvider'
+import { AppointmentCharge } from './AppointmentCharge'
+import { PROFESSIONAL_FIELD_LABEL } from '@/constants/specialty'
 import { userMessage } from '@/lib/errors'
 import { esc } from '@/utils/printDocument'
 import { addMinutes, toIsoDate, isoToBrDate, parseBrDate } from '@/utils/date'
@@ -571,7 +573,9 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
           ? (slot ? 'Editar sessão' : 'Nova sessão')
           : (slot ? 'Editar agendamento' : 'Nova consulta')
       }
-      size={clinicSpecialty === 'physiotherapy' ? 'xl' : 'lg'}
+      // Duas colunas em quem TEM painel direito: fisio (prontuário) e
+      // medicina (cobrança). Sem isto o painel novo nasceria espremido.
+      size={clinicSpecialty === 'physiotherapy' || clinicSpecialty === 'medicine' ? 'xl' : 'lg'}
       // Evolução digitada e ainda não salva: ESC, clique no fundo, "×" e o
       // "Fechar" do rodapé passam a perguntar antes de descartar.
       confirmOnClose={noteDirty}
@@ -686,7 +690,7 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
           </div>
         )}
         <Select
-          label={clinicSpecialty === 'physiotherapy' ? 'Fisioterapeuta' : 'Dentista'}
+          label={clinicSpecialty ? PROFESSIONAL_FIELD_LABEL[clinicSpecialty] : 'Profissional'}
           options={professionalOptions}
           placeholder="Selecione..."
           value={professionalId}
@@ -809,6 +813,26 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
 
         {error && <p className={styles.erro}>{error}</p>}
       </div>
+
+      {/* COBRANÇA NO PRÓPRIO ATENDIMENTO — só medicina, e só com a consulta
+          JÁ SALVA (a venda precisa de um atendimento que exista).
+          Em medicina o dinheiro acontece no fim da consulta, no mesmo gesto de
+          fechar o atendimento; mandar a recepção abrir o Ponto de Venda noutra
+          tela é onde a cobrança se perde. Odonto e fisio seguem no PDV, porque
+          lá se vende contrato e pacote, não o ato do dia. */}
+      {clinicSpecialty === 'medicine' && slot && (
+        <div className={styles.colDireita}>
+          <div className={styles.prontuarioCabecalho}>
+            <span className={styles.prontuarioRotulo}>Pagamento</span>
+          </div>
+          <AppointmentCharge
+            appointmentId={slot.id}
+            patientId={slot.patientId}
+            patientInsurance={patients?.find(p => p.id === slot.patientId)?.insurance}
+            dateIso={dateIso}
+          />
+        </div>
+      )}
 
       {/* Prontuário da SESSÃO: rico (fonte/cor/alinhamento) + anexos — só
           fisioterapia (ver clinicSpecialty acima) e só com a sessão já salva
@@ -934,6 +958,7 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
                   </ul>
                 )}
               </div>
+
             </>
           )}
         </div>

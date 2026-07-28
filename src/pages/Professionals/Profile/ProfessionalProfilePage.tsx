@@ -13,15 +13,19 @@ import { CurriculumCard } from './Curriculum/CurriculumCard'
 import { CurriculumForm } from './Curriculum/CurriculumForm'
 import { EarningsTab } from './Earnings/EarningsTab'
 import { ScheduleTab } from './Schedule/ScheduleTab'
+import { AvailabilityTab } from './Schedule/AvailabilityTab'
 import styles from './ProfessionalProfilePage.module.scss'
 
-type TabKey = 'personal' | 'curriculum' | 'earnings' | 'schedule'
+type TabKey = 'personal' | 'curriculum' | 'earnings' | 'schedule' | 'availability'
 
 const TABS = [
   { key: 'personal',     label: 'Dados pessoais' },
   { key: 'curriculum', label: 'Currículo' },
   { key: 'earnings',    label: 'Ganhos' },
   { key: 'schedule',    label: 'Agenda' },
+  // Separada da Agenda de propósito: "o que está marcado" é leitura,
+  // "quando ele atende" é configuração. Ver AvailabilityTab.
+  { key: 'availability', label: 'Disponibilidade' },
 ]
 
 /** Perfil do profissional: card-resumo à esquerda + painel da aba ativa à
@@ -122,6 +126,7 @@ export function ProfessionalProfilePage() {
           {tab === 'earnings' && <EarningsTab professional={professional} />}
 
           {tab === 'schedule' && <ScheduleTab professional={professional} />}
+          {tab === 'availability' && <AvailabilityTab professionalId={professional.id} />}
         </div>
       </div>
     </>

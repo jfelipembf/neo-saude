@@ -1,123 +1,183 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Button } from '@/components/Button/Button'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
+import { SegmentedControl } from '@/components/SegmentedControl/SegmentedControl'
 import { Select } from '@/components/Select/Select'
-import { Table } from '@/components/Table/Table'
-import type { TableColumn } from '@/components/Table/Table'
-import { IconAlert, IconCheck } from '@/components/icons'
-import { useCashFlow } from '@/hooks/useFinance'
-import { CASH_FLOW_HORIZONS } from '@/services/financeService'
-import type { CashFlowHorizon } from '@/services/financeService'
+import { IconChevronLeft, IconChevronRight, IconPrint } from '@/components/icons'
+import { useBankAccounts, useCashFlowMatrix } from '@/hooks/useFinance'
+import { usePrintDocument } from '@/hooks/usePrintDocument'
+import {
+  buildCashFlowMatrix, defaultCashFlowWindow, shiftCashFlowWindow,
+} from '@/utils/cashFlowMatrix'
+import type { CashFlowGranularity, CashFlowMatrixRow } from '@/utils/cashFlowMatrix'
+import { isoToBrDate } from '@/utils/date'
 import { formatBRL } from '@/utils/format'
-import type { CashFlowDay } from '@/types/domain'
-import shared from '../shared/finance.module.scss'
+import { esc } from '@/utils/printDocument'
 import styles from './CashFlowTab.module.scss'
 
-/** Linha da tabela: o dia do serviço + os acumulados calculados aqui. */
-type CashFlowRow = CashFlowDay & { net: number; projected: number }
+const VISOES = [
+  { value: 'day'   as const, label: 'Diário' },
+  { value: 'week'  as const, label: 'Semanal' },
+  { value: 'month' as const, label: 'Mensal' },
+]
 
-/** Opções do seletor de horizonte — uma projeção é um horizonte ROLANTE a
- *  partir de hoje, então o controle escolhe "quão longe olhar", não um intervalo
- *  no passado (que seria fluxo REALIZADO, outra tela). */
-const HORIZON_OPTIONS = CASH_FLOW_HORIZONS.map(d => ({
-  value: String(d),
-  label: `Próximos ${d} dias`,
-}))
-
-/** Aba "Fluxo de caixa": projeção diária cumulativa a partir do saldo atual.
- *  Mostra o futuro de propósito — é uma PROJEÇÃO (não a DFC realizada). */
+/**
+ * FLUXO DE CAIXA EM MATRIZ: categoria na linha, período na coluna.
+ *
+ * A pergunta desta tela não é "quanto tem" — é "para ONDE está indo". Uma lista
+ * de dias com o saldo responde a primeira e some com a segunda: o mês fecha em
+ * 12 mil e ninguém sabe quanto disso foi folha e quanto foi imposto.
+ *
+ * As três linhas de baixo são o encadeamento: Geração de caixa (receita −
+ * despesa do período), Saldo anterior e Saldo final — o final de uma coluna é o
+ * anterior da seguinte. É o que transforma colunas soltas em fluxo.
+ */
 export function CashFlowTab() {
-  const [horizon, setHorizon] = useState<CashFlowHorizon>(30)
-  const { data, isLoading } = useCashFlow(horizon)
+  const [visao, setVisao] = useState<CashFlowGranularity>('day')
+  const [janela, setJanela] = useState(() => defaultCashFlowWindow('day'))
+  const [conta, setConta] = useState('')
 
-  const baseBalance = data?.baseBalance ?? 0
-  const days = data?.days ?? []
+  const { data: contas } = useBankAccounts()
+  const { data, isLoading } = useCashFlowMatrix(janela, visao, conta || undefined)
+  const imprimir = usePrintDocument()
 
-  // Saldo projetado cumulativo a partir do saldo base, e o PRIMEIRO dia em que
-  // ele fica negativo — a única pergunta que traz o dono a esta tela.
-  const rows: CashFlowRow[] = []
-  let accumulated = baseBalance
-  let firstNegativeId: string | null = null
-  for (const d of days) {
-    const net = d.inflows - d.outflows
-    accumulated += net
-    if (firstNegativeId === null && accumulated < 0) firstNegativeId = d.id
-    rows.push({ ...d, net, projected: accumulated })
+  const matriz = useMemo(
+    () => buildCashFlowMatrix(data?.cells ?? [], data?.openingBalance ?? 0, janela, visao),
+    [data, janela, visao],
+  )
+
+  /** Trocar de visão troca também a janela — 7 colunas de mês não é "mensal". */
+  function mudarVisao(nova: CashFlowGranularity) {
+    setVisao(nova)
+    setJanela(defaultCashFlowWindow(nova))
   }
-  const firstNegative = rows.find(r => r.id === firstNegativeId) ?? null
 
-  if (isLoading) return <PageLoader />
+  const periodo = `${isoToBrDate(janela.from)} a ${isoToBrDate(janela.to)}`
 
-  const totalInflows  = days.reduce((s, d) => s + d.inflows, 0)
-  const totalOutflows = days.reduce((s, d) => s + d.outflows, 0)
-  const projected     = rows.length ? rows[rows.length - 1].projected : baseBalance
-
-  const columns: TableColumn<CashFlowRow>[] = [
-    {
-      key: 'date', label: 'Data',
-      render: d => (
-        <span className={shared.celulaForte}>
-          {d.date} <span className={shared.contagem}>({d.entryCount})</span>
-        </span>
-      ),
-    },
-    { key: 'inflows', label: 'Entradas', hideOnMobile: true, render: d => d.inflows > 0 ? <span className={shared.pos}>{formatBRL(d.inflows)}</span> : <span className={shared.traco}>—</span> },
-    { key: 'outflows',   label: 'Saídas', hideOnMobile: true,   render: d => d.outflows > 0 ? <span className={shared.neg}>{formatBRL(d.outflows)}</span> : <span className={shared.traco}>—</span> },
-    {
-      key: 'net', label: 'Líquido',
-      render: d => (
-        <span className={`${shared.valor} ${d.net >= 0 ? shared.pos : shared.neg}`}>
-          {d.net >= 0 ? '+' : ''}{formatBRL(d.net)}
-        </span>
-      ),
-    },
-    {
-      key: 'projetado', label: 'Saldo projetado',
-      render: d => (
-        <span className={`${shared.valor} ${d.projected < 0 ? shared.neg : ''}`}>{formatBRL(d.projected)}</span>
-      ),
-    },
-  ]
+  if (isLoading && !data) return <PageLoader />
 
   return (
-    <Table
-      columns={columns}
-      data={rows}
-      rowKey={d => d.id}
-      rowClassName={d => (d.id === firstNegativeId ? styles.negativeRow : undefined)}
-      emptyMessage="Sem projeção no período."
-      toolbar={
-        <div className={styles.horizon}>
-          <span className={styles.horizonLabel}>Horizonte</span>
-          <Select
-            size="sm"
-            options={HORIZON_OPTIONS}
-            value={String(horizon)}
-            onChange={e => setHorizon(Number(e.target.value) as CashFlowHorizon)}
-            aria-label="Horizonte da projeção"
-            className={styles.horizonField}
+    <section className={styles.painel}>
+      <header className={styles.barra}>
+        <Select
+          size="sm"
+          className={styles.contaField}
+          value={conta}
+          onChange={e => setConta(e.target.value)}
+          aria-label="Conta bancária"
+          options={[
+            { value: '', label: 'Todas as contas' },
+            ...(contas ?? []).map(c => ({ value: c.id, label: c.name })),
+          ]}
+        />
+
+        <SegmentedControl size="sm" options={VISOES} value={visao} onChange={mudarVisao} />
+
+        {/* O período é TEXTO, não campo: quem o move são as setas ao lado. Um
+            date picker aqui deixaria escolher intervalos que não fecham em
+            balde inteiro, e a coluna passaria a somar meio mês. */}
+        <span className={styles.periodo}>{periodo}</span>
+
+        <div className={styles.navegacao}>
+          <Button
+            variant="outline" size="sm" iconLeft={<IconChevronLeft />}
+            aria-label="Período anterior"
+            onClick={() => setJanela(j => shiftCashFlowWindow(j, visao, -1))}
+          />
+          <Button
+            variant="outline" size="sm" iconLeft={<IconChevronRight />}
+            aria-label="Próximo período"
+            onClick={() => setJanela(j => shiftCashFlowWindow(j, visao, 1))}
+          />
+          <Button
+            variant="ghost" size="sm" iconLeft={<IconPrint />}
+            aria-label="Imprimir"
+            onClick={() => imprimir({
+              title: 'Fluxo de caixa',
+              subtitle: periodo,
+              body: corpoImpresso(matriz.columns.map(c => c.label), matriz.rows),
+              styles: ESTILOS_IMPRESSAO,
+            })}
           />
         </div>
-      }
-      footer={
-        <div className={shared.rodapeTabela}>
-          {/* A resposta a "quando fico sem caixa?" fica sempre visível, antes dos totais. */}
-          {firstNegative ? (
-            <span className={`${styles.alert} ${styles.alertDanger}`}>
-              <IconAlert /> Saldo fica negativo em {firstNegative.date} ({formatBRL(firstNegative.projected)})
-            </span>
-          ) : (
-            <span className={`${styles.alert} ${styles.alertOk}`}>
-              <IconCheck /> Saldo positivo em todo o horizonte
-            </span>
-          )}
-          <div className={shared.resumo}>
-            <span className={shared.resumoItem}>Saldo atual <strong>{formatBRL(baseBalance)}</strong></span>
-            <span className={shared.resumoItem}>Entradas <strong className={shared.pos}>{formatBRL(totalInflows)}</strong></span>
-            <span className={shared.resumoItem}>Saídas <strong className={shared.neg}>{formatBRL(totalOutflows)}</strong></span>
-            <span className={`${shared.resumoItem} ${shared.resumoDireita}`}>Projetado <strong>{formatBRL(projected)}</strong></span>
-          </div>
-        </div>
-      }
-    />
+      </header>
+
+      {/* A rolagem é do CONTÊINER, não da página: com 12 colunas de mês a tabela
+          passa da largura da tela, e é ela que precisa rolar — a primeira coluna
+          fica presa (`position: sticky`) para o nome da categoria não sumir
+          junto. */}
+      <div className={styles.rolagem}>
+        <table className={styles.matriz}>
+          <thead>
+            <tr>
+              <th className={styles.cabecalhoCanto} scope="col">Categoria</th>
+              {matriz.columns.map(c => (
+                <th key={c.id} scope="col">{c.label}</th>
+              ))}
+              <th className={styles.colunaTotal} scope="col">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {matriz.rows.map(linha => (
+              <tr key={linha.key} className={classeDaLinha(linha)}>
+                <th scope="row" className={styles.celulaRotulo}>{linha.label}</th>
+                {linha.values.map((v, i) => (
+                  <td key={matriz.columns[i].id} className={classeDoValor(linha, v)}>
+                    {formatBRL(v)}
+                  </td>
+                ))}
+                <td className={`${styles.colunaTotal} ${classeDoValor(linha, linha.total)}`}>
+                  {formatBRL(linha.total)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   )
+}
+
+function classeDaLinha(linha: CashFlowMatrixRow): string {
+  if (linha.type === 'group') {
+    return linha.tone === 'revenue' ? styles.linhaReceita : styles.linhaDespesa
+  }
+  if (linha.type === 'result') {
+    return linha.key === 'closing' ? styles.linhaSaldoFinal : styles.linhaResultado
+  }
+  return styles.linhaCategoria
+}
+
+/** Vermelho só onde negativo é NOTÍCIA: saldo e geração de caixa. Uma despesa
+ *  de 300 não é um problema — é uma despesa; pintar toda a coluna de vermelho
+ *  faria o olho parar de distinguir a linha que importa. */
+function classeDoValor(linha: CashFlowMatrixRow, valor: number): string {
+  if (linha.type !== 'result') return ''
+  if (valor < 0) return styles.negativo
+  return linha.key === 'closing' ? styles.positivo : ''
+}
+
+// ── Impressão ────────────────────────────────────────────────────────────────
+
+const ESTILOS_IMPRESSAO = `
+  table { font-size: 11px; }
+  th, td { text-align: right; padding: 4px 6px; }
+  th:first-child, td:first-child { text-align: left; }
+  .grupo td, .grupo th { font-weight: 700; background: #f1f5f9; }
+  .resultado td, .resultado th { font-weight: 700; border-top: 1px solid #94a3b8; }
+`
+
+function corpoImpresso(colunas: string[], linhas: CashFlowMatrixRow[]): string {
+  const cabecalho = `<tr><th>Categoria</th>${
+    colunas.map(c => `<th>${esc(c)}</th>`).join('')
+  }<th>Total</th></tr>`
+
+  const corpo = linhas.map(l => {
+    const classe = l.type === 'group' ? 'grupo' : l.type === 'result' ? 'resultado' : ''
+    return `<tr class="${classe}"><th>${esc(l.label)}</th>${
+      l.values.map(v => `<td>${esc(formatBRL(v))}</td>`).join('')
+    }<td>${esc(formatBRL(l.total))}</td></tr>`
+  }).join('')
+
+  return `<table>${cabecalho}${corpo}</table>`
 }

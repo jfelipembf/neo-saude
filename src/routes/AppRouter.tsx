@@ -26,6 +26,8 @@ const UnauthorizedPage   = lazy(() => import('@/pages/System/Unauthorized/Unauth
 // Chunk próprio de propósito: carrega o motor do odontograma (~900KB), que só
 // faz sentido baixar quando esta rota é aberta — mesmo motivo de
 // PatientProfilePage → TreatmentsPanel já ser lazy.
+const ConsultationPage = lazy(() => import('@/pages/Consultation/ConsultationPage').then(m => ({ default: m.ConsultationPage })))
+const PhysioConsultationPage = lazy(() => import('@/pages/Consultation/PhysioConsultationPage').then(m => ({ default: m.PhysioConsultationPage })))
 const OdontogramFullscreenPage = lazy(() => import('@/pages/Odontogram/OdontogramFullscreenPage').then(m => ({ default: m.OdontogramFullscreenPage })))
 
 export function AppRouter() {
@@ -67,6 +69,19 @@ export function AppRouter() {
             <Route
               path={FULLSCREEN_ROUTES.ODONTOGRAM}
               element={<FeatureGuard feature="patients"><OdontogramFullscreenPage /></FeatureGuard>}
+            />
+            {/* Tela de atendimento: mesma feature ('patients' protege o
+                prontuário por RLS). O gate de ramo é da própria página. */}
+            <Route
+              path={FULLSCREEN_ROUTES.CONSULTATION}
+              element={<FeatureGuard feature="patients"><ConsultationPage /></FeatureGuard>}
+            />
+            {/* Atendimento de FISIOTERAPIA: mesmo esqueleto, prontuário SOAP no
+                centro e painel de Testes. Mesma feature — o que protege o
+                prontuário é a RLS de 'patients', não a rota. */}
+            <Route
+              path={FULLSCREEN_ROUTES.PHYSIO_SESSION}
+              element={<FeatureGuard feature="patients"><PhysioConsultationPage /></FeatureGuard>}
             />
           </Route>
 

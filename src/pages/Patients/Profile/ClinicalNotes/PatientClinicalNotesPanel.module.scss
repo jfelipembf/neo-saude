@@ -95,3 +95,17 @@
   img { width: 100%; height: 100%; object-fit: cover; }
   svg { width: 18px; height: 18px; }
 }
+
+// Texto corrido escrito na tela de Atendimento (appointment.medical_record).
+// Fica abaixo do SOAP quando a sessão tem os dois — e sozinho quando só houve
+// a tela cheia, que é o caso da medicina.
+.evolucao {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  line-height: 1.6;
+
+  p { margin: 0 0 $sp-2; }
+  p:last-child { margin-bottom: 0; }
+  ul, ol { margin: 0 0 $sp-2 $sp-4; }
+  strong { color: var(--text-primary); }
+}
