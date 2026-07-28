@@ -1,17 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
-  listeningModeFromKey,
   pedalScopeError,
   pedalTurnInstruction,
 } from './pedal'
 
 describe('pedal da Cibelly', () => {
-  it('mapeia J para o paciente atual e F para o modo geral', () => {
-    expect(listeningModeFromKey({ code: 'KeyJ', key: 'j' })).toBe('patient')
-    expect(listeningModeFromKey({ code: 'KeyF', key: 'f' })).toBe('general')
-    expect(listeningModeFromKey({ code: '', key: 'J' })).toBe('patient')
-    expect(listeningModeFromKey({ code: 'KeyK', key: 'k' })).toBeNull()
-  })
 
   it('isola explicitamente o escopo de cada turno', () => {
     expect(pedalTurnInstruction('patient')).toContain('somente do paciente')

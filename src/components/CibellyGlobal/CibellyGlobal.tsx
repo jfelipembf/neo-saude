@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useCibelly } from '@/hooks/useCibelly'
+import { carregarPedal } from '@/lib/cibelly/pedalConfig'
 import { useCibellyPedal } from '@/hooks/useCibellyPedal'
 import { useCibellyGeneralTools } from '@/hooks/useCibellyGeneralTools'
 import { useSession } from '@/context/SessionProvider'
@@ -51,6 +53,10 @@ export function CibellyGlobal() {
     // abaixo recusa essas chamadas com uma frase que diz o que fazer.
   }, 'global')
 
+  // Lido uma vez por montagem: quem configura é o modal do odontograma, e
+  // trocar de tela remonta este provider.
+  const [pedal] = useState(carregarPedal)
+
   useCibellyPedal({
     enabled: ehOdonto && cibelly.status === 'listening',
     // Nunca há paciente aberto aqui, então o pedal J fica desligado por
@@ -58,6 +64,10 @@ export function CibellyGlobal() {
     patientAvailable: false,
     startListening: cibelly.iniciarEscuta,
     stopListening: cibelly.encerrarEscuta,
+    // O MESMO pedal do odontograma. Sem isto, o código aprendido (PageDown,
+    // seta…) só era reconhecido lá dentro — fora, o pedal rolava a página e
+    // parecia quebrado.
+    config: pedal,
   })
 
   if (!ehOdonto) return null

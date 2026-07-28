@@ -9,7 +9,6 @@ import { dashboardRange, type PeriodPreset } from '@/utils/period'
 import { Badge } from '@/components/Badge/Badge'
 import { Button } from '@/components/Button/Button'
 import { PageLoader } from '@/components/PageLoader/PageLoader'
-import { QuickAccessCard } from '@/components/QuickAccessCard/QuickAccessCard'
 import { CommissionsCard } from '@/components/CommissionsCard/CommissionsCard'
 import { TasksCard } from '@/components/TasksCard/TasksCard'
 import { AppointmentsChart } from '@/components/AppointmentsChart/AppointmentsChart'
@@ -160,12 +159,6 @@ export function DashboardPage() {
         <LeadsKanban />
       ) : (
         <>
-          {/* Só existe no mobile (ver CSS) — o mesmo card reaparece lá embaixo,
-              no lugar de sempre, para quem usa em telas maiores. */}
-          <div className={styles.mobileQuickAccess}>
-            <QuickAccessCard />
-          </div>
-
           <div className={styles.grid}>
             <div className={styles.colEsquerda}>
               <section className={styles.agendaCard}>
@@ -267,15 +260,11 @@ export function DashboardPage() {
                 <StatsCard {...metricCard('expenses',               <IconTrendDown />)} />
               </div>
 
-              {/* Atalhos para telas de cadastro/configuração usadas com frequência
-                  — some no mobile (ver .mobileQuickAccess acima). */}
-              <div className={styles.desktopQuickAccess}>
-                <QuickAccessCard />
-              </div>
-
-              {/* Linha 2: tarefas + comissões lado a lado à esquerda, os dois
-                  gráficos empilhados à direita — como são a MESMA célula do
-                  grid, terminam na mesma altura. */}
+              {/* Tarefas + comissões lado a lado, embaixo dos indicadores. A
+                  posição de cada bloco é FIXA no CSS (grid-area), não
+                  automática: com colocação automática, tirar um cartão da
+                  primeira linha empurrava todos os seguintes para a célula
+                  errada — foi o que aconteceu quando o Início rápido saiu. */}
               <div className={styles.tasksRow}>
                 <TasksCard />
                 <CommissionsCard />

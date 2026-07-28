@@ -6,19 +6,10 @@ import { useToast } from '@/components/Toast/Toast'
 import { IconDocument, IconEye, IconPlus, IconTrash } from '@/components/icons'
 import { usePatientDocuments, useDeleteDocument, useUploadDocument } from '@/hooks/useDocuments'
 import { errorMessage } from '@/utils/errors'
+import { DOCUMENT_CATEGORIES } from '@/constants/documentCategories'
 import type { PatientDocument, PatientDocumentCategory } from '@/types/domain'
 import styles from './ConsultationPage.module.scss'
 
-/**
- * As quatro divisões, na ordem em que se procura. `other` por último — é o
- * balde do que não foi classificado, não uma categoria de verdade.
- */
-const DIVISOES: { key: PatientDocumentCategory; label: string; vazio: string }[] = [
-  { key: 'certificate', label: 'Atestados',  vazio: 'Nenhum atestado arquivado.' },
-  { key: 'exam',        label: 'Exames',     vazio: 'Nenhum exame ou laudo arquivado.' },
-  { key: 'report',      label: 'Relatórios', vazio: 'Nenhum relatório arquivado.' },
-  { key: 'other',       label: 'Outros',     vazio: 'Nada aqui.' },
-]
 
 interface PhysioDocumentsPanelProps {
   patientId: string
@@ -50,7 +41,7 @@ export function PhysioDocumentsPanel({ patientId, appointmentId }: PhysioDocumen
   const [aExcluir, setAExcluir] = useState<PatientDocument | null>(null)
 
   const lista = documentos ?? []
-  const atual = DIVISOES.find(d => d.key === divisao)!
+  const atual = DOCUMENT_CATEGORIES.find(d => d.key === divisao)!
   const daDivisao = lista.filter(doc => doc.category === divisao)
 
   function anexar(file: File) {
@@ -74,7 +65,7 @@ export function PhysioDocumentsPanel({ patientId, appointmentId }: PhysioDocumen
           divisões de baixo nasciam fora da tela — e o contador em cada aba diz
           o que tem em cada uma sem precisar entrar. */}
       <Tabs
-        tabs={DIVISOES.map(d => ({
+        tabs={DOCUMENT_CATEGORIES.map(d => ({
           key: d.key,
           label: d.label,
           // Zero não renderiza badge (regra do componente), o que aqui é o

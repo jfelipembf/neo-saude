@@ -1,20 +1,9 @@
 import type { CibellyListeningMode } from './sessionTypes'
 import type { CibellyToolDomain } from './toolCatalog'
 
-export const PATIENT_PEDAL_CODE = 'KeyJ'
-export const GENERAL_PEDAL_CODE = 'KeyF'
-
-export function listeningModeFromKey(
-  event: Pick<KeyboardEvent, 'code' | 'key'>,
-): CibellyListeningMode | null {
-  if (event.code === PATIENT_PEDAL_CODE || event.key.toLowerCase() === 'j') {
-    return 'patient'
-  }
-  if (event.code === GENERAL_PEDAL_CODE || event.key.toLowerCase() === 'f') {
-    return 'general'
-  }
-  return null
-}
+// As teclas do pedal mudaram de casa: agora vivem em `pedalConfig`, que
+// aprende o código de cada pedal Bluetooth em vez de fixar J e F. Este arquivo
+// ficou com o ESCOPO do pedal — o que cada modo pode e não pode fazer.
 
 export function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false

@@ -68,6 +68,9 @@ export const AUDIT_ACTION_OPTIONS: { value: AuditAction; label: string }[] = [
 // Colunas técnicas que não interessam na trilha (carimbos e chaves).
 export const AUDIT_HIDDEN_FIELDS = new Set([
   'updated_at', 'created_at', 'id', 'clinic_id', 'code',
+  // Estrutura interna do seed e da árvore de categorias — aparecem em milhares
+  // de linhas da trilha e não respondem nada a quem investiga.
+  'is_seed', 'is_root', 'parent_is_root',
 ])
 
 /** Nome cru de coluna → rótulo pt no diff (fallback: o próprio nome). */
@@ -105,6 +108,69 @@ const AUDIT_FIELD_LABELS: Record<string, string> = {
   can_view: 'Pode ver',
   can_edit: 'Pode editar',
   is_owner: 'Proprietário',
+
+  // ── Acrescentados a partir da trilha REAL (varredura dos campos que já
+  //    apareceram na auditoria deste banco, não de palpite). ──
+  // Pessoas e acesso
+  joined_at: 'Entrou em',
+  feature_key: 'Módulo',
+  is_system: 'Do sistema',
+  is_technical_manager: 'Responsável técnico',
+  // Datas e prazos
+  date: 'Data',
+  issued_on: 'Emitido em',
+  issue_date: 'Emissão',
+  competence_date: 'Competência',
+  performed_on: 'Realizado em',
+  performed_at: 'Realizado em',
+  purchased_at: 'Compra',
+  expires_at: 'Validade',
+  started_at: 'Início',
+  started_on: 'Início',
+  ended_on: 'Fim',
+  start_date: 'Início',
+  completed_at: 'Concluído em',
+  delivered_at: 'Entregue em',
+  event_date: 'Quando aconteceu',
+  last_visit: 'Última visita',
+  birth_date: 'Nascimento',
+  starts_at: 'Começa',
+  ends_at: 'Termina',
+  done_at: 'Concluído em',
+  resolved_at: 'Resolvido em',
+  enrolled_at: 'Matrícula',
+  approved_at: 'Aprovado em',
+  opened_at: 'Aberto em',
+  connected_at: 'Conectado em',
+  qr_expires_at: 'QR expira em',
+  // Domínio
+  kind: 'Tipo',
+  type: 'Tipo',
+  category_kind: 'Tipo de categoria',
+  modality: 'Modalidade',
+  sex: 'Sexo',
+  source: 'Origem',
+  provider: 'Provedor',
+  trigger: 'Gatilho',
+  metric: 'Métrica',
+  interest: 'Interesse',
+  debtor: 'Devedor',
+  base: 'Base de cálculo',
+  payout: 'Repasse',
+  billing_status: 'Faturamento',
+  duration_unit: 'Unidade de duração',
+  recipient_kind: 'Destinatário',
+  prescription_type: 'Tipo de receita',
+  end_reason: 'Motivo do encerramento',
+  continuous: 'Uso contínuo',
+  done: 'Concluído',
+  error: 'Erro',
+  send_confirmation: 'Enviar confirmação',
+  is_overbook: 'Encaixe',
+  auto_settle_blocked: 'Baixa automática bloqueada',
+  multiply_per_tooth: 'Multiplica por dente',
+  scoring_kind: 'Forma de pontuação',
+  input_kind: 'Tipo de resposta',
 }
 
 /** Rótulo pt de um campo; cai no nome cru quando não mapeado. */

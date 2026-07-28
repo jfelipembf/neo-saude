@@ -6,33 +6,24 @@
   margin-bottom: $sp-6;
 }
 
-// "Início rápido" duplicado (ver DashboardPage.tsx): no mobile ele deve
-// aparecer ANTES de tudo (Agenda, indicadores...); no desktop, no lugar de
-// sempre, ao lado do 2×2 de indicadores. Em vez de reordenar com CSS `order`
-// através de dois grids aninhados, o card é renderizado duas vezes e cada
-// cópia só existe no breakpoint certo — mais simples que depender de `order`
-// atravessando `.grid` → `.widgets`.
-.mobileQuickAccess {
-  display: none;
-
-  @include mobile {
-    display: block;
-    margin-bottom: $sp-6;
-  }
-}
-
-.desktopQuickAccess {
-  @include mobile {
-    display: none;
-  }
-}
+// O card "Início rápido" SAIU da tela (teste de estilo). Ele era renderizado
+// duas vezes — uma cópia por breakpoint — para aparecer antes de tudo no
+// mobile e ao lado dos indicadores no desktop. As duas saíram, junto com as
+// classes que as escondiam. O componente QuickAccessCard segue no projeto:
+// repor é reinserir <QuickAccessCard /> numa área do .widgets.
 
 // Agenda em coluna fixa e estreita à esquerda; o restante é a área de widgets.
+// RETÂNGULO: as duas colunas terminam na MESMA linha de base.
+//
+// `align-items: stretch` (o padrão do grid) em vez de `start`: com `start`, a
+// coluna da esquerda parava na altura do próprio conteúdo e a página ficava
+// com um degrau embaixo. Esticando, a agenda acompanha os widgets — e a lista
+// de pacientes dentro dela é que rola, em vez de esticar o cartão.
 .grid {
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 340px minmax(0, 1fr);
   gap: $sp-6;
-  align-items: start;
+  align-items: stretch;
 
   @include mobile {
     grid-template-columns: 1fr;
@@ -47,21 +38,39 @@
   min-width: 0;
 }
 
-// Indicadores + gráficos lado a lado. Por serem itens da MESMA linha deste
-// grid, as duas colunas esticam juntas e terminam na mesma altura.
+// POSIÇÃO FIXA de cada bloco, por área nomeada — não por ordem no HTML.
+//
+// Antes a colocação era automática, e por isso tirar um cartão da primeira
+// linha empurrava todos os seguintes para a célula errada: foi exatamente o
+// que aconteceu ao remover o Início rápido, que ocupava a coluna 2 da linha 1.
+// Com áreas nomeadas, cada bloco fica onde está escrito, e acrescentar ou tirar
+// um vizinho não move ninguém.
+//
+// Os gráficos ocupam a coluna inteira (duas linhas), o que faz as duas colunas
+// terminarem juntas — é o que fecha o retângulo.
 .widgets {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    'stats  graficos'
+    'tarefas graficos';
   gap: $sp-6;
 
   @include mobile {
     grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    grid-template-areas:
+      'stats'
+      'tarefas'
+      'graficos';
   }
 }
 
 // Tarefas + Comissões lado a lado (mesma célula que antes era só o card de
 // tarefas) — cada um fica mais estreito para dividir a coluna com o outro.
 .tasksRow {
+  grid-area: tarefas;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: $sp-6;
@@ -76,6 +85,7 @@
 // a altura em partes iguais, e a célula tem a mesma altura do card de tarefas
 // (são itens da MESMA linha do grid, que esticam juntos).
 .graficos {
+  grid-area: graficos;
   display: grid;
   grid-template-rows: 1fr 1fr;
   gap: $sp-6;
@@ -92,6 +102,7 @@
 
 // Indicadores em 2×2: as duas linhas (1fr) dividem a altura total da coluna.
 .statsGrid {
+  grid-area: stats;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-auto-rows: 1fr;
@@ -102,12 +113,15 @@
   }
 }
 
+// Ocupa a altura toda da coluna: é ela que encosta na mesma base dos widgets.
 .agendaCard {
   @include card;
   display: flex;
   flex-direction: column;
   gap: $sp-4;
   padding: $sp-5;
+  height: 100%;
+  min-height: 0;
 }
 
 .agendaHeader {
@@ -145,11 +159,18 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  // Mais alto agora que a coluna esquerda só tem a Agenda (Comissões mudou
-  // para o lado do card de Tarefas) — sobra altura pra mostrar mais consultas
-  // antes de rolar.
-  max-height: 460px;
+  // ELÁSTICA: come a altura que sobrar no cartão em vez de um teto fixo. É o
+  // que permite a coluna esquerda acompanhar a direita sem deixar vão embaixo
+  // — com `max-height` fixo, agenda curta deixava buraco e agenda longa
+  // empurrava o cartão para fora do retângulo.
+  flex: 1;
+  min-height: 200px;
   overflow-y: auto;
+
+  @include mobile {
+    flex: none;
+    max-height: 460px;
+  }
 }
 
 .item {

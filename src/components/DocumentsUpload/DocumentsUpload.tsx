@@ -15,7 +15,9 @@ import {
   usePatientDocuments, useUploadDocument, useUpdateDocument, useDeleteDocument,
 } from '@/hooks/useDocuments'
 import { isImageFile } from '@/utils/files'
-import type { PatientDocument } from '@/types/domain'
+import { Tabs } from '@/components/Tabs/Tabs'
+import { DOCUMENT_CATEGORIES } from '@/constants/documentCategories'
+import type { PatientDocument, PatientDocumentCategory } from '@/types/domain'
 import styles from './DocumentsUpload.module.scss'
 
 /** 1234567 → "1,2 MB" */
@@ -74,6 +76,14 @@ export function DocumentsUpload({ patientId }: DocumentsUploadProps) {
   const [deleting, setDeleting] = useState<PatientDocument | null>(null)
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(5)
+  /**
+   * Divisão aberta. `''` = todas.
+   *
+   * As mesmas quatro do atendimento da fisioterapia — o documento arquivado lá
+   * como "Exame" tem de aparecer aqui como exame, senão o profissional
+   * classifica numa tela e reencontra a bagunça na outra.
+   */
+  const [divisao, setDivisao] = useState<'' | PatientDocumentCategory>('')
 
   function selectFile(file: File) {
     // Passa aqui tanto o seletor quanto o arrastar-e-soltar — e o `accept` do
@@ -121,6 +131,9 @@ export function DocumentsUpload({ patientId }: DocumentsUploadProps) {
         patientId,
         name: name.trim(),
         description: description.trim() || undefined,
+        // Nasce na divisão aberta; em "Todas", cai em Outros — que é onde o
+        // não classificado deve ficar, e não sumir.
+        category: divisao || 'other',
         file,
       },
       {
@@ -163,7 +176,8 @@ export function DocumentsUpload({ patientId }: DocumentsUploadProps) {
     remove(deleting.id, { onSuccess: () => toast.success('Documento excluído.') })
   }
 
-  const list = documents ?? []
+  const todos = documents ?? []
+  const list = divisao ? todos.filter(d => d.category === divisao) : todos
   const isViewingImage = viewing?.url && isImageFile(viewing.type)
 
   const totalPages = Math.max(1, Math.ceil(list.length / perPage))
@@ -173,6 +187,24 @@ export function DocumentsUpload({ patientId }: DocumentsUploadProps) {
 
   return (
     <div className={styles.root}>
+      {/* ── Divisões, iguais às do atendimento ──
+          "Todas" primeiro porque no perfil a pergunta costuma ser "o que esse
+          paciente tem?", e não "cadê o atestado" — o inverso do atendimento,
+          onde já se sabe o tipo. */}
+      <Tabs
+        tabs={[
+          { key: '', label: 'Todas', badge: todos.length },
+          ...DOCUMENT_CATEGORIES.map(c => ({
+            key: c.key,
+            label: c.label,
+            badge: todos.filter(d => d.category === c.key).length,
+          })),
+        ]}
+        active={divisao}
+        onChange={k => { setDivisao(k as '' | PatientDocumentCategory); setPage(1) }}
+        size="sm"
+      />
+
       {/* ── Formulário de envio ── */}
       <form className={styles.form} onSubmit={handleSubmit}>
         <button

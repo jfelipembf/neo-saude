@@ -25,6 +25,8 @@ import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { Modal } from '@/components/Modal/Modal'
 import { Button } from '@/components/Button/Button'
 import { DrugCatalogDrawer } from '@/components/DrugCatalog/DrugCatalogDrawer'
+import { PedalSetupModal } from '@/components/CibellyPedalButton/PedalSetupModal'
+import { carregarPedal } from '@/lib/cibelly/pedalConfig'
 import { Spinner } from '@/components/Spinner/Spinner'
 import {
   IconX, IconMic, IconCheck, IconTooth, IconDocument, IconMessage,
@@ -124,6 +126,11 @@ export function OdontogramFullscreenPage() {
   // declarada mais abaixo, caía depois de um return antecipado e quebrava a
   // ordem dos hooks.
   const [catalogoAberto, setCatalogoAberto] = useState(false)
+  // Configuração do pedal Bluetooth: qual tecla cada botão manda e se ele
+  // sustenta a tecla. Vive no navegador — o pedal é do computador, não da
+  // clínica (ver lib/cibelly/pedalConfig).
+  const [pedal, setPedal] = useState(carregarPedal)
+  const [pedalAberto, setPedalAberto] = useState(false)
 
   /**
    * Qual dia da ficha está na tela. `null` = ficha corrente ("Atual"), a única
@@ -216,6 +223,7 @@ export function OdontogramFullscreenPage() {
     patientAvailable: !!patientId,
     startListening: cibelly.iniciarEscuta,
     stopListening: cibelly.encerrarEscuta,
+    config: pedal,
   })
   const [appliedSeen, setAppliedSeen] = useState<typeof cibelly.lastApplied>(null)
   const [showApplied, setShowApplied] = useState(false)
@@ -585,6 +593,13 @@ export function OdontogramFullscreenPage() {
           <Button variant="ghost" size="md" onClick={() => setCatalogoAberto(true)}>
             Medicamentos
           </Button>
+
+          {/* O pedal é HARDWARE de cada consultório, e cada modelo manda uma
+              tecla diferente — não há como o app adivinhar. Aqui o dentista
+              ensina, pisando. */}
+          <Button variant="ghost" size="md" onClick={() => setPedalAberto(true)} title="Configurar pedal">
+            Pedal
+          </Button>
         </div>
 
         <div className={styles.barraDireita}>
@@ -857,6 +872,12 @@ export function OdontogramFullscreenPage() {
       </div>
 
       <DrugCatalogDrawer open={catalogoAberto} onClose={() => setCatalogoAberto(false)} />
+
+      <PedalSetupModal
+        open={pedalAberto}
+        onClose={() => setPedalAberto(false)}
+        onSaved={setPedal}
+      />
 
       <CibellyPedalButton
         mode="patient"

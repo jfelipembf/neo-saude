@@ -17,6 +17,8 @@ import {
   AUDIT_TABLE_OPTIONS, AUDIT_ACTION_OPTIONS, AUDIT_HIDDEN_FIELDS,
   auditTableLabel, auditFieldLabel,
 } from '@/constants'
+import { auditValorLegivel, ehChaveTecnica } from '@/utils/auditValue'
+import { usePatientName, useProfessionalName } from '@/hooks/useDisplayNames'
 import type { AuditAction, AuditEntry } from '@/types/domain'
 import styles from './AuditTab.module.scss'
 
@@ -28,26 +30,43 @@ function fmtWhen(iso: string): string {
 }
 
 /** Valor de um campo no diff, legível (booleano, objeto, vazio). */
-function fmtValue(v: unknown): string {
-  if (v === null || v === undefined || v === '') return '—'
-  if (typeof v === 'boolean') return v ? 'Sim' : 'Não'
-  if (typeof v === 'object') return JSON.stringify(v)
-  return String(v)
+/**
+ * Resolve os campos de uma linha da auditoria para leitura.
+ *
+ * Devolve `null` quando o campo é chave técnica — a linha inteira some.
+ * Paciente e profissional viram NOME: são as duas referências que a tela
+ * consegue resolver, e "Paciente: José Felipe" responde o que um UUID nunca
+ * responderia.
+ */
+function useAuditFormatter() {
+  const nomeDoPaciente = usePatientName()
+  const nomeDoProfissional = useProfessionalName()
+
+  return (campo: string, valor: unknown): string | null => {
+    if (campo === 'patient_id' && typeof valor === 'string') return nomeDoPaciente(valor)
+    if (campo === 'professional_id' && typeof valor === 'string') return nomeDoProfissional(valor)
+    return auditValorLegivel(campo, valor)
+  }
 }
 
 /** Detalhe expandido: o que mudou (antes → depois), ou os campos do registro. */
 function AuditDiff({ entry }: { entry: AuditEntry }) {
+  const fmt = useAuditFormatter()
+
   if (entry.action === 'update') {
-    const changed = entry.changedFields.filter(f => !AUDIT_HIDDEN_FIELDS.has(f))
+    // Chave técnica sai aqui também: "test_id: <uuid> → <outro uuid>" não é
+    // uma alteração que alguém consiga interpretar.
+    const changed = entry.changedFields
+      .filter(f => !AUDIT_HIDDEN_FIELDS.has(f) && !ehChaveTecnica(f))
     if (changed.length === 0) return <p className={styles.diffVazio}>Sem alterações relevantes.</p>
     return (
       <ul className={styles.diffLista}>
         {changed.map(f => (
           <li key={f} className={styles.diffLinha}>
             <span className={styles.campo}>{auditFieldLabel(f)}</span>
-            <span className={styles.antigo}>{fmtValue(entry.oldData?.[f])}</span>
+            <span className={styles.antigo}>{fmt(f, entry.oldData?.[f]) ?? '—'}</span>
             <span className={styles.seta}>→</span>
-            <span className={styles.novo}>{fmtValue(entry.newData?.[f])}</span>
+            <span className={styles.novo}>{fmt(f, entry.newData?.[f]) ?? '—'}</span>
           </li>
         ))}
       </ul>
@@ -57,17 +76,20 @@ function AuditDiff({ entry }: { entry: AuditEntry }) {
   // insert / delete: mostra os campos relevantes do snapshot.
   const snapshot = entry.action === 'insert' ? entry.newData : entry.oldData
   const fields = Object.entries(snapshot ?? {})
-    .filter(([k, v]) => !AUDIT_HIDDEN_FIELDS.has(k) && v !== null && v !== '')
+    .map(([k, v]) => [k, fmt(k, v)] as const)
+    // `null` = chave técnica. Descarta a LINHA, e não mostra travessão: dez
+    // linhas de "—" escondem as três que importam.
+    .filter(([k, texto]) => texto !== null && texto !== '—' && !AUDIT_HIDDEN_FIELDS.has(k))
   return (
     <div>
       <p className={styles.diffTitulo}>
         {entry.action === 'insert' ? 'Registro criado' : 'Registro excluído'}
       </p>
       <ul className={styles.diffLista}>
-        {fields.map(([k, v]) => (
+        {fields.map(([k, texto]) => (
           <li key={k} className={styles.diffLinha}>
             <span className={styles.campo}>{auditFieldLabel(k)}</span>
-            <span className={entry.action === 'insert' ? styles.novo : styles.antigo}>{fmtValue(v)}</span>
+            <span className={entry.action === 'insert' ? styles.novo : styles.antigo}>{texto}</span>
           </li>
         ))}
       </ul>

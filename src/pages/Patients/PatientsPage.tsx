@@ -79,6 +79,7 @@ export function PatientsPage() {
   const [modalOpen, setModalOpen] = useState(() => searchParams.get('new') === '1')
   const [form, setForm] = useState<PatientFormState>(EMPTY_FORM)
   const [nameError, setNameError] = useState('')
+  const [phoneError, setPhoneError] = useState('')
 
   // Paginação + busca — tudo client-side sobre a lista da aba atual.
   const [page, setPage] = useState(1)
@@ -134,18 +135,29 @@ export function PatientsPage() {
   const set = (field: keyof PatientFormState) => (value: string) => {
     setForm(current => ({ ...current, [field]: value }))
     if (field === 'firstName') setNameError('')
+    if (field === 'phone') setPhoneError('')
   }
 
   function closeModal() {
     setModalOpen(false)
     setForm(EMPTY_FORM)
     setNameError('')
+    setPhoneError('')
   }
 
   function handleCreate(e: FormEvent) {
     e.preventDefault()
     if (!form.firstName.trim()) {
       setNameError('Informe o nome do paciente.')
+      return
+    }
+    // Mesma faixa do domínio phone_digits no banco (10 a 13 dígitos, DDD +
+    // número): sem isto, o formulário deixava passar telefone vazio ou curto
+    // e só o banco recusava, com um erro cru de constraint em vez de um campo
+    // em vermelho.
+    const phoneDigits = digitsOnly(form.phone)
+    if (phoneDigits.length < 10 || phoneDigits.length > 13) {
+      setPhoneError('Informe um telefone válido, com DDD.')
       return
     }
     create(
@@ -376,6 +388,7 @@ export function PatientsPage() {
                 placeholder="(79) 3200-0000"
                 value={form.phone}
                 onChange={e => set('phone')(e.target.value)}
+                error={phoneError}
               />
               <Input
                 label="WhatsApp"
