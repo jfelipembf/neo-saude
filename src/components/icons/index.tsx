@@ -629,3 +629,16 @@ export const IconTreatmentHistory = () => (
     <path fill="currentColor" d="M12 7.25a.75.75 0 0 1 .75.75v3.69l2.28 2.28a.75.75 0 1 1-1.06 1.06l-2.427-2.426a1 1 0 0 1-.293-.708V8a.75.75 0 0 1 .75-.75" opacity=".5"/>
   </svg>
 )
+
+// Celular deitando — o aviso de "vire o aparelho" do odontograma em retrato.
+// O retângulo é o aparelho em pé e a seta curva indica o giro; o segundo
+// retângulo, esmaecido, é onde ele chega.
+export const IconRotateDevice = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
+       strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="2" width="10" height="16" rx="2" />
+    <path d="M8 5.5h0" />
+    <path d="M16 10a6 6 0 0 1 5 5.9" opacity="0.55" />
+    <path d="M18.5 12.5 21 16l3-2.2" opacity="0.55" transform="translate(-3 0)" />
+  </svg>
+)

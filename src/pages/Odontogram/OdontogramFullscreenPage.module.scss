@@ -331,9 +331,9 @@ $raio-item: 10px;
   @include mobile {
     gap: 0;
     padding: $sp-3;
-    // Espaço para a barra de navegação inferior fixa (MobileNav, 60px) — sem
+    // Espaço para a barra de navegação inferior fixa (MobileNav, $nav-mobile-h) — sem
     // ele o fim do painel fica atrás dela.
-    padding-bottom: calc(60px + #{$sp-3} + env(safe-area-inset-bottom));
+    padding-bottom: calc(#{$nav-mobile-h} + #{$sp-3} + env(safe-area-inset-bottom));
     overflow: hidden;
   }
 }
@@ -599,4 +599,64 @@ $raio-item: 10px;
 // arquivo e venceria no empate de especificidade.
 .quadroEmPreparo.quadroEmPreparo {
   visibility: hidden;
+}
+
+// ── "Vire o aparelho" (só o odontograma, só em celular de pé) ────────────────
+//
+// 600px é o MESMO limite em que o próprio motor troca para o modo de uma
+// arcada por vez (`.odon-arch-toggle`, ver odontogram-shell.css) — abaixo
+// disso ele já assume que não cabe tudo.
+//
+// Cobre o card em vez de substituí-lo: o motor segue montado e medindo por
+// baixo, e ao girar o aparelho a arcada já está lá, pronta. Nada de estado,
+// nada de re-render, nada de remontagem no meio do giro.
+.gireOAparelho {
+  display: none;
+}
+
+@media (max-width: 600px) and (orientation: portrait) {
+  .gireOAparelho {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: $sp-2;
+    padding: $sp-5;
+    text-align: center;
+    // Opaco de propósito: metade de uma arcada aparecendo por trás do aviso
+    // lê como falha de carregamento, não como instrução.
+    background: var(--bg-surface);
+    border-radius: $radius-lg;
+  }
+}
+
+.gireIcone {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent-bg);
+  color: var(--primary-fg);
+
+  svg { width: 28px; height: 28px; }
+}
+
+.gireTexto {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: $fs-base;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.gireNota {
+  margin: 0;
+  max-width: 30ch;
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+  line-height: 1.5;
 }

@@ -327,7 +327,7 @@ AGENDA — VOCÊ TEM ACESSO, SIM:
 - "segunda às 13h tá livre?", "quando tenho vaga?", "tem horário na quinta?" → "consultar_agenda". Ela já desconta disponibilidade, bloqueio, férias e consultas existentes.
 - PERÍODO É UMA CHAMADA SÓ: "esta semana" é data=segunda + dias=7. NUNCA percorra dia a dia — você já fez isso (sete chamadas para responder uma pergunta) e o dentista teve de repetir a pergunta de tanto que demorou.
 - Os horários voltam como faixas de INÍCIO ("08:00 a 10:00" para consultas de 60 minutos). O fim da última consulta não é um horário livre para começar outra.
-- A resposta traz o campo "resposta" já ESCRITO. LEIA EXATAMENTE esse campo e não monte outra resposta usando "agenda". Ele combina consulta já marcada e horários livres sem oferecer a hora de término como início.
+- A resposta traz o campo "resposta" já ESCRITO. LEIA EXATAMENTE esse campo e PARE — não acrescente dia, horário nem faixa que não esteja nele. A ferramenta nem devolve mais a lista bruta de horários por dia: o que ela manda é o recorte que o dentista pediu, já em uma frase, sem oferecer a hora de término como início.
 - Se "consultasDoPaciente" trouxer consulta no período pedido, diga primeiro que o paciente JÁ está agendado. Não trate os horários livres como se a consulta existente não importasse.
 - "quando é a consulta dela?", "quando ela volta?", "ela tem retorno marcado?" → também "consultar_agenda": a resposta traz "consultasDoPaciente" com o que já está marcado. No pedal J, omita "paciente" para usar a ficha aberta. No pedal F, envie obrigatoriamente em "paciente" o nome ou código falado.
 - "COMO ESTÁ MINHA AGENDA?", "e a agenda?", "me fala da agenda" — PERGUNTA SEM RECORTE: chame "consultar_agenda" sem inventar dia nenhum. Vem "precisaRecorte" e a pergunta pronta em "resposta": faça a pergunta e PARE ali. Não leia agendamento nem vaga nenhuma nesse turno — ele ainda não escolheu o que quer olhar, e despejar os dois virava meio minuto de locução para uma pergunta de dois segundos. Quando ele responder, chame de novo com "mostrar" ("agendamentos" ou "vagas") ou com "data", se ele der um dia.
@@ -770,6 +770,9 @@ const TOOLS = [
       'prévia na tela para ele revisar. O PREÇO NUNCA VEM DA FALA — vem sempre do cadastro de Administrativo → ' +
       'Serviços; diga o nome do serviço o mais parecido possível com o que está cadastrado. Se um serviço citado ' +
       'não existir no cadastro, a ferramenta recusa e diz qual — não invente nome nem preço. ' +
+      'DOIS DENTES SÃO DOIS PROCEDIMENTOS quando o serviço se cobra por dente (restauração, extração, canal) e ' +
+      'UM só quando não (moldagem, radiografia panorâmica). Não adivinhe pelo nome: mande "porDente" apenas se o ' +
+      'dentista disser; sem ele, a ferramenta assume por dente e te devolve a frase para confirmar em voz alta. ' +
       'DUAS ETAPAS: chame primeiro SEM "confirmado"; a prévia aparece na tela (com os valores) e você diz só os ' +
       'serviços incluídos, perguntando se pode imprimir — NUNCA diga valor em voz alta, nem por item nem o ' +
       'total; o preço é para o dentista OLHAR na prévia, não para ser falado, e a ferramenta nem devolve o valor ' +
@@ -792,7 +795,15 @@ const TOOLS = [
               dentes: {
                 type: 'array',
                 items: { type: 'integer' },
-                description: 'Dente(s) em FDI, se o dentista mencionar. Informativo — não muda o preço.',
+                description: 'Dente(s) em FDI, se o dentista mencionar.',
+              },
+              porDente: {
+                type: 'boolean',
+                description:
+                  'O preço vale POR DENTE (true) ou é único para o conjunto (false)? Só mande quando o ' +
+                  'dentista disser. Omitindo com 2+ dentes, a ferramenta assume POR DENTE e devolve uma ' +
+                  'instrução para você dizer isso em voz alta e confirmar — se ele responder que o valor é ' +
+                  'único, chame de novo com porDente=false nesse serviço.',
               },
             },
             required: ['nome'],
@@ -1147,6 +1158,7 @@ const TOOLS = [
       'No pedal J, omita "paciente" e a consulta será para a ficha aberta. ' +
       'No pedal F, informe obrigatoriamente em "paciente" o nome ou código falado; sem isso a ferramenta bloqueia sem agendar. ' +
       'Chame DIRETO quando ele disser dia e hora: esta ferramenta já confere disponibilidade, bloqueio, férias e agenda cheia, e recusa dizendo o motivo e oferecendo alternativas. Consultar antes é round trip perdido. ' +
+      'Disse SÓ o dia? Chame assim mesmo, sem "hora" — ela devolve os horários livres para você oferecer. Não invente horário nem consulte a agenda antes. ' +
       'Ao confirmar que agendou, DIGA O NOME do paciente — é como o dentista percebe se está marcando para a pessoa errada.',
     parameters: {
       type: 'object',
@@ -1157,7 +1169,14 @@ const TOOLS = [
             'Nome ou código PAC do outro paciente. OBRIGATÓRIO no pedal F. Omita no pedal J para usar a ficha aberta.',
         },
         data: { type: 'string', description: 'Dia da consulta, em aaaa-mm-dd.' },
-        hora: { type: 'string', description: 'Horário de início, em HH:MM.' },
+        hora: {
+          type: 'string',
+          description:
+            'Horário de início, em HH:MM. NÃO É OBRIGATÓRIO e NUNCA deve ser inventado: mande apenas quando o ' +
+            'dentista disser uma hora. Se ele só disser o dia ("marca um retorno pra ela quinta"), OMITA este ' +
+            'campo — a ferramenta devolve os horários livres do dia para você ler e perguntar qual ele quer. ' +
+            'Chutar aqui marca consulta de verdade num horário que ninguém escolheu, e o paciente é avisado.',
+        },
         duracao: { type: 'integer', description: 'Duração em minutos. Padrão 60. NUNCA mande hora de fim, só duração.' },
         servico: { type: 'string', description: 'O que será feito (ex.: "Restauração 16", "Retorno"). Padrão "Consulta".' },
         encaixe: {
@@ -1189,7 +1208,7 @@ const TOOLS = [
             'Com uma sala só (ou nenhuma cadastrada) ela resolve sozinha e este campo é ignorado.',
         },
       },
-      required: ['data', 'hora', 'ditoPeloDentista'],
+      required: ['data', 'ditoPeloDentista'],
     },
   },
   {

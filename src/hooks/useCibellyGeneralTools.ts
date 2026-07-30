@@ -49,6 +49,7 @@ import { addMinutes, formatLongDate, toIsoDate, isoToBrDate } from '@/utils/date
 import { formatCpf } from '@/utils/format'
 import { matchesSearch } from '@/utils/search'
 import { errorMessage } from '@/utils/errors'
+import { vezesCobradas } from '@/utils/quotePerTooth'
 import {
   CLINICAL_DOCUMENT_STYLES, attendanceCertificateText, certificateBody,
   examRequestBody, leaveCertificateText, prescriptionBody,
@@ -347,13 +348,33 @@ export function useCibellyGeneralTools({
           erro: `Não encontrei "${s.nome}" no cadastro de Serviços. Cadastre em Administrativo → Serviços, ou diga o nome exatamente como está lá.`,
         }
       }
+      /**
+       * DOIS DENTES SÃO DOIS PROCEDIMENTOS — quando são.
+       *
+       * O preço entrava fixo, então "restauração no 26 e no 27" saía cobrando
+       * UMA restauração. Não é arredondamento: é metade do valor do trabalho
+       * que o dentista vai fazer, num papel que o paciente leva e aceita.
+       *
+       * Não há de onde inferir: `OdontoProcedure` guarda só nome e preço, e no
+       * editor manual isto é uma caixa marcada item a item. Na ausência de
+       * resposta, com 2+ dentes, assume POR DENTE — é o caso mais comum
+       * (restauração, extração, canal) e erra para o lado de não subfaturar,
+       * que é o lado corrigível: o dentista vê "× 2" na prévia e desfaz. O
+       * contrário sai da clínica sem ninguém notar.
+       */
+      const dentes = s.dentes?.length ?? 0
+      const vezes = vezesCobradas(dentes, s.porDente)
+
       itens.push({
         treatment: achado.name,
         professionalId: usuario?.professionalId,
         insurance: 'Particular',
         teeth: s.dentes?.length ? s.dentes.map(String) : undefined,
         unitPrice: achado.price,
-        amount: achado.price,
+        // A flag é o que faz a prévia e a lista escreverem "R$ X × 2"
+        // (ver BudgetsPanel) — sem ela o total apareceria sem explicação.
+        multiplyPerTooth: vezes > 1 || undefined,
+        amount: achado.price * vezes,
       })
     }
 
@@ -367,6 +388,25 @@ export function useCibellyGeneralTools({
       items: itens,
     }
     const resumoServicos = itens.map(i => i.treatment).join(', ')
+
+    /**
+     * O que ela precisa DIZER sobre a multiplicação — sem valores.
+     *
+     * A suposição de "por dente" não pode ser silenciosa: ela dobra ou triplica
+     * o papel que o paciente vai aceitar. Dita em voz alta, o dentista corrige
+     * na hora ("não, é valor único") e a ferramenta é chamada de novo com
+     * `porDente: false`. Só o NÚMERO de dentes vai na frase; o preço continua
+     * sendo coisa de olhar na tela.
+     */
+    const multiplicados = itens.filter(i => i.multiplyPerTooth)
+    const avisoPorDente = multiplicados.length
+      ? ' Diga que '
+        + multiplicados
+          .map(i => `${i.treatment} está sendo cobrado POR DENTE (${i.teeth?.length} dentes)`)
+          .join(' e ')
+        + ', e pergunte se é isso mesmo ou se o valor é único para o conjunto — '
+        + 'se for único, chame de novo com porDente=false nesse serviço.'
+      : ''
 
     // PRIMEIRA CHAMADA: só monta a prévia, mesma doutrina do emitirDocumento —
     // nada é salvo nem impresso até o "sim".
@@ -392,7 +432,8 @@ export function useCibellyGeneralTools({
         orcamento: { servicos: resumoServicos },
         instrucao:
           'O orçamento apareceu na tela para o dentista revisar, com os valores. Diga só os serviços incluídos e '
-          + 'pergunte se ele quer FINALIZAR o orçamento — a pergunta é sobre fechar o orçamento, não sobre '
+          + avisoPorDente
+          + ' Depois pergunte se ele quer FINALIZAR o orçamento — a pergunta é sobre fechar o orçamento, não sobre '
           + 'imprimir: o que a confirmação faz é GRAVAR (a impressão é consequência). NÃO diga nenhum valor em '
           + 'voz alta (nem por item, nem o total): o preço é para o dentista OLHAR na tela, não para ser falado. '
           + 'Só chame de novo, com os MESMOS dados e confirmado=true, depois de um "sim" claro — antes disso nada '
@@ -831,7 +872,17 @@ export function useCibellyGeneralTools({
           ? consultasTexto
           : pacienteAlvo ? consultasTexto + vagasTexto : consultasTexto
 
-      return { ok: true, resposta, consultasDoPaciente: noPeriodo, agenda }
+      /**
+       * SÓ A FRASE PRONTA — `agenda` (os blocos livres de cada dia) NÃO volta.
+       *
+       * Ela já está resumida dentro de `resposta`, no recorte que o dentista
+       * pediu. Devolver o array cru junto era entregar o material completo a um
+       * modelo instruído a ser prestativo: perguntado "quem está marcado
+       * sexta?", ele lia a frase E depois recitava as faixas livres dos sete
+       * dias. Não dá para consertar isso pedindo brevidade — o jeito é não ter
+       * o que recitar.
+       */
+      return { ok: true, resposta, consultasDoPaciente: noPeriodo }
     }
     // O que sobra é "quando é a consulta dela?" — alguém nomeado, sem dia.
     // Sem paciente E sem recorte, perguntaAmplaDemais já devolveu a pergunta lá
@@ -935,7 +986,7 @@ export function useCibellyGeneralTools({
 
   async function agendarConsulta(p: {
     paciente?: string
-    data: string; hora: string; duracao?: number; servico?: string; encaixe?: boolean
+    data: string; hora?: string; duracao?: number; servico?: string; encaixe?: boolean
     sala?: string; confirmaFimDeSemana?: boolean; ditoPeloDentista?: string; confirmaData?: boolean
   }) {
     const alvoPaciente = pacienteParaAgenda(p.paciente)
@@ -967,6 +1018,37 @@ export function useCibellyGeneralTools({
     if (!escolha.ok) return { ok: false, erro: escolha.reason, salas: escolha.rooms }
 
     const duracao = p.duracao ?? 60
+
+    /**
+     * SEM HORÁRIO, NÃO MARCA — oferece.
+     *
+     * `hora` era campo OBRIGATÓRIO no schema da ferramenta: pedindo "marca um
+     * retorno pra ela semana que vem", o modelo não tinha como chamar sem um
+     * horário, então inventava um. E inventado ele passa por todas as travas
+     * daqui — o horário existe, está livre, a sala resolve — e vira consulta
+     * de verdade, com o paciente avisado por WhatsApp de um horário que
+     * ninguém escolheu.
+     *
+     * Pedir no prompt para ela perguntar não resolveria: o campo obrigatório é
+     * uma força maior que qualquer instrução. A correção é o schema deixar de
+     * exigir e o CÓDIGO recusar — mesma doutrina da data ambígua logo acima.
+     */
+    if (!p.hora?.trim()) {
+      const livres = mergeFreeSlots(freeSlotsOfDay(disponibilidade(), p.data, duracao, hojeIso))
+      return {
+        ok: true,
+        precisaConfirmar: true,
+        data: dataPorExtenso(p.data),
+        // Faixas de INÍCIO, não blocos: "08:00 às 11:00" ofereceria 11:00 como
+        // início justamente quando esse horário já não cabe a consulta inteira.
+        horariosLivres: livres.length ? formatFreeStartRanges(livres) : null,
+        instrucao: livres.length
+          ? 'O dentista não disse a hora. Leia os horários livres desse dia e pergunte qual ele quer. '
+            + 'Só chame de novo depois que ele escolher, com a hora em HH:MM.'
+          : 'O dentista não disse a hora, e esse dia não tem horário livre para essa duração. '
+            + 'Diga isso e pergunte que outro dia ele quer.',
+      }
+    }
 
     // Encaixe é a única forma de furar a regra, e só quando pedido de propósito.
     if (!p.encaixe) {

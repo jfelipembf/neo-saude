@@ -39,7 +39,7 @@ import { Modal } from '@/components/Modal/Modal'
 import { Button } from '@/components/Button/Button'
 import { carregarPedal } from '@/lib/cibelly/pedalConfig'
 import { Spinner } from '@/components/Spinner/Spinner'
-import { IconX, IconMic, IconCheck } from '@/components/icons'
+import { IconX, IconMic, IconCheck, IconRotateDevice } from '@/components/icons'
 import { errorMessage } from '@/utils/errors'
 import { APP_ROUTES } from '@/constants'
 import type { Patient } from '@/types/domain'
@@ -1006,6 +1006,25 @@ export function OdontogramFullscreenPage() {
               <p>Escolha um paciente para começar.</p>
             </div>
           )}
+          {/* VIRE O APARELHO — em celular de pé, a arcada não cabe.
+              Uma arcada tem 16 dentes e o motor impõe 44px por dente em tela de
+              toque (`@media (pointer: coarse)`): ~704px, contra os ~390px de um
+              iPhone em pé. Deitado ela cabe inteira, no tamanho de toque cheio
+              e sem rolagem.
+
+              SOBREPOSIÇÃO, e não troca de conteúdo: o motor é global de módulo
+              e continua montado e medindo por baixo (ver `estadoVivo`). E a
+              troca é puro CSS — girar o aparelho não passa por estado nem
+              re-render, então não há remontagem nem desenho perdido no giro. */}
+          <div className={styles.gireOAparelho} aria-hidden="true">
+            <span className={styles.gireIcone}><IconRotateDevice /></span>
+            <p className={styles.gireTexto}>Vire o aparelho para marcar os dentes</p>
+            <p className={styles.gireNota}>
+              Deitado, a arcada inteira cabe na tela. As outras seções funcionam
+              normalmente em pé.
+            </p>
+          </div>
+
           {/* `key` que muda a cada retomada: é o que reata o motor a ESTE
               contêiner depois que outra seção o levou (ver o efeito acima). */}
           <OdontogramShell key={montagemDoMotor} language="pt-br" darkMode={dark} enableNotes />

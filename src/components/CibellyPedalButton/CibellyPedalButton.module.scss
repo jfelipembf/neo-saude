@@ -41,9 +41,23 @@
 
   &:not(:disabled):hover { box-shadow: var(--shadow-md), var(--shadow-glow); }
 
+  // ACIMA DA BARRA DE NAVEGAÇÃO, não em cima dela.
+  //
+  // O botão é `position: fixed` e portado para o body, então não enxerga o
+  // layout da tela: com `bottom` fixo ele pousava exatamente sobre a barra
+  // inferior do PWA — justo o botão que precisa de mira zero, disputando
+  // pixel com a navegação. `$nav-mobile-h` é a mesma medida que as telas de
+  // atendimento usam para reservar esse espaço (ver _tokens.scss), então os
+  // dois acompanham juntos se a barra mudar de altura.
+  //
+  // Em `mobile` (≤768px) e não `phone` porque é nessa largura que a barra
+  // aparece — no tablet ela existe igual.
+  @include mobile {
+    bottom: calc(#{$nav-mobile-h} + #{$sp-3} + env(safe-area-inset-bottom));
+  }
+
   @include phone {
     right: $sp-3;
-    bottom: $sp-3;
     width: 56px;
     height: 56px;
 

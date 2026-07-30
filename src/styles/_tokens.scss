@@ -45,6 +45,19 @@ $warning:           #F59E0B;
 $danger:            #EF4444;
 $neutral:           #94A3B8;
 
+// ── Navegação inferior do PWA (MobileNav, telas de atendimento) ─────────────
+//
+// Vive aqui, e não no MobileNav.module.scss, porque QUATRO arquivos dependem
+// dela: a própria barra e as três telas de atendimento, que reservam este
+// espaço embaixo do conteúdo para ele não ficar atrás dela. Repetida em cada
+// um, mudar a altura da barra deixava o conteúdo dos outros três por baixo —
+// e o sintoma aparece só no celular, que é onde menos se testa.
+//
+// 68px: acima dos 49pt do tab bar do iOS e abaixo dos 80dp da barra do
+// Material 3. É o que cabe um ícone de 27px com o rótulo legível embaixo sem
+// comer altura de conteúdo numa tela de atendimento.
+$nav-mobile-h: 68px;
+
 // ── Controles (alturas/fontes/paddings — Button, Input, Select, Textarea) ────
 $ctrl-h-sm:   32px;
 $ctrl-h-md:   40px;

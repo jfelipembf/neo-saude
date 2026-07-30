@@ -126,6 +126,28 @@
   align-items: center;
   gap: $sp-3;
   margin-bottom: $toast-clearance;
+  // Lê como RODAPÉ, não botões soltos: régua acima separando das etapas + um
+  // respiro no topo. Mesmo tratamento do `.rodapeEtapa` da fisioterapia, para a
+  // barra de ações ser a mesma em toda a consulta.
+  margin-top: $sp-4;
+  padding-top: $sp-4;
+  border-top: 1px solid var(--glass-border);
+
+  // No celular os botões eram alvos de 40px espremidos num canto. Viram uma
+  // barra de ação de largura cheia: Voltar de um lado, a ação principal do
+  // outro, cada metade da tela e 48px de altura (alvo de dedo do iOS). Fonte no
+  // corpo padrão para o rótulo não encolher, e recuo da área segura embaixo.
+  @include phone {
+    gap: $sp-2;
+    padding-bottom: env(safe-area-inset-bottom);
+    > button,
+    .rodapeFim { flex: 1; }
+    .rodapeFim > button { flex: 1; }
+    button {
+      min-height: $ctrl-h-lg;
+      font-size: $fs-base;
+    }
+  }
 }
 
 .rodapeFim {

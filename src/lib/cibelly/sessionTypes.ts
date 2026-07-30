@@ -43,9 +43,21 @@ export interface MaterialUsage {
  *  NUNCA vem da fala, sempre do cadastro (Administrativo → Serviços). */
 export interface TreatmentQuoteItemRequest {
   nome: string
-  /** Dente(s) em FDI, quando o dentista mencionar. Informativo — não
-   *  multiplica o preço (ver criarOrcamentoPaciente). */
+  /** Dente(s) em FDI, quando o dentista mencionar. */
   dentes?: number[]
+  /**
+   * O preço do serviço vale POR DENTE ou é único para o conjunto?
+   *
+   * Não dá para inferir: o catálogo (`OdontoProcedure`) guarda só nome e preço,
+   * e no editor manual isto é uma caixa que o dentista marca item a item (ver
+   * BudgetsPanel). Uma restauração em dois dentes são dois procedimentos; uma
+   * moldagem para dois dentes é um só. Só quem está com a boca na frente sabe.
+   *
+   * Ausente com 2+ dentes, `criarOrcamentoPaciente` assume POR DENTE — é o caso
+   * mais comum e o que erra para o lado de não subfaturar — e manda a Cibelly
+   * DIZER a suposição, para o dentista corrigir antes de confirmar.
+   */
+  porDente?: boolean
 }
 
 /**

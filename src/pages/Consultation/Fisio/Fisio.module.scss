@@ -42,9 +42,9 @@
   @include desktop { grid-template-columns: auto minmax(0, 1fr); }
 
   // Espaço extra embaixo pra o conteúdo não ficar atrás da navegação inferior
-  // fixa (MobileNav, 60px) — só existe nesta largura.
+  // fixa (MobileNav, $nav-mobile-h) — só existe nesta largura.
   @include mobile {
-    padding-bottom: calc(60px + #{$sp-3} + env(safe-area-inset-bottom));
+    padding-bottom: calc(#{$nav-mobile-h} + #{$sp-3} + env(safe-area-inset-bottom));
   }
 }
 

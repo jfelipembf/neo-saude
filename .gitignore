@@ -28,3 +28,6 @@ npm-debug.log*
 
 # Clone de referência do módulo de odontograma (o código usado vive em src/lib/odontogramShell)
 vendor/
+
+# Cowork local config
+.claude/settings.local.json
