@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "check:functions": "deno check --node-modules-dir=auto supabase/functions/*/index.ts"
+    "check:functions": "deno check --node-modules-dir=auto supabase/functions/*/index.ts",
+    "check:rls": "node scripts/check-rls.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",

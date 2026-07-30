@@ -30,6 +30,10 @@ export interface SessionClinicalNote {
   source: ClinicalNoteSource
   /** Só quando vem de uma consulta: anexo pendura no appointment_id. */
   appointmentId?: string
+  /** Tratamento em curso na hora da consulta — carimbado pelo banco
+   *  (`tg_carimba_plano`). Só existe pra sessão INDIVIDUAL; turma não tem
+   *  tratamento (`care_plan`) — a evolução de turma nunca preenche isto. */
+  carePlanId?: string
   /** aaaa-mm-dd */
   date: string
   /** 'HH:MM' — da consulta ou do horário da turma. */
@@ -52,6 +56,11 @@ interface NoteWindow {
   fromIso?: string
   toIso?: string
   limit?: number
+  /** Recorta ao TRATAMENTO — mesmo princípio do Diagnóstico, dos Sinais
+   *  vitais, dos Testes e das Avaliações. Turma não tem `care_plan_id`
+   *  (não é um tratamento individual), então recortar por tratamento exclui
+   *  essa fonte inteira, não só filtra dentro dela. */
+  carePlanId?: string
 }
 
 /** Mais recente primeiro — ordem natural de histórico clínico. */
@@ -63,13 +72,14 @@ function byMostRecent(a: SessionClinicalNote, b: SessionClinicalNote) {
 async function listAppointmentNotes(patientId: string, window: NoteWindow): Promise<SessionClinicalNote[]> {
   let query = supabase
     .from('appointment')
-    .select('id, date, start_time, service, professional_id, clinical_note, medical_record')
+    .select('id, date, start_time, service, professional_id, care_plan_id, clinical_note, medical_record')
     .eq('patient_id', patientId)
     // Basta UMA das duas colunas ter conteúdo — o `or` é só o pré-filtro barato
     // no banco; o descarte de nota vazia continua abaixo.
     .or('clinical_note.not.is.null,medical_record.not.is.null')
   if (window.fromIso) query = query.gte('date', window.fromIso)
   if (window.toIso) query = query.lte('date', window.toIso)
+  if (window.carePlanId) query = query.eq('care_plan_id', window.carePlanId)
 
   const ordered = query.order('date', { ascending: false }).order('start_time', { ascending: false })
   const { data, error } = await (window.limit ? ordered.limit(window.limit) : ordered)
@@ -87,6 +97,7 @@ async function listAppointmentNotes(patientId: string, window: NoteWindow): Prom
         startTime: (row.start_time as string).slice(0, 5),
         activity: row.service as string,
         professionalId: (row.professional_id as string | null) ?? undefined,
+        carePlanId: (row.care_plan_id as string | null) ?? undefined,
         note: isBlankSoap(soap) ? null : soap,
         // `<p></p>` do editor conta como vazio: sem isto, abrir a tela de
         // atendimento e não escrever nada marcaria o dia no calendário.
@@ -139,24 +150,34 @@ async function listClassGroupNotes(patientId: string, window: NoteWindow): Promi
   })
 }
 
-/** As duas fontes numa lista só, mais recente primeiro. */
+/**
+ * As duas fontes numa lista só, mais recente primeiro.
+ *
+ * Recortando por TRATAMENTO, a turma sai da lista inteira — `care_plan` é
+ * plano de fisioterapia individual, e sessão de turma não tem um. Incluí-la
+ * aqui misturaria "sem tratamento" com "tratamento errado".
+ */
 async function listSessionNotes(patientId: string, window: NoteWindow): Promise<SessionClinicalNote[]> {
   const [individual, group] = await Promise.all([
     listAppointmentNotes(patientId, window),
-    listClassGroupNotes(patientId, window),
+    window.carePlanId ? Promise.resolve([]) : listClassGroupNotes(patientId, window),
   ])
   return [...individual, ...group].sort(byMostRecent)
 }
 
-/** Dias (aaaa-mm-dd) com prontuário não-vazio — alimenta o `markedDates` do Calendar. */
-export async function listNoteDates(patientId: string): Promise<string[]> {
-  const notes = await listSessionNotes(patientId, {})
+/** Dias (aaaa-mm-dd) com prontuário não-vazio — alimenta o `markedDates` do Calendar.
+ *  `carePlanId` recorta ao tratamento (ver `Fisio/components/ClinicalRecord`) —
+ *  ausente, mostra a vida inteira do paciente (aba Prontuários do perfil). */
+export async function listNoteDates(patientId: string, carePlanId?: string): Promise<string[]> {
+  const notes = await listSessionNotes(patientId, { carePlanId })
   return Array.from(new Set(notes.map(note => note.date)))
 }
 
 /** Prontuário(s) do dia selecionado no calendário, na ordem do dia. */
-export async function getNotesByDate(patientId: string, dateIso: string): Promise<SessionClinicalNote[]> {
-  const notes = await listSessionNotes(patientId, { fromIso: dateIso, toIso: dateIso })
+export async function getNotesByDate(
+  patientId: string, dateIso: string, carePlanId?: string,
+): Promise<SessionClinicalNote[]> {
+  const notes = await listSessionNotes(patientId, { fromIso: dateIso, toIso: dateIso, carePlanId })
   return notes.reverse()   // já vem do mais recente: inverter dá a ordem do dia
 }
 

@@ -169,9 +169,16 @@ export function ScheduleBoard({ onSelect, onQuickAdd, enrollTarget, onEnrollDone
 
   // Troca de paciente/entitlement (outro "Matricular" clicado) — zera a
   // seleção em rascunho, ela é só desta rodada.
-  useEffect(() => {
+  //
+  // Ajuste DURANTE a renderização, não em efeito: o React reexecuta o
+  // componente na hora, sem pintar o estado velho na tela. Em efeito, a tela
+  // chega a renderizar uma vez com a seleção do paciente ANTERIOR.
+  const alvoDaMatricula = `${enrollTarget?.patientId ?? ''}|${enrollTarget?.entitlementId ?? ''}`
+  const [alvoAnterior, setAlvoAnterior] = useState(alvoDaMatricula)
+  if (alvoDaMatricula !== alvoAnterior) {
+    setAlvoAnterior(alvoDaMatricula)
     setSelectedClassGroupIds(new Set())
-  }, [enrollTarget?.patientId, enrollTarget?.entitlementId])
+  }
 
   const alreadyEnrolledGroupIds = new Set(currentEnrollments.map(e => e.classGroupId))
   // Sessões/semana já ocupadas pelo MESMO contrato (entitlement) desta rodada

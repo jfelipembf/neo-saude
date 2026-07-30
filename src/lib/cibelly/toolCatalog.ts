@@ -115,6 +115,24 @@ export const CIBELLY_TOOL_CATALOG = {
     continuation: 'always',
     confirmation: 'tool_managed',
   },
+  adicionar_ao_carrinho: {
+    domain: 'inventory',
+    purpose: 'Guardar um material para comprar depois.',
+    continuation: 'always',
+    confirmation: 'none',
+  },
+  consultar_carrinho: {
+    domain: 'inventory',
+    purpose: 'Ler o que está no carrinho de compras.',
+    continuation: 'always',
+    confirmation: 'none',
+  },
+  pedir_orcamento_do_carrinho: {
+    domain: 'inventory',
+    purpose: 'Pedir orçamento de tudo que está no carrinho, separado por fornecedor.',
+    continuation: 'always',
+    confirmation: 'tool_managed',
+  },
   enviar_mensagem_paciente: {
     domain: 'communication',
     purpose: 'Preparar e enviar uma mensagem de WhatsApp ao paciente.',

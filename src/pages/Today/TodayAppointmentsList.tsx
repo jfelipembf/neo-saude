@@ -41,8 +41,10 @@ export function TodayAppointmentsList({ appointments }: TodayAppointmentsListPro
   // MEDICINA entra na tela de atendimento (tela cheia) a partir daqui — é o
   // caminho de entrada dela, como o "Odonto IA" é o da odontologia.
   const showConsultaAction = specialty === 'medicine' && canView('patients')
-  // FISIOTERAPIA tem a sua: mesma tela cheia, prontuário SOAP no centro e
-  // painel de Testes. Rota própria (`/sessao`), não a mesma com um parâmetro.
+  // FISIOTERAPIA tem a sua: mesma tela cheia, com menu de seções próprio.
+  // Rota própria (`/fisio`), não a mesma com um parâmetro — as duas telas têm
+  // centro e painéis diferentes, e um `?tipo=` faria a página decidir em tempo
+  // de render qual delas é.
   const showSessaoAction = specialty === 'physiotherapy' && canView('patients')
 
   // Mais cedo primeiro — é a ordem em que o profissional vai VIVER o dia.
@@ -112,7 +114,7 @@ export function TodayAppointmentsList({ appointments }: TodayAppointmentsListPro
             size="sm"
             onClick={e => {
               e.stopPropagation()
-              navigate(`${FULLSCREEN_ROUTES.PHYSIO_SESSION}?sessao=${a.id}`)
+              navigate(`${FULLSCREEN_ROUTES.FISIO}?sessao=${a.id}`)
             }}
           >
             Iniciar sessão

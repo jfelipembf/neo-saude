@@ -1,0 +1,57 @@
+@use '../../../../../styles/mixins' as *;
+
+.raiz {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  min-width: 0;
+}
+
+.cabecalho {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.titulo {
+  margin: 0;
+  font-size: $fs-lg;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.resumo {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+// MARCA DE ANDAIME. As etapas que ainda não existem ficam com cara de obra, e
+// não com um texto qualquer: assim ninguém confunde placeholder com
+// funcionalidade pronta na hora de revisar o estilo.
+.placeholder {
+  display: grid;
+  place-items: center;
+  gap: $sp-2;
+  min-height: 180px;
+  padding: $sp-4;
+  border: 1px dashed var(--field-border);
+  border-radius: $radius-lg;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.placeholderTitulo {
+  margin: 0;
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.placeholderTexto {
+  margin: 0;
+  font-size: $fs-xs;
+  line-height: 1.5;
+  max-width: 44ch;
+}

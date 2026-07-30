@@ -7,8 +7,10 @@ import styles from './ConsultationPage.module.scss'
 interface ConsultationHeaderProps {
   emAtendimento: boolean
   ocupado?: boolean
-  onIniciar: () => void
-  onFinalizar: () => void
+  /** Omitidos quando a tela não controla o status por aqui (ex.: fisioterapia,
+   *  que começa pela lista de Hoje e encerra pelo status do agendamento). */
+  onIniciar?: () => void
+  onFinalizar?: () => void
   /** Rótulo do par de botões — "consulta" no médico, "sessão" na fisioterapia. */
   substantivo?: string
   /** Ações extras antes do botão principal (ex.: sessões restantes do pacote). */
@@ -50,16 +52,17 @@ export function ConsultationHeader({
       {extra}
 
       {/* Canto superior direito: começar/encerrar é a ação mais forte da tela,
-          e o mesmo botão vira a outra depois do clique. */}
-      {emAtendimento ? (
-        <Button variant="secondary" loading={ocupado} onClick={onFinalizar}>
-          Finalizar {substantivo}
-        </Button>
-      ) : (
+          e o mesmo botão vira a outra depois do clique. Sem os dois, a tela
+          não controla status por aqui — nada ocupa esse canto. */}
+      {onIniciar && !emAtendimento ? (
         <Button loading={ocupado} onClick={onIniciar}>
           Iniciar {substantivo}
         </Button>
-      )}
+      ) : onFinalizar ? (
+        <Button variant="secondary" loading={ocupado} onClick={onFinalizar}>
+          Finalizar {substantivo}
+        </Button>
+      ) : null}
     </header>
   )
 }

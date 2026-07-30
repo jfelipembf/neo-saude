@@ -16,6 +16,7 @@ import { isoToBrDate } from '@/utils/date'
 
 export type ClinicalEntryKind =
   | 'problems'
+  | 'diagnosis'
   | 'surgical_history'
   | 'family_history'
   | 'anamnesis'
@@ -34,9 +35,22 @@ export interface ClinicalEntry {
   /** Parentesco — só no histórico familiar. */
   relation?: string
   professionalId?: string
+  /** Só em `kind: 'problems'`: a qual diagnóstico este achado pertence.
+   *  Ausente = achado sem diagnóstico (lançado antes deste vínculo existir). */
+  diagnosisId?: string
+  /** A qual tratamento esta anotação pertence — carimbado pelo banco na
+   *  gravação, só em `diagnosis` e `problems`. Ausente nos tipos compartilhados
+   *  (antecedente, histórico familiar, medicação, risco), que valem além do
+   *  episódio, e nos registros anteriores ao vínculo existir. */
+  carePlanId?: string
 }
 
-const COLUMNS = 'id, kind, content, event_date, relation, created_at, professional_id'
+/** Os tipos que pertencem a UM tratamento. Espelha a regra do gatilho
+ *  `private.tg_carimba_plano` — se divergir, a tela esconde o que o banco
+ *  carimbou (ou mostra o que ele deixou solto). */
+export const KINDS_DO_TRATAMENTO: readonly ClinicalEntryKind[] = ['diagnosis', 'problems']
+
+const COLUMNS = 'id, kind, content, event_date, relation, created_at, professional_id, diagnosis_id, care_plan_id'
 
 /** Todas as anotações do paciente, mais recentes primeiro. Uma busca só para as
  *  cinco seções — cinco chamadas separadas seriam cinco idas ao banco por
@@ -60,6 +74,8 @@ export async function listClinicalEntries(patientId: string): Promise<ClinicalEn
     eventDate: isoToBrDate(r.event_date as string | null),
     relation: (r.relation as string | null) ?? undefined,
     professionalId: (r.professional_id as string | null) ?? undefined,
+    diagnosisId: (r.diagnosis_id as string | null) ?? undefined,
+    carePlanId: (r.care_plan_id as string | null) ?? undefined,
   }))
 }
 
@@ -72,10 +88,17 @@ export interface NewClinicalEntry {
   eventDateIso?: string
   relation?: string
   professionalId?: string
+  /** Só para kind: 'problems' — o diagnóstico (outra entrada, kind:
+   *  'diagnosis') ao qual este achado pertence. */
+  diagnosisId?: string
 }
 
-export async function addClinicalEntry(nova: NewClinicalEntry): Promise<void> {
-  const { error } = await supabase.from('patient_clinical_entry').insert({
+/**
+ * Devolve o ID do registro criado — a tela usa para abrir o cartão do
+ * diagnóstico recém-criado já no modo de edição, com o campo de achado à vista.
+ */
+export async function addClinicalEntry(nova: NewClinicalEntry): Promise<string> {
+  const { data, error } = await supabase.from('patient_clinical_entry').insert({
     clinic_id: getCurrentClinicId(),
     patient_id: nova.patientId,
     appointment_id: nova.appointmentId ?? null,
@@ -84,8 +107,13 @@ export async function addClinicalEntry(nova: NewClinicalEntry): Promise<void> {
     event_date: nova.eventDateIso || null,
     relation: nova.relation?.trim() || null,
     professional_id: nova.professionalId ?? null,
-  })
+    diagnosis_id: nova.diagnosisId ?? null,
+  }).select('id').single()
   if (error) throw error
+  // Zero linhas = a RLS recusou em silêncio (o PostgREST devolve sucesso).
+  // Sem esta checagem a tela dizia "registrado" sobre gravação que não houve.
+  if (!data?.id) throw new Error('Sem permissão para registrar no prontuário.')
+  return data.id
 }
 
 export async function removeClinicalEntry(id: string): Promise<void> {

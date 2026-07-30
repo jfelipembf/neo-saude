@@ -21,10 +21,17 @@ const calls = Array.from({ length: 5 }, (_, index) => ({
 }))
 
 describe('CibellyOrchestrator', () => {
-  it('conhece as 18 ferramentas disponíveis', () => {
+  it('conhece as ferramentas disponíveis e a quem pertencem', () => {
     const orchestrator = new CibellyOrchestrator()
-    expect(Object.keys(orchestrator.tools)).toHaveLength(18)
     expect(orchestrator.agents).toHaveLength(8)
+
+    // As três do CARRINHO entraram depois e pertencem ao agente de estoque —
+    // o número sozinho não diria isso, e era só o número que este teste
+    // conferia antes.
+    for (const nome of ['adicionar_ao_carrinho', 'consultar_carrinho', 'pedir_orcamento_do_carrinho']) {
+      expect(orchestrator.getTool(nome)?.domain, nome).toBe('inventory')
+      expect(orchestrator.getAgentForTool(nome)?.id, nome).toBe('inventory_agent')
+    }
     expect(orchestrator.getTool('solicitar_orcamento_fornecedor')?.domain).toBe('inventory')
     expect(orchestrator.getAgentForTool('solicitar_orcamento_fornecedor')?.id)
       .toBe('inventory_agent')

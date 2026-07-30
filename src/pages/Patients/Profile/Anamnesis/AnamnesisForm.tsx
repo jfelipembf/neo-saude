@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
+import { useImperativeHandle, useState } from 'react'
+import type { FormEvent, Ref } from 'react'
 import { Button } from '@/components/Button/Button'
 import { Input } from '@/components/Input/Input'
 import { SegmentedControl } from '@/components/SegmentedControl/SegmentedControl'
@@ -67,10 +67,25 @@ function draftFromRecord(record: Anamnesis | null, specialty: ClinicSpecialty | 
   return draft as EditAnamnesis
 }
 
+/** O que a tela de fora pode pedir ao formulário. */
+export interface AnamnesisFormHandle {
+  salvar: () => Promise<void>
+}
+
 interface AnamnesisFormProps {
   patientId: string
   record: Anamnesis | null
-  onClose: () => void
+  /** Ausente = o formulário não tem para onde voltar (é a própria tela), e o
+   *  botão Cancelar some junto. */
+  onClose?: () => void
+  /**
+   * Esconde o rodapé de ações. Quem grava passa a ser a tela de fora, pelo
+   * `ref` — é o caso da etapa de um roteiro, onde já existe um "Salvar" do
+   * próprio roteiro e dois botões de salvar na mesma tela é a receita para
+   * gravar metade e achar que gravou tudo.
+   */
+  semAcoes?: boolean
+  ref?: Ref<AnamnesisFormHandle>
   /**
    * Modo COLUNA ESTREITA — o painel da tela de atendimento.
    *
@@ -84,10 +99,12 @@ interface AnamnesisFormProps {
 
 /** Formulário da anamnese — as perguntas vêm de `questions.ts`, então incluir
  *  uma pergunta nova não exige mexer aqui. */
-export function AnamnesisForm({ patientId, record, onClose, compact = false }: AnamnesisFormProps) {
+export function AnamnesisForm({
+  patientId, record, onClose, compact = false, semAcoes = false, ref,
+}: AnamnesisFormProps) {
   const toast = useToast()
   const { specialty } = useSession()
-  const { mutate: save, isPending: saving } = useSaveAnamnesis(patientId)
+  const { mutate: save, mutateAsync: saveAsync, isPending: saving } = useSaveAnamnesis(patientId)
   const sections = sectionsForSpecialty(specialty)
 
   const [form, setForm] = useState<EditAnamnesis>(() => draftFromRecord(record, specialty))
@@ -96,12 +113,22 @@ export function AnamnesisForm({ patientId, record, onClose, compact = false }: A
     setForm(current => ({ ...current, [field]: value }))
   }
 
+  // A gravação exposta para fora. `mutateAsync` e não `mutate`: quem chama
+  // precisa ESPERAR o resultado para saber se pode seguir — com `mutate` o
+  // roteiro avançaria antes de o servidor responder.
+  useImperativeHandle(ref, () => ({
+    salvar: async () => {
+      await saveAsync(form)
+      toast.success('Anamnese salva!')
+    },
+  }), [form, saveAsync, toast])
+
   function handleSave(e: FormEvent) {
     e.preventDefault()
     save(form, {
       onSuccess: () => {
         toast.success('Anamnese salva!')
-        onClose()
+        onClose?.()
       },
     })
   }
@@ -172,10 +199,14 @@ export function AnamnesisForm({ patientId, record, onClose, compact = false }: A
           </section>
         ))}
 
-        <div className={styles.formAcoes}>
-          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button type="submit" loading={saving}>Salvar anamnese</Button>
-        </div>
+        {!semAcoes && (
+          <div className={styles.formAcoes}>
+            {onClose && (
+              <Button variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+            )}
+            <Button type="submit" loading={saving}>Salvar anamnese</Button>
+          </div>
+        )}
       </form>
     </section>
   )

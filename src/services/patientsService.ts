@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { listPatientDocuments, removeDocument } from '@/services/documentsService'
 import { getCurrentClinicId } from '@/lib/tenant'
 import { signAssetUrl, signAssetUrls } from '@/lib/storage'
 import type { ClientInsert, Insert } from '@/lib/db'
@@ -7,7 +8,7 @@ import { brToIsoDate, isoToBrDate } from '@/utils/date'
 import type { Patient, Gender } from '@/types/domain'
 
 const COLUMNS =
-  'id, clinic_id, code, name, common_name, cpf, phone, insurance_id, last_visit, status, photo_url, sex, birth_date, email, whatsapp, cep, state, city, neighborhood, street, number, insurance_card, insurance_card_valid_until, insurance_plan, cns'
+  'id, clinic_id, code, name, common_name, cpf, phone, insurance_id, last_visit, status, photo_url, sex, birth_date, email, whatsapp, cep, state, city, neighborhood, street, number, insurance_card, insurance_card_valid_until, insurance_plan, cns, weight_kg, height_cm, bmi'
 
 // Rótulo do "sem convênio": no banco é insurance_id NULL (não é linha de insurance).
 const PARTICULAR = 'Particular'
@@ -38,6 +39,9 @@ type PatientRow = {
   insurance_card_valid_until: string | null
   insurance_plan: string | null
   cns: string | null
+  weight_kg: number | string | null
+  height_cm: number | string | null
+  bmi: number | string | null
 }
 
 /** Convênios da clínica como mapa id→nome (o domínio usa o NOME). */
@@ -57,6 +61,19 @@ async function insuranceIdByName(clinicId: string, name: string | undefined): Pr
     .maybeSingle()
   if (error) throw error
   return data?.id ?? null
+}
+
+/**
+ * Campo de medida do formulário → número ou null.
+ *
+ * Aceita vírgula decimal, que é como se digita em pt-BR: "72,5" chegaria como
+ * NaN num Number() direto e o peso sumiria sem aviso.
+ */
+function medidaToDb(v: string | undefined): number | null {
+  const t = v?.trim().replace(',', '.')
+  if (!t) return null
+  const n = Number(t)
+  return Number.isFinite(n) ? n : null
 }
 
 function toPatient(row: PatientRow, insMap: Map<string, string>): Patient {
@@ -86,6 +103,9 @@ function toPatient(row: PatientRow, insMap: Map<string, string>): Patient {
     insuranceCardValidUntil: isoToBrDate(row.insurance_card_valid_until),
     insurancePlan: row.insurance_plan ?? undefined,
     cns: row.cns ?? undefined,
+    weightKg: row.weight_kg != null ? Number(row.weight_kg) : undefined,
+    heightCm: row.height_cm != null ? Number(row.height_cm) : undefined,
+    bmi: row.bmi != null ? Number(row.bmi) : undefined,
   }
 }
 
@@ -174,6 +194,9 @@ export interface EditPatient extends NewPatient {
   insuranceCardValidUntil?: string   // dd/mm/aaaa
   insurancePlan?: string
   cns?: string
+  /** Vazio no formulário → null no banco (o IMC volta a ser null junto). */
+  weightKg?: string
+  heightCm?: string
 }
 
 /** Atualiza o cadastro do paciente (inclui o convênio, resolvido para insurance_id). */
@@ -184,6 +207,7 @@ export async function updatePatient(id: string, payload: EditPatient): Promise<v
     firstName, lastName, commonName, birthDate, sex, email, phone, whatsapp,
     cep, state, city, neighborhood, street, number,
     insuranceCard, insuranceCardValidUntil, insurancePlan, cns,
+    weightKg, heightCm,
   } = payload
   const { error } = await supabase
     .from('patient')
@@ -207,6 +231,11 @@ export async function updatePatient(id: string, payload: EditPatient): Promise<v
       insurance_card_valid_until: brToIsoDate(insuranceCardValidUntil),
       insurance_plan: insurancePlan?.trim() || null,
       cns: cns ? digitsOnly(cns) || null : null,
+      // `bmi` NÃO entra: é coluna gerada pelo banco. Mandá-la daria erro do
+      // Postgres — e é justamente essa recusa que garante que o IMC exibido
+      // seja sempre o do peso corrente.
+      weight_kg: medidaToDb(weightKg),
+      height_cm: medidaToDb(heightCm),
     })
     .eq('id', id)
   if (error) throw error
@@ -219,4 +248,79 @@ export async function updatePatientPhoto(id: string, photo: string | undefined):
     .update({ photo_url: photo ?? null })
     .eq('id', id)
   if (error) throw error
+}
+
+
+/**
+ * SE O PACIENTE PODE SER APAGADO — e o que impede.
+ *
+ * Perguntado ANTES do diálogo de confirmação, e não descoberto depois: das 27
+ * chaves estrangeiras que apontam para `patient`, 12 são RESTRICT. Um paciente
+ * com consulta, recebível ou receita é recusado pelo banco com uma mensagem de
+ * constraint que ninguém entende — e impedir é o certo, porque apagá-lo
+ * destruiria a trilha financeira e clínica que responde por ele.
+ */
+export interface PatientDeletionCheck {
+  pode: boolean
+  eDono: boolean
+  impedimentos: { oQue: string; quantos: number }[]
+  /** O que será apagado JUNTO, para o diálogo dizer antes do clique. */
+  emCascata: {
+    documentos: number
+    anamnese: number
+    odontograma: number
+    anotacoes: number
+    medicacoes: number
+    lembretes: number
+  }
+}
+
+export async function checkPatientDeletion(patientId: string): Promise<PatientDeletionCheck> {
+  const { data, error } = await supabase.rpc('paciente_pode_ser_excluido', { p_patient: patientId })
+  if (error) throw error
+  const c = data as unknown as {
+    pode: boolean
+    e_dono: boolean
+    impedimentos: { o_que: string; quantos: number }[]
+    em_cascata: PatientDeletionCheck['emCascata']
+  }
+  return {
+    pode: Boolean(c.pode),
+    eDono: Boolean(c.e_dono),
+    impedimentos: (c.impedimentos ?? []).map(i => ({ oQue: i.o_que, quantos: Number(i.quantos) })),
+    emCascata: c.em_cascata ?? {
+      documentos: 0, anamnese: 0, odontograma: 0, anotacoes: 0, medicacoes: 0, lembretes: 0,
+    },
+  }
+}
+
+/**
+ * Apaga o cadastro. A policy `patient_delete` só deixa o DONO — esconder o
+ * botão é conforto, a parede é a RLS.
+ *
+ * OS ARQUIVOS SAEM PRIMEIRO, e isso não é detalhe de ordem.
+ *
+ * `patient_document` está em CASCADE: apagar o paciente apaga a LINHA do banco
+ * e deixa o objeto no bucket para sempre — invisível, ocupando espaço, e ainda
+ * contendo dado do paciente. Numa exclusão pedida por titular, isso é o
+ * oposto do que foi pedido: o dado continua lá, só que fora do alcance de
+ * quem poderia apagá-lo.
+ *
+ * Por isso os documentos são removidos um a um por `removeDocument`, que tira
+ * do Storage antes de tirar do banco. Se essa parte falhar, a exclusão do
+ * paciente NÃO acontece — melhor um cadastro que sobrou do que um arquivo
+ * órfão que ninguém encontra.
+ */
+export async function removePatient(patientId: string): Promise<void> {
+  const documentos = await listPatientDocuments(patientId)
+  for (const doc of documentos) {
+    await removeDocument(doc.id)
+  }
+
+  const { data, error } = await supabase
+    .from('patient').delete().eq('id', patientId).select('id')
+  if (error) throw error
+  // Zero linhas = a RLS recusou. Sem esta conferência a tela diria "excluído"
+  // sobre um cadastro que continua lá.
+  if (!data?.length) throw new Error('Só o proprietário da clínica pode excluir um cadastro de paciente.')
 }

@@ -65,12 +65,12 @@ export function Calendar({ markedDates = [], selected, onSelect, size = 'md', ma
             d.getMonth() !== view.getMonth() ? styles['day--outside'] : '',
             iso === todayIso ? styles['day--today'] : '',
             selected === iso && iso !== todayIso ? styles['day--selected'] : '',
+            markedDates.includes(iso) ? styles['day--marked'] : '',
           ].filter(Boolean).join(' ')
 
           return (
             <button key={iso} type="button" className={classes} onClick={() => onSelect?.(iso)}>
               {d.getDate()}
-              {markedDates.includes(iso) && <span className={styles.dot} />}
             </button>
           )
         })}

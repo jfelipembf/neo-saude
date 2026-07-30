@@ -156,6 +156,7 @@ $eixo-w: 32px;   // espaço à esquerda do plot para os ticks do eixo Y
 }
 
 .gridline {
+  bottom: var(--y);          // coordenada é dado; estilo mora aqui
   position: absolute;
   left: 0;
   right: 0;
@@ -200,6 +201,8 @@ $eixo-w: 32px;   // espaço à esquerda do plot para os ticks do eixo Y
 
 // Marcadores como HTML (não SVG): o viewBox esticado deformaria os círculos.
 .dot {
+  left: var(--x);
+  top: var(--y);
   position: absolute;
   width: 8px;
   height: 8px;
@@ -219,6 +222,7 @@ $eixo-w: 32px;   // espaço à esquerda do plot para os ticks do eixo Y
 }
 
 .crosshair {
+  left: var(--x);
   position: absolute;
   top: 0;
   bottom: 0;
@@ -244,6 +248,9 @@ $eixo-w: 32px;   // espaço à esquerda do plot para os ticks do eixo Y
 }
 
 .tooltip {
+  left: var(--x);
+  // --desloc mantém o balão dentro do plot nas pontas do eixo.
+  transform: translateX(var(--desloc));
   position: absolute;
   bottom: calc(100% + 6px);
   display: flex;

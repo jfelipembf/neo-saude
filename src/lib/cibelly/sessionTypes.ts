@@ -47,6 +47,25 @@ export interface QuoteRequest {
   confirmado?: boolean
 }
 
+/** "Poe X no carrinho" — o que a fala do dentista traz. */
+export interface CartAddRequest {
+  produto?: string
+  quantidade?: number
+  unidade?: string
+  observacao?: string
+}
+
+/**
+ * "Pede orçamento do carrinho."
+ *
+ * Duas etapas de propósito: sem `confirmado`, a ferramenta só MOSTRA o que
+ * seria mandado e para quem. Mensagem para fornecedor é ação para fora — não
+ * sai de uma frase mal ouvida.
+ */
+export interface CartQuoteRequest {
+  confirmado?: boolean
+}
+
 export interface PatientMessageRequest {
   mensagem: string
   /**
@@ -72,6 +91,9 @@ export interface CibellyHandlers {
   aoConsultarMateriais?: (busca?: string, somenteAcabando?: boolean) => Promise<unknown>
   aoRegistrarMaterial?: (materiais: MaterialUsage[]) => Promise<unknown>
   aoSolicitarOrcamento?: (pedido: QuoteRequest) => Promise<unknown>
+  aoAdicionarAoCarrinho?: (pedido: CartAddRequest) => Promise<unknown>
+  aoConsultarCarrinho?: () => Promise<unknown>
+  aoPedirOrcamentoDoCarrinho?: (pedido: CartQuoteRequest) => Promise<unknown>
   aoEnviarMensagemPaciente?: (pedido: PatientMessageRequest) => Promise<unknown>
   aoConsultarAgenda?: (p: {
     paciente?: string

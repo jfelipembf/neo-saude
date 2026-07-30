@@ -27,23 +27,18 @@
   display: flex;
   flex-direction: column;
   gap: $sp-4;
+  // Mesmo teto do formulário. Sem ele, a ficha em LEITURA abria com a largura
+  // inteira do centro e encolhia para 560px ao clicar em Editar — a tela
+  // saltava no clique, e o campo que a pessoa foi corrigir mudava de lugar.
+  max-width: 560px;
+  margin-right: auto;
 
-  // Pergunta e resposta empilhadas: em 400px, "Já teve reação com anestesia
-  // dental?" e "Não" lado a lado deixam a pergunta em quatro linhas de duas
-  // palavras.
+  // Uma coluna: em 400px, duas colunas de perguntas deixam cada uma em quatro
+  // linhas de duas palavras.
+  //
+  // O empilhamento de pergunta e resposta NÃO mora mais aqui — virou o
+  // comportamento de `.resposta`, que o painel e o perfil agora dividem.
   .respostas { grid-template-columns: 1fr; }
-
-  .resposta {
-    flex-direction: column;
-    align-items: stretch;
-    gap: $sp-1;
-
-    dd {
-      align-items: flex-start;
-      text-align: left;
-      max-width: 100%;
-    }
-  }
 
   // O detalhe já é estreito; o teto de 480px do perfil não tem o que fazer aqui.
   .detalheCampo { max-width: 100%; }
@@ -108,11 +103,22 @@
   }
 }
 
+// PERGUNTA EM CIMA, RESPOSTA EMBAIXO — as duas encostadas na esquerda.
+//
+// Antes a linha era `space-between` com a resposta em `text-align: right`:
+// pergunta num canto, resposta no outro, e entre elas um vão que crescia junto
+// com a largura da coluna. Ler "É alérgico a algum medicamento?" e ter de
+// atravessar a linha até "Sim" é o problema do cardápio com preço na borda —
+// numa lista de vinte perguntas o olho erra de linha.
+//
+// Empilhado, os dois começam no mesmo x e a leitura desce reto. É o mesmo
+// desenho que a pergunta aberta e o painel compacto do atendimento já usavam
+// por conta própria — agora é UM layout só, não três.
 .resposta {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: $sp-3;
+  flex-direction: column;
+  align-items: stretch;
+  gap: $sp-1;
   padding-bottom: $sp-2;
   border-bottom: 1px solid var(--glass-border);
 
@@ -125,26 +131,21 @@
   dd {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: flex-start;
     gap: 2px;
     font-size: $fs-sm;
     font-weight: 600;
     color: var(--text-primary);
-    text-align: right;
-    flex-shrink: 0;
-    max-width: 55%;
+    text-align: left;
+    max-width: 100%;
   }
 
-  // Texto livre ocupa a linha inteira, com a resposta embaixo da pergunta.
+  // Texto livre ocupa a linha inteira. O peso menor distingue resposta escrita
+  // de resposta de escolha — parágrafo em 600 vira bloco preto.
   &--aberta {
     grid-column: 1 / -1;
-    flex-direction: column;
-    align-items: stretch;
 
     dd {
-      align-items: flex-start;
-      text-align: left;
-      max-width: 100%;
       font-weight: 500;
       line-height: 1.5;
     }
@@ -164,16 +165,27 @@
 }
 
 // ── Formulário ───────────────────────────────────────────────────────────────
+// COLUNA DE LEITURA, ENCOSTADA NA ESQUERDA.
+//
+// Sem teto de largura, cada pergunta esticava de ponta a ponta do centro do
+// atendimento: um seletor de "Sim / Não" com 900px para duas palavras, e o
+// olho voltando o percurso inteiro a cada linha. O `margin-right: auto`
+// garante a sobra do lado direito mesmo se o container centralizar os filhos.
 .form {
   display: flex;
   flex-direction: column;
   gap: $sp-5;
+  max-width: 560px;
+  margin-right: auto;
 }
 
 .campo {
   display: flex;
   flex-direction: column;
   gap: $sp-2;
+  // Campo não estica para acompanhar irmão largo (uma pergunta comprida ou um
+  // detalhe em texto): cada um pega a coluna e para aí.
+  align-items: stretch;
 }
 
 .pergunta {

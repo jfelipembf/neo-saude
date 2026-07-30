@@ -881,11 +881,11 @@ export function AppointmentModal({ open, onClose, slot, initial }: AppointmentMo
               <div className={styles.prontuarioAcoes}>
                 <EvolutionTemplatePicker current={clinicalNote} onApply={handleApplyTemplate} />
                 {/* Ditado e "Aprimorar com IA" foram RETIRADOS a pedido do dono
-                    ("por hora"). O componente <AiNoteActions>, os hooks
-                    useAudioDictation/useNoteEnhancement e a edge function
-                    transcribe-audio seguem no repositório INTACTOS — voltar é
-                    reinserir estas linhas. A ponte soapToHtml/parseSoapHtml
-                    continua existindo em utils/soap (com teste), que é o que
+                    ("por hora"). O componente que os agrupava foi apagado junto
+                    com o resto do código morto — está no histórico do git. Os
+                    hooks useAudioDictation/useNoteEnhancement e a edge function
+                    transcribe-audio continuam no repositório, assim como a ponte
+                    soapToHtml/parseSoapHtml em utils/soap (com teste), que
                     traduz o HTML corrido da IA para as quatro seções. */}
                 <Button
                   variant="ghost"

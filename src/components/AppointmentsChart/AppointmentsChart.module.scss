@@ -138,6 +138,7 @@ $eixo-w: 32px;   // espaço à esquerda do plot para os ticks do eixo Y
 }
 
 .gridline {
+  bottom: var(--y);        // coordenada vem do componente, estilo mora aqui
   position: absolute;
   left: 0;
   right: 0;
@@ -179,6 +180,7 @@ $eixo-w: 32px;   // espaço à esquerda do plot para os ticks do eixo Y
 }
 
 .bar {
+  height: var(--altura);   // idem: a altura é dado, não variante
   @include focus-ring;
   position: relative;
   width: 100%;

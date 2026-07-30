@@ -1,0 +1,165 @@
+@use '../../../../../styles/mixins' as *;
+
+.raiz {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  min-width: 0;
+}
+
+// ── Seletor de data (menu suspenso) ──────────────────────────────────────────
+.seletor {
+  position: relative;   // âncora do dropdown absoluto
+  align-self: flex-start;
+
+  @include phone {
+    // O gatilho (largura do próprio botão) vira a base do `right: 0` do
+    // dropdown lá embaixo — só alinhando os DOIS num container de largura
+    // cheia é que "encostar nas duas bordas" garante não vazar por nenhum
+    // lado, sem depender de contar pixel de padding.
+    align-self: stretch;
+  }
+}
+
+.gatilho {
+  @include focus-ring;
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  height: 36px;
+  padding: 0 $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: $fs-sm;
+  font-weight: 600;
+  cursor: pointer;
+
+  svg { width: 16px; height: 16px; color: var(--text-muted); }
+
+  &:hover { background: var(--glass-bg-hover); }
+}
+
+.chevron {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+
+  svg { width: 14px; height: 14px; }
+}
+
+.chevronAberto { transform: rotate(180deg); }
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + #{$sp-2});
+  left: 0;
+  z-index: 100;
+  width: 320px;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+
+  // O Calendar já tem seu próprio padding interno — sem isto ele fica colado
+  // na borda do dropdown.
+  padding: $sp-2;
+
+  // NO PWA MOBILE, `left: 0` sozinho cortava o dropdown na largura da tela:
+  // `.principal` rola (overflow-y: auto), e overflow-y não-visible faz
+  // overflow-x computar pra "auto" também (regra do próprio CSS) — qualquer
+  // parte do dropdown que passasse da borda direita da tela ficava
+  // INVISÍVEL, cortada por essa rolagem, em vez de aparecer por cima. Uma
+  // largura fixa de 320px (calculada pro desktop, onde sobra tela) não cabia
+  // no iPhone 14 (390px de largura, menos o padding da tela).
+  //
+  // A saída é não CALCULAR a largura disponível (não dá pra saber de onde a
+  // tela vai ser aberta em CSS puro) e sim ENCOSTAR NAS DUAS BORDAS: com o
+  // `.seletor` esticado pra largura cheia (`align-self: stretch` acima) e
+  // `left`/`right` os dois em 0, o dropdown vira do tamanho exato do espaço
+  // que já existe — não pode vazar porque não sobra em lugar nenhum.
+  @include phone {
+    left: 0;
+    right: 0;
+    width: auto;
+  }
+}
+
+// ── Leitura de um dia passado ────────────────────────────────────────────────
+.leitura {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.notaPassada {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  padding: $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-lg;
+  background: var(--bg-surface);
+}
+
+.notaCabecalho {
+  display: flex;
+  align-items: baseline;
+  gap: $sp-2;
+}
+
+.notaHorario {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.notaAtividade {
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}
+
+// Rolagem PRÓPRIA no desktop (o editor é alto, e o resto da tela — última
+// sessão, rodapé — precisa continuar visível acima e abaixo dele). No phone
+// a página inteira já rola (`.principal`, ver Fisio.module.scss) — uma
+// segunda rolagem aninhada em tela pequena é a que prende o dedo no lugar
+// errado, por isso vira `height: auto` lá embaixo.
+.editor {
+  height: 46vh;
+  min-height: 300px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  // Respiro para a barra de rolagem não encostar no texto dos editores.
+  padding-right: $sp-2;
+
+  @include phone {
+    height: auto;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+}
+
+.rodape {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: $sp-3;
+  padding-top: $sp-2;
+
+  @include phone {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+}
+
+.naoSalvo {
+  margin-right: auto;
+  color: var(--warning-fg);
+  font-size: $fs-sm;
+}

@@ -104,7 +104,7 @@ describe('parseSoapHtml — texto que não casa com nenhum rótulo', () => {
 })
 
 describe('parseSoapHtml — ditado SOMANDO ao que já estava escrito', () => {
-  // AiNoteActions manda `soapToHtml(nota) + htmlDitado` para o onChange: o
+  // O ditado por voz manda `soapToHtml(nota) + htmlDitado` para o onChange: o
   // rótulo aparece DUAS vezes no mesmo texto. Sem juntar, a primeira metade da
   // evolução sumiria a cada ditado.
   it('rótulo repetido junta na mesma seção, na ordem em que foi escrito', () => {

@@ -1,0 +1,23 @@
+@use '../../../../../styles/mixins' as *;
+
+.campos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
+
+  @include phone { grid-template-columns: 1fr; }
+}
+
+.campoLargo { grid-column: 1 / -1; }
+
+.erro {
+  margin: $sp-3 0 0;
+  font-size: $fs-sm;
+  color: var(--danger-fg);
+}
+
+.rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-3;
+}

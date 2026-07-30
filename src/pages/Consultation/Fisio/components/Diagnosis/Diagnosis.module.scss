@@ -1,0 +1,174 @@
+@use '../../../../../styles/mixins' as *;
+
+// Estilos EXCLUSIVOS do diagnóstico, extraídos de ConsultationPage.module.scss.
+// Estavam numa folha de 1.500 linhas compartilhada por dez painéis, onde
+// ninguém sabia quais regras podia mexer sem quebrar outro. Aqui o alcance é
+// o componente, e só ele.
+
+// ── Achados clínicos: lançar rápido, um por linha ────────────────────────────
+// Campo e botão na MESMA linha: é lançamento em sequência, e um botão embaixo
+// do campo dobraria a altura de cada item lançado.
+.achadoForm {
+  display: flex;
+  align-items: flex-end;
+  gap: $sp-2;
+  margin-top: $sp-3;
+  margin-bottom: $sp-3;
+
+  > *:first-child { flex: 1; min-width: 0; }
+  button { flex-shrink: 0; }
+}
+
+.achados {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.achado {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  padding: $sp-2 0;
+  border-bottom: 1px solid var(--glass-border);
+
+  &:last-child { border-bottom: none; }
+}
+
+.achadoTexto {
+  flex: 1;
+  min-width: 0;
+  font-size: $fs-sm;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.achadoData {
+  flex-shrink: 0;
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+// ── Diagnóstico: um cartão por diagnóstico, achados dele dentro ─────────────
+.diagnosticoLista {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+.diagnosticoCard {
+  @include card;
+  padding: $sp-3 $sp-4;
+}
+
+.diagnosticoCabecalho {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  margin-bottom: $sp-2;
+}
+
+// O ponto VERDE do diagnóstico — mesma cor do ponto da timeline de evolução
+// (var(--primary-fg), que É verde na marca do produto), só que inline no
+// cabeçalho em vez de pseudo-elemento posicionado: aqui é uma linha só, não
+// uma lista que precisa de fio vertical entre pontos.
+.diagnosticoPonto {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary-fg);
+}
+
+.diagnosticoTexto {
+  flex: 1;
+  min-width: 0;
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.diagnosticoInput { flex: 1; min-width: 0; }
+
+// Salvar + Editar + Excluir, encostados à direita — cresce a partir do texto
+// flexível acima, então não precisa de justify-content no cabeçalho.
+.diagnosticoAcoes {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: $sp-1;
+}
+
+// ── Achados ligados ao diagnóstico: cada um puxa um tracinho CURVO até o
+// diagnóstico (ou até o achado anterior) — um "└" arredondado, sem ponto
+// nenhum marcando o item; o traço é que mostra o pertencimento. ──
+.achadosConectados {
+  list-style: none;
+  margin: $sp-2 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.achadoConectado {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  // Sobra folga entre a ponta do traço (termina em 4px + $sp-3 = 16px) e o
+  // texto — sem isso a curva encostava direto na primeira letra.
+  padding-left: $sp-6;
+  font-size: $fs-sm;
+
+  // Desce a partir do item de cima (ou do ponto verde do diagnóstico, no
+  // primeiro achado) e curva pra dentro do texto deste. `top` negativo
+  // estica o traço pra dentro do "gap" da lista, encostando no item anterior
+  // — é o que faz a curva parecer uma linha contínua, e não um traço solto
+  // por achado.
+  &::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: -$sp-2;
+    width: $sp-3;
+    height: calc(50% + #{$sp-2});
+    border-left: 2px solid var(--glass-border);
+    border-bottom: 2px solid var(--glass-border);
+    border-bottom-left-radius: 10px;
+  }
+
+  > .achadoTexto { flex: 1; }
+}
+
+.achadoInput { flex: 1; min-width: 0; }
+
+
+// ── Peças genéricas que vinham da folha compartilhada ────────────────────────
+// Cópia LOCAL de propósito: lá elas servem a dez painéis, e o diagnóstico ficaria
+// refém de um ajuste feito para outro. São cinco linhas cada — o custo de
+// duplicar é menor que o de acoplar.
+
+.bloco {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.blocoTitulo {
+  margin: 0;
+  font-size: $fs-sm;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-secondary);
+}
+
+.vazio {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+}

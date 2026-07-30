@@ -27,7 +27,7 @@ const UnauthorizedPage   = lazy(() => import('@/pages/System/Unauthorized/Unauth
 // faz sentido baixar quando esta rota é aberta — mesmo motivo de
 // PatientProfilePage → TreatmentsPanel já ser lazy.
 const ConsultationPage = lazy(() => import('@/pages/Consultation/ConsultationPage').then(m => ({ default: m.ConsultationPage })))
-const PhysioConsultationPage = lazy(() => import('@/pages/Consultation/PhysioConsultationPage').then(m => ({ default: m.PhysioConsultationPage })))
+const FisioPage          = lazy(() => import('@/pages/Consultation/Fisio').then(m => ({ default: m.FisioPage })))
 const OdontogramFullscreenPage = lazy(() => import('@/pages/Odontogram/OdontogramFullscreenPage').then(m => ({ default: m.OdontogramFullscreenPage })))
 
 export function AppRouter() {
@@ -76,12 +76,12 @@ export function AppRouter() {
               path={FULLSCREEN_ROUTES.CONSULTATION}
               element={<FeatureGuard feature="patients"><ConsultationPage /></FeatureGuard>}
             />
-            {/* Atendimento de FISIOTERAPIA: mesmo esqueleto, prontuário SOAP no
-                centro e painel de Testes. Mesma feature — o que protege o
-                prontuário é a RLS de 'patients', não a rota. */}
+            {/* Atendimento de FISIOTERAPIA: menu lateral no desktop, navegação
+                inferior no PWA. Mesma feature — o que protege o prontuário é a
+                RLS de 'patients', não a rota. */}
             <Route
-              path={FULLSCREEN_ROUTES.PHYSIO_SESSION}
-              element={<FeatureGuard feature="patients"><PhysioConsultationPage /></FeatureGuard>}
+              path={FULLSCREEN_ROUTES.FISIO}
+              element={<FeatureGuard feature="patients"><FisioPage /></FeatureGuard>}
             />
           </Route>
 

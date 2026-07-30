@@ -1,0 +1,13 @@
+-- DIAGNÓSTICO como kind PRÓPRIO de patient_clinical_entry, separado de
+-- "problems" (achado clínico / lista de problemas).
+--
+-- Até aqui só existia "problems" pra registrar tanto o achado solto (queixa
+-- sem diagnóstico fechado, etilismo, baixa adesão) quanto o diagnóstico em
+-- si. O painel de atendimento da fisioterapia (ClinicalFindingsPanel) passa a
+-- mostrar as duas listas separadas — diagnóstico fechado em cima, achado
+-- solto embaixo — e por isso precisam de valores diferentes na coluna `kind`,
+-- senão as duas listas leriam a mesma linha.
+--
+-- Nenhuma linha existente muda: tudo que já estava gravado como "problems"
+-- continua "problems" (é achado clínico, permanece na lista de baixo).
+alter type public.clinical_entry_kind add value if not exists 'diagnosis';

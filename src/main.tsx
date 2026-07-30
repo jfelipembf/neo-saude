@@ -1,7 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './styles/global.scss'
+import { registrarErro } from './lib/observability'
 import { SessionProvider } from './context/SessionProvider'
 import { ThemeProvider } from './context/ThemeProvider'
 import { ToastProvider } from './components/Toast/Toast'
@@ -25,6 +26,20 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: 1 },
   },
+  // O ErrorBoundary só pega erro de RENDER. Falha de service (a maioria delas)
+  // chega por aqui, e sem este gancho o Monitoramento veria só a fatia menor
+  // dos problemas — justamente a que menos acontece.
+  queryCache: new QueryCache({
+    onError: (error, query) => registrarErro(error, {
+      source: 'query',
+      // A chave da query diz QUAL leitura falhou; a rota diz só onde o usuário
+      // estava. Sem isso, "Failed to fetch" não aponta para nada.
+      route: `query:${String(query.queryKey[0] ?? 'desconhecida')}`,
+    }),
+  }),
+  mutationCache: new MutationCache({
+    onError: error => registrarErro(error, { source: 'query', route: 'mutation' }),
+  }),
 })
 
 createRoot(document.getElementById('root')!).render(

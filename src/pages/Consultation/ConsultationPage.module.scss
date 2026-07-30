@@ -734,6 +734,27 @@
   &:hover { background: var(--primary-fg); }
 }
 
+// SAÍDA DO ASSISTENTE — some do meio das etapas em vez de competir com elas.
+// Borda tracejada e cor de texto secundária: lê como "atalho", não como mais
+// uma etapa. Empurrado para a direita porque é escape, e escape não fica no
+// caminho de quem está seguindo o roteiro.
+.botaoSecaoEscape {
+  margin-left: auto;
+  border-style: dashed;
+  border-color: var(--field-border);
+  color: var(--text-secondary);
+
+  &:hover { background: var(--bg-base); }
+
+  // Na mesma linha das etapas não cabe no telefone: vira largura cheia
+  // embaixo, onde continua alcançável sem espremer os botões do roteiro.
+  @include phone {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 // Quantos registros a seção já tem — abrir uma por uma só para descobrir se há
 // histórico é o tipo de clique que o médico não dá.
 .contadorSecao {
@@ -911,6 +932,41 @@
 }
 
 .resumoDose { color: var(--text-secondary); }
+
+// ── Diagnóstico no cartão do paciente: mesma ideia de resumoMedicacoes,
+// compacta e sem bullet — é pra ler de relance, não pra editar aqui. ──
+// Um ponto na frente de cada diagnóstico. Não é enfeite: sem marcador, um
+// diagnóstico de duas linhas ("tendinite do manguito rotador à direita, em
+// fase subaguda") se confunde com o de baixo — o olho perde onde um termina.
+//
+// Marcador desenhado (::before) e não `list-style: disc`: o bullet nativo não
+// aceita cor nem tamanho próprios, e ficaria na tinta do texto, competindo com
+// ele. Aqui é menor, no roxo do tema, e alinhado à PRIMEIRA linha.
+.resumoDiagnosticos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    position: relative;
+    padding-left: $sp-3;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      // Alinha ao centro óptico da primeira linha, não ao topo do <li>: com
+      // `top: 0` o ponto encosta na ascendente e parece deslocado para cima.
+      top: 0.55em;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+  }
+
+  li + li { margin-top: $sp-1; }
+}
 
 // Selo "contínuo": pequeno e ao lado do nome, não numa linha própria — a lista
 // precisa continuar escaneável de relance.
@@ -1270,52 +1326,6 @@
   white-space: nowrap;
 }
 
-// ── Achados clínicos: lançar rápido, um por linha ────────────────────────────
-// Campo e botão na MESMA linha: é lançamento em sequência, e um botão embaixo
-// do campo dobraria a altura de cada item lançado.
-.achadoForm {
-  display: flex;
-  align-items: flex-end;
-  gap: $sp-2;
-  margin-bottom: $sp-3;
-
-  > *:first-child { flex: 1; min-width: 0; }
-  button { flex-shrink: 0; }
-}
-
-.achados {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.achado {
-  display: flex;
-  align-items: center;
-  gap: $sp-2;
-  padding: $sp-2 0;
-  border-bottom: 1px solid var(--glass-border);
-
-  &:last-child { border-bottom: none; }
-}
-
-.achadoTexto {
-  flex: 1;
-  min-width: 0;
-  font-size: $fs-sm;
-  color: var(--text-primary);
-  overflow-wrap: anywhere;
-}
-
-.achadoData {
-  flex-shrink: 0;
-  font-size: $fs-xs;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
 // Régua entre os achados e o prontuário, dentro da aba Hoje. São dois
 // registros diferentes na mesma rolagem — sem a separação, a timeline dos
 // achados e a evolução se leem como um bloco só.
@@ -1350,4 +1360,69 @@
 .campoData {
   flex: 0 0 auto;
   width: 150px;
+}
+
+// ── Fisioterapia: sem tratamento em andamento ────────────────────────────────
+// Ocupa o centro inteiro no lugar do prontuário. É bloqueio, não aviso: sem
+// plano aberto a sessão não conta para lugar nenhum, então a tela não oferece
+// onde escrever até que exista um.
+.semTratamento {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: $sp-3;
+  padding: $sp-8 $sp-4;
+  text-align: center;
+}
+
+.semTratamentoTitulo {
+  margin: 0;
+  font-size: $fs-lg;
+  color: var(--text-primary);
+}
+
+.semTratamentoTexto {
+  margin: 0;
+  max-width: 42ch;      // linha longa demais cansa; curta demais quebra a frase
+  font-size: $fs-sm;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+// Rodapé de etapa do assistente de abertura do tratamento.
+.rodapeEtapa {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  margin-top: $sp-4;
+  padding-top: $sp-4;
+  border-top: 1px solid var(--glass-border);
+
+  @include phone {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+// "Etapa 2 de 3": diz onde a pessoa está e quanto falta. Sem isso, "Avançar"
+// não informa se restam uma ou dez telas.
+.passo {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+// TRATAMENTOS DO PACIENTE — mesma fileira rolável do histórico de resultados
+// de teste (PatientTestsPanel → .resultsRow). Rolagem horizontal em vez de
+// quebra de linha: um paciente com seis tratamentos empurraria a barra de
+// seções e o prontuário para fora da primeira tela.
+.tratamentos {
+  @include hide-scrollbar;
+  display: flex;
+  gap: $sp-3;
+  overflow-x: auto;
+  padding-bottom: $sp-1;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  acumularGemini, acumularOpenAI, calcularCustoUsd, calcularCustoWhisperUsd, totalTokens, USO_ZERADO,
+  acumularGemini, acumularOpenAI, totalTokens, USO_ZERADO,
   type UsageMetadataGemini, type UsoRealtimeOpenAI,
 } from './pricing'
 
@@ -142,66 +142,7 @@ describe('acumularGemini', () => {
   })
 })
 
-describe('calcularCustoUsd', () => {
-  it('sem uso nenhum, custo zero', () => {
-    expect(calcularCustoUsd(USO_ZERADO, 'openai', 'gpt-realtime-2.1-mini')).toBe(0)
-  })
 
-  it('openai mini: 1M de áudio de entrada custa exatamente a tabela ($10)', () => {
-    const uso = { ...USO_ZERADO, audioEntrada: 1_000_000 }
-    expect(calcularCustoUsd(uso, 'openai', 'gpt-realtime-2.1-mini')).toBeCloseTo(10, 6)
-  })
-
-  it('openai full custa mais que o mini para o mesmo uso', () => {
-    const uso = { ...USO_ZERADO, audioEntrada: 1_000_000, audioSaida: 1_000_000 }
-    const mini = calcularCustoUsd(uso, 'openai', 'gpt-realtime-2.1-mini')
-    const full = calcularCustoUsd(uso, 'openai', 'gpt-realtime-2.1')
-    expect(full).toBeGreaterThan(mini)
-  })
-
-  it('cache reduz o custo comparado ao mesmo volume sem cache', () => {
-    const semCache = calcularCustoUsd({ ...USO_ZERADO, audioEntrada: 10_000 }, 'openai', 'gpt-realtime-2.1-mini')
-    const comCache = calcularCustoUsd({ ...USO_ZERADO, audioEntradaCache: 10_000 }, 'openai', 'gpt-realtime-2.1-mini')
-    expect(comCache).toBeLessThan(semCache)
-  })
-
-  it('nome de modelo não reconhecido cai na tabela CHEIA, não na mini', () => {
-    const uso = { ...USO_ZERADO, audioEntrada: 1_000_000 }
-    const desconhecido = calcularCustoUsd(uso, 'openai', 'gpt-realtime-3.0-nova-versao')
-    const mini = calcularCustoUsd(uso, 'openai', 'gpt-realtime-2.1-mini')
-    expect(desconhecido).toBeGreaterThan(mini)
-  })
-
-  it('gemini não tem desconto de cache — texto e cache custam o mesmo', () => {
-    const semCache = calcularCustoUsd({ ...USO_ZERADO, audioEntrada: 10_000 }, 'gemini', 'gemini-3.1-flash-live-preview')
-    const comCache = calcularCustoUsd({ ...USO_ZERADO, audioEntradaCache: 10_000 }, 'gemini', 'gemini-3.1-flash-live-preview')
-    expect(comCache).toBeCloseTo(semCache, 6)
-  })
-
-  // O caso medido nesta sessão: mini cacheado é MUITO mais barato que o
-  // Gemini para o mesmo volume de áudio (a Realtime cacheia; a Live não).
-  it('para o mesmo volume, mini com cache sai muito mais barato que o gemini', () => {
-    const openai = calcularCustoUsd({ ...USO_ZERADO, audioEntradaCache: 9_000, audioSaida: 40 }, 'openai', 'gpt-realtime-2.1-mini')
-    const gemini = calcularCustoUsd({ ...USO_ZERADO, audioEntrada: 9_000, audioSaida: 40 }, 'gemini', 'gemini-3.1-flash-live-preview')
-    expect(openai).toBeLessThan(gemini)
-  })
-})
-
-describe('calcularCustoWhisperUsd', () => {
-  it('30 minutos custa exatamente a tabela oficial ($0,006/min)', () => {
-    expect(calcularCustoWhisperUsd(30 * 60)).toBeCloseTo(0.18, 6)
-  })
-
-  it('zero segundos custa zero', () => {
-    expect(calcularCustoWhisperUsd(0)).toBe(0)
-  })
-
-  it('cresce linearmente com a duração', () => {
-    const dez = calcularCustoWhisperUsd(10 * 60)
-    const vinte = calcularCustoWhisperUsd(20 * 60)
-    expect(vinte).toBeCloseTo(dez * 2, 6)
-  })
-})
 
 describe('totalTokens', () => {
   it('soma todas as categorias', () => {

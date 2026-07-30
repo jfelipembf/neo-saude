@@ -19,6 +19,8 @@ import type {
   PatientDirectoryRequest,
   PatientMessageRequest,
   QuoteRequest,
+  CartAddRequest,
+  CartQuoteRequest,
 } from './sessionTypes'
 
 const MAX_UNDO_SNAPSHOTS = 20
@@ -346,6 +348,21 @@ export function createSpecialistExecutors({
             ?? 'Não consegui enviar o pedido de orçamento.',
         }
         : { ok: true, pedido: request }
+    }
+    if (name === 'adicionar_ao_carrinho') {
+      return handlers.aoAdicionarAoCarrinho
+        ? await handlers.aoAdicionarAoCarrinho(args as CartAddRequest) as Record<string, unknown>
+        : { ok: false, erro: 'Não consegui mexer no carrinho agora.' }
+    }
+    if (name === 'consultar_carrinho') {
+      return handlers.aoConsultarCarrinho
+        ? await handlers.aoConsultarCarrinho() as Record<string, unknown>
+        : { ok: false, erro: 'Não consegui ler o carrinho agora.' }
+    }
+    if (name === 'pedir_orcamento_do_carrinho') {
+      return handlers.aoPedirOrcamentoDoCarrinho
+        ? await handlers.aoPedirOrcamentoDoCarrinho(args as CartQuoteRequest) as Record<string, unknown>
+        : { ok: false, erro: 'Não consegui preparar os pedidos de orçamento.' }
     }
     return {
       ok: false,

@@ -7,6 +7,7 @@ import { REPEATABLE_SOAP_SECTIONS, SOAP_LABELS, pickSoapSections } from '@/utils
 import { IconChevronDown, IconCopy } from '@/components/icons'
 import type { SoapNote } from '@/types/domain'
 import styles from './LastSessionNote.module.scss'
+import { SafeHtml } from '@/components/SafeHtml/SafeHtml'
 
 interface LastSessionNoteProps {
   patientId: string
@@ -77,7 +78,7 @@ export function LastSessionNote({ patientId, beforeDateIso, beforeStartTime, onR
               texto corrido dela entra logo abaixo. */}
           {note.note && <SoapNoteView note={note.note} size="sm" />}
           {note.evolution && (
-            <div dangerouslySetInnerHTML={{ __html: note.evolution }} />
+            <SafeHtml html={note.evolution} />
           )}
         </div>
       )}

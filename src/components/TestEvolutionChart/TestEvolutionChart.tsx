@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import type { CSSProperties } from 'react'
 import { parseBrDate } from '@/utils/date'
 import type { PatientTestResult, PhysioTest, PhysioTestLevel } from '@/types/domain'
 import styles from './TestEvolutionChart.module.scss'
@@ -201,13 +202,13 @@ export function TestEvolutionChart({ test, results }: TestEvolutionChartProps) {
           {/* Chave pela POSIÇÃO, não pelo rótulo: dois níveis podem ter o mesmo
               nome e duas marcas numéricas podem arredondar para o mesmo texto. */}
           {yTicks.map(t => (
-            <span key={t.at} className={styles.yTick} style={{ bottom: `${t.at}%` }}>{t.label}</span>
+            <span key={t.at} className={styles.yTick} style={{ '--y': `${t.at}%` } as CSSProperties}>{t.label}</span>
           ))}
         </div>
 
         <div className={styles.canvas}>
           {yTicks.map(t => (
-            <span key={t.at} className={styles.gridline} style={{ bottom: `${t.at}%` }} aria-hidden="true" />
+            <span key={t.at} className={styles.gridline} style={{ '--y': `${t.at}%` } as CSSProperties} aria-hidden="true" />
           ))}
 
           {/* preserveAspectRatio="none" estica o viewBox 100x100 para o tamanho
@@ -231,7 +232,7 @@ export function TestEvolutionChart({ test, results }: TestEvolutionChartProps) {
               key={`${p.dateLabel}-${i}`}
               type="button"
               className={styles.ponto}
-              style={{ left: `${p.x}%`, bottom: `${p.y}%` }}
+              style={{ '--x': `${p.x}%`, '--y': `${p.y}%` } as CSSProperties}
               data-tooltip={pointTooltip(p, byScore)}
               aria-label={`${p.dateLabel}: ${pointTooltip(p, byScore)}`}
             />

@@ -67,6 +67,7 @@
 }
 
 .yTick {
+  bottom: var(--y);            // coordenada é dado; estilo mora aqui
   position: absolute;
   right: 0;
   transform: translateY(50%);
@@ -91,6 +92,7 @@
 }
 
 .gridline {
+  bottom: var(--y);
   position: absolute;
   left: 0;
   right: 0;
@@ -123,6 +125,8 @@
 
 // ── Marcadores ───────────────────────────────────────────────────────────────
 .ponto {
+  left: var(--x);
+  bottom: var(--y);
   @include focus-ring;
   position: absolute;
   width: 10px;

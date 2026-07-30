@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useSession } from '@/context/SessionProvider'
 import { AUTH_ROUTES, resolveLandingRoute } from '@/constants'
 import { AuthLayout } from '@/components/AuthLayout/AuthLayout'
@@ -9,8 +9,7 @@ import { Input } from '@/components/Input/Input'
 import styles from './LoginPage.module.scss'
 
 export function LoginPage() {
-  const { session, signIn, canView } = useSession()
-  const navigate = useNavigate()
+  const { session, loading: sessionLoading, signIn, canView } = useSession()
   const location = useLocation()
 
   const [email, setEmail]       = useState('')
@@ -18,10 +17,17 @@ export function LoginPage() {
   const [error, setError]       = useState<string | null>(null)
   const [loading, setLoading]   = useState(false)
 
-  // Já logado → não mostra o login (ex.: usuário digitou /login na mão).
-  // Manda pra primeira página que o cargo consegue ver, não direto pro
-  // Dashboard — um cargo sem Dashboard cairia num loop de /sem-acesso.
-  if (session) return <Navigate to={resolveLandingRoute(canView)} replace />
+  // Rota que o AuthGuard barrou, quando houve uma.
+  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname
+
+  const destino = from ?? resolveLandingRoute(canView)
+
+  // Único ponto que decide o destino — inclusive depois do submit. `signIn()`
+  // devolve assim que o Supabase autentica, ANTES do my_session() responder;
+  // navegar ali decidiria com `canView` ainda vazio e mandaria todo mundo para
+  // /sem-acesso. Esperar `sessionLoading` cair é o que garante que o destino é
+  // calculado com as permissões já em mãos.
+  if (session && !sessionLoading) return <Navigate to={destino} replace />
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -29,16 +35,14 @@ export function LoginPage() {
     setLoading(true)
 
     const { error: authError } = await signIn(email, password)
-    setLoading(false)
 
     if (authError) {
       setError(authError)
+      setLoading(false)
       return
     }
-
-    // Volta para a rota que o AuthGuard barrou (ou a primeira que o cargo vê).
-    const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname
-    navigate(from ?? resolveLandingRoute(canView), { replace: true })
+    // Sem `setLoading(false)` no sucesso de propósito: o botão fica ocupado até
+    // o redirect acontecer, em vez de piscar "pronto" numa tela que vai sumir.
   }
 
   return (

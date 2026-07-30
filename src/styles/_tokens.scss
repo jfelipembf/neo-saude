@@ -86,3 +86,13 @@ $sp-4: 16px;
 $sp-5: 20px;
 $sp-6: 24px;
 $sp-8: 32px;
+
+// Faixa que o TOAST ocupa no canto inferior direito, medida no CSS compilado:
+// 24px de afastamento da base + 65px de altura do balão = 89px. Arredondado
+// para 96px (múltiplo da escala) para sobrar respiro.
+//
+// Serve a quem tem AÇÃO no canto inferior direito — o toast é `position: fixed`
+// e passa por cima de botão, e um "Avançar" coberto por um aviso de sucesso é
+// clique perdido. Dois toasts empilhados chegam a 162px; a folga cobre um, que
+// é o caso normal.
+$toast-clearance: 96px;

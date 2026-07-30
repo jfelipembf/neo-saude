@@ -1,0 +1,113 @@
+@use '../../styles/mixins' as *;
+
+.raiz {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  min-width: 0;
+}
+
+.rotulo {
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+// ── A fileira ────────────────────────────────────────────────────────────────
+// Cada foto é um retângulo PRÓPRIO, lado a lado — a foto nova entra ao lado da
+// anterior, e a vaga de upload continua no fim, sempre alcançável. `wrap`
+// porque a fileira cresce com o número de fotos; sem ele, a sétima foto
+// empurraria a moldura para fora da tela em vez de descer uma linha.
+.fileira {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2;
+}
+
+// A mesma largura/altura para toda foto e para a vaga — trocar de tamanho
+// conforme a posição faria a fileira parecer desalinhada a cada envio.
+.item {
+  position: relative;
+  flex: 0 0 auto;
+  width: 140px;
+  height: 187px;
+  border-radius: $radius-md;
+  overflow: hidden;
+  background: var(--bg-base);
+  border: 1px solid var(--glass-border);
+}
+
+.foto {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remover {
+  @include focus-ring;
+  position: absolute;
+  top: $sp-1;
+  right: $sp-1;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+
+  svg { width: 13px; height: 13px; }
+
+  &:hover { background: var(--glass-bg-hover); color: var(--danger-fg); }
+}
+
+// A vaga de upload é um ITEM da fileira, do MESMO tamanho — não um botão à
+// parte embaixo. Fica sempre por último e sempre visível (até o teto), então
+// "tirar mais uma foto" é sempre o próximo retângulo, nunca precisa procurar.
+.vaga {
+  @include focus-ring;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px dashed var(--field-border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-align: center;
+  padding: $sp-1;
+  cursor: pointer;
+
+  svg { width: 24px; height: 24px; }
+
+  &:hover { border-color: var(--primary-fg); color: var(--primary-fg); }
+}
+
+.vagaEnviando {
+  cursor: progress;
+  pointer-events: none;
+  filter: grayscale(0.4);
+}
+
+// O input existe para o clique do <label>; some da tela, mas NÃO com
+// `display:none` — assim continua alcançável por leitor de tela e teclado.
+.input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.limite {
+  margin: 0;
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}

@@ -43,21 +43,27 @@ export async function getCurrentUser(email?: string): Promise<UserProfile> {
   const s = (sessionData ?? {}) as { user?: SessionUser; clinic?: SessionClinic }
   const user = s.user
   const clinic = s.clinic
-  if (!user || !clinic) throw new Error('Sessão sem usuário/clínica resolvidos.')
+  if (!user) throw new Error('Sessão sem usuário resolvido.')
 
-  // Profissional vinculado (pode não existir — usuário administrativo puro).
-  const { data: prof, error: profError } = await supabase
-    .from('professional')
-    .select('id, name, specialty, license, email, phone, cep, state, city, street, number, created_at')
-    .eq('user_id', user.id)
-    .eq('clinic_id', clinic.id)
-    .maybeSingle()
-  if (profError) throw profError
-  const p = prof as ProfessionalRow | null
+  // SEM clínica é caso VÁLIDO, não erro: a conta que administra a plataforma não
+  // participa de tenant nenhum. O que ela não tem é a parte clínica do perfil —
+  // a conta em si (nome, e-mail, foto) existe do mesmo jeito.
+  let p: ProfessionalRow | null = null
+  if (clinic) {
+    // Profissional vinculado (pode não existir — usuário administrativo puro).
+    const { data: prof, error: profError } = await supabase
+      .from('professional')
+      .select('id, name, specialty, license, email, phone, cep, state, city, street, number, created_at')
+      .eq('user_id', user.id)
+      .eq('clinic_id', clinic.id)
+      .maybeSingle()
+    if (profError) throw profError
+    p = prof as ProfessionalRow | null
+  }
 
   return {
     id: user.id,
-    clinicId: clinic.id,
+    clinicId: clinic?.id ?? '',
     // TODO(neoSaude): a origem do código humano "NS-000016" do UserProfile não
     // existe no schema (professional usa PRO-, paciente PAC-…). Deixado em branco
     // até o produto definir de onde sai esse código.

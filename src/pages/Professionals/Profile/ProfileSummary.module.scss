@@ -102,6 +102,8 @@
 }
 
 .corPicker {
+  // A cor vem por var do componente (--cor-escolhida): é dado, não variante.
+  background: var(--cor-escolhida, var(--primary));
   position: relative;
   display: block;
   width: 32px;

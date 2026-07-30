@@ -98,7 +98,7 @@ export function AppointmentsChart() {
           <div className={styles.plot}>
             {/* Linhas-guia (teto e meio); a base é o próprio eixo do plot. */}
             {[100, 50].map(pct => (
-              <div key={pct} className={styles.gridline} style={{ bottom: `${pct}%` }}>
+              <div key={pct} className={styles.gridline} style={{ '--y': `${pct}%` } as CSSProperties}>
                 <span className={styles.tick}>{Math.round((ceiling * pct) / 100)}</span>
               </div>
             ))}
@@ -110,7 +110,7 @@ export function AppointmentsChart() {
                   <button
                     type="button"
                     className={styles.bar}
-                    style={{ height: `${(p.value / ceiling) * 100}%` }}
+                    style={{ '--altura': `${(p.value / ceiling) * 100}%` } as CSSProperties}
                     data-tooltip={`${p.value} consultas · ${p.label}`}
                     aria-label={`${p.label}: ${p.value} consultas`}
                   />

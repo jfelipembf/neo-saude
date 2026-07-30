@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Spinner } from '@/components/Spinner/Spinner'
 import { IconChevronLeft, IconChevronRight } from '@/components/icons'
 import { useFinanceSeries } from '@/hooks/useFinance'
@@ -123,7 +124,7 @@ export function FinanceChart() {
         <div className={`${styles.chart} ${isPlaceholderData ? styles['chart--stale'] : ''}`}>
           <div className={styles.plot} onPointerLeave={() => setActive(null)}>
             {[100, 50].map(pct => (
-              <div key={pct} className={styles.gridline} style={{ bottom: `${pct}%` }}>
+              <div key={pct} className={styles.gridline} style={{ '--y': `${pct}%` } as CSSProperties}>
                 <span className={styles.tick}>{compactTick((ceiling * pct) / 100)}</span>
               </div>
             ))}
@@ -144,19 +145,19 @@ export function FinanceChart() {
               <span
                 key={`g-${p.label}`}
                 className={`${styles.dot} ${styles['dot--ganhos']} ${active === i ? styles['dot--ativo'] : ''}`}
-                style={{ left: `${xPct(i)}%`, top: `${yPct(p.income)}%` }}
+                style={{ '--x': `${xPct(i)}%`, '--y': `${yPct(p.income)}%` } as CSSProperties}
               />
             ))}
             {points.map((p, i) => (
               <span
                 key={`d-${p.label}`}
                 className={`${styles.dot} ${styles['dot--gastos']} ${active === i ? styles['dot--ativo'] : ''}`}
-                style={{ left: `${xPct(i)}%`, top: `${yPct(p.expenses)}%` }}
+                style={{ '--x': `${xPct(i)}%`, '--y': `${yPct(p.expenses)}%` } as CSSProperties}
               />
             ))}
 
             {active !== null && (
-              <div className={styles.crosshair} style={{ left: `${xPct(active)}%` }} />
+              <div className={styles.crosshair} style={{ '--x': `${xPct(active)}%` } as CSSProperties} />
             )}
 
             {/* Alvos de interação: um por posição do eixo X (hover e foco por teclado). */}
@@ -177,7 +178,7 @@ export function FinanceChart() {
             {active !== null && (
               <div
                 className={styles.tooltip}
-                style={{ left: `${xPct(active)}%`, transform: `translateX(${tooltipShift})` }}
+                style={{ '--x': `${xPct(active)}%`, '--desloc': tooltipShift } as CSSProperties}
               >
                 <span className={styles.tooltipTitulo}>{points[active].label}</span>
                 <span className={styles.tooltipRow}>

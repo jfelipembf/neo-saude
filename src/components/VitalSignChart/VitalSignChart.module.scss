@@ -1,0 +1,154 @@
+@use '../../styles/mixins' as *;
+
+.cartao {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  padding: $sp-3;
+  min-width: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-lg;
+  background: var(--bg-surface);
+}
+
+.cabecalho {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+}
+
+// Badge redondo, mesmo padrão de ícone-com-fundo do resto do app (SideNav,
+// MobileHome) — em vez do ícone solto, que ficava fraco ao lado do número
+// grande de `.ultimo`.
+.icone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-bg);
+  color: var(--primary-fg);
+  svg { width: 14px; height: 14px; }
+}
+
+.titulo {
+  font-size: $fs-xs;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// A última medição encostada à direita: é o número que se procura primeiro.
+.ultimo {
+  margin-left: auto;
+  font-size: $fs-lg;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  white-space: nowrap;
+
+  small {
+    margin-left: 3px;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+}
+
+// Fora da faixa: cor E o rótulo do valor já vem por extenso no `title` de cada
+// ponto — cor sozinha não comunica em impressão nem para daltônico.
+.ultimoAlerta { color: var(--danger-fg); }
+
+.plot {
+  position: relative;
+  height: 88px;
+  min-width: 0;
+}
+
+// Faixa de referência. Fica ATRÁS de tudo e bem apagada: é régua, não dado.
+.faixa {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--faixa-base);
+  height: var(--faixa-altura);
+  background: var(--success-fg);
+  opacity: 0.10;
+  border-radius: 2px;
+}
+
+.svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.linha {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+// Segunda série (diastólica): mesmo traço, tracejado. Duas cores fortes no
+// mesmo gráfico competem; o tracejado distingue sem disputar.
+.linhaSecundaria {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+  opacity: 0.65;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.ponto {
+  position: absolute;
+  left: var(--x);
+  bottom: var(--y);
+  width: 8px;
+  height: 8px;
+  margin: 0 0 -4px -4px;      // centraliza no ponto exato
+  border-radius: 50%;
+  background: var(--primary);
+  // Anel na cor do cartão: separa o ponto da linha sem inventar outra cor.
+  box-shadow: 0 0 0 2px var(--bg-surface);
+}
+
+.pontoSecundario {
+  background: var(--bg-surface);
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+// Fora da faixa: cor + anel MAIOR. O tamanho é o que sobrevive ao daltonismo.
+.pontoAlerta {
+  width: 10px;
+  height: 10px;
+  margin: 0 0 -5px -5px;
+  background: var(--danger-fg);
+  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px rgba($danger, 0.25);
+}
+
+.eixoX {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.vazio {
+  margin: 0;
+  padding: $sp-4 0;
+  text-align: center;
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}

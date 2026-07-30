@@ -2,7 +2,6 @@ import { supabase } from '@/lib/supabase'
 import { getCurrentClinicId } from '@/lib/tenant'
 import { getCurrentProfessionalId } from '@/services/professionalsService'
 import type { Provedor, UsoBruto } from '@/lib/cibelly/pricing'
-import { calcularCustoUsd, calcularCustoWhisperUsd } from '@/lib/cibelly/pricing'
 
 /**
  * MEDIÇÃO TEMPORÁRIA — comparar o custo real de OpenAI × Gemini, lado a lado,
@@ -19,7 +18,7 @@ export interface CibellyUsageRow {
   costUsd: number
   /** Estimativa do whisper-1 (transcrição do dentista) — 0 quando desligada
    *  (`?transcrever=nao`) ou quando o provedor é Gemini (lá não é um custo à
-   *  parte). Ver calcularCustoWhisperUsd em pricing.ts. */
+   *  parte). Recalculado no servidor pela duração da sessão. */
   whisperCostUsd: number
   totalTokens: number
   startedAt: string
@@ -62,9 +61,18 @@ export async function prepareCibellyUsageContext(): Promise<ContextoDeGravacao> 
   }
 }
 
-/** Monta a linha. Separado do envio porque o caminho do unload não pode await. */
+/**
+ * Monta a linha. Separado do envio porque o caminho do unload não pode await.
+ *
+ * `cost_usd` NÃO vai aqui — e não é omissão, é recusa do banco: a coluna ficou
+ * fora do GRANT de INSERT e uma trigger a calcula a partir dos tokens e da
+ * tabela `cibelly_price`. Quem é medido não escreve a medição; enviar o valor
+ * pronto deixava a base de custo à mercê de um POST no PostgREST.
+ *
+ * `whisper_cost_usd` continua indo, mas só como SINAL (1 = transcrição estava
+ * ligada). O valor é recalculado no servidor pela duração real da linha.
+ */
 function montarLinha(params: DadosDeUso, ctx: Pick<ContextoDeGravacao, 'clinicId' | 'professionalId'>) {
-  const duracaoSegundos = (params.endedAt.getTime() - params.startedAt.getTime()) / 1000
   return {
     clinic_id: ctx.clinicId,
     patient_id: params.patientId,
@@ -77,10 +85,9 @@ function montarLinha(params: DadosDeUso, ctx: Pick<ContextoDeGravacao, 'clinicId
     audio_cached_tokens: params.uso.audioEntradaCache,
     text_output_tokens: params.uso.textoSaida,
     audio_output_tokens: params.uso.audioSaida,
-    cost_usd: calcularCustoUsd(params.uso, params.provider, params.model),
-    whisper_cost_usd: params.provider === 'openai' && params.transcricaoLigada
-      ? calcularCustoWhisperUsd(duracaoSegundos)
-      : 0,
+    // Sinal, não valor: 1 diz "a transcrição estava ligada"; o servidor troca
+    // pelo custo real calculado sobre a duração da linha.
+    whisper_cost_usd: params.provider === 'openai' && params.transcricaoLigada ? 1 : 0,
     started_at: params.startedAt.toISOString(),
     ended_at: params.endedAt.toISOString(),
   }

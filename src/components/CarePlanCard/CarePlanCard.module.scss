@@ -1,0 +1,234 @@
+@use '../../styles/mixins' as *;
+
+/**
+ * MESMO MOLDE DO CARTÃO DE RESULTADO DE TESTE (PatientTestsPanel → .resultCard):
+ * vertical, largura fixa, foto no topo com selo sobreposto e botões redondos
+ * flutuantes no canto. As duas coisas são a mesma leitura — "um registro com
+ * foto, e embaixo o que ele diz" —, e desenhos diferentes para a mesma leitura
+ * fazem o fisioterapeuta reaprender a tela a cada painel.
+ *
+ * As medidas (220px de largura, 260px de foto) são as de lá, não números novos:
+ * se aquele cartão mudar, este tem de mudar junto.
+ */
+.cartao {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  width: 220px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  overflow: hidden;
+
+  @include phone { width: 180px; }
+}
+
+// Encerrado fica mais apagado, mas NÃO ilegível: a alta é o que se consulta
+// depois para comparar com o tratamento novo.
+.cartaoEncerrado { background: var(--bg-base); }
+
+// ── Foto ─────────────────────────────────────────────────────────────────────
+
+.foto {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 260px;
+  background: var(--bg-base);
+
+  @include phone { height: 220px; }
+}
+
+.fotoImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+// Sem foto: o ícone centrado ocupa o mesmo retângulo, para o cartão não mudar
+// de altura conforme o tratamento tenha ou não retrato.
+.fotoVazia {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--text-muted);
+
+  svg { width: 34px; height: 34px; }
+}
+
+// Botão de foto no canto — o mesmo `resultIconBtn` do cartão de resultado.
+.fotoBtn {
+  @include focus-ring;
+  position: absolute;
+  z-index: 1;
+  top: $sp-2;
+  right: $sp-2;
+  // Explícito porque este é um <label>, não um <button>: o reset dá border-box
+  // aos controles, e sem isto a borda de 1px somava por fora e o botão saía com
+  // 28px contra os 26px do cartão de resultado. Dois pixels, mas é o bastante
+  // para os dois cartões não parecerem o mesmo desenho.
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.15s ease, color 0.15s ease;
+
+  svg { width: 13px; height: 13px; }
+
+  &:hover { background: var(--glass-bg-hover); color: var(--primary); }
+}
+
+// Enviando: some o cursor de clique e apaga um pouco. Sem trocar o ícone —
+// piscar outro glifo por meio segundo confunde mais do que informa.
+.fotoBtnEnviando {
+  cursor: progress;
+  filter: grayscale(0.4);
+  pointer-events: none;
+}
+
+// O input existe para o clique do <label>; some da tela, mas NÃO com
+// `display:none` — assim continua alcançável por leitor de tela e teclado.
+.fotoInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+// Selo sobre a foto, no canto de baixo — a posição do ângulo no cartão de
+// goniometria. Ícone MAIS palavra: cor sozinha não informa quem não distingue
+// verde de cinza.
+.selo {
+  position: absolute;
+  right: $sp-2;
+  bottom: $sp-2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: $radius-pill;
+  background: var(--bg-elevated);
+  border: 1px solid var(--glass-border);
+  color: var(--primary-fg);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  box-shadow: var(--shadow-sm);
+
+  svg { width: 11px; height: 11px; }
+}
+
+.seloEncerrado { color: var(--text-secondary); }
+
+// ── Corpo ────────────────────────────────────────────────────────────────────
+
+.corpo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  padding: $sp-3;
+  min-width: 0;
+}
+
+.titulo {
+  margin: 0;
+  font-size: $fs-md;
+  font-weight: 700;
+  color: var(--text-primary);
+  // Quebra por palavra: título longo não pode estourar os 220px do cartão.
+  overflow-wrap: anywhere;
+}
+
+.diagnosticos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    position: relative;
+    padding-left: $sp-3;
+    font-size: $fs-xs;
+    color: var(--text-secondary);
+    line-height: 1.4;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.5em;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+  }
+}
+
+.semDiagnostico {
+  margin: 0;
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.sessoes {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+
+  strong {
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.agendadas {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.trilho {
+  height: 4px;
+  border-radius: $radius-pill;
+  background: var(--accent-bg);
+  overflow: hidden;
+}
+
+.progresso {
+  display: block;
+  height: 100%;
+  width: var(--pct);
+  border-radius: $radius-pill;
+  background: var(--primary);
+  transition: width 0.25s ease;
+}
+
+.datas {
+  margin-top: $sp-1;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.profissional {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.acao {
+  margin-top: $sp-2;
+  display: flex;
+  gap: $sp-2;
+}

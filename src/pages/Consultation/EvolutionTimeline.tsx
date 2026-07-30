@@ -1,6 +1,6 @@
-import DOMPurify from 'dompurify'
 import type { ConsultaAnterior } from '@/services/medicalRecordService'
 import styles from './ConsultationPage.module.scss'
+import { SafeHtml } from '@/components/SafeHtml/SafeHtml'
 
 interface EvolutionTimelineProps {
   consultas: ConsultaAnterior[]
@@ -32,12 +32,9 @@ export function EvolutionTimeline({ consultas }: EvolutionTimelineProps) {
       {comTexto.map(c => (
         <li key={c.id} className={styles.marco}>
           <span className={styles.marcoData}>{c.data} · {c.servico}</span>
-          <div
-            className={styles.evolucaoAnterior}
-            // O `dangerously` só é seguro por causa do sanitize na MESMA
-            // linha: sem ele, HTML gravado por outra via viraria script.
-            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(c.evolucao) }}
-          />
+          {/* Saneamento agora vive no SafeHtml — um lugar só para todo HTML
+              vindo do banco. */}
+          <SafeHtml html={c.evolucao} className={styles.evolucaoAnterior} />
         </li>
       ))}
     </ol>

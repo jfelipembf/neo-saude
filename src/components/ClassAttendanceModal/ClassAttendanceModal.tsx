@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Modal } from '@/components/Modal/Modal'
 import { Button } from '@/components/Button/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
@@ -121,15 +121,22 @@ export function ClassAttendanceModal({ occurrence, onClose }: ClassAttendanceMod
 
   // Reabrir pra uma OUTRA ocorrência (turma ou data diferente) limpa a busca
   // e fecha o painel de prontuário — estado de uma turma não vaza pra outra.
-  useEffect(() => {
+  //
+  // Ajuste DURANTE a renderização, e não em efeito: em efeito, a tela chega a
+  // pintar uma vez com o prontuário da turma anterior antes de limpar.
+  const [ocorrenciaAnterior, setOcorrenciaAnterior] = useState(occurrence?.id)
+  if (occurrence?.id !== ocorrenciaAnterior) {
+    setOcorrenciaAnterior(occurrence?.id)
     setSearch(''); setSuggestionsOpen(false); setNotePatientId(null)
     setNote({}); setCopiedFrom({}); setAppliedTemplate(null); setEnrollCandidate(null)
-  }, [occurrence?.id])
+  }
 
-  // Semeia o rascunho de presença/justificativa a partir do servidor — roda de
-  // novo (e converge) depois de qualquer salvamento, já que a query é invalidada.
-  useEffect(() => {
-    if (!roster) return
+  // Semeia o rascunho de presença/justificativa a partir do servidor — reconverge
+  // depois de qualquer salvamento, já que a query é invalidada e devolve outra
+  // referência de `roster`.
+  const [rosterAnterior, setRosterAnterior] = useState(roster)
+  if (roster && roster !== rosterAnterior) {
+    setRosterAnterior(roster)
     const nextAtt: Record<string, ClassAttendanceStatus> = {}
     const nextJust: Record<string, string> = {}
     for (const r of roster) {
@@ -138,7 +145,7 @@ export function ClassAttendanceModal({ occurrence, onClose }: ClassAttendanceMod
     }
     setAtt(nextAtt)
     setJust(nextJust)
-  }, [roster])
+  }
 
   const term = useDebounce(search)
   const enrolledIds = new Set((roster ?? []).map(r => r.patientId))

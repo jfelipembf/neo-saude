@@ -105,15 +105,13 @@
 
     &:hover { background: var(--primary-dark); }
   }
-}
 
-.dot {
-  position: absolute;
-  bottom: 3px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--mark-color, currentColor);
+  // Dia com registro: um CÍRCULO por fora do número, não um ponto embaixo —
+  // some dot pequeno demais sumia em telas de celular. `inset` porque o botão
+  // pode já ter fundo sólido (hoje/selecionado); o anel entra por dentro da
+  // borda em vez de crescer o botão.
+  &--marked {
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1.5px var(--mark-color, var(--primary-fg));
+  }
 }

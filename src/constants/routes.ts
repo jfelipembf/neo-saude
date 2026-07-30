@@ -45,7 +45,7 @@ export const FULLSCREEN_ROUTES = {
   /** Tela de atendimento (fisioterapia) — `?sessao=<id>`. Rota própria e não um
    *  parâmetro na de cima: as duas telas têm centro e painéis diferentes, e um
    *  `?tipo=` faria a página decidir em tempo de render qual delas é. */
-  PHYSIO_SESSION: '/sessao',
+  FISIO: '/fisio',
 } as const
 
 /** Páginas do app para o controle de acesso por cargo (aba Cargos). */

@@ -1,0 +1,119 @@
+@use '../../styles/mixins' as *;
+
+.raiz {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  min-width: 0;
+}
+
+.formulario {
+  display: flex;
+  align-items: flex-end;
+  gap: $sp-3;
+  padding: $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-lg;
+  background: var(--bg-surface);
+
+  @include mobile {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+// Seis campos numa linha. `1fr` com mínimo zero: campo de número não precisa
+// ser largo, e sem o mínimo o grid estoura antes de encolher.
+.campos {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: $sp-2;
+  min-width: 0;
+
+  @include mobile { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @include phone  { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+// Os cinco gráficos. Três por linha no desktop — o quinto sobra na segunda
+// linha, e é a temperatura, que é a que menos se olha de relance.
+.graficos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $sp-3;
+
+  @include mobile { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @include phone  { grid-template-columns: 1fr; }
+}
+
+.historico {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.historicoTitulo {
+  margin: 0;
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-lg;
+  overflow: hidden;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  padding: $sp-2 $sp-3;
+  background: var(--bg-surface);
+
+  & + & { border-top: 1px solid var(--glass-border); }
+}
+
+.quando {
+  flex: 0 0 auto;
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+// As medidas da aferição, em linha. Envolvem no mobile em vez de rolar.
+.medidas {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-1 $sp-3;
+  min-width: 0;
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+
+  strong {
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.remover {
+  flex-shrink: 0;
+  display: flex;
+  padding: $sp-1;
+  border: none;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+
+  svg { width: 15px; height: 15px; }
+
+  &:hover { background: var(--glass-bg-hover); color: var(--danger-fg); }
+}

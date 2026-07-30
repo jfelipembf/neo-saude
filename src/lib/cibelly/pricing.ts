@@ -15,37 +15,27 @@
  * certo — atualize aqui.
  */
 
+/**
+ * O PREÇO NÃO MORA MAIS AQUI. As tabelas por provedor/modelo foram para o banco
+ * (`cibelly_price` / `cibelly_whisper_price`), e o custo de cada sessão é
+ * calculado por trigger no INSERT de `cibelly_usage`.
+ *
+ * O motivo é de segurança, não de organização: enquanto o valor era calculado
+ * no navegador e enviado pronto, bastava um POST no PostgREST para a base de
+ * custo mentir. Manter uma cópia da tabela aqui recriaria o problema por outro
+ * caminho — duas fontes de verdade para dinheiro divergem, e a que o front
+ * mostra não é a que fecha a fatura.
+ *
+ * O que continua aqui é a CONTAGEM de tokens, que só o cliente tem: os
+ * contadores vêm da sessão WebRTC dele, turno a turno.
+ */
 export type Provedor = 'openai' | 'gemini'
 
-interface TabelaDePrecos {
-  textoEntrada: number
-  textoEntradaCache: number
-  textoSaida: number
-  audioEntrada: number
-  audioEntradaCache: number
-  audioSaida: number
-}
 
-const OPENAI_MINI: TabelaDePrecos = {
-  textoEntrada: 0.60, textoEntradaCache: 0.06, textoSaida: 2.40,
-  audioEntrada: 10.00, audioEntradaCache: 0.30, audioSaida: 20.00,
-}
-const OPENAI_FULL: TabelaDePrecos = {
-  textoEntrada: 4.00, textoEntradaCache: 0.40, textoSaida: 24.00,
-  audioEntrada: 32.00, audioEntradaCache: 0.40, audioSaida: 64.00,
-}
 // Gemini Live NÃO tem camada de cache (a página oficial não lista uma para os
 // modelos Live — bate com o que medimos antes: cachedContentTokenCount sempre
 // 0). Por isso não há *EntradaCache aqui: todo token de entrada é cobrado no
 // preço cheio.
-const GEMINI_3_1_FLASH_LIVE: TabelaDePrecos = {
-  textoEntrada: 0.75, textoEntradaCache: 0.75, textoSaida: 4.50,
-  audioEntrada: 3.00, audioEntradaCache: 3.00, audioSaida: 12.00,
-}
-const GEMINI_2_5_FLASH_LIVE: TabelaDePrecos = {
-  textoEntrada: 0.50, textoEntradaCache: 0.50, textoSaida: 2.00,
-  audioEntrada: 3.00, audioEntradaCache: 3.00, audioSaida: 12.00,
-}
 
 /**
  * Resolve a tabela pelo nome do modelo — por SUBSTRING (`.includes('mini')`),
@@ -58,12 +48,6 @@ const GEMINI_2_5_FLASH_LIVE: TabelaDePrecos = {
  * "senão" cai na tabela CHEIA (mais cara), não na mini: um nome que esta
  * função não reconheça deve inflar a estimativa, nunca escondê-la.
  */
-function tabelaPara(provedor: Provedor, modelo: string): TabelaDePrecos {
-  if (provedor === 'openai') {
-    return modelo.includes('mini') ? OPENAI_MINI : OPENAI_FULL
-  }
-  return modelo.includes('2.5') ? GEMINI_2_5_FLASH_LIVE : GEMINI_3_1_FLASH_LIVE
-}
 
 /** Acumulador de tokens ao longo da sessão inteira — soma turno a turno. */
 export interface UsoBruto {
@@ -207,18 +191,6 @@ export function acumularGemini(acc: UsoBruto, meta: UsageMetadataGemini | undefi
 }
 
 /** Custo em dólar do uso acumulado, na tabela do modelo. */
-export function calcularCustoUsd(uso: UsoBruto, provedor: Provedor, modelo: string): number {
-  const t = tabelaPara(provedor, modelo)
-  const porMilhao = (qtd: number, preco: number) => (qtd / 1_000_000) * preco
-  return (
-    porMilhao(uso.textoEntrada, t.textoEntrada)
-    + porMilhao(uso.textoEntradaCache, t.textoEntradaCache)
-    + porMilhao(uso.textoSaida, t.textoSaida)
-    + porMilhao(uso.audioEntrada, t.audioEntrada)
-    + porMilhao(uso.audioEntradaCache, t.audioEntradaCache)
-    + porMilhao(uso.audioSaida, t.audioSaida)
-  )
-}
 
 /** Soma de todos os tokens do acumulado — só para exibição ("12.430 tokens"). */
 export function totalTokens(uso: UsoBruto): number {
@@ -249,8 +221,4 @@ export function totalTokens(uso: UsoBruto): number {
  * nunca fica mais barato que a realidade é mais seguro que um que, por
  * precisão de sobra, some tempo de fala real que não temos como medir aqui.
  */
-const WHISPER_USD_POR_MINUTO = 0.006
 
-export function calcularCustoWhisperUsd(duracaoSegundos: number): number {
-  return (duracaoSegundos / 60) * WHISPER_USD_POR_MINUTO
-}

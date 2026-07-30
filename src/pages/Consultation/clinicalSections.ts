@@ -35,13 +35,17 @@ export const CLINICAL_SECTIONS: {
   // lista porque é daqui que a barra de botões é montada — o `placeholder` é
   // que não tem uso nela.
   { kind: 'anamnesis', label: 'Anamnese', placeholder: '' },
-  // Rótulo "Achados clínicos" por escolha do dono. O `kind` continua
-  // `problems` — é o valor GRAVADO, e renomeá-lo custaria migração de enum e
-  // reescrita das linhas existentes para não mudar nada que o usuário veja.
-  // (O termo consagrado da literatura é "lista de problemas", do Prontuário
-  // Orientado por Problemas de Weed; o escopo é o mesmo: cabe queixa sem
-  // diagnóstico fechado, etilismo, baixa adesão.)
-  { kind: 'problems', label: 'Achados clínicos', placeholder: 'Hipertensão (2019), dor lombar crônica, tabagismo…', campos: { data: true } },
+  // Rótulo "Diagnóstico" por escolha do dono (antes "Achados clínicos"). O
+  // `kind` continua `problems` — é o valor GRAVADO, e renomeá-lo custaria
+  // migração de enum e reescrita das linhas existentes para não mudar nada
+  // que o usuário veja. O painel dedicado que este botão abre na
+  // fisioterapia (ClinicalFindingsPanel) mostra as DUAS listas — diagnóstico
+  // (kind `diagnosis`, novo) em cima e achado clínico (`problems`, este
+  // aqui) embaixo; aqui na barra genérica só o nome do botão mudou.
+  // (O termo consagrado da literatura pra achado é "lista de problemas", do
+  // Prontuário Orientado por Problemas de Weed; o escopo é o mesmo: cabe
+  // queixa sem diagnóstico fechado, etilismo, baixa adesão.)
+  { kind: 'problems', label: 'Diagnóstico', placeholder: 'Hipertensão (2019), dor lombar crônica, tabagismo…', campos: { data: true } },
   { kind: 'surgical_history', label: 'Antecedentes cirúrgicos', placeholder: 'Cirurgias e intercorrências…', campos: { data: true } },
   {
     kind: 'family_history',

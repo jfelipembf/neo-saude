@@ -273,8 +273,13 @@ export const queryKeys = {
   clinicalNotes: {
     // Prefixo do paciente: invalida `dates`, `byDate` e `previous` de uma vez.
     byPatient: (patientId: string) => ['clinicalNotes', patientId] as const,
-    dates:  (patientId: string) => ['clinicalNotes', patientId, 'dates'] as const,
-    byDate: (patientId: string, dateIso: string) => ['clinicalNotes', patientId, 'date', dateIso] as const,
+    // `carePlanId` entra na key porque a resposta MUDA com ele — sem
+    // tratamento (undefined) é a vida inteira do paciente; com um, é só
+    // aquele episódio. Duas perguntas diferentes, duas entradas de cache.
+    dates:  (patientId: string, carePlanId?: string) =>
+      ['clinicalNotes', patientId, 'dates', carePlanId ?? null] as const,
+    byDate: (patientId: string, dateIso: string, carePlanId?: string) =>
+      ['clinicalNotes', patientId, 'date', dateIso, carePlanId ?? null] as const,
     // Sessão anterior a um ponto no tempo (painel "Última sessão" do modal da
     // Agenda). Data e hora entram na key porque a resposta MUDA com elas: a
     // anterior à sessão de terça não é a anterior à de quinta.
@@ -300,6 +305,19 @@ export const queryKeys = {
   // Catálogo de fornecedores (Administrativo → Fornecedores, só odontologia).
   suppliers: {
     all: ['suppliers'] as const,
+  },
+  // Sinais vitais: o PACIENTE faz parte da chave — o histórico de um não pode
+  // ser servido do cache do outro numa troca de paciente.
+  // Planos de tratamento do paciente. A contagem de sessões é DERIVADA das
+  // consultas, então mexer na agenda invalida esta chave junto (ver useCarePlans).
+  carePlans: {
+    byPatient: (patientId: string) => ['carePlans', patientId] as const,
+  },
+  vitalSigns: {
+    byPatient: (patientId: string) => ['vitalSigns', patientId] as const,
+  },
+  bodyCompositions: {
+    byPatient: (patientId: string) => ['bodyCompositions', patientId] as const,
   },
   goals: {
     // Prefixo para invalidar TODOS os anos de uma vez (troca de clínica, logout).

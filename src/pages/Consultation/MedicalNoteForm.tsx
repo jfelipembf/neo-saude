@@ -13,6 +13,7 @@ import type { MedicalNote, MedicalNoteSection, NoteTemplate } from '@/services/m
 import { errorMessage } from '@/utils/errors'
 import { calcularImc, faixaDoImc, imcPorExtenso } from '@/utils/bmi'
 import styles from './ConsultationPage.module.scss'
+import { SafeHtml } from '@/components/SafeHtml/SafeHtml'
 
 interface MedicalNoteFormProps {
   note: MedicalNote
@@ -200,7 +201,7 @@ export function MedicalNoteForm({
                 }}
               >
                 <strong>{m.name}</strong>
-                <span className={styles.modeloPreview} dangerouslySetInnerHTML={{ __html: m.body }} />
+                <SafeHtml html={m.body} className={styles.modeloPreview} />
               </button>
               <Button
                 variant="ghost" size="sm" iconLeft={<IconTrash />}

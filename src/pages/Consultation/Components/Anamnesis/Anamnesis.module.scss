@@ -1,0 +1,34 @@
+@use '../../../../styles/mixins' as *;
+
+// Cópia LOCAL das peças que vinham de ConsultationPage.module.scss. Lá elas
+// servem a sete painéis, e a anamnese ficaria refém de um ajuste feito para
+// outro. São poucas linhas cada — o custo de duplicar é menor que o de acoplar.
+
+.centroCabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+}
+
+.blocoTitulo {
+  margin: 0;
+  font-size: $fs-sm;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-secondary);
+}
+
+.editorRodape {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: $sp-3;
+  padding-top: $sp-2;
+}
+
+.vazio {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+}

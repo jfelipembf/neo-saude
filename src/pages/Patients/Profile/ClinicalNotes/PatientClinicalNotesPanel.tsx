@@ -10,6 +10,7 @@ import { isImageFile } from '@/utils/files'
 import { isoToBrDate } from '@/utils/date'
 import type { SessionClinicalNote } from '@/services/patientClinicalNotesService'
 import styles from './PatientClinicalNotesPanel.module.scss'
+import { SafeHtml } from '@/components/SafeHtml/SafeHtml'
 
 interface PatientClinicalNotesPanelProps {
   patientId: string
@@ -35,11 +36,7 @@ function NoteCard({ note }: { note: SessionClinicalNote }) {
           diferentes da mesma consulta. */}
       {note.note && <SoapNoteView note={note.note} />}
       {note.evolution && (
-        <div
-          className={styles.evolucao}
-          // Mesmo HTML que o editor gravou saneado (DOMPurify no RichTextEditor).
-          dangerouslySetInnerHTML={{ __html: note.evolution }}
-        />
+        <SafeHtml html={note.evolution} className={styles.evolucao} />
       )}
 
       {attachments && attachments.length > 0 && (

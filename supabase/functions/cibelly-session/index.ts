@@ -300,6 +300,14 @@ FINANCEIRO DO PACIENTE (SÓ LEITURA) — "o Lucas tem alguma coisa em aberto?", 
 - Se a ferramenta responder que não conseguiu ler o financeiro, diga o motivo que veio — não invente que está tudo quitado. "Não achei nada" e "não pude olhar" são coisas diferentes.
 - Você NÃO dá baixa, não cancela e não fatura nada por voz. Se ele pedir, diga que isso é na tela do Financeiro.
 
+CARRINHO DE COMPRAS — o que o dentista lembra durante o atendimento e compra outro dia:
+- "logo vou precisar comprar X", "poe no carrinho", "anota que está acabando" → adicionar_ao_carrinho. Só ANOTA; não manda nada para ninguém. Responda uma frase curta ("anotado").
+- "quais produtos estão no carrinho?", "o que preciso comprar?" → consultar_carrinho. Leia o campo "resposta" como veio.
+- "pede o orçamento desses materiais", "manda pros fornecedores" → pedir_orcamento_do_carrinho, SEM confirmado. O carrinho se parte por fornecedor sozinho: leia quem recebe o quê, diga o que ficou SEM fornecedor, e pergunte se pode enviar. Só chame de novo com confirmado=true depois de um sim claro.
+- É COTAÇÃO: material que dois ou três distribuidores vendem vai para todos eles, de propósito. Se o dentista estranhar ("por que o anestésico foi pros três?"), explique que é para comparar preço — não é engano.
+- Item que não está no cadastro de materiais não tem fornecedor e NÃO será cotado. Diga isso — descobrir depois, quando o material não chega, é o dano.
+- Não invente preço, prazo nem fornecedor. Você só monta e manda o pedido.
+
 CADASTRO DE PACIENTES — use no pedal F:
 - "quais pacientes estão cadastrados?", "liste os pacientes", "procure a Ana", "tem algum Lucas?", "qual o código da Maria?" → consultar_pacientes.
 - Sem busca, a ferramenta lista até 20 nomes com código e informa o total. Se houver mais, peça um nome ou código para filtrar; não tente ler centenas de nomes.
@@ -808,6 +816,51 @@ const TOOLS = [
   },
   {
     type: 'function',
+    name: 'adicionar_ao_carrinho',
+    description:
+      'Guarda um material no CARRINHO DE COMPRAS para comprar depois. Use para ' +
+      '"logo vou precisar comprar X", "poe resina A2 no carrinho", "anota aí que ' +
+      'está acabando o anestésico". NÃO envia nada a ninguém — só anota. ' +
+      'Se o produto não estiver no cadastro de materiais, anota mesmo assim pelo ' +
+      'nome falado; a resposta avisa que ele fica sem fornecedor.',
+    parameters: {
+      type: 'object',
+      properties: {
+        produto: { type: 'string', description: 'Nome do material, como foi dito.' },
+        quantidade: { type: 'number', description: 'Quantas unidades/caixas. Omita se não foi dito.' },
+        unidade: { type: 'string', description: 'caixa, pacote, unidade, frasco…' },
+        observacao: { type: 'string', description: 'Marca, cor, tamanho — o que qualifica o pedido.' },
+      },
+      required: ['produto'],
+    },
+  }, {
+    name: 'consultar_carrinho',
+    description:
+      'Lê o que está no CARRINHO DE COMPRAS. Use para "quais produtos estão no ' +
+      'carrinho?", "o que eu preciso comprar?", "o que anotei para pedir?". ' +
+      'Devolve o campo "resposta" JÁ PRONTO: leia essa frase.',
+    parameters: { type: 'object', properties: {} },
+  }, {
+    name: 'pedir_orcamento_do_carrinho',
+    description:
+      'Pede orçamento de TUDO que está no carrinho. Cada fornecedor recebe os ' +
+      'itens que ELE vende — e um material vendido por vários distribuidores vai ' +
+      'para TODOS, porque o pedido é de COTAÇÃO e comparar preço exige mais de ' +
+      'uma resposta. Use para "pede o orçamento desses materiais", "manda pros ' +
+      'fornecedores". ' +
+      'DUAS ETAPAS: chame primeiro SEM confirmado, leia quem recebe o quê e o ' +
+      'que ficou de fora, e só chame com confirmado=true depois de um SIM claro. ' +
+      'Item sem fornecedor cadastrado não vai para ninguém — diga isso em voz alta.',
+    parameters: {
+      type: 'object',
+      properties: {
+        confirmado: {
+          type: 'boolean',
+          description: 'Só true DEPOIS de o dentista confirmar em voz alta.',
+        },
+      },
+    },
+  }, {
     name: 'solicitar_orcamento_fornecedor',
     description:
       'Prepara e, depois da confirmação, envia por WhatsApp um pedido de orçamento aos fornecedores. ' +

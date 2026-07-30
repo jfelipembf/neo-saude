@@ -7,7 +7,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  // ÁREA SEGURA. Instalado como PWA o app roda em `display: standalone`, sem
+  // barra do navegador: um modal alto encostava a 16px do topo, ou seja,
+  // debaixo do entalhe e do relógio. `env()` resolve para 0px onde não há
+  // recorte, então a regra não muda nada no navegador comum.
   padding: $sp-6;
+  padding-top: calc(#{$sp-6} + env(safe-area-inset-top));
+  padding-bottom: calc(#{$sp-6} + env(safe-area-inset-bottom));
+  padding-left: calc(#{$sp-6} + env(safe-area-inset-left));
+  padding-right: calc(#{$sp-6} + env(safe-area-inset-right));
   background: var(--overlay-bg);
   backdrop-filter: blur(4px);
   animation: fadeIn 0.15s ease;
@@ -26,7 +34,11 @@
   animation: slideUp 0.2s ease;
 
   @include mobile {
-    max-height: calc(100dvh - 32px);
+    // `100%` e não `100dvh - 32px`: a porcentagem resolve contra a caixa de
+    // conteúdo do overlay, que já desconta o respiro E a área segura. A conta
+    // com `dvh` ignorava as duas e deixava o painel mais alto que o espaço em
+    // que ele deveria caber.
+    max-height: 100%;
   }
 }
 

@@ -9,8 +9,8 @@
 // O card "Início rápido" SAIU da tela (teste de estilo). Ele era renderizado
 // duas vezes — uma cópia por breakpoint — para aparecer antes de tudo no
 // mobile e ao lado dos indicadores no desktop. As duas saíram, junto com as
-// classes que as escondiam. O componente QuickAccessCard segue no projeto:
-// repor é reinserir <QuickAccessCard /> numa área do .widgets.
+// classes que as escondiam. O componente QuickAccessCard foi removido junto
+// (código morto); repor exige recriá-lo — está no histórico do git.
 
 // Agenda em coluna fixa e estreita à esquerda; o restante é a área de widgets.
 // RETÂNGULO: as duas colunas terminam na MESMA linha de base.

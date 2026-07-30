@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
-import { addPatient, getPatient, listPatients, updatePatient, updatePatientPhoto } from '@/services/patientsService'
+import { addPatient, getPatient, listPatients, updatePatient, updatePatientPhoto,
+  checkPatientDeletion, removePatient,
+} from '@/services/patientsService'
 import type { EditPatient, NewPatient } from '@/services/patientsService'
 
 export function usePatients() {
@@ -41,6 +43,24 @@ export function useUpdatePatientPhoto() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, photo }: { id: string; photo: string | undefined }) => updatePatientPhoto(id, photo),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.patients.all }),
+  })
+}
+
+
+/** Se o paciente pode ser apagado, e o que impede. */
+export function usePatientDeletionCheck(patientId: string | null) {
+  return useQuery({
+    queryKey: [...queryKeys.patients.all, 'deletion', patientId],
+    queryFn: () => checkPatientDeletion(patientId as string),
+    enabled: !!patientId,
+  })
+}
+
+export function useRemovePatient() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (patientId: string) => removePatient(patientId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.patients.all }),
   })
 }

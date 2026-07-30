@@ -26,12 +26,15 @@ import { BudgetsPanel } from '@/components/BudgetsPanel/BudgetsPanel'
 import { PrescriptionsPanel } from '@/components/PrescriptionsPanel/PrescriptionsPanel'
 import { EntitlementPickerModal } from '@/components/EntitlementPickerModal/EntitlementPickerModal'
 import { useToast } from '@/components/Toast/Toast'
+import { errorMessage } from '@/utils/errors'
+import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { SEX_OPTIONS, SEX_LABEL, APP_ROUTES } from '@/constants'
 import { useInsuranceOptions } from '@/hooks/useInsurances'
 import { usePatientEntitlements } from '@/hooks/usePatientEntitlements'
-import { usePatient, useUpdatePatient, useUpdatePatientPhoto } from '@/hooks/usePatients'
+import { usePatient, useUpdatePatient, useUpdatePatientPhoto, usePatientDeletionCheck, useRemovePatient} from '@/hooks/usePatients'
+import type { PatientDeletionCheck } from '@/services/patientsService'
 import { uploadImage } from '@/lib/storage'
-import { IconUser, IconEdit, IconPhone, IconMessage, IconEmail, IconCamera, IconCart, IconPlus } from '@/components/icons'
+import { IconUser, IconEdit, IconPhone, IconMessage, IconEmail, IconCamera, IconCart, IconPlus, IconTrash} from '@/components/icons'
 import { initials, digitsOnly } from '@/utils/text'
 import { brToIsoDate, isoToBrDate } from '@/utils/date'
 import { isEntitlementActive } from '@/utils/entitlements'
@@ -39,6 +42,15 @@ import { useSession } from '@/context/SessionProvider'
 import { appliesToSpecialty } from '@/constants'
 import type { Patient, Gender, ClinicSpecialty, PatientServiceEntitlement } from '@/types/domain'
 import styles from './PatientProfilePage.module.scss'
+import { imcPorExtenso } from '@/utils/bmi'
+
+/**
+ * PARQUEADO em 29/07/2026, junto de Sinais vitais e do plano de tratamento.
+ * As colunas `weight_kg`/`height_cm` e o IMC gerado seguem no banco, com o
+ * caminho de leitura e escrita ligado — só a seção sai da tela. Voltar é
+ * trocar para `true`.
+ */
+const MOSTRAR_MEDIDAS: boolean = false
 
 type TabKey =
   | 'personal' | 'anamnesis' | 'clinicalHistory' | 'treatment' | 'quotes' | 'tests'
@@ -87,6 +99,8 @@ interface PatientFormState {
   insuranceCardValidUntilIso: string
   insurancePlan: string
   cns: string
+  weightKg: string
+  heightCm: string
   cep: string
   state: string
   city: string
@@ -112,6 +126,10 @@ function formFromPatient(p: Patient): PatientFormState {
     insuranceCardValidUntilIso: brToIsoDate(p.insuranceCardValidUntil) ?? '',
     insurancePlan: p.insurancePlan ?? '',
     cns: p.cns ?? '',
+    // Número vira texto no form e volta a número no service: campo vazio
+    // precisa ser distinguível de zero.
+    weightKg: p.weightKg != null ? String(p.weightKg).replace('.', ',') : '',
+    heightCm: p.heightCm != null ? String(p.heightCm).replace('.', ',') : '',
     cep: p.cep ?? '',
     state: p.state ?? '',
     city: p.city ?? '',
@@ -125,8 +143,13 @@ export function PatientProfilePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const toast = useToast()
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false)
 
   const { data: patient, isLoading } = usePatient(id)
+  // Se pode apagar, o que impede, e se quem está olhando é o dono. Uma
+  // chamada só — as três respostas vêm juntas porque são a mesma pergunta.
+  const { data: exclusao } = usePatientDeletionCheck(id ?? null)
+  const { mutate: excluirPaciente, isPending: excluindo } = useRemovePatient()
   const { mutate: save, isPending: saving } = useUpdatePatient()
   const { mutate: savePhoto } = useUpdatePatientPhoto()
   const insuranceOptions = useInsuranceOptions()
@@ -251,6 +274,8 @@ export function PatientProfilePage() {
           insuranceCardValidUntil: isoToBrDate(form.insuranceCardValidUntilIso),
           insurancePlan: form.insurancePlan.trim() || undefined,
           cns: form.cns.trim() || undefined,
+          weightKg: form.weightKg,
+          heightCm: form.heightCm,
           cep: form.cep.trim() || undefined,
           state: form.state.trim().toUpperCase() || undefined,
           city: form.city.trim() || undefined,
@@ -294,6 +319,16 @@ export function PatientProfilePage() {
         { label: 'Nascimento',    value: patient.birthDate },
         { label: 'Convênio',      value: patient.insurance },
         { label: 'Última visita', value: patient.lastVisit },
+      ],
+    },
+    {
+      title: 'Medidas',
+      items: [
+        { label: 'Peso',   value: patient.weightKg != null ? `${patient.weightKg} kg`.replace('.', ',') : undefined },
+        { label: 'Altura', value: patient.heightCm != null ? `${patient.heightCm} cm`.replace('.', ',') : undefined },
+        // O IMC vem PRONTO do banco (coluna gerada). Recalcular aqui criaria
+        // uma segunda fórmula que divergiria no arredondamento.
+        { label: 'IMC',    value: patient.bmi != null ? `${patient.bmi} — ${imcPorExtenso(patient.bmi)}`.replace('.', ',') : undefined },
       ],
     },
     {
@@ -541,6 +576,25 @@ export function PatientProfilePage() {
                 )}
               </section>
 
+              {/* Medidas de REFERÊNCIA do cadastro. O peso aferido em cada
+                  consulta continua na própria consulta — aqui é o valor de
+                  partida, e o IMC vem calculado do banco. */}
+              {MOSTRAR_MEDIDAS && (
+              <section className={styles.formSection}>
+                <h3>Medidas</h3>
+                <div className={styles.grid2}>
+                  <Input
+                    label="Peso" hint="kg" inputMode="decimal"
+                    value={form.weightKg} onChange={e => set('weightKg')(e.target.value)}
+                  />
+                  <Input
+                    label="Altura" hint="cm" inputMode="decimal"
+                    value={form.heightCm} onChange={e => set('heightCm')(e.target.value)}
+                  />
+                </div>
+              </section>
+              )}
+
               <section className={styles.formSection}>
                 <h3>Contato</h3>
                 <Input label="E-mail" type="email" value={form.email} onChange={e => set('email')(e.target.value)} />
@@ -575,7 +629,12 @@ export function PatientProfilePage() {
               </Button>
             </div>
 
-            {detailSections.map(section => (
+            {/* A seção Medidas continua definida acima, apenas não é
+                renderizada enquanto MOSTRAR_MEDIDAS for false — assim o
+                conteúdo dela não se perde e voltar é uma palavra. */}
+            {detailSections
+              .filter(section => MOSTRAR_MEDIDAS || section.title !== 'Medidas')
+              .map(section => (
               <section key={section.title} className={styles.formSection}>
                 <h3>{section.title}</h3>
                 <dl className={styles.paresLargos}>
@@ -625,6 +684,71 @@ export function PatientProfilePage() {
         </div>
       </div>
 
+      {/* ZONA DE PERIGO — só para o DONO da clínica.
+          Esconder o botão é conforto; a parede é a policy `patient_delete`,
+          que exige `clinic_user.is_owner`. Se alguém chamar o endpoint direto,
+          a RLS recusa do mesmo jeito. */}
+      {exclusao?.eDono && (
+        <section className={styles.zonaPerigo}>
+          <div className={styles.zonaPerigoTexto}>
+            <strong>Excluir cadastro</strong>
+            {exclusao.pode ? (
+              <span>
+                {/* O que EXISTE, contado — e não uma lista genérica do que
+                    poderia existir. "3 documentos" é decisão informada;
+                    "documentos, prontuário e lembretes" é ameaça vaga. */}
+                Apaga {patient.name}
+                {resumoDaCascata(exclusao.emCascata)
+                  ? ` e ${resumoDaCascata(exclusao.emCascata)}`
+                  : ' — não há nada preso a este cadastro'}. Não tem volta.
+              </span>
+            ) : (
+              /* O QUE IMPEDE, dito ANTES do clique. As FKs deste banco são
+                 RESTRICT: o Postgres recusaria com uma mensagem de constraint
+                 que ninguém entende, depois de o dono já ter confirmado. */
+              <span>
+                Não é possível excluir: este paciente tem{' '}
+                {exclusao.impedimentos.map(i => `${i.quantos} ${i.oQue}`).join(', ')}.
+                Apagar destruiria a trilha financeira e clínica que responde por ele.
+              </span>
+            )}
+          </div>
+          <Button
+            variant="danger"
+            iconLeft={<IconTrash />}
+            disabled={!exclusao.pode || excluindo}
+            onClick={() => setConfirmandoExclusao(true)}
+          >
+            Excluir cadastro
+          </Button>
+        </section>
+      )}
+
+      <ConfirmDialog
+        open={confirmandoExclusao}
+        onClose={() => setConfirmandoExclusao(false)}
+        onConfirm={() => {
+          setConfirmandoExclusao(false)
+          excluirPaciente(patient.id, {
+            onSuccess: () => {
+              toast.success('Cadastro excluído.')
+              navigate(APP_ROUTES.PATIENTS)
+            },
+            onError: e => toast.error(errorMessage(e, 'Não foi possível excluir o cadastro.')),
+          })
+        }}
+        title="Excluir este cadastro?"
+        message={
+          `${patient.name} desaparece do sistema${
+            resumoDaCascata(exclusao?.emCascata)
+              ? `, junto com ${resumoDaCascata(exclusao?.emCascata)}`
+              : ''
+          }. Não há como desfazer, e nenhuma tela vai mais encontrá-lo.`
+        }
+        variant="danger"
+        confirmLabel="Excluir cadastro"
+      />
+
       {showCart && (
         <SalesPointModal open={salesOpen} onClose={() => setSalesOpen(false)} patientId={patient.id} />
       )}
@@ -639,4 +763,29 @@ export function PatientProfilePage() {
       )}
     </>
   )
+}
+
+/**
+ * "3 documentos, 1 anamnese e 2 anotações" — só o que EXISTE.
+ *
+ * Listar tudo que *poderia* ser apagado transforma o aviso em ruído: quem lê
+ * "documentos, prontuário e lembretes" num cadastro que não tem nenhum dos
+ * três aprende a ignorar a frase.
+ */
+function resumoDaCascata(c: PatientDeletionCheck['emCascata'] | undefined): string {
+  if (!c) return ''
+  const partes = [
+    [c.documentos,  'documento',  'documentos'],
+    [c.anamnese,    'anamnese',   'anamneses'],
+    [c.odontograma, 'odontograma', 'odontogramas'],
+    [c.anotacoes,   'anotação',   'anotações'],
+    [c.medicacoes,  'medicação',  'medicações'],
+    [c.lembretes,   'lembrete',   'lembretes'],
+  ] as const
+  const ditas = partes
+    .filter(([n]) => Number(n) > 0)
+    .map(([n, um, muitos]) => `${n} ${n === 1 ? um : muitos}`)
+  if (ditas.length === 0) return ''
+  if (ditas.length === 1) return ditas[0]
+  return `${ditas.slice(0, -1).join(', ')} e ${ditas[ditas.length - 1]}`
 }

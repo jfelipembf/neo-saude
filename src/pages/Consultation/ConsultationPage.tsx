@@ -23,7 +23,7 @@ import { ConsultationDocuments } from './ConsultationDocuments'
 import { ConsultationHeader } from './ConsultationHeader'
 import { ConsultationPatientCard } from './ConsultationPatientCard'
 import { MedicalNoteForm } from './MedicalNoteForm'
-import { AnamnesisPanel } from './AnamnesisPanel'
+import { Anamnesis } from './Components/Anamnesis/Anamnesis'
 import { ClinicalSectionPanel } from './ClinicalSectionPanel'
 import { EvolutionTimeline } from './EvolutionTimeline'
 import { MedicationsPanel } from './MedicationsPanel'
@@ -338,7 +338,7 @@ export function ConsultationPage() {
               /* Anamnese NÃO é anotação de texto livre: é o questionário do
                  paciente, o mesmo do perfil. Reaproveitado inteiro para não
                  existirem duas fichas do mesmo paciente. */
-              <AnamnesisPanel patientId={consulta.patientId} />
+              <Anamnesis patientId={consulta.patientId} />
             ) : painel === 'medications' ? (
               /* Medicação tem painel PRÓPRIO: trocar, alterar dose e suspender
                  são eventos com estado, não texto livre como as outras seções. */

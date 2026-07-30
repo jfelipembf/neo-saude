@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
+import { useImperativeHandle, useState } from 'react'
+import type { FormEvent, Ref } from 'react'
 import { Button } from '@/components/Button/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
@@ -60,13 +60,31 @@ function divergesFromBand(result: PatientTestResult, levels: PhysioTestLevel[]):
   return auto != null && auto.name !== result.levelName
 }
 
+/** O que a tela de fora pode pedir ao painel. */
+export interface PatientTestsHandle {
+  /** Grava o formulário de resultado que estiver aberto. Fechado, não há nada
+   *  pendente e a chamada resolve sem gravar — aplicar teste é opcional numa
+   *  sessão. */
+  salvar: () => Promise<void>
+}
+
 interface PatientTestsPanelProps {
   patientId: string
+  /**
+   * Esconde o "Salvar" do formulário de resultado. Quem grava passa a ser a
+   * tela de fora, pelo `ref` — é o caso da etapa de um roteiro, que já tem o
+   * próprio Salvar. Dois botões de salvar na mesma tela é a receita para
+   * gravar metade e achar que gravou tudo.
+   */
+  semAcoes?: boolean
+  /** Repassado a `TestResults` — ver o comentário lá. */
+  carePlanId?: string
+  ref?: Ref<PatientTestsHandle>
 }
 
 /** Aba "Testes" do perfil do paciente (fisioterapia): sidenav com os testes do
  *  catálogo fixados para o paciente + histórico de resultados do selecionado. */
-export function PatientTestsPanel({ patientId }: PatientTestsPanelProps) {
+export function PatientTestsPanel({ patientId, semAcoes = false, carePlanId, ref }: PatientTestsPanelProps) {
   const toast = useToast()
   const { data: catalog = [], isLoading: loadingCatalog } = useTests()
   const { data: patientTests = [], isLoading: loadingPatientTests } = usePatientTests(patientId)
@@ -131,7 +149,14 @@ export function PatientTestsPanel({ patientId }: PatientTestsPanelProps) {
           // de teste no sidenav — senão o estado da medição (pontos, valor,
           // formulário aberto) do teste ANTERIOR sobrevive por baixo das novas
           // props, e a ferramenta mostra dados de um teste diferente do selecionado.
-          <TestResults key={selectedTest.id} patientId={patientId} test={selectedTest} />
+          <TestResults
+            key={selectedTest.id}
+            patientId={patientId}
+            test={selectedTest}
+            semAcoes={semAcoes}
+            carePlanId={carePlanId}
+            ref={ref}
+          />
         )}
       </div>
 
@@ -150,16 +175,29 @@ export function PatientTestsPanel({ patientId }: PatientTestsPanelProps) {
 interface TestResultsProps {
   patientId: string
   test: PhysioTest
+  semAcoes?: boolean
+  /** Restringe o histórico exibido a UM tratamento. Ausente = perfil do
+   *  paciente e tela do médico continuam mostrando a vida inteira — só a
+   *  etapa do roteiro de fisioterapia passa isto. */
+  carePlanId?: string
+  ref?: Ref<PatientTestsHandle>
 }
 
 /** Histórico de UM teste: cards horizontais (mais recente à esquerda) + botão
  *  "Novo teste" — pede o RESULTADO medido (o nível sai da faixa do escore) e a
  *  data. Testes de ângulo medem ao vivo: foto do paciente + pontos, o
  *  goniômetro digital, e o ângulo é o escore. */
-function TestResults({ patientId, test }: TestResultsProps) {
+function TestResults({ patientId, test, semAcoes = false, carePlanId, ref }: TestResultsProps) {
   const toast = useToast()
-  const { data: results = [], isLoading } = usePatientTestResults(patientId, test.id)
-  const { mutate: saveResult, isPending: saving } = useSavePatientTestResult(patientId)
+  const { data: todosOsResultados = [], isLoading } = usePatientTestResults(patientId, test.id)
+  // Recortado por TRATAMENTO só quando `carePlanId` chega — o mesmo padrão do
+  // Diagnóstico e da anamnese: filtrar na LEITURA, sem duplicar a tabela.
+  const results = carePlanId
+    ? todosOsResultados.filter(r => r.carePlanId === carePlanId)
+    : todosOsResultados
+  const {
+    mutate: saveResult, mutateAsync: saveResultAsync, isPending: saving,
+  } = useSavePatientTestResult(patientId)
   const { mutate: removeResult } = useDeletePatientTestResult(patientId)
 
   const isGoniometry = test.kind === 'goniometry'
@@ -262,29 +300,69 @@ function TestResults({ patientId, test }: TestResultsProps) {
     )
   }
 
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault()
+  /**
+   * Confere o formulário e devolve o que gravar — ou a mensagem do que falta.
+   *
+   * Separado do `handleSubmit` porque agora existem DOIS caminhos de gravação:
+   * o botão do próprio formulário e o "Salvar" do roteiro, por `ref`. Duplicar
+   * estas regras nos dois é como um dos caminhos passa a aceitar o que o outro
+   * recusa.
+   */
+  function conferir(): { erro: string } | { payload: Omit<SaveTestResultInput, 'patientId' | 'testId' | 'resultId'> } {
     if (isScored && score == null && !manualLevel) {
-      setScoreError(isGoniometry ? 'Meça o ângulo na foto acima.' : 'Informe o resultado medido.')
-      return
+      const erro = isGoniometry ? 'Meça o ângulo na foto acima.' : 'Informe o resultado medido.'
+      setScoreError(erro)
+      return { erro }
     }
-    if (manualLevel && !levelId) { setLevelError('Selecione o nível atingido.'); return }
+    if (manualLevel && !levelId) {
+      const erro = 'Selecione o nível atingido.'
+      setLevelError(erro)
+      return { erro }
+    }
     if (!manualLevel && !pickedLevel) {
       // Escore fora de qualquer faixa cadastrada (ex.: Fugl-Meyer 100, cuja
       // última faixa semeada para em 99). Não inventa nível: manda ajustar.
-      setScoreError('Nenhuma faixa cadastrada cobre este resultado — ajuste o nível manualmente.')
-      return
+      const erro = 'Nenhuma faixa cadastrada cobre este resultado — ajuste o nível manualmente.'
+      setScoreError(erro)
+      return { erro }
     }
-    if (!pickedLevel) { setLevelError('Selecione o nível atingido.'); return }
+    if (!pickedLevel) {
+      const erro = 'Selecione o nível atingido.'
+      setLevelError(erro)
+      return { erro }
+    }
 
-    save({
-      levelId: pickedLevel.id,
-      performedOnIso: dateIso,
-      score,
-      imageUrl: isGoniometry ? measureImagePath : undefined,
-      measuredPoints: isGoniometry ? measurePoints : undefined,
-    })
+    return {
+      payload: {
+        levelId: pickedLevel.id,
+        performedOnIso: dateIso,
+        score,
+        imageUrl: isGoniometry ? measureImagePath : undefined,
+        measuredPoints: isGoniometry ? measurePoints : undefined,
+      },
+    }
   }
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    const r = conferir()
+    if ('erro' in r) return
+    save(r.payload)
+  }
+
+  // A gravação exposta para fora. Formulário FECHADO resolve sem gravar: numa
+  // sessão sem teste aplicado não há nada pendente, e exigir abrir o formulário
+  // só para poder avançar obrigaria a inventar um resultado.
+  useImperativeHandle(ref, () => ({
+    salvar: async () => {
+      if (!formOpen) return
+      const r = conferir()
+      if ('erro' in r) throw new Error(r.erro)
+      await saveResultAsync({ resultId: editingId ?? undefined, testId: test.id, ...r.payload })
+      toast.success(editingId ? 'Resultado atualizado!' : 'Resultado registrado!')
+      setFormOpen(false)
+    },
+  }))
 
   /**
    * Único caminho de gravação da aba — inserir e corrigir são a MESMA chamada
@@ -431,19 +509,26 @@ function TestResults({ patientId, test }: TestResultsProps) {
             />
           )}
 
-          <Input
-            label="Data"
-            type="date"
-            value={dateIso}
-            onChange={e => setDateIso(e.target.value)}
-          />
+          {/* A DATA some quando o roteiro assume: ali o teste é aplicado agora,
+              e `openForm` já preenche com hoje — o campo só pediria confirmação
+              de algo que ninguém vai mudar.
+              Continua visível ao EDITAR um resultado antigo: escondê-la lá
+              tiraria a única forma de corrigir uma data errada. */}
+          {(!semAcoes || editingId) && (
+            <Input
+              label="Data"
+              type="date"
+              value={dateIso}
+              onChange={e => setDateIso(e.target.value)}
+            />
+          )}
           <div className={styles.novoFormAcoes}>
             <Button type="button" variant="ghost" size="sm" onClick={() => setFormOpen(false)} disabled={submitting}>
               Cancelar
             </Button>
-            <Button type="submit" size="sm" loading={submitting}>
-              {editingId ? 'Salvar' : 'Salvar'}
-            </Button>
+            {!semAcoes && (
+              <Button type="submit" size="sm" loading={submitting}>Salvar</Button>
+            )}
           </div>
         </form>
       )}
@@ -451,10 +536,17 @@ function TestResults({ patientId, test }: TestResultsProps) {
       {isLoading ? (
         <PageLoader />
       ) : results.length === 0 ? (
-        <EmptyState
-          title="Nenhum resultado registrado"
-          description="Clique em Novo teste para registrar a primeira aplicação."
-        />
+        /* O vazio some quando o roteiro assume: ali a etapa JÁ é "aplique o
+           teste", e um cartão dizendo que não há resultado só repete o que a
+           tela inteira está pedindo. No perfil ele fica, porque lá a ausência
+           de resultado é informação — o teste está atribuído e nunca foi
+           aplicado. */
+        semAcoes ? null : (
+          <EmptyState
+            title="Nenhum resultado registrado"
+            description="Clique em Novo teste para registrar a primeira aplicação."
+          />
+        )
       ) : (
         <div className={styles.resultsRow}>
           {results.map(r => (

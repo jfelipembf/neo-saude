@@ -38,7 +38,7 @@ export async function setPatientTests(patientId: string, testIds: string[]): Pro
 }
 
 const RESULT_COLUMNS =
-  'id, test_id, professional_id, level_id, level_name, level_description, score, measured_points, image_url, performed_at'
+  'id, test_id, professional_id, level_id, level_name, level_description, score, measured_points, image_url, performed_at, care_plan_id'
 
 type ResultRow = {
   id: string
@@ -51,6 +51,7 @@ type ResultRow = {
   measured_points: GoniometryPoints | null
   image_url: string | null
   performed_at: string
+  care_plan_id: string | null
 }
 
 const RESULT_ITEM_COLUMNS =
@@ -101,6 +102,7 @@ function toResult(
     imagePath: row.image_url ?? undefined,
     measuredPoints: row.measured_points ?? undefined,
     performedAt: isoToBrDate(row.performed_at) ?? row.performed_at,
+    carePlanId: row.care_plan_id ?? undefined,
     items,
   }
 }

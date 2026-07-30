@@ -1,0 +1,35 @@
+@use '../../../../../styles/mixins' as *;
+
+.raiz {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.cabecalho {
+  display: flex;
+  align-items: baseline;
+  gap: $sp-3;
+  flex-wrap: wrap;
+}
+
+.titulo {
+  margin: 0;
+  font-size: $fs-lg;
+  color: var(--text-primary);
+}
+
+.contagem {
+  font-size: $fs-xs;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+// Fileira que QUEBRA linha, não que rola de lado: `.principal` aqui é larga
+// (é o miolo da tela, não uma coluna de 400px), então empilhar em várias
+// linhas aproveita a largura em vez de esconder cartão atrás de rolagem.
+.lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-3;
+}

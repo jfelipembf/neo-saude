@@ -396,3 +396,236 @@ export const IconWhatsApp = () => (
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
   </svg>
 )
+
+// ── Sinais vitais ────────────────────────────────────────────────────────────
+// Cinco ícones de traço, um por medida. Existem para o cartão de cada gráfico
+// ser reconhecível de relance numa grade — o rótulo escrito continua ao lado,
+// então nenhum deles carrega significado sozinho.
+
+/** Pressão arterial — o traço do esfigmomanômetro sobre a onda de pulso. */
+export const IconBloodPressure = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <circle cx="12" cy="13" r="7" /><path d="M12 9v4l2.5 2" /><path d="M9 3h6" />
+  </svg>
+)
+
+export const IconHeart = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 0 0-7.1 7.1l8.8 8.8 8.8-8.8a5 5 0 0 0 0-7.1z" />
+  </svg>
+)
+
+/** Frequência respiratória — a onda do fluxo de ar. */
+export const IconLungs = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path d="M12 3v9" />
+    <path d="M12 12c0-2-1.5-3-3-3s-4 1.5-4 5v4a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3" />
+    <path d="M12 12c0-2 1.5-3 3-3s4 1.5 4 5v4a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3" />
+  </svg>
+)
+
+/** Saturação — a gota de sangue oxigenado. */
+export const IconOxygen = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path d="M12 2.7 6.9 8.3a7 7 0 1 0 10.2 0z" />
+  </svg>
+)
+
+export const IconThermometer = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z" />
+  </svg>
+)
+
+export const IconScale = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <rect x="3" y="3" width="18" height="18" rx="3" />
+    <path d="M8.5 10a3.5 3.5 0 0 1 7 0" />
+    <path d="M12 10 10.5 7" />
+  </svg>
+)
+
+export const IconRuler = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <rect x="2" y="8" width="20" height="8" rx="2" />
+    <path d="M6.5 8v3M10 8v4M13.5 8v3M17 8v4" />
+  </svg>
+)
+
+export const IconMuscle = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path d="M4 8c2-2 5-2.5 8-1.5 2.4.8 4 2.6 4.6 4.8.5 1.9.2 3.6-.9 5-1.4 1.8-3.8 2.4-6 1.5" />
+    <path d="M9.6 17.8C7 18.6 4.6 17.4 4 15c-.4-1.7.2-3.3 1.6-4.2" />
+  </svg>
+)
+
+export const IconDroplet = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path d="M12 3.2 7.4 9.6a5.6 5.6 0 1 0 9.2 0z" />
+  </svg>
+)
+
+export const IconMenu = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
+  </svg>
+)
+
+export const IconPill = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <rect x="3.5" y="8" width="17" height="8" rx="4" transform="rotate(-35 12 12)" />
+    <path d="M12 7.5 16.5 12" />
+  </svg>
+)
+
+export const IconScissors = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <circle cx="6" cy="6" r="2.5" />
+    <circle cx="6" cy="18" r="2.5" />
+    <path d="M8 7.5 20 18M8 16.5 20 6" />
+  </svg>
+)
+
+export const IconFolder = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+  </svg>
+)
+
+/** Diagnóstico — o estetoscópio. */
+export const IconStethoscope = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path d="M5 3v6a4 4 0 0 0 8 0V3" />
+    <path d="M13 12v2a5 5 0 0 0 10 0v-1.5" />
+    <circle cx="20.5" cy="9.5" r="1.5" />
+  </svg>
+)
+
+/** Histórico familiar — a árvore genealógica: dois ramos convergindo em um. */
+export const IconFamilyTree = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <circle cx="6" cy="5" r="2.5" /><circle cx="18" cy="5" r="2.5" /><circle cx="12" cy="19" r="2.5" />
+    <path d="M6 7.5V12h12V7.5M12 12v4.5" />
+  </svg>
+)
+
+/** Início — a casinha do botão central da navegação inferior (PWA mobile). */
+export const IconHome = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path d="M3 11.5 12 4l9 7.5" />
+    <path d="M5.5 9.5V19a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9.5" />
+  </svg>
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GRADE DO INÍCIO (PWA mobile) + SideNav do atendimento de fisioterapia — os 12
+// ícones abaixo são do conjunto Solar (480 Design, licença CC BY 4.0, via
+// api.iconify.design/solar). Duotone: duas camadas com fill="currentColor", a
+// de trás em opacity mais baixa — dá o efeito de duas cores sem precisar de uma
+// segunda cor de verdade, então herdam var(--primary-fg) etc. como qualquer
+// outro ícone daqui. Substituem as imagens PNG que estavam em
+// assets/images/icon (ver sideNavItems.tsx) — aquelas eram 3D/raster, fixas em
+// um tom só, e não se adaptavam ao tema escuro.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Sinais vitais — coração com a linha de pulso (Solar Duotone). */
+export const IconVitalSigns = () => (
+  <svg viewBox="0 0 24 24">
+    <path fill="currentColor" d="M2 9.26c0 3.748 4.02 7.711 6.962 10.11C10.294 20.458 10.96 21 12 21s1.706-.543 3.038-1.63C17.981 16.972 22 13.009 22 9.26C22 3.35 16.5.663 12 5.5C7.5.663 2 3.349 2 9.26" opacity=".5"/>
+    <path fill="currentColor" d="M10.093 10.747q.133-.191.23-.325c.056.097.119.21.194.348l1.71 3.109c.166.302.33.598.493.813c.175.23.482.546.975.555s.813-.294.996-.518c.172-.208.345-.498.523-.794l.055-.092c.221-.368.36-.598.483-.764c.113-.154.179-.204.228-.231s.125-.058.315-.077c.206-.02.474-.02.904-.02H18a.75.75 0 0 0 0-1.5h-.834c-.387 0-.73 0-1.016.027a2.2 2.2 0 0 0-.91.264a2.2 2.2 0 0 0-.694.644c-.171.232-.347.525-.546.857l-.048.08c-.087.144-.159.264-.224.368l-.21-.377l-1.709-3.108c-.154-.28-.307-.56-.463-.764c-.17-.224-.462-.52-.93-.545c-.467-.025-.789.237-.982.442c-.177.186-.36.448-.543.71l-.31.442c-.227.324-.37.526-.493.672a.8.8 0 0 1-.223.203c-.046.024-.118.05-.293.066c-.19.018-.438.018-.834.018H6a.75.75 0 0 0 0 1.5h.768c.357 0 .674 0 .94-.024c.29-.026.571-.085.85-.23c.28-.145.489-.343.676-.564c.173-.205.354-.464.559-.757z"/>
+  </svg>
+)
+
+/** Prontuários — prancheta com linhas de texto (Solar Duotone). */
+export const IconClinicalRecord = () => (
+  <svg viewBox="0 0 24 24">
+    <path fill="currentColor" d="M21 15.998v-6c0-2.828 0-4.242-.879-5.121C19.353 4.109 18.175 4.012 16 4H8c-2.175.012-3.353.109-4.121.877C3 5.756 3 7.17 3 9.998v6c0 2.829 0 4.243.879 5.122c.878.878 2.293.878 5.121.878h6c2.828 0 4.243 0 5.121-.878c.879-.88.879-2.293.879-5.122" opacity=".5"/>
+    <path fill="currentColor" d="M8 3.5A1.5 1.5 0 0 1 9.5 2h5A1.5 1.5 0 0 1 16 3.5v1A1.5 1.5 0 0 1 14.5 6h-5A1.5 1.5 0 0 1 8 4.5z"/>
+    <path fill="currentColor" fillRule="evenodd" d="M6.25 14.5a.75.75 0 0 1 .75-.75h8a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75m0 3.5a.75.75 0 0 1 .75-.75h5.5a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1-.75-.75" clipRule="evenodd"/>
+  </svg>
+)
+
+/** Testes — lista de resultados marcados (Solar Duotone). */
+export const IconChecklist = () => (
+  <svg viewBox="0 0 24 24">
+    <path fill="currentColor" fillRule="evenodd" d="M8.048 2.488a.75.75 0 0 1-.036 1.06l-4.286 4a.75.75 0 0 1-1.095-.076l-1.214-1.5a.75.75 0 0 1 1.166-.944l.708.875l3.697-3.451a.75.75 0 0 1 1.06.036M11.25 5a.75.75 0 0 1 .75-.75h10a.75.75 0 0 1 0 1.5H12a.75.75 0 0 1-.75-.75M8.048 16.488a.75.75 0 0 1-.036 1.06l-4.286 4a.75.75 0 0 1-1.095-.076l-1.214-1.5a.75.75 0 1 1 1.166-.944l.708.875l3.697-3.451a.75.75 0 0 1 1.06.036M11.25 19a.75.75 0 0 1 .75-.75h10a.75.75 0 0 1 0 1.5H12a.75.75 0 0 1-.75-.75" clipRule="evenodd"/>
+    <path fill="currentColor" d="M8.048 9.488a.75.75 0 0 1-.036 1.06l-4.286 4a.75.75 0 0 1-1.095-.076l-1.214-1.5a.75.75 0 1 1 1.166-.944l.708.875l3.697-3.451a.75.75 0 0 1 1.06.036M11.25 12a.75.75 0 0 1 .75-.75h10a.75.75 0 0 1 0 1.5H12a.75.75 0 0 1-.75-.75" opacity=".5"/>
+  </svg>
+)
+
+/** Avaliações — régua diagonal de medição (Solar Duotone). */
+export const IconRulerDuotone = () => (
+  <svg viewBox="0 0 24 24">
+    <path fill="currentColor" d="M2 15.616c0 .847.682 1.529 2.045 2.892l1.447 1.447C6.855 21.318 7.537 22 8.384 22s1.53-.682 2.893-2.045l8.678-8.678C21.318 9.913 22 9.23 22 8.384s-.682-1.529-2.045-2.892l-1.447-1.447C17.145 2.682 16.463 2 15.616 2c-.754 0-1.376.54-2.464 1.618l-1.05 1.048l-1.072 1.073l-1.05 1.048L8.91 7.86L7.86 8.909L6.788 9.98L5.74 11.03l-1.073 1.073l-1.048 1.049C2.539 14.24 2 14.862 2 15.616" opacity=".5"/>
+    <path fill="currentColor" d="M13.238 3.691a1 1 0 0 0-.086-.073l-1.049 1.048q.033.045.074.086l1.414 1.414a.75.75 0 0 0 1.06-1.06zm-2.122 2.122a1 1 0 0 0-.086-.074L9.982 6.787q.033.045.074.086l2.121 2.122a.75.75 0 0 0 1.06-1.061zM8.995 7.934a1 1 0 0 0-.086-.074L7.86 8.908q.033.046.074.087l1.415 1.414a.75.75 0 1 0 1.06-1.06zm-2.121 2.121a1 1 0 0 0-.086-.074L5.739 11.03q.033.045.074.086l2.121 2.121a.75.75 0 1 0 1.061-1.06zm-2.122 2.122a1 1 0 0 0-.086-.075l-1.048 1.05q.033.045.074.085l1.414 1.414a.75.75 0 1 0 1.06-1.06z"/>
+  </svg>
+)
+
+/** Anamnese — pessoa em entrevista (Solar Duotone). */
+export const IconInterview = () => (
+  <svg viewBox="0 0 24 24">
+    <path fill="currentColor" d="M18.357 1.364a.75.75 0 0 1 1.029-.257L19 1.75l.386-.643h.001l.002.002l.003.002l.01.006a2 2 0 0 1 .114.076q.107.074.277.212c.222.185.512.462.802.838c.582.758 1.155 1.914 1.155 3.507s-.573 2.75-1.155 3.507c-.29.376-.58.653-.802.838a4 4 0 0 1-.378.28l-.013.008l-.01.006l-.003.002l-.002.001s-.001.001-.387-.642l.386.643a.75.75 0 0 1-.776-1.283l.005-.004l.04-.027q.061-.042.177-.136c.153-.128.363-.326.573-.6c.418-.542.845-1.386.845-2.593s-.427-2.05-.844-2.593a3.8 3.8 0 0 0-.574-.6a3 3 0 0 0-.217-.163l-.005-.003a.75.75 0 0 1-.253-1.027M10 9.75a4 4 0 1 0 0-8a4 4 0 0 0 0 8"/>
+    <path fill="currentColor" d="M17.386 3.107a.75.75 0 0 0-1.03.257l.25 1.024l.007.005l.063.049c.06.05.144.129.23.24a1.7 1.7 0 0 1 .344 1.068a1.7 1.7 0 0 1-.344 1.068a1.5 1.5 0 0 1-.293.29l-.008.004a.75.75 0 0 0 .78 1.281L17 7.75l.386.643h.001l.002-.001l.003-.002l.007-.005l.02-.012a2 2 0 0 0 .217-.162c.129-.107.294-.265.459-.479a3.2 3.2 0 0 0 .655-1.982a3.2 3.2 0 0 0-.655-1.982a3 3 0 0 0-.622-.604l-.054-.037l-.02-.012l-.007-.004l-.003-.002l-.002-.001s-.001-.001-.387.642z"/>
+    <path fill="currentColor" d="M2 17.25c0 2.485 0 4.5 8 4.5s8-2.015 8-4.5s-3.582-4.5-8-4.5s-8 2.015-8 4.5" opacity=".5"/>
+  </svg>
+)
+
+/** Diagnóstico — estetoscópio (Solar Duotone). */
+export const IconDiagnosis = () => (
+  <svg viewBox="0 0 24 24">
+    <circle cx="19" cy="16" r="3" fill="currentColor"/>
+    <path fill="currentColor" d="M12 1.25a.75.75 0 0 1 .75.75v.251a3.75 3.75 0 0 1 3.7 3.418c.014.166.014.354.014.629V7.52A7.464 7.464 0 0 1 9 14.985a7.75 7.75 0 0 1-7.75-7.75v-.937c0-.275 0-.463.015-.628A3.75 3.75 0 0 1 4.67 2.265a7 7 0 0 1 .58-.015V2a.75.75 0 1 1 1.5 0v2a.75.75 0 0 1-1.5 0v-.25c-.263 0-.366.001-.448.009a2.25 2.25 0 0 0-2.043 2.043c-.008.09-.009.206-.009.535v.898A6.25 6.25 0 0 0 9 13.485a5.964 5.964 0 0 0 5.964-5.964V6.337c0-.329 0-.445-.008-.535a2.25 2.25 0 0 0-2.206-2.05V4a.75.75 0 0 1-1.5 0V2a.75.75 0 0 1 .75-.75"/>
+    <path fill="currentColor" d="M8.25 14.95V17A5.75 5.75 0 0 0 14 22.75h.882a4.87 4.87 0 0 0 4.23-2.458c.247-.432.37-.896.43-1.34a3 3 0 0 1-1.5-.108a2.1 2.1 0 0 1-.232.705a3.37 3.37 0 0 1-2.928 1.701H14A4.25 4.25 0 0 1 9.75 17v-2.052a7.5 7.5 0 0 1-1.5.002" opacity=".5"/>
+  </svg>
+)
+
+/** Histórico familiar — grupo de pessoas (Solar Duotone). */
+export const IconFamilyGroup = () => (
+  <svg viewBox="0 0 24 24">
+    <circle cx="15" cy="6" r="3" fill="currentColor" opacity=".4"/>
+    <ellipse cx="16" cy="17" fill="currentColor" opacity=".4" rx="5" ry="3"/>
+    <circle cx="9.001" cy="6" r="4" fill="currentColor"/>
+    <ellipse cx="9.001" cy="17.001" fill="currentColor" rx="7" ry="4"/>
+  </svg>
+)
+
+/** Risco — triângulo de alerta (Solar Duotone). */
+export const IconRisk = () => (
+  <svg viewBox="0 0 24 24">
+    <path fill="currentColor" d="M12 3c-2.31 0-3.77 2.587-6.688 7.762l-.364.644c-2.425 4.3-3.638 6.45-2.542 8.022S6.214 21 11.636 21h.728c5.422 0 8.134 0 9.23-1.572s-.117-3.722-2.542-8.022l-.364-.645C15.77 5.587 14.311 3 12 3" opacity=".5"/>
+    <path fill="currentColor" d="M12 7.25a.75.75 0 0 1 .75.75v5a.75.75 0 0 1-1.5 0V8a.75.75 0 0 1 .75-.75M12 17a1 1 0 1 0 0-2a1 1 0 0 0 0 2"/>
+  </svg>
+)
+
+/** Medicações — pote de comprimidos (Solar Duotone). */
+export const IconMedicationJar = () => (
+  <svg viewBox="0 0 24 24">
+    <path fill="currentColor" d="M6 3.5c0-.466 0-.699.076-.883a1 1 0 0 1 .541-.54C6.801 2 7.034 2 7.5 2h9c.466 0 .699 0 .883.076a1 1 0 0 1 .54.541c.077.184.077.417.077.883s0 .699-.076.883a1 1 0 0 1-.541.54C17.199 5 16.966 5 16.5 5h-9c-.466 0-.699 0-.883-.076a1 1 0 0 1-.54-.541C6 4.199 6 3.966 6 3.5m-2 7.423v6.629a4 4 0 0 0 .025.448h15.951q.024-.217.024-.435v-6.657q0-.464-.105-.908H4.108Q4 10.451 4 10.922" opacity=".5"/>
+    <path fill="currentColor" d="M5.501 7.799L9.001 5h6.017l1.142.891l2.357 1.908A4 4 0 0 1 19.896 10H4.108a4 4 0 0 1 1.393-2.201M4.025 18a4 4 0 0 0 .902 2.113c.366.438.549.658.75.842a4 4 0 0 0 2.153 1.008C8.1 22 8.386 22 8.957 22h6.685a4 4 0 0 0 3.088-1.457l.358-.435A4 4 0 0 0 19.977 18z"/>
+    <path fill="currentColor" fillRule="evenodd" d="M12 11.25a.75.75 0 0 1 .75.75v1.25H14a.75.75 0 0 1 0 1.5h-1.25V16a.75.75 0 0 1-1.5 0v-1.25H10a.75.75 0 0 1 0-1.5h1.25V12a.75.75 0 0 1 .75-.75" clipRule="evenodd"/>
+  </svg>
+)
+
+/** Antecedentes cirúrgicos — tesoura cruzada (Solar Duotone). */
+export const IconSurgery = () => (
+  <svg viewBox="0 0 24 24">
+    <path fill="currentColor" d="M6.654 1.633a.75.75 0 1 0-1.308.735L15.704 20.79a3.75 3.75 0 1 0-.136-3.303z" opacity=".5"/>
+    <path fill="currentColor" d="M17.346 1.633a.75.75 0 0 1 1.308.735L8.296 20.79a3.75 3.75 0 1 1 .136-3.303z"/>
+  </svg>
+)
+
+/** Documentos — pasta de arquivos (Solar Duotone). */
+export const IconDocumentsFolder = () => (
+  <svg viewBox="0 0 24 24">
+    <path fill="currentColor" d="M22 14v-2.202c0-2.632 0-3.949-.77-4.804a3 3 0 0 0-.224-.225C20.151 6 18.834 6 16.202 6h-.374c-1.153 0-1.73 0-2.268-.153a4 4 0 0 1-.848-.352C12.224 5.224 11.816 4.815 11 4l-.55-.55c-.274-.274-.41-.41-.554-.53a4 4 0 0 0-2.18-.903C7.53 2 7.336 2 6.95 2c-.883 0-1.324 0-1.692.07A4 4 0 0 0 2.07 5.257C2 5.626 2 6.068 2 6.95V14c0 3.771 0 5.657 1.172 6.828S6.229 22 10 22h4c3.771 0 5.657 0 6.828-1.172S22 17.771 22 14" opacity=".5"/>
+    <path fill="currentColor" d="M12.25 10a.75.75 0 0 1 .75-.75h5a.75.75 0 0 1 0 1.5h-5a.75.75 0 0 1-.75-.75"/>
+  </svg>
+)
+
+/** Meus tratamentos — relógio de histórico (Solar Duotone). */
+export const IconTreatmentHistory = () => (
+  <svg viewBox="0 0 24 24">
+    <path fill="currentColor" fillRule="evenodd" d="M5.079 5.069c3.795-3.79 9.965-3.75 13.783.069c3.82 3.82 3.86 9.993.064 13.788s-9.968 3.756-13.788-.064a9.81 9.81 0 0 1-2.798-8.28a.75.75 0 1 1 1.487.203a8.31 8.31 0 0 0 2.371 7.017c3.245 3.244 8.468 3.263 11.668.064c3.199-3.2 3.18-8.423-.064-11.668c-3.243-3.242-8.463-3.263-11.663-.068l.748.003a.75.75 0 1 1-.007 1.5l-2.546-.012a.75.75 0 0 1-.746-.747L3.575 4.33a.75.75 0 1 1 1.5-.008z" clipRule="evenodd"/>
+    <path fill="currentColor" d="M12 7.25a.75.75 0 0 1 .75.75v3.69l2.28 2.28a.75.75 0 1 1-1.06 1.06l-2.427-2.426a1 1 0 0 1-.293-.708V8a.75.75 0 0 1 .75-.75" opacity=".5"/>
+  </svg>
+)

@@ -2,19 +2,21 @@ import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import { getNotesByDate, getPreviousSessionNote, listNoteDates } from '@/services/patientClinicalNotesService'
 
-/** Dias com prontuário — marca o calendário da aba Prontuários. */
-export function usePatientNoteDates(patientId: string) {
+/** Dias com prontuário — marca o calendário da aba Prontuários (ou do
+ *  seletor de data do Prontuário do Fisio, quando `carePlanId` recorta ao
+ *  tratamento em curso). */
+export function usePatientNoteDates(patientId: string, carePlanId?: string) {
   return useQuery({
-    queryKey: queryKeys.clinicalNotes.dates(patientId),
-    queryFn: () => listNoteDates(patientId),
+    queryKey: queryKeys.clinicalNotes.dates(patientId, carePlanId),
+    queryFn: () => listNoteDates(patientId, carePlanId),
   })
 }
 
 /** Prontuário(s) do dia selecionado no calendário. */
-export function usePatientNotesByDate(patientId: string, dateIso: string | undefined) {
+export function usePatientNotesByDate(patientId: string, dateIso: string | undefined, carePlanId?: string) {
   return useQuery({
-    queryKey: queryKeys.clinicalNotes.byDate(patientId, dateIso ?? ''),
-    queryFn: () => getNotesByDate(patientId, dateIso as string),
+    queryKey: queryKeys.clinicalNotes.byDate(patientId, dateIso ?? '', carePlanId),
+    queryFn: () => getNotesByDate(patientId, dateIso as string, carePlanId),
     enabled: !!dateIso,
   })
 }

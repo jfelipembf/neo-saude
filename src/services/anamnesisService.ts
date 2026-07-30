@@ -18,6 +18,22 @@ import type { Json } from '@/types/database.types'
 // que EXISTE no template ativo — a RPC save_anamnesis rejeita código desconhecido
 // (protege contra ficha de um ramo salvando pergunta de outro).
 
+/**
+ * Arquiva a ficha ATIVA do paciente, se houver uma.
+ *
+ * É o que faz um TRATAMENTO NOVO começar com anamnese em branco: a ficha hoje
+ * é uma-por-paciente (índice `anamnesis_active_patient_uk`), então sem isto a
+ * próxima leitura devolveria as respostas do episódio anterior.
+ *
+ * "Sem ficha ativa para arquivar" (errcode P0002) NÃO é erro daqui: o paciente
+ * pode nunca ter respondido nada, e abrir o primeiro tratamento dele é
+ * exatamente esse caso — silenciar só ESSE código, não qualquer erro.
+ */
+export async function archivePreviousAnamnesis(patientId: string): Promise<void> {
+  const { error } = await supabase.rpc('archive_anamnesis', { p_patient: patientId })
+  if (error && error.code !== 'P0002') throw error
+}
+
 type AnswerVal = { value?: string | null; detail?: string | null } | undefined
 type AnswerMap = Record<string, AnswerVal>
 const val = (a: AnswerMap, code: string): string | undefined => a[code]?.value ?? undefined

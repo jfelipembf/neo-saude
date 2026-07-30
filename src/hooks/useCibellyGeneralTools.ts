@@ -20,6 +20,8 @@ import {
 } from '@/lib/cibelly/patientDirectory'
 import type {
   CibellyToolContext, DocumentRequest, PatientDirectoryRequest, PatientMessageRequest, QuoteRequest,
+  CartAddRequest,
+  CartQuoteRequest,
 } from '@/lib/cibelly/sessionTypes'
 import {
   matchesPendingMessage, pendingMessageConfirmation,
@@ -50,6 +52,10 @@ import {
 } from '@/utils/clinicalDocument'
 import { buildDocument } from '@/utils/printDocument'
 import { listMaterialsWithSuppliers } from '@/services/materialsService'
+import {
+  addToPurchaseList, getCartBySupplier, listPurchaseList, marcarEnvioDoOrcamento,
+  mensagemDoOrcamento, registrarOrcamento,
+} from '@/services/purchaseListService'
 import { sendWhatsAppMessage } from '@/services/whatsappService'
 import { searchPatientHistory } from '@/services/odontogramService'
 import { listPatientReceivables, listUnbilledSessions } from '@/services/financeService'
@@ -1157,6 +1163,144 @@ export function useCibellyGeneralTools({
       return { ok: false, erro: mensagemDeErroDoWhatsApp(error) }
     }
   }
+
+  // ── CARRINHO DE COMPRAS ────────────────────────────────────────────────────
+
+  /**
+   * "Cibelly, poe resina A2 no carrinho."
+   *
+   * Casa com o catálogo quando dá; quando não dá, guarda o que foi DITO. O
+   * dentista fala "luva tamanho P" e o item pode não estar cadastrado —
+   * recusar a fala transformaria o carrinho num formulário de cadastro no meio
+   * do atendimento, que é o oposto do que ele serve.
+   */
+  async function adicionarAoCarrinho(pedido: CartAddRequest) {
+    const nome = pedido.produto?.trim()
+    if (!nome) return { ok: false, erro: 'Não entendi qual produto pôr no carrinho.' }
+
+    const materiais = await listMaterialsWithSuppliers()
+    const achado = materiais.find(m => matchesSearch(m.nome, nome))
+
+    try {
+      await addToPurchaseList({
+        materialId: achado?.id,
+        label: achado ? undefined : nome,
+        quantidade: pedido.quantidade,
+        unidade: pedido.unidade,
+        observacao: pedido.observacao,
+      })
+    } catch (e) {
+      return { ok: false, erro: errorMessage(e, 'Não consegui pôr no carrinho.') }
+    }
+
+    const qtd = pedido.quantidade
+      ? `${pedido.quantidade}${pedido.unidade ? ` ${pedido.unidade}` : ''} de `
+      : ''
+    return {
+      ok: true,
+      // Frase pronta: a Cibelly lê isto. O aviso de item fora do catálogo é o
+      // que impede o dentista de achar que o pedido vai chegar a alguém.
+      resposta: achado
+        ? `Anotei ${qtd}${achado.nome} no carrinho.`
+        : `Anotei ${qtd}${nome} no carrinho. Esse item não está no cadastro de materiais, então não tem fornecedor ligado — no orçamento eu aviso.`,
+    }
+  }
+
+  /** "Cibelly, quais produtos estão no carrinho?" */
+  async function consultarCarrinho() {
+    const itens = await listPurchaseList()
+    if (itens.length === 0) return { ok: true, resposta: 'O carrinho está vazio.' }
+
+    const linhas = itens.map(i => {
+      const qtd = i.quantidade ? `${i.quantidade}${i.unidade ? ` ${i.unidade}` : ''} de ` : ''
+      return `${qtd}${i.nome}`
+    })
+    return {
+      ok: true,
+      resposta: `${itens.length} ${itens.length === 1 ? 'item' : 'itens'} no carrinho: ${linhas.join(', ')}.`,
+    }
+  }
+
+  /**
+   * "Cibelly, pede orçamento do carrinho."
+   *
+   * DUAS ETAPAS, com a mesma trava do orçamento avulso: a confirmação carrega
+   * a assinatura do pedido INTEIRO — destinatários e textos juntos —, então
+   * mudar qualquer parte entre o "confirma?" e o "sim" invalida o aceite.
+   * Mensagem para fornecedor é ação para FORA, e não sai de uma frase mal
+   * ouvida no barulho do consultório.
+   */
+  async function pedirOrcamentoDoCarrinho(pedido: CartQuoteRequest) {
+    const carrinho = await getCartBySupplier()
+    if (carrinho.totalItens === 0) {
+      return { ok: false, erro: 'O carrinho está vazio — não há o que orçar.' }
+    }
+
+    const nomeClinica = clinica?.name ?? 'clínica'
+    const grupos = carrinho.fornecedores.map(g => ({
+      ...g,
+      texto: mensagemDoOrcamento(g, nomeClinica),
+    }))
+
+    /** O que NÃO vai sair — dito ANTES do envio, não depois. */
+    const avisos: string[] = []
+    if (carrinho.semFornecedor.length) {
+      avisos.push(`Sem fornecedor cadastrado: ${carrinho.semFornecedor.map(i => i.nome).join(', ')}.`)
+    }
+
+    const ids = grupos.map(g => g.supplierId)
+    const assinatura = grupos.map(g => g.texto).sort().join('\n---\n')
+
+    if (
+      !pedido.confirmado
+      || !matchesPendingMessage(pendingSupplierMessageRef.current, ids, assinatura)
+    ) {
+      pendingSupplierMessageRef.current = pendingMessageConfirmation(ids, assinatura)
+      return {
+        ok: true,
+        precisaConfirmar: true,
+        destinatarios: grupos.map(g => g.fornecedor),
+        pedidos: grupos.map(g => ({ para: g.fornecedor, itens: g.itens.map(i => i.nome) })),
+        semFornecedor: carrinho.semFornecedor.length
+          ? carrinho.semFornecedor.map(i => i.nome)
+          : undefined,
+        instrucao:
+          'Leia quem recebe o quê e o que ficou de fora, e pergunte se pode enviar. Só chame de novo com confirmado=true depois de um sim claro.',
+      }
+    }
+
+    pendingSupplierMessageRef.current = null
+    const enviados: string[] = []
+    const falhas: string[] = []
+    for (const g of grupos) {
+      // GRAVA ANTES de mandar: se o envio falhar, o pedido fica com o motivo
+      // registrado em vez de desaparecer — e o dentista descobre olhando, não
+      // quando o material não chega.
+      const quoteId = await registrarOrcamento(g.supplierId, g.texto, g.itens.map(i => i.id))
+      try {
+        const envio = await sendWhatsAppMessage([{ type: 'supplier', id: g.supplierId }], g.texto)
+        const ok = envio.sent > 0
+        await marcarEnvioDoOrcamento(quoteId, ok, ok ? undefined : 'Fornecedor sem WhatsApp ou envio recusado')
+        if (ok) enviados.push(g.fornecedor)
+        else falhas.push(g.fornecedor)
+      } catch (error) {
+        await marcarEnvioDoOrcamento(quoteId, false, mensagemDeErroDoWhatsApp(error))
+        falhas.push(g.fornecedor)
+      }
+    }
+
+    return {
+      ok: enviados.length > 0,
+      enviado: enviados.length,
+      destinatarios: enviados,
+      falhas: falhas.length ? falhas : undefined,
+      semFornecedor: carrinho.semFornecedor.length
+        ? carrinho.semFornecedor.map(i => i.nome)
+        : undefined,
+      avisos: avisos.length ? avisos : undefined,
+    }
+  }
+
   return {
     /** Consumo ditado na sessão — a página o esvazia ao encerrar o atendimento. */
     materiaisUsadosRef,
@@ -1168,6 +1312,9 @@ export function useCibellyGeneralTools({
     consultarMateriais,
     registrarMaterialUsado,
     solicitarOrcamento,
+    adicionarAoCarrinho,
+    consultarCarrinho,
+    pedirOrcamentoDoCarrinho,
     enviarMensagemPaciente,
     consultarAgenda,
     agendarConsulta,

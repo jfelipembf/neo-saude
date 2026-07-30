@@ -1,0 +1,149 @@
+@use '../../../../styles/mixins' as *;
+
+.raiz {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+  min-width: 0;
+}
+
+// ── Trilha ───────────────────────────────────────────────────────────────────
+// Os passos ficam TODOS visíveis, inclusive os futuros: saber o que vem depois
+// é o que distingue um roteiro de uma sequência de surpresas.
+
+// ROLA NA HORIZONTAL quando não cabe. Medido: quatro passos ocupam 296px, e o
+// painel tem 262px num iPhone SE — e cinco passos estouram até no iPhone
+// padrão. Sem a rolagem, o último passo simplesmente saía da tela sem aviso.
+//
+// Encolher os rótulos seria a alternativa, mas "Diag..." não informa em que
+// etapa a pessoa está, que é a única função da trilha.
+.trilha {
+  @include hide-scrollbar;
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  overflow-x: auto;
+  // Respiro para o foco do teclado não ser recortado pelo overflow.
+  padding: 2px;
+}
+
+.passo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: $fs-xs;
+  line-height: 1.3;
+  text-align: center;
+  // Largura fixa para o rótulo não empurrar a bolinha do vizinho: sem isso,
+  // "Dados do tratamento" desalinha a trilha inteira.
+  width: 88px;
+
+  @include phone { width: 68px; }
+}
+
+.passoAtual { color: var(--text-primary); font-weight: 600; }
+.passoFeito { color: var(--primary-fg); }
+
+// Passo já cumprido volta com um clique; o futuro não, porque pular validação
+// é como se cria registro pela metade.
+.passoClicavel {
+  @include focus-ring;
+  cursor: pointer;
+
+  &:hover .bolinha { border-color: var(--primary-fg); }
+}
+
+.bolinha {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--field-border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: $fs-sm;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+
+  svg { width: 14px; height: 14px; }
+}
+
+.passoAtual .bolinha {
+  border-color: var(--primary-fg);
+  background: var(--primary-fg);
+  color: var(--bg-surface);
+}
+
+.passoFeito .bolinha {
+  border-color: var(--primary-fg);
+  color: var(--primary-fg);
+}
+
+// O fio entre duas bolinhas. Alinhado ao CENTRO delas (28px / 2 = 14px), não ao
+// topo do item — encostado no topo ele cruzaria o número.
+.fio {
+  flex: 1;
+  min-width: $sp-2;
+  height: 1.5px;
+  margin-top: 13px;
+  background: var(--field-border);
+}
+
+.fioFeito { background: var(--primary-fg); }
+
+// ── Conteúdo e rodapé ────────────────────────────────────────────────────────
+
+.conteudo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  min-width: 0;
+}
+
+.erro {
+  margin: 0;
+  font-size: $fs-sm;
+  color: var(--danger-fg);
+}
+
+// Voltar de um lado, avançar do outro: ações de peso oposto lado a lado é como
+// o polegar erra no telefone.
+//
+// A folga embaixo é para o TOAST: ele é `position: fixed` no canto inferior
+// direito, e o botão principal deste rodapé também encosta à direita — sem ela,
+// o aviso de "salvo" cai exatamente em cima do "Avançar" e o clique seguinte
+// vai para o toast.
+.rodape {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  margin-bottom: $toast-clearance;
+}
+
+.rodapeFim {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+}
+
+// Marca de "já gravado", ao lado do botão. Ícone MAIS palavra: cor sozinha não
+// informa quem não distingue verde de cinza.
+.salvo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: $fs-xs;
+  font-weight: 600;
+  color: var(--primary-fg);
+
+  svg { width: 13px; height: 13px; }
+}

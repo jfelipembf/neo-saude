@@ -214,7 +214,7 @@ function collectMarkers(html: string): Marker[] {
  *    informação; chave ausente é a forma certa de "não preenchi".
  *  · ORDEM TROCADA — o rótulo é que manda, não a posição.
  *  · RÓTULO REPETIDO — o ditado SOMA ao que já estava escrito
- *    (`soapToHtml(nota) + htmlDitado`, ver AiNoteActions), então "Objetivo:"
+ *    (`soapToHtml(nota) + htmlDitado`, no ditado por voz), então "Objetivo:"
  *    aparece duas vezes no mesmo texto: as duas partes se juntam na MESMA
  *    seção, na ordem em que foram escritas. Sem isso, ditar por cima de uma
  *    evolução já começada apagaria a primeira metade.

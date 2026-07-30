@@ -127,7 +127,13 @@ export function ProfileSummary({ professional, onEdit, editing = false, pendingP
         <h3 className={styles.blocoTitulo}>Cor na agenda</h3>
         <div className={styles.corLinha}>
           {/* Círculo único: clicar abre o color picker nativo. */}
-          <label className={styles.corPicker} style={{ background: cor }} title="Escolher cor">
+          <label
+            className={styles.corPicker}
+            // Var e não `background` cru: o valor é dado (a cor escolhida), e o
+            // estilo continua morando no módulo — mesmo padrão do --avatar-ring.
+            style={{ '--cor-escolhida': cor } as CSSProperties}
+            title="Escolher cor"
+          >
             <input
               type="color"
               value={cor}

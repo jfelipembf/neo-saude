@@ -302,3 +302,29 @@
   padding-top: $sp-3;
   border-top: 1px solid var(--glass-border);
 }
+
+// ── Zona de perigo: excluir cadastro ─────────────────────────────────────────
+// Separada do resto por uma moldura vermelha e no FIM da página: é a ação que
+// não tem volta, e ela não pode dividir espaço com um botão de salvar.
+.zonaPerigo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-4;
+  flex-wrap: wrap;
+  margin-top: $sp-6;
+  padding: $sp-4;
+  border: 1px solid var(--danger-fg);
+  border-radius: $radius-lg;
+}
+
+.zonaPerigoTexto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 240px;
+
+  strong { color: var(--danger-fg); font-size: $fs-sm; }
+  span   { color: var(--text-secondary); font-size: $fs-sm; line-height: 1.5; }
+}

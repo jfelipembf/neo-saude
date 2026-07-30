@@ -1,6 +1,7 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import errorImage from '@/assets/images/error.png'
+import { registrarErro } from '@/lib/observability'
 import { Button } from '@/components/Button/Button'
 import styles from './ErrorBoundary.module.scss'
 
@@ -26,8 +27,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Observabilidade: em produção, plugar num serviço de erros (Sentry etc.).
     console.error('ErrorBoundary capturou um erro de renderização:', error, info)
+    // Alimenta `app_error`, lido pelo projeto da Plataforma (separado, mesmo
+    // banco). Best-effort e nunca lança
+    // — o id de paciente que porventura esteja na rota é mascarado no banco.
+    registrarErro(error, { source: 'boundary' })
   }
 
   private handleRetry = () => {

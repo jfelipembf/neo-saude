@@ -66,6 +66,13 @@ export interface Patient {
   // ── TISS (beneficiário) ──
   /** Número da carteirinha na operadora — é ele que identifica a pessoa na
    *  guia, não o CPF. */
+  /** Peso de referência do cadastro, em kg. O histórico por consulta fica em
+   *  appointment.weight_kg — são papéis diferentes, não duplicata. */
+  weightKg?: number
+  /** Altura de referência do cadastro, em cm. */
+  heightCm?: number
+  /** IMC calculado PELO BANCO (coluna gerada) — nunca chega defasado do peso. */
+  bmi?: number
   insuranceCard?: string
   /** Validade da carteirinha. Vencida na data do atendimento é glosa. */
   insuranceCardValidUntil?: string   // dd/mm/aaaa
@@ -595,6 +602,9 @@ export interface PatientTestResult {
    *  imageUrl no card de resultado. Só quando imageUrl também existe. */
   measuredPoints?: GoniometryPoints
   performedAt: string   // dd/mm/aaaa
+  /** A qual tratamento esta aplicação pertence — carimbado pelo banco na
+   *  gravação. Ausente nas aplicações anteriores ao vínculo existir. */
+  carePlanId?: string
 }
 
 // ── Orçamentos do paciente (aba do perfil) ───────────────────────────────────
