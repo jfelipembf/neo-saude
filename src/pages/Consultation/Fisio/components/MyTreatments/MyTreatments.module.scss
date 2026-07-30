@@ -8,6 +8,14 @@
 
 .cabecalho {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  flex-wrap: wrap;
+}
+
+.cabecalhoTexto {
+  display: flex;
   align-items: baseline;
   gap: $sp-3;
   flex-wrap: wrap;

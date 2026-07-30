@@ -314,6 +314,11 @@ export const queryKeys = {
   // Planos de tratamento do paciente. A contagem de sessões é DERIVADA das
   // consultas, então mexer na agenda invalida esta chave junto (ver useCarePlans).
   carePlans: {
+    // Prefixo para invalidar sem saber de QUEM é o plano — é o caso de marcar
+    // presença numa consulta: quem marca (Dashboard, Hoje, modal da Agenda) não
+    // carrega o paciente por perto, e a sessão realizada pode ter fechado o
+    // tratamento sozinha no banco (private.tg_care_plan_autofinish).
+    all: ['carePlans'] as const,
     byPatient: (patientId: string) => ['carePlans', patientId] as const,
   },
   vitalSigns: {

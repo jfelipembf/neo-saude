@@ -55,6 +55,13 @@
   color: var(--primary-fg);
 }
 
+// Atalho de uma seção indisponível (sem tratamento ativo). Só apaga — sem
+// cadeado, que na barra de 3 destinos viraria ruído: quem toca recebe a
+// explicação inteira na tela seguinte.
+.itemBloqueado {
+  opacity: 0.45;
+}
+
 // Botão do centro, elevado — a "casinha num círculo" acima da barra. A borda
 // da cor do fundo é o que faz ele parecer recortado da barra em vez de só
 // encostado nela.

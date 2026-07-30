@@ -1,4 +1,4 @@
-import { useImperativeHandle, useState } from 'react'
+import { useImperativeHandle, useRef, useState } from 'react'
 import type { FormEvent, Ref } from 'react'
 import { Button } from '@/components/Button/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
@@ -93,6 +93,22 @@ export function PatientTestsPanel({ patientId, semAcoes = false, carePlanId, ref
   const [pickerOpen, setPickerOpen] = useState(false)
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null)
 
+  /**
+   * Handle do teste MONTADO agora (o selecionado no sidenav).
+   *
+   * Existe ALÉM do `ref` recebido de fora (o que o roteiro de abertura usa
+   * para salvar ao Avançar): a troca de teste no sidenav TAMBÉM precisa
+   * disparar o salvar, e por isso mesmo — `key={test.id}` em `TestResults`
+   * remonta o componente do zero a cada troca, e o formulário aberto (e não
+   * salvo) do teste anterior não sobrevive a isso. Sem este handle local, o
+   * segundo teste de uma sessão apagava o resultado do primeiro em silêncio.
+   */
+  const testeAtualRef = useRef<PatientTestsHandle>(null)
+
+  useImperativeHandle(ref, () => ({
+    salvar: async () => { await testeAtualRef.current?.salvar() },
+  }))
+
   if (loadingCatalog || loadingPatientTests) return <PageLoader />
 
   const assignedTests = patientTests
@@ -102,6 +118,22 @@ export function PatientTestsPanel({ patientId, semAcoes = false, carePlanId, ref
   const selectedTest = assignedTests.find(t => t.id === selectedTestId) ?? null
 
   const items: SideListItem[] = assignedTests.map(t => ({ id: t.id, label: t.name, sublabel: t.specialty }))
+
+  /**
+   * Troca de teste no sidenav: salva o resultado aberto no teste ATUAL antes
+   * de trocar (ver `testeAtualRef` acima). Erro de validação BLOQUEIA a troca
+   * em vez de descartar — mesma mensagem que o formulário mostraria; perder
+   * metade de um resultado sem avisar é pior que travar um clique.
+   */
+  async function selecionarTeste(id: string) {
+    try {
+      await testeAtualRef.current?.salvar()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Complete ou cancele o resultado em aberto antes de trocar de teste.')
+      return
+    }
+    setSelectedTestId(id)
+  }
 
   function handleConfirmPicker(testIds: string[]) {
     saveSelection(testIds, {
@@ -121,7 +153,7 @@ export function PatientTestsPanel({ patientId, semAcoes = false, carePlanId, ref
           size="lg"
           items={items}
           selectedId={selectedTestId}
-          onSelect={id => setSelectedTestId(String(id))}
+          onSelect={id => selecionarTeste(String(id))}
           onAdd={() => setPickerOpen(true)}
           hideSearch
           emptyText="Nenhum teste selecionado"
@@ -155,7 +187,7 @@ export function PatientTestsPanel({ patientId, semAcoes = false, carePlanId, ref
             test={selectedTest}
             semAcoes={semAcoes}
             carePlanId={carePlanId}
-            ref={ref}
+            ref={testeAtualRef}
           />
         )}
       </div>

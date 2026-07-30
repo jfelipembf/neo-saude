@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  filledNoteFields,
   filledSoapSections,
   isBlankSoap,
   isSameSoapNote,
@@ -194,6 +195,36 @@ describe('isBlankSoap / filledSoapSections / pickSoapSections', () => {
   it('seção vazia não é copiada mesmo se pedida', () => {
     expect(pickSoapSections({ objective: '<p>O</p>', plan: '<p></p>' }, ['objective', 'plan']))
       .toEqual({ objective: '<p>O</p>' })
+  })
+})
+
+// O campo livre do atendimento de fisioterapia. Não é seção do SOAP: abre a
+// nota, some do `filledSoapSections` (relatório por seção) e do "repetir última
+// sessão", mas é gravado, lido e impresso junto com o resto.
+describe('campo "Hoje"', () => {
+  const comHoje = { today: '<p>Mobilização escapular e 3x10 de rotação externa.</p>', plan: '<p>Manter.</p>' }
+
+  it('abre a nota, antes das quatro seções', () => {
+    const html = soapToHtml({ plan: '<p>P</p>', today: '<p>H</p>', subjective: '<p>S</p>' })
+    expect(html.indexOf('Hoje')).toBeLessThan(html.indexOf('Subjetivo'))
+    expect(filledNoteFields(comHoje)).toEqual(['today', 'plan'])
+  })
+
+  it('não conta como seção do SOAP', () => {
+    expect(filledSoapSections(comHoje)).toEqual(['plan'])
+    expect(pickSoapSections(comHoje, ['objective', 'plan'])).toEqual({ plan: '<p>Manter.</p>' })
+  })
+
+  it('é gravado e comparado como os outros campos', () => {
+    expect(normalizeSoapNote({ today: '<p>H</p>', objective: '<p></p>' })).toEqual({ today: '<p>H</p>' })
+    expect(normalizeSoapNote({ today: '<p><br></p>' })).toBeUndefined()
+    // Nota só com "Hoje" é nota — "Salvar prontuário" não pode ficar travado.
+    expect(isBlankSoap({ today: '<p>H</p>' })).toBe(false)
+    expect(isSameSoapNote({ today: '<p>H</p>' }, { today: '<p>Outra coisa</p>' })).toBe(false)
+  })
+
+  it('faz ida e volta com o parser', () => {
+    expect(parseSoapHtml(soapToHtml(comHoje))).toEqual(comHoje)
   })
 })
 

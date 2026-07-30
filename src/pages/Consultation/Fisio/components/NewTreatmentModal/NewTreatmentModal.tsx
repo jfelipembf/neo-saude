@@ -77,9 +77,15 @@ export function NewTreatmentModal({ open, onClose, onCriar }: NewTreatmentModalP
           value={inicio}
           onChange={e => { setInicio(e.target.value); setErro('') }}
         />
+        {/* O campo decide o FIM do tratamento, não só um número no cartão:
+            preenchido, o tratamento se encerra sozinho na sessão que completa a
+            conta (private.tg_care_plan_autofinish) e o próximo caso exige abrir
+            outro; em branco, ele corre até a alta. Por isso a dica diz as duas
+            coisas — quem escolhe aqui não vê essa regra em lugar nenhum
+            depois. */}
         <Input
           label="Número de sessões"
-          hint="opcional"
+          hint="em branco = contínuo, até a alta"
           inputMode="numeric"
           placeholder="Ex.: 10"
           value={sessoes}

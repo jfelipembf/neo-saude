@@ -7,29 +7,38 @@ import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { Table, type TableColumn } from '@/components/Table/Table'
 import { IconUser } from '@/components/icons'
 import { useSession } from '@/context/SessionProvider'
-import { usePatientName } from '@/hooks/useDisplayNames'
+import { usePatientName, useProfessionalName } from '@/hooks/useDisplayNames'
 import { buildRoute, FULLSCREEN_ROUTES } from '@/constants'
 import type { ScheduledAppointment } from '@/types/domain'
 import styles from './TodayAppointmentsList.module.scss'
 
 interface TodayAppointmentsListProps {
   appointments: ScheduledAppointment[]
+  /** Sem agenda própria (recepção, financeiro, administrativo — ver
+   *  TodayPage): a lista é da CLÍNICA inteira, não de uma pessoa, então cada
+   *  linha precisa dizer de quem é o atendimento. */
+  mostrarProfissional?: boolean
 }
 
 /**
- * "Seus atendimentos hoje" — a agenda PESSOAL de quem está logado, dentro da
- * página "Hoje" (que também serve recepção — ver TodayPage). Ao contrário dos
- * 4 quadrados acima (contagem da CLÍNICA inteira por status), esta lista é só
- * do profissional: todo status entra, na ordem em que o dia acontece — é
- * "o que eu tenho pela frente/já tive hoje", não um placar.
+ * "Seus atendimentos hoje" — a agenda de quem está logado, dentro da página
+ * "Hoje" (que também serve recepção — ver TodayPage). Ao contrário dos 4
+ * quadrados acima (contagem da CLÍNICA inteira por status), esta lista traz o
+ * ATENDIMENTO em si: todo status entra, na ordem em que o dia acontece — é
+ * "o que tem pela frente/já teve hoje", não um placar.
+ *
+ * Para quem TEM agenda própria (profissional), é só a dela. Para quem não tem
+ * (`mostrarProfissional`), é a clínica inteira com o nome do profissional em
+ * cada linha — mesmos dados dos quadrados de cima, só detalhados.
  *
  * Clicar na linha abre o MESMO AppointmentModal da grade (ScheduleGrid):
  * mesma tela de sempre para marcar presença/falta ou abrir o prontuário da
  * sessão, sem duplicar esse fluxo aqui.
  */
-export function TodayAppointmentsList({ appointments }: TodayAppointmentsListProps) {
+export function TodayAppointmentsList({ appointments, mostrarProfissional }: TodayAppointmentsListProps) {
   const navigate = useNavigate()
   const patientName = usePatientName()
+  const professionalName = useProfessionalName()
   const { canView, specialty } = useSession()
   const [selected, setSelected] = useState<ScheduledAppointment | null>(null)
 
@@ -65,6 +74,12 @@ export function TodayAppointmentsList({ appointments }: TodayAppointmentsListPro
       label: 'Paciente',
       render: a => <span className={styles.paciente}>{patientName(a.patientId)}</span>,
     },
+    ...(mostrarProfissional ? [{
+      key: 'professional',
+      label: 'Profissional',
+      hideOnMobile: true,
+      render: (a: ScheduledAppointment) => professionalName(a.professionalId),
+    }] : []),
     { key: 'activity', label: 'Atendimento', hideOnMobile: true, render: a => a.activity },
     {
       key: 'status',
@@ -163,12 +178,12 @@ export function TodayAppointmentsList({ appointments }: TodayAppointmentsListPro
 
   return (
     <section className={styles.secao}>
-      <h2 className={styles.titulo}>Seus atendimentos hoje</h2>
+      <h2 className={styles.titulo}>{mostrarProfissional ? 'Atendimentos de hoje' : 'Seus atendimentos hoje'}</h2>
 
       {sorted.length === 0 ? (
         <EmptyState
           title="Nenhum atendimento hoje"
-          description="Sua agenda está livre por hoje."
+          description={mostrarProfissional ? 'Não há atendimentos marcados para hoje.' : 'Sua agenda está livre por hoje.'}
         />
       ) : (
         <Table

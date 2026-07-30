@@ -207,7 +207,7 @@ export function MedicationsPanel({
   }
 
   return (
-    <>
+    <div className={styles.raiz}>
       <div className={styles.centroCabecalho}>
         <span className={styles.blocoTitulo}>Em uso</span>
         <div className={styles.acoesCabecalho}>
@@ -448,7 +448,7 @@ export function MedicationsPanel({
         message={`${aSuspender?.name ?? ''} sai da lista de uso a partir de hoje. O registro fica no histórico com a data — é ele que explica a conduta enquanto o paciente tomava.`}
         confirmLabel="Suspender"
       />
-    </>
+    </div>
   )
 }
 

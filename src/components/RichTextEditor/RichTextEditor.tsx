@@ -6,6 +6,7 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import FontFamily from '@tiptap/extension-font-family'
 import TextAlign from '@tiptap/extension-text-align'
+import { Placeholder } from '@tiptap/extensions'
 import DOMPurify from 'dompurify'
 import { useOutsideClick } from '@/hooks/useOutsideClick'
 import {
@@ -58,12 +59,18 @@ export function RichTextEditor({ value, onChange, placeholder, disabled }: RichT
       Color,
       FontFamily,
       TextAlign.configure({ types: ['paragraph'] }),
+      // O texto de apoio é decoração do PARÁGRAFO vazio, não atributo do
+      // editor: quem marca `.is-empty` e pendura o `data-placeholder` que o
+      // CSS lê é esta extensão. Sem ela o atributo ficava na div raiz e o
+      // `attr(data-placeholder)` do `p::before` resolvia vazio — o placeholder
+      // simplesmente não aparecia em campo nenhum do prontuário.
+      Placeholder.configure({ placeholder: placeholder ?? '' }),
     ],
     content: DOMPurify.sanitize(value),
     editable: !disabled,
     onUpdate: ({ editor }) => onChange(DOMPurify.sanitize(editor.getHTML())),
     editorProps: {
-      attributes: { class: styles.content, ...(placeholder ? { 'data-placeholder': placeholder } : {}) },
+      attributes: { class: styles.content },
     },
   })
 

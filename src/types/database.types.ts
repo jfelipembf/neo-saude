@@ -933,6 +933,7 @@ export type Database = {
           discharge_notes: string | null
           finished_on: string | null
           id: string
+          opening_notes: string | null
           patient_id: string
           photo_url: string | null
           planned_sessions: number | null
@@ -951,6 +952,7 @@ export type Database = {
           discharge_notes?: string | null
           finished_on?: string | null
           id?: string
+          opening_notes?: string | null
           patient_id: string
           photo_url?: string | null
           planned_sessions?: number | null
@@ -969,6 +971,7 @@ export type Database = {
           discharge_notes?: string | null
           finished_on?: string | null
           id?: string
+          opening_notes?: string | null
           patient_id?: string
           photo_url?: string | null
           planned_sessions?: number | null

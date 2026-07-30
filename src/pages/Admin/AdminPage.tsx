@@ -45,8 +45,9 @@ const TABS: { key: TabKey; label: string; specialties?: ClinicSpecialty[]; exclu
   // Modelos de evolução SOAP (o "usar modelo" do prontuário) — o prontuário
   // por sessão só existe em fisioterapia, a aba acompanha.
   { key: 'evolutionTemplates', label: 'Modelos de evolução', specialties: ['physiotherapy', 'medicine'] },
-  // Turma é atendimento coletivo — não existe em consultório médico.
-  { key: 'classes',   label: 'Turmas', excludeSpecialties: ['medicine'] },
+  // Turma é atendimento coletivo (ex.: Pilates em grupo) — só existe em
+  // fisioterapia; consultório médico e odontologia atendem um paciente por vez.
+  { key: 'classes',   label: 'Turmas', specialties: ['physiotherapy'] },
   { key: 'insurances', label: 'Convênios' },
   { key: 'commissions', label: 'Comissões' },
   { key: 'roles',    label: 'Cargos' },

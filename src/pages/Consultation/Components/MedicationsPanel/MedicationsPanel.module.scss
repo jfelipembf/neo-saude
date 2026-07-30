@@ -9,6 +9,15 @@
 // fazia o componente quebrar assim que aquela página saísse do lugar — foi
 // exatamente o que travava a separação em Med/, Odonto/ e Fisio/.
 
+// Sem isto, os filhos do topo (cabeçalho, cards, "Encerradas"...) ficavam
+// direto na borda do `<main>` de fora — que só tem padding, sem gap nenhum
+// entre filhos — e o cabeçalho colava no primeiro card.
+.raiz {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
 .blocoTitulo {
   margin: 0;
   font-size: $fs-sm;

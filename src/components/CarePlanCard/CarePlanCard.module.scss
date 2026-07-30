@@ -7,21 +7,25 @@
  * foto, e embaixo o que ele diz" —, e desenhos diferentes para a mesma leitura
  * fazem o fisioterapeuta reaprender a tela a cada painel.
  *
- * As medidas (220px de largura, 260px de foto) são as de lá, não números novos:
- * se aquele cartão mudar, este tem de mudar junto.
+ * A foto (260px) é a de lá. A LARGURA divergiu, e de propósito: este cartão
+ * ganhou uma linha de AÇÕES que o de teste não tem — com Finalizar e
+ * Relatório, os 220px originais cortavam os botões nas laterais. Largura de
+ * cartão se copia enquanto o conteúdo é o mesmo; deixou de ser.
  */
 .cartao {
   position: relative;
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  width: 220px;
+  width: 264px;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: $radius-md;
   overflow: hidden;
 
-  @include phone { width: 180px; }
+  // No celular a lista é de uma coluna só — o cartão ocupa a largura
+  // disponível em vez de uma medida fixa que sobra ou falta.
+  @include phone { width: 100%; }
 }
 
 // Encerrado fica mais apagado, mas NÃO ilegível: a alta é o que se consulta
@@ -136,8 +140,20 @@
 
 // ── Corpo ────────────────────────────────────────────────────────────────────
 
+// ALINHAMENTO ENTRE CARTÕES — a barra de progresso e os botões ficam na MESMA
+// altura em todos, mesmo com um caso de dois diagnósticos ao lado de outro com
+// cinco. Duas coisas fazem isso funcionar juntas:
+//
+//  · `flex: 1` aqui + `margin-bottom: auto` na lista de diagnósticos: toda a
+//    sobra de altura vai para UM ponto (logo abaixo dos diagnósticos), então o
+//    rodapé do cartão — sessões, barra, datas, ações — é empurrado para baixo
+//    em bloco e encosta na mesma linha em todos.
+//  · toda linha desse rodapé existe SEMPRE, mesmo vazia (ver `:empty` abaixo e
+//    o `.trilhoAusente`): bastava um cartão sem "agendadas" para o de baixo
+//    subir uma linha e a barra sair do lugar.
 .corpo {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: $sp-1;
   padding: $sp-3;
@@ -155,7 +171,8 @@
 
 .diagnosticos {
   list-style: none;
-  margin: 0;
+  // `auto` embaixo: é aqui que a sobra de altura do cartão se acumula.
+  margin: 0 0 auto;
   padding: 0;
 
   li {
@@ -179,7 +196,7 @@
 }
 
 .semDiagnostico {
-  margin: 0;
+  margin: 0 0 auto;
   font-size: $fs-xs;
   color: var(--text-muted);
 }
@@ -187,6 +204,11 @@
 .sessoes {
   font-size: $fs-xs;
   color: var(--text-secondary);
+  // Uma linha, sempre: quebrar em duas num cartão e não no vizinho é
+  // exatamente o que tira a barra de progresso do lugar.
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   strong {
     color: var(--text-primary);
@@ -196,7 +218,26 @@
 
 .agendadas {
   font-size: 11px;
+  line-height: 1.4;
   color: var(--text-muted);
+  white-space: nowrap;
+
+  // Sem nada agendado a linha continua ocupando o espaço dela — no celular,
+  // onde há um cartão por linha, não há alinhamento a manter e ela some.
+  &:empty {
+    min-height: 1.4em;
+
+    @include phone { display: none; }
+  }
+}
+
+// Lugar da barra num tratamento contínuo (sem previsão de sessões): guarda a
+// altura sem desenhar nada.
+.trilhoAusente {
+  display: block;
+  height: 4px;
+
+  @include phone { display: none; }
 }
 
 .trilho {
@@ -220,15 +261,39 @@
   font-size: 11px;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+  // "Início 01/04/2026 · Alta 20/05/2026" é mais comprido que só o início —
+  // numa linha só nos dois casos, senão os botões abaixo se desencontram.
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .profissional {
   font-size: 11px;
+  line-height: 1.4;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  // Plano sem profissional guarda a linha (mesma razão do `.agendadas:empty`).
+  &:empty {
+    min-height: 1.4em;
+
+    @include phone { display: none; }
+  }
 }
 
 .acao {
   margin-top: $sp-2;
   display: flex;
   gap: $sp-2;
+  // ENVOLVE em vez de cortar. A largura do cartão foi calibrada para os três
+  // botões caberem, mas rótulo é texto: um "Finalizar" que vire "Encerrar
+  // tratamento" um dia não pode empurrar o Relatório para fora da vista.
+  flex-wrap: wrap;
+
+  // Cada botão pode encolher até o próprio texto, nunca além — botão espremido
+  // com reticências no rótulo é pior que botão na linha de baixo.
+  > * { flex: 0 1 auto; min-width: max-content; }
 }

@@ -157,7 +157,9 @@ async function listClassGroupNotes(patientId: string, window: NoteWindow): Promi
  * plano de fisioterapia individual, e sessão de turma não tem um. Incluí-la
  * aqui misturaria "sem tratamento" com "tratamento errado".
  */
-async function listSessionNotes(patientId: string, window: NoteWindow): Promise<SessionClinicalNote[]> {
+/** Exportada para o RELATÓRIO DE EVOLUÇÃO (physioReportService), que precisa
+ *  das notas do tratamento inteiro — não de um dia. */
+export async function listSessionNotes(patientId: string, window: NoteWindow): Promise<SessionClinicalNote[]> {
   const [individual, group] = await Promise.all([
     listAppointmentNotes(patientId, window),
     window.carePlanId ? Promise.resolve([]) : listClassGroupNotes(patientId, window),

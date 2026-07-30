@@ -159,7 +159,15 @@ export function ClinicalRecord({
           />
 
           <div className={styles.editor}>
-            <SoapEditor value={nota} onChange={n => { setNota(n); setCopiadas([]) }} copiedSections={copiadas} />
+            {/* `withToday`: aqui a evolução ABRE com o campo livre "Hoje" — o
+                que foi realizado na sessão, escrito de corrida entre um
+                paciente e outro. As quatro seções do SOAP vêm depois dele. */}
+            <SoapEditor
+              value={nota}
+              onChange={n => { setNota(n); setCopiadas([]) }}
+              copiedSections={copiadas}
+              withToday
+            />
           </div>
 
           <div className={styles.rodape}>

@@ -36,6 +36,32 @@ export const ITENS: NavItem<SideNavKey>[] = [
   { chave: 'meus-tratamentos', label: 'Meus tratamentos', icon: <IconTreatmentHistory /> },
 ]
 
+/**
+ * As seções que SÓ existem dentro de um tratamento — sem plano ativo elas não
+ * têm onde gravar, e a tela mostra "Nenhum tratamento ativo" com o botão de
+ * abrir um no lugar do painel.
+ *
+ * O critério é o do DADO, não o da tela: são exatamente as que já recebem
+ * `carePlanId` (prontuário da sessão, aferição, teste, avaliação e
+ * diagnóstico) — o registro nasce amarrado ao episódio, e escrever com o
+ * campo vazio deixaria a anotação órfã, fora do relatório de evolução e fora
+ * do recorte que toda essas telas fazem por tratamento.
+ *
+ * O resto do menu é do PACIENTE e atravessa tratamentos (histórico familiar,
+ * risco, medicações, antecedentes cirúrgicos, documentos, anamnese) ou é a
+ * própria porta de entrada ('meus-tratamentos', onde o tratamento se cria) —
+ * travar essas seções só esconderia informação de quem ainda está decidindo
+ * se abre um tratamento.
+ */
+export const SECOES_COM_TRATAMENTO = [
+  'prontuarios', 'sinais-vitais', 'testes', 'avaliacoes', 'diagnostico',
+] as const satisfies readonly SideNavKey[]
+
+/** A seção depende de um tratamento ativo? */
+export function exigeTratamento(chave: string): boolean {
+  return (SECOES_COM_TRATAMENTO as readonly string[]).includes(chave)
+}
+
 /** Os DOIS atalhos fixos da barra inferior do PWA (ver Shell/MobileNav). Ficam
  *  aqui, ao lado da lista, porque são escolha de PRODUTO desta especialidade:
  *  no Fisio a aferição abre a sessão e a evolução fecha, então são essas duas

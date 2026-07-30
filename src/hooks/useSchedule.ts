@@ -6,6 +6,7 @@ import {
   sendAppointmentConfirmation,
   updateScheduleAppointment,
   updateClinicalNote,
+  updateMedicalRecord,
 } from '@/services/scheduleService'
 import type { EditScheduledAppointment } from '@/services/scheduleService'
 import type { SoapNote } from '@/types/domain'
@@ -59,12 +60,30 @@ export function useUpdateScheduleAppointment() {
       if (payload.entitlementId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.entitlements.byPatient(payload.patientId) })
       }
+      // ...e mexe na contagem de sessões do tratamento, que pode ter fechado
+      // sozinho no banco ao alcançar as sessões previstas.
+      queryClient.invalidateQueries({ queryKey: queryKeys.carePlans.byPatient(payload.patientId) })
     },
   })
 }
 
 /** Salva o prontuário SOAP da SESSÃO — ação própria, independente do resto do
  *  agendamento. `note` undefined apaga a evolução (coluna NULL). */
+/** Gêmeo do `useUpdateClinicalNote`, para o texto do que foi executado. As
+ *  invalidações são as MESMAS: as duas colunas vivem na mesma linha e
+ *  alimentam as mesmas listas. */
+export function useUpdateMedicalRecord() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ appointmentId, texto }: { appointmentId: string; texto: string; patientId: string }) =>
+      updateMedicalRecord(appointmentId, texto),
+    onSuccess: (_data, { patientId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.clinicalNotes.byPatient(patientId) })
+    },
+  })
+}
+
 export function useUpdateClinicalNote() {
   const queryClient = useQueryClient()
   return useMutation({

@@ -1,5 +1,5 @@
 import { SafeHtml } from '@/components/SafeHtml/SafeHtml'
-import { SOAP_LABELS, filledSoapSections } from '@/utils/soap'
+import { NOTE_LABELS, filledNoteFields } from '@/utils/soap'
 import type { SoapNote } from '@/types/domain'
 import styles from './SoapNoteView.module.scss'
 
@@ -20,7 +20,9 @@ interface SoapNoteViewProps {
  * títulos com nada embaixo.
  */
 export function SoapNoteView({ note, size = 'md' }: SoapNoteViewProps) {
-  const sections = filledSoapSections(note)
+  // Todos os campos preenchidos, "Hoje" à frente das quatro seções — é a mesma
+  // ordem em que a evolução foi escrita.
+  const sections = filledNoteFields(note)
 
   if (sections.length === 0) return null
 
@@ -28,7 +30,7 @@ export function SoapNoteView({ note, size = 'md' }: SoapNoteViewProps) {
     <div className={`${styles.root} ${styles[`root--${size}`]}`}>
       {sections.map(section => (
         <section key={section} className={styles.section}>
-          <h4 className={styles.label}>{SOAP_LABELS[section]}</h4>
+          <h4 className={styles.label}>{NOTE_LABELS[section]}</h4>
           <SafeHtml html={note[section] as string} className={styles.body} />
         </section>
       ))}

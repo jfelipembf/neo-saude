@@ -12,6 +12,8 @@ import { PatientTestsPanel } from '@/pages/Patients/Profile/Tests/PatientTestsPa
 import type { PatientTestsHandle } from '@/pages/Patients/Profile/Tests/PatientTestsPanel'
 import { BodyCompositionPanel } from '../BodyCompositionPanel/BodyCompositionPanel'
 import type { BodyCompositionHandle } from '../BodyCompositionPanel/BodyCompositionPanel'
+import { TreatmentNotes } from '../TreatmentNotes/TreatmentNotes'
+import type { TreatmentNotesHandle } from '../TreatmentNotes/TreatmentNotes'
 import type { CarePlan } from '@/services/carePlansService'
 import styles from './TreatmentWizard.module.scss'
 
@@ -64,6 +66,7 @@ export function TreatmentWizard({
   const anamnese = useRef<AnamnesisFormHandle>(null)
   const testes = useRef<PatientTestsHandle>(null)
   const medidas = useRef<BodyCompositionHandle>(null)
+  const notas = useRef<TreatmentNotesHandle>(null)
 
   const passos: WizardStep[] = [
     {
@@ -125,6 +128,25 @@ export function TreatmentWizard({
         />
       ),
     })),
+    {
+      key: 'observacoes',
+      label: 'Observações',
+      // ÚLTIMA etapa, de propósito: texto livre só depois de diagnóstico,
+      // anamnese, testes e medidas terem o lugar estruturado deles — aqui
+      // entra só o que sobrou.
+      salvar: async () => {
+        if (!notas.current) throw new Error('O campo de observações ainda não está pronto.')
+        await notas.current.salvar()
+      },
+      conteudo: (
+        <TreatmentNotes
+          patientId={patientId}
+          planId={plano.id}
+          valorInicial={plano.observacaoAbertura}
+          ref={notas}
+        />
+      ),
+    },
   ]
 
   return (

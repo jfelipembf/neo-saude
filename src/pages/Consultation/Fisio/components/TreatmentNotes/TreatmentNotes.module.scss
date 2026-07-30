@@ -1,0 +1,8 @@
+@use '../../../../../styles/mixins' as *;
+
+.raiz {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  max-width: 640px;
+}

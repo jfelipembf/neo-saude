@@ -1,5 +1,5 @@
 import { isBlankHtml } from '@/utils/text'
-import type { SoapNote, SoapSection } from '@/types/domain'
+import type { SoapNote, SoapNoteField, SoapSection } from '@/types/domain'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PRONTUÁRIO SOAP — vocabulário, conversões e o PARSER da saída da IA.
@@ -37,6 +37,21 @@ export const SOAP_LABELS: Record<SoapSection, string> = {
 }
 
 /**
+ * TODOS os campos da nota, na ordem em que aparecem: "Hoje" ABRE a evolução,
+ * o SOAP vem depois.
+ *
+ * `today` é o registro de corrida — o que foi feito nesta sessão — e é o
+ * único campo que sempre existe mesmo quando não sobrou tempo para as quatro
+ * seções. Por isso vem primeiro no editor, na leitura e na impressão, e por
+ * isso NÃO entra em `SOAP_SECTIONS`: quem itera "as seções do SOAP" (relatório
+ * por seção, "repetir última sessão") continua vendo quatro.
+ */
+export const SOAP_NOTE_FIELDS: readonly SoapNoteField[] = ['today', ...SOAP_SECTIONS]
+
+/** Rótulo em português de cada campo da nota (o `SOAP_LABELS` mais "Hoje"). */
+export const NOTE_LABELS: Record<SoapNoteField, string> = { today: 'Hoje', ...SOAP_LABELS }
+
+/**
  * O que o botão "repetir última sessão" traz da sessão anterior: SÓ Objetivo e
  * Plano.
  *
@@ -50,8 +65,9 @@ export const SOAP_LABELS: Record<SoapSection, string> = {
  */
 export const REPEATABLE_SOAP_SECTIONS: readonly SoapSection[] = ['objective', 'plan']
 
-/** Uma linha por seção explicando o que entra nela — texto de apoio do editor. */
-export const SOAP_HINTS: Record<SoapSection, string> = {
+/** Uma linha por campo explicando o que entra nele — texto de apoio do editor. */
+export const SOAP_HINTS: Record<SoapNoteField, string> = {
+  today:      'Anote aqui quais os procedimentos desta sessão.',
   subjective: 'O que o paciente relata: queixa, dor, sono, o que mudou desde a última sessão.',
   objective:  'O que você mediu e observou: amplitude, força, testes, exercícios executados.',
   assessment: 'Sua interpretação clínica do que foi relatado e medido.',
@@ -69,8 +85,8 @@ function normalizeLabel(text: string) {
     .trim()
 }
 
-const SECTION_BY_LABEL = new Map<string, SoapSection>(
-  SOAP_SECTIONS.map(section => [normalizeLabel(SOAP_LABELS[section]), section]),
+const FIELD_BY_LABEL = new Map<string, SoapNoteField>(
+  SOAP_NOTE_FIELDS.map(field => [normalizeLabel(NOTE_LABELS[field]), field]),
 )
 
 // ── Normalização de HTML de seção ────────────────────────────────────────────
@@ -158,10 +174,10 @@ function toParagraphs(html: string): string {
 // ── O parser ─────────────────────────────────────────────────────────────────
 
 interface Marker {
-  section: SoapSection
-  /** Onde o rótulo COMEÇA — fim do conteúdo da seção anterior. */
+  field: SoapNoteField
+  /** Onde o rótulo COMEÇA — fim do conteúdo do campo anterior. */
   start: number
-  /** Onde o conteúdo da seção começa (depois do rótulo, do ':' e do espaço). */
+  /** Onde o conteúdo do campo começa (depois do rótulo, do ':' e do espaço). */
   contentStart: number
 }
 
@@ -172,7 +188,7 @@ const BOLD_RUN = /<(strong|b)\b[^>]*>([\s\S]*?)<\/\1\s*>/gi
  *  forma em que a IA às vezes devolve e a que uma pessoa digita à mão. Exigir
  *  o começo do parágrafo é o que impede casar com um "plano:" no meio da
  *  frase ("mudamos o plano: agora são 3x"). */
-const PLAIN_LABEL = /(?:^|<p\b[^>]*>|<br\s*\/?>)\s*(subjetivo|objetivo|avalia[çc][ãa]o|plano)\s*:/gi
+const PLAIN_LABEL = /(?:^|<p\b[^>]*>|<br\s*\/?>)\s*(hoje|subjetivo|objetivo|avalia[çc][ãa]o|plano)\s*:/gi
 
 /** Espaço, `&nbsp;` e o ':' que às vezes fica FORA do negrito
  *  (`<strong>Plano</strong>: conduta`) — nada disso é conteúdo da seção. */
@@ -183,24 +199,24 @@ function collectMarkers(html: string): Marker[] {
 
   BOLD_RUN.lastIndex = 0
   for (const match of html.matchAll(BOLD_RUN)) {
-    const section = SECTION_BY_LABEL.get(normalizeLabel(match[2]))
-    if (!section || match.index === undefined) continue
+    const field = FIELD_BY_LABEL.get(normalizeLabel(match[2]))
+    if (!field || match.index === undefined) continue
     const afterLabel = match.index + match[0].length
     const noise = html.slice(afterLabel).match(LEADING_NOISE)?.[0].length ?? 0
-    markers.push({ section, start: match.index, contentStart: afterLabel + noise })
+    markers.push({ field, start: match.index, contentStart: afterLabel + noise })
   }
 
   PLAIN_LABEL.lastIndex = 0
   for (const match of html.matchAll(PLAIN_LABEL)) {
-    const section = SECTION_BY_LABEL.get(normalizeLabel(match[1]))
-    if (!section || match.index === undefined) continue
+    const field = FIELD_BY_LABEL.get(normalizeLabel(match[1]))
+    if (!field || match.index === undefined) continue
     const labelStart = match.index + match[0].indexOf(match[1])
     // Um rótulo em negrito JÁ virou marcador acima; este passe só completa o
     // que não estava em negrito, nunca duplica.
     if (markers.some(m => labelStart >= m.start && labelStart < m.contentStart)) continue
     const afterLabel = match.index + match[0].length
     const noise = html.slice(afterLabel).match(LEADING_NOISE)?.[0].length ?? 0
-    markers.push({ section, start: labelStart, contentStart: afterLabel + noise })
+    markers.push({ field, start: labelStart, contentStart: afterLabel + noise })
   }
 
   return markers.sort((a, b) => a.start - b.start)
@@ -228,20 +244,22 @@ function collectMarkers(html: string): Marker[] {
 export function parseSoapHtml(html: string | null | undefined): SoapNote {
   const source = html ?? ''
   const markers = collectMarkers(source)
-  const parts: Record<SoapSection, string[]> = { subjective: [], objective: [], assessment: [], plan: [] }
+  const parts: Record<SoapNoteField, string[]> = {
+    today: [], subjective: [], objective: [], assessment: [], plan: [],
+  }
 
   const preamble = source.slice(0, markers[0]?.start ?? source.length)
   if (!isBlankHtml(preamble)) parts.subjective.push(preamble)
 
   markers.forEach((marker, i) => {
     const end = markers[i + 1]?.start ?? source.length
-    parts[marker.section].push(source.slice(marker.contentStart, end))
+    parts[marker.field].push(source.slice(marker.contentStart, end))
   })
 
   const note: SoapNote = {}
-  for (const section of SOAP_SECTIONS) {
-    const content = toParagraphs(parts[section].join(''))
-    if (!isBlankHtml(content)) note[section] = content
+  for (const field of SOAP_NOTE_FIELDS) {
+    const content = toParagraphs(parts[field].join(''))
+    if (!isBlankHtml(content)) note[field] = content
   }
   return note
 }
@@ -254,9 +272,9 @@ export function parseSoapHtml(html: string | null | undefined): SoapNote {
  */
 export function soapToHtml(note: SoapNote | null | undefined): string {
   if (!note) return ''
-  return SOAP_SECTIONS
-    .filter(section => !isBlankHtml(note[section]))
-    .map(section => `<p><strong>${SOAP_LABELS[section]}:</strong></p>${toParagraphs(note[section] as string)}`)
+  return SOAP_NOTE_FIELDS
+    .filter(field => !isBlankHtml(note[field]))
+    .map(field => `<p><strong>${NOTE_LABELS[field]}:</strong></p>${toParagraphs(note[field] as string)}`)
     .join('')
 }
 
@@ -271,12 +289,12 @@ export function soapToHtml(note: SoapNote | null | undefined): string {
 export function normalizeSoapNote(note: SoapNote | null | undefined): SoapNote | undefined {
   if (!note) return undefined
   const clean: SoapNote = {}
-  for (const section of SOAP_SECTIONS) {
-    const html = (note[section] ?? '').trim()
+  for (const field of SOAP_NOTE_FIELDS) {
+    const html = (note[field] ?? '').trim()
     // Sem reprocessar o HTML: aqui o conteúdo vem do editor rico (listas,
     // alinhamento, cor) e é gravado como está — quem normaliza parágrafo é o
     // parser, cuja entrada é a saída simples da IA.
-    if (!isBlankHtml(html)) clean[section] = html
+    if (!isBlankHtml(html)) clean[field] = html
   }
   return Object.keys(clean).length > 0 ? clean : undefined
 }
@@ -286,9 +304,14 @@ export function isBlankSoap(note: SoapNote | null | undefined): boolean {
   return normalizeSoapNote(note) === undefined
 }
 
-/** Quais seções têm conteúdo, na ordem canônica. */
+/** Quais seções do SOAP têm conteúdo, na ordem canônica (sem o "Hoje"). */
 export function filledSoapSections(note: SoapNote | null | undefined): SoapSection[] {
   return SOAP_SECTIONS.filter(section => !isBlankHtml(note?.[section]))
+}
+
+/** Quais campos da nota têm conteúdo, na ordem de leitura — "Hoje" primeiro. */
+export function filledNoteFields(note: SoapNote | null | undefined): SoapNoteField[] {
+  return SOAP_NOTE_FIELDS.filter(field => !isBlankHtml(note?.[field]))
 }
 
 /** Só as seções pedidas (o "repetir última sessão" copia Objetivo e Plano). */
@@ -319,5 +342,5 @@ export function soapPlainText(html: string | null | undefined): string {
  * aviso de "idêntica à sessão anterior" no AppointmentModal).
  */
 export function isSameSoapNote(a: SoapNote | null | undefined, b: SoapNote | null | undefined): boolean {
-  return SOAP_SECTIONS.every(section => soapPlainText(a?.[section]) === soapPlainText(b?.[section]))
+  return SOAP_NOTE_FIELDS.every(field => soapPlainText(a?.[field]) === soapPlainText(b?.[field]))
 }

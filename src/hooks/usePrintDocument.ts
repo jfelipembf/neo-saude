@@ -1,5 +1,5 @@
 import { useClinic } from '@/hooks/useClinic'
-import { buildDocument } from '@/utils/printDocument'
+import { A4_ALTURA_UTIL_MM, A4_LARGURA_UTIL_MM, buildDocument } from '@/utils/printDocument'
 import type { PrintDocumentInput } from '@/utils/printDocument'
 
 // Faixa-alvo da logo no cabeçalho impresso: até 56px de altura, mas nunca
@@ -38,6 +38,84 @@ function ajustarLogoImpressa(img: HTMLImageElement) {
   img.style.height = `${height}px`
 }
 
+// ── "Cabe em uma folha" (PrintDocumentInput.fitToPage) ──────────────────────
+
+/** Pixels de CSS por milímetro na régua de 96dpi que o navegador usa. */
+const PX_POR_MM = 96 / 25.4
+
+/**
+ * Piso do encolhimento. Abaixo disto o documento vira letra miúda de contrato
+ * — e um relatório que vai assinado, para o paciente ou para o convênio,
+ * precisa ser LIDO. Chegando aqui sem caber, o documento sai em duas folhas
+ * mesmo: espremer além disso troca um problema de papel por um de leitura.
+ */
+const ESCALA_MINIMA = 0.65
+
+/** Passes da busca binária. Cinco varrem a faixa [0,65 … 1] com precisão de
+ *  ~1% — mais que isso não muda um pixel do que sai impresso. */
+const PASSES = 5
+
+/**
+ * Encolhe o documento até ele caber em UMA página A4 — assinatura inclusa.
+ *
+ * `zoom` e não `transform: scale()`: o zoom entra no LAYOUT (o texto reflui e
+ * a página impressa continua sendo uma página), enquanto o transform só
+ * desenha menor, mantendo a caixa original e a quebra de folha onde estava.
+ *
+ * A largura é reescrita junto (`útil / escala`): com zoom de 0,8 numa folha de
+ * 180mm, o papel sairia com 144mm de conteúdo e um vão branco à direita. Dividir
+ * a largura pelo zoom devolve os 180mm impressos e usa a diminuição só onde
+ * ela interessa, que é na ALTURA.
+ *
+ * `body.scrollHeight` é lido em pixels de layout (antes do zoom), por isso a
+ * altura física é `scrollHeight * escala`.
+ */
+function ajustarParaUmaPagina(doc: Document) {
+  const body = doc.body
+  const alvo = A4_ALTURA_UTIL_MM * PX_POR_MM
+
+  function aplicar(escala: number) {
+    if (escala === 1) {
+      body.style.removeProperty('zoom')
+      body.style.removeProperty('width')
+      return
+    }
+    body.style.zoom = String(escala)
+    body.style.width = `${A4_LARGURA_UTIL_MM / escala}mm`
+  }
+
+  function cabe(escala: number) {
+    aplicar(escala)
+    return body.scrollHeight * escala <= alvo
+  }
+
+  if (cabe(1)) return
+
+  /**
+   * BUSCA BINÁRIA pela MAIOR escala que ainda cabe — e não uma regra de três a
+   * partir da altura que sobrou.
+   *
+   * A conta direta erra para baixo, e erra feio: encolher também alarga a folha
+   * em pixels de layout (a largura é dividida pela escala), o texto reflui em
+   * menos linhas e o documento encolhe mais do que a proporção previa. Num
+   * relatório de teste, a regra de três parava em 0,80 quando 0,87 já cabia —
+   * sete pontos de letra jogados fora num papel que precisa ser lido.
+   */
+  // `piso` é a menor escala aceitável (assumida como "cabe" — se nem ela
+  // couber, o documento sai em duas folhas mesmo, e é o melhor que dá para
+  // fazer sem torná-lo ilegível); `teto` é a maior que JÁ SE SABE não caber.
+  let piso = ESCALA_MINIMA
+  let teto = 1
+  let melhor = ESCALA_MINIMA
+
+  for (let passe = 0; passe < PASSES; passe++) {
+    const meio = (piso + teto) / 2
+    if (cabe(meio)) { melhor = meio; piso = meio } else { teto = meio }
+  }
+
+  aplicar(melhor)
+}
+
 /**
  * Abre a janela de impressão com a estrutura padrão do sistema: cabeçalho com
  * a logo e os dados da clínica (Administrativo → Dados do consultório) e o
@@ -69,6 +147,9 @@ export function usePrintDocument() {
     ).then(() => {
       const logo = janela.document.querySelector<HTMLImageElement>('.clinica-logo')
       if (logo?.complete && logo.naturalWidth) ajustarLogoImpressa(logo)
+      // DEPOIS da logo: ela é o elemento mais alto do cabeçalho, e medir antes
+      // de o tamanho final dela ser aplicado erraria a altura do documento.
+      if (doc.fitToPage) ajustarParaUmaPagina(janela.document)
 
       janela.focus()
       janela.print()
@@ -148,6 +229,7 @@ export function usePrintDocumentSemGesto() {
     ).then(() => {
       const logo = janela.document.querySelector<HTMLImageElement>('.clinica-logo')
       if (logo?.complete && logo.naturalWidth) ajustarLogoImpressa(logo)
+      if (doc.fitToPage) ajustarParaUmaPagina(janela.document)
 
       janela.focus()
       janela.print()

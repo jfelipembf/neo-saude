@@ -58,6 +58,9 @@ export interface CarePlan {
    */
   etapaAbertura: number
   profissional?: string
+  /** Texto livre da ÚLTIMA etapa do roteiro de abertura (ver TreatmentWizard) —
+   *  contraparte de `altaObservacao`, que é da alta. */
+  observacaoAbertura?: string
   altaObservacao?: string
   diagnosticos: string[]
   baseline?: CarePlanSnapshot
@@ -92,6 +95,7 @@ type Raw = {
   remaining_sessions: number | null
   status: string
   professional: string | null
+  opening_notes: string | null
   discharge_notes: string | null
   diagnoses: string[]
   baseline: RawSnapshot
@@ -141,6 +145,7 @@ function toPlan(r: Raw): CarePlan {
     status: r.status as CarePlan['status'],
     etapaAbertura: Number(r.setup_step ?? 3),
     profissional: r.professional ?? undefined,
+    observacaoAbertura: r.opening_notes ?? undefined,
     altaObservacao: r.discharge_notes ?? undefined,
     diagnosticos: r.diagnoses ?? [],
     baseline: toSnapshot(r.baseline),
@@ -207,6 +212,18 @@ export async function setCarePlanPhoto(planId: string, url: string | null): Prom
     .select('id')
   if (error) throw error
   if (!data?.length) throw new Error('Sem permissão para alterar a foto do tratamento.')
+}
+
+/** Grava as observações da abertura — última etapa do TreatmentWizard.
+ *  `opening_notes` já está no GRANT de update. */
+export async function setCarePlanOpeningNotes(planId: string, texto: string | null): Promise<void> {
+  const { data, error } = await supabase
+    .from('care_plan')
+    .update({ opening_notes: texto })
+    .eq('id', planId)
+    .select('id')
+  if (error) throw error
+  if (!data?.length) throw new Error('Sem permissão para alterar as observações do tratamento.')
 }
 
 /** Liga uma consulta ao plano — é daqui que sai "sessões realizadas". */

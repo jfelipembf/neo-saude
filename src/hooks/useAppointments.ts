@@ -27,6 +27,13 @@ export function useSetAppointmentStatus() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: AppointmentStatus }) => setAppointmentStatus(id, status),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all })
+      // "Compareceu" é o que conta uma sessão do tratamento — e, quando fecha a
+      // conta das sessões previstas, o banco ENCERRA o plano na mesma
+      // transação. Sem este invalidate a tela seguiria mostrando o tratamento
+      // como ativo até alguém recarregar.
+      queryClient.invalidateQueries({ queryKey: queryKeys.carePlans.all })
+    },
   })
 }

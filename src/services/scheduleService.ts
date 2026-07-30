@@ -9,7 +9,7 @@ import { addMinutes } from '@/utils/date'
 // (`schedule_slot` ficou reservada para regras recorrentes; a Agenda não a usa.)
 
 const COLUMNS =
-  'id, clinic_id, patient_id, professional_id, room_id, service, date, start_time, duration_minutes, status, notes, color, send_confirmation, is_overbook, entitlement_id, clinical_note, medical_record'
+  'id, clinic_id, patient_id, professional_id, room_id, service, date, start_time, duration_minutes, status, notes, color, send_confirmation, is_overbook, entitlement_id, care_plan_id, clinical_note, medical_record'
 
 type AppointmentRow = {
   id: string
@@ -27,6 +27,9 @@ type AppointmentRow = {
   send_confirmation: boolean
   is_overbook: boolean
   entitlement_id: string | null
+  // Escrito por `linkAppointmentToPlan` quando o atendimento de fisioterapia
+  // abre com um tratamento ativo — é a ligação que conta as sessões do plano.
+  care_plan_id: string | null
   // O CHECK `appointment_clinical_note_shape_ck` já garante no BANCO que só
   // existem as quatro chaves do SOAP, cada uma string — por isso a linha entra
   // como SoapNote em vez de Json solto, sem validar de novo na leitura.
@@ -88,6 +91,7 @@ export async function listScheduleAppointments(fromIso: string, toIso: string): 
     sendConfirmation: row.send_confirmation,
     isOverbook: row.is_overbook,
     entitlementId: row.entitlement_id ?? undefined,
+    carePlanId: row.care_plan_id ?? undefined,
     clinicalNote: row.clinical_note ?? undefined,
   }))
 }
@@ -195,6 +199,25 @@ export async function updateScheduleAppointment(id: string, payload: EditSchedul
  * que o CHECK do banco exige — ele recusa `'{}'` e seção `''` de propósito,
  * para não existirem dois jeitos de dizer "não escrevi nada".
  */
+/**
+ * O QUE FOI EXECUTADO NA SESSÃO — texto corrido, independente do SOAP.
+ *
+ * Coluna separada de propósito (`medical_record`, não `clinical_note`): a
+ * sessão pode ter um, outro ou os dois. O SOAP é raciocínio clínico
+ * estruturado; isto é a lista do que a pessoa fez — exercício, carga,
+ * repetição, aparelho. Espremer os dois no mesmo campo faria a estrutura do
+ * SOAP se perder no meio de uma lista de exercícios.
+ */
+export async function updateMedicalRecord(appointmentId: string, texto: string): Promise<void> {
+  const { error } = await supabase
+    .from('appointment')
+    // Vazio grava NULL, não string vazia: "não escreveu" e "escreveu nada" têm
+    // de ser a mesma coisa para quem lê o prontuário depois.
+    .update({ medical_record: texto.trim() ? texto : null })
+    .eq('id', appointmentId)
+  if (error) throw error
+}
+
 export async function updateClinicalNote(appointmentId: string, note: SoapNote | undefined): Promise<void> {
   const { error } = await supabase
     .from('appointment')

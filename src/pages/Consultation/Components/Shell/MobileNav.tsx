@@ -12,6 +12,10 @@ interface MobileNavProps<K extends string> {
   atalhos: readonly [K, K]
   ativo: K | ChaveInicio | null
   onSelecionar: (chave: K | ChaveInicio) => void
+  /** Seções indisponíveis agora (na fisioterapia: sem tratamento ativo). O
+   *  atalho fica apagado, mas continua tocável — quem toca cai na explicação
+   *  com o botão de abrir o tratamento, como no menu do desktop e na grade. */
+  bloqueadas?: readonly K[]
 }
 
 /**
@@ -28,7 +32,7 @@ interface MobileNavProps<K extends string> {
  * Derivando da lista, isso não tem como acontecer de novo.
  */
 export function MobileNav<K extends string>({
-  itens, atalhos, ativo, onSelecionar,
+  itens, atalhos, ativo, onSelecionar, bloqueadas = [],
 }: MobileNavProps<K>) {
   const [esquerda, direita] = atalhos.map(
     chave => itens.find(i => i.chave === chave),
@@ -41,7 +45,11 @@ export function MobileNav<K extends string>({
     return (
       <button
         type="button"
-        className={`${styles.item} ${ativo === item.chave ? styles.itemAtivo : ''}`}
+        className={[
+          styles.item,
+          ativo === item.chave ? styles.itemAtivo : '',
+          bloqueadas.includes(item.chave) ? styles.itemBloqueado : '',
+        ].filter(Boolean).join(' ')}
         aria-pressed={ativo === item.chave}
         onClick={() => onSelecionar(item.chave)}
       >

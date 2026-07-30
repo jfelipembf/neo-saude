@@ -1,0 +1,15 @@
+@use '../../../../../styles/mixins' as *;
+
+// CENTRO DA ÁREA, não topo dela: este vazio é a única coisa na tela quando o
+// paciente não tem tratamento aberto — encostado no alto ele parece um aviso
+// que sobrou de um painel que não carregou; no meio, é a decisão que a tela
+// está pedindo.
+//
+// `min-height: 100%` e não `height`: com a página curta o vazio ocupa a área
+// inteira e centraliza; num container menor que o conteúdo (o vazio dentro da
+// lista de tratamentos) ele cresce em vez de cortar.
+.raiz {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+}

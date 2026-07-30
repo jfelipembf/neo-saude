@@ -105,6 +105,25 @@
   &:hover { background: var(--primary-fg); color: var(--bg-surface); }
 }
 
+// Seção indisponível (na fisioterapia: sem tratamento ativo). Apagada, não
+// desabilitada — o clique precisa continuar levando ao vazio que explica o
+// porquê e oferece abrir o tratamento.
+.itemBloqueado {
+  opacity: 0.55;
+}
+
+.cadeado {
+  display: flex;
+  margin-left: auto;
+  color: var(--text-muted);
+
+  svg { width: 14px; height: 14px; }
+}
+
+// Colapsado só sobra o ícone da seção — o cadeado ao lado dele não caberia na
+// coluna estreita, e a opacidade já diz que está indisponível.
+.raizColapsada .cadeado { display: none; }
+
 .rotulo {
   overflow: hidden;
   text-overflow: ellipsis;

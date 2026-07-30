@@ -1,3 +1,4 @@
+import { IconLock } from '@/components/icons'
 import type { NavItem } from './navItems'
 import styles from './MobileHome.module.scss'
 
@@ -11,6 +12,10 @@ interface MobileHomeProps<K extends string> {
    *  `string` a partir desta prop e o `onSelecionar` da página deixa de casar. */
   ocultar: readonly K[]
   onSelecionar: (chave: K) => void
+  /** Seções indisponíveis agora — mesma leitura do menu do desktop: cadeado no
+   *  canto do ícone e brilho a menos, mas o toque continua valendo (é ele que
+   *  leva ao vazio com o botão de abrir tratamento). */
+  bloqueadas?: readonly K[]
 }
 
 /**
@@ -22,23 +27,30 @@ interface MobileHomeProps<K extends string> {
  * seção não muda de nome nem de cara só porque mudou de aparelho.
  */
 export function MobileHome<K extends string>({
-  itens, ocultar, onSelecionar,
+  itens, ocultar, onSelecionar, bloqueadas = [],
 }: MobileHomeProps<K>) {
   const daGrade = itens.filter(item => !ocultar.includes(item.chave))
 
   return (
     <div className={styles.raiz}>
-      {daGrade.map(item => (
-        <button
-          key={item.chave}
-          type="button"
-          className={styles.item}
-          onClick={() => onSelecionar(item.chave)}
-        >
-          <span className={styles.icone}>{item.icon}</span>
-          <span className={styles.rotulo}>{item.label}</span>
-        </button>
-      ))}
+      {daGrade.map(item => {
+        const bloqueada = bloqueadas.includes(item.chave)
+
+        return (
+          <button
+            key={item.chave}
+            type="button"
+            className={`${styles.item} ${bloqueada ? styles.itemBloqueado : ''}`}
+            onClick={() => onSelecionar(item.chave)}
+          >
+            <span className={styles.icone}>
+              {item.icon}
+              {bloqueada && <span className={styles.cadeado}><IconLock /></span>}
+            </span>
+            <span className={styles.rotulo}>{item.label}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }

@@ -40,9 +40,16 @@ export function TodayPage() {
     return acc
   }, {} as Partial<Record<AppointmentStatus, number>>)
 
-  const myAppointments = currentProfessionalId
+  // QUEM TEM AGENDA PRÓPRIA vê só a dela; quem não tem (recepção, financeiro,
+  // administrativo — ver getCurrentProfessionalId) vê a CLÍNICA INTEIRA, com o
+  // profissional escrito em cada linha — sem isso a lista abaixo dos quadrados
+  // simplesmente não aparecia para esse cargo, mesmo a página já servindo
+  // "colaboradores sem acesso ao Dashboard" por definição (ver comentário
+  // acima). Não é dado novo: os mesmos agendamentos já vêm da mesma consulta
+  // que soma os 4 quadrados — só a exibição em lista que estava restrita.
+  const visibleAppointments = currentProfessionalId
     ? (appointments ?? []).filter(a => a.professionalId === currentProfessionalId)
-    : []
+    : (appointments ?? [])
 
   return (
     <>
@@ -61,7 +68,7 @@ export function TodayPage() {
         ))}
       </div>
 
-      {currentProfessionalId && <TodayAppointmentsList appointments={myAppointments} />}
+      <TodayAppointmentsList appointments={visibleAppointments} mostrarProfissional={!currentProfessionalId} />
     </>
   )
 }

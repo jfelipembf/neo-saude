@@ -8,6 +8,24 @@
 
   @include mobile {
     flex-direction: column;
+    /**
+     * `stretch` OBRIGATORIAMENTE junto com a virada para coluna.
+     *
+     * `align-items: flex-start` alinha os topos enquanto o eixo é horizontal —
+     * é para isso que ele está lá em cima. Virando a coluna, ele passa a
+     * governar a LARGURA, e "flex-start" no eixo transversal significa
+     * encolher-para-o-conteúdo: cada filho para de acompanhar o contêiner e
+     * passa a ter a largura do que tem dentro.
+     *
+     * O resultado era a página inteira rolando de lado no celular. A régua de
+     * resultados tem cartões de 220px e `overflow-x` próprio para rolar por
+     * dentro — mas com o pai dimensionado pelo conteúdo, não havia limite a
+     * respeitar: o `.content` ficava tão largo quanto os cartões somados, e
+     * empurrava o documento junto. O `min-width: 0` do `.content` não resolve
+     * isto: ele solta o encolhimento no eixo PRINCIPAL, que na coluna é a
+     * altura.
+     */
+    align-items: stretch;
   }
 }
 

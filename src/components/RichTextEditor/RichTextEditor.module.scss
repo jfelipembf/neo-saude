@@ -151,6 +151,7 @@
 }
 
 .content {
+  position: relative;   // âncora do texto de apoio (abaixo)
   min-height: 160px;
   padding: $sp-3;
   font-size: $fs-sm;
@@ -160,10 +161,13 @@
   p { margin: 0 0 $sp-2; }
   p:last-child { margin-bottom: 0; }
 
-  p.is-editor-empty:first-child::before {
+  // Texto de apoio do parágrafo vazio (`.is-empty` + `data-placeholder` vêm da
+  // extensão Placeholder). ABSOLUTO, sem deslocamento: fica na posição estática
+  // — exatamente onde o texto começaria — mas FORA do fluxo, então o cursor
+  // continua encostado à esquerda em vez de ser empurrado para depois dele.
+  p.is-empty::before {
     content: attr(data-placeholder);
-    float: left;
-    height: 0;
+    position: absolute;
     color: var(--text-muted);
     pointer-events: none;
   }

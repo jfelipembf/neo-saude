@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ChangeEvent, CSSProperties } from 'react'
 import { Button } from '@/components/Button/Button'
-import { IconCamera, IconCheck, IconClock, IconUser } from '@/components/icons'
+import { IconCamera, IconCheck, IconClock, IconPrint, IconUser } from '@/components/icons'
 import { useToast } from '@/components/Toast/Toast'
 import { uploadImage } from '@/lib/storage'
 import type { CarePlan } from '@/services/carePlansService'
@@ -14,11 +14,16 @@ interface CarePlanCardProps {
   /** Ausente = foto não é editável (ex.: cartão de plano encerrado). */
   onTrocarFoto?: (url: string) => void
   /**
-   * Abre o roteiro de etapas (diagnóstico, anamnese, testes, medidas) deste
-   * tratamento. Ausente = o cartão é só o resumo, sem porta para o roteiro —
-   * é o caso do plano já encerrado, onde não há mais etapa a preencher.
+   * Gera o relatório de evolução deste tratamento.
+   *
+   * Diferente das outras ações, existe TAMBÉM no plano encerrado — é
+   * justamente do tratamento que terminou que se pede o relatório, para a alta,
+   * o convênio ou a próxima etapa do caso.
    */
-  onContinuar?: () => void
+  onGerarRelatorio?: () => void
+  /** Este cartão está gerando agora — o estado é por tratamento, e não da
+   *  lista, senão a espera de um travaria todos. */
+  gerandoRelatorio?: boolean
 }
 
 /**
@@ -36,7 +41,9 @@ interface CarePlanCardProps {
  * A contagem vem da AGENDA (consultas concluídas), não de um contador no plano
  * — contador diverge na primeira sessão cancelada e ninguém percebe.
  */
-export function CarePlanCard({ plano, onFinalizar, onTrocarFoto, onContinuar }: CarePlanCardProps) {
+export function CarePlanCard({
+  plano, onFinalizar, onTrocarFoto, onGerarRelatorio, gerandoRelatorio,
+}: CarePlanCardProps) {
   const toast = useToast()
   const [enviando, setEnviando] = useState(false)
   const encerrado = plano.status !== 'active'
@@ -119,13 +126,16 @@ export function CarePlanCard({ plano, onFinalizar, onTrocarFoto, onContinuar }: 
           {plano.sessoesRealizadas === 1 ? '' : 's'}
         </span>
 
-        {plano.sessoesAgendadas > 0 && (
-          <span className={styles.agendadas}>
-            {plano.sessoesAgendadas} agendada{plano.sessoesAgendadas === 1 ? '' : 's'}
-          </span>
-        )}
+        {/* SEMPRE no DOM, mesmo sem nada agendado: é uma linha a menos ou a
+            mais que desalinharia a barra e os botões deste cartão em relação
+            aos vizinhos. Vazio, o `:empty` do CSS reserva a altura da linha
+            (e some no celular, onde há um cartão por linha e nada a alinhar). */}
+        <span className={styles.agendadas}>
+          {plano.sessoesAgendadas > 0
+            && `${plano.sessoesAgendadas} agendada${plano.sessoesAgendadas === 1 ? '' : 's'}`}
+        </span>
 
-        {pct != null && (
+        {pct != null ? (
           <div
             className={styles.trilho}
             role="progressbar"
@@ -136,6 +146,11 @@ export function CarePlanCard({ plano, onFinalizar, onTrocarFoto, onContinuar }: 
           >
             <span className={styles.progresso} style={{ '--pct': `${pct}%` } as CSSProperties} />
           </div>
+        ) : (
+          // Tratamento CONTÍNUO (sem previsão) não tem barra — mas guarda a
+          // altura dela. Um trilho vazio de verdade leria como "0% feito", que
+          // é uma afirmação errada sobre um tratamento sem fim marcado.
+          <span className={styles.trilhoAusente} aria-hidden="true" />
         )}
 
         <span className={styles.datas}>
@@ -143,15 +158,32 @@ export function CarePlanCard({ plano, onFinalizar, onTrocarFoto, onContinuar }: 
           {plano.fim && ` · Alta ${plano.fim}`}
         </span>
 
-        {plano.profissional && <span className={styles.profissional}>{plano.profissional}</span>}
+        <span className={styles.profissional}>{plano.profissional}</span>
 
-        {!encerrado && (onContinuar || onFinalizar) && (
+        {(onGerarRelatorio || (!encerrado && onFinalizar)) && (
           <div className={styles.acao}>
-            {/* Continuar primeiro, ação principal: é o que se faz na maioria
-                das visitas. Finalizar é a exceção (alta), por isso fica em
-                outline — sempre visível, nunca em destaque. */}
-            {onContinuar && <Button size="sm" onClick={onContinuar}>Continuar</Button>}
-            {onFinalizar && <Button variant="outline" size="sm" onClick={onFinalizar}>Finalizar</Button>}
+            {/* NÃO HÁ "Continuar": o roteiro de abertura é feito UMA vez, logo
+                depois de criar o tratamento. Reabri-lo a partir do cartão
+                convidava a refazer diagnóstico e anamnese de um caso em
+                andamento — o trabalho de sessão é nas seções do menu, não no
+                roteiro. Finalizar (alta) fica em outline: sempre visível,
+                nunca em destaque. */}
+            {!encerrado && onFinalizar && (
+              <Button variant="outline" size="sm" onClick={onFinalizar}>Finalizar</Button>
+            )}
+            {/* Em ghost e por último: o relatório é consulta, não conduta. E é
+                a única ação que sobrevive ao encerramento do tratamento. */}
+            {onGerarRelatorio && (
+              <Button
+                variant="ghost"
+                size="sm"
+                iconLeft={<IconPrint />}
+                loading={gerandoRelatorio}
+                onClick={onGerarRelatorio}
+              >
+                Relatório
+              </Button>
+            )}
           </div>
         )}
       </div>

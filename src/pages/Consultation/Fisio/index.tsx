@@ -12,6 +12,7 @@ import { useClinicalEntries } from '@/hooks/useClinicalEntries'
 import { usePatientMedications } from '@/hooks/useMedications'
 import { useSession } from '@/context/SessionProvider'
 import { usePatient } from '@/hooks/usePatients'
+import { usePhysioReport } from '@/hooks/usePhysioReport'
 import { useScheduleAppointments } from '@/hooks/useSchedule'
 import { KINDS_DO_TRATAMENTO } from '@/services/clinicalEntriesService'
 import { PatientTestsPanel } from '@/pages/Patients/Profile/Tests/PatientTestsPanel'
@@ -30,9 +31,10 @@ import { SideNav } from '../Components/Shell/SideNav'
 import { MobileNav } from '../Components/Shell/MobileNav'
 import { MobileHome } from '../Components/Shell/MobileHome'
 import { CHAVE_INICIO } from '../Components/Shell/navItems'
-import { ATALHOS_DA_BARRA, ITENS } from './sideNavItems'
+import { ATALHOS_DA_BARRA, ITENS, SECOES_COM_TRATAMENTO, exigeTratamento } from './sideNavItems'
 import type { SideNavKey } from './sideNavItems'
 import { MyTreatments } from './components/MyTreatments/MyTreatments'
+import { NoActiveTreatment } from './components/NoActiveTreatment/NoActiveTreatment'
 import { NewTreatmentModal } from './components/NewTreatmentModal/NewTreatmentModal'
 import { TreatmentWizard } from './components/TreatmentWizard/TreatmentWizard'
 import styles from './Fisio.module.scss'
@@ -51,9 +53,8 @@ type Secao = SideNavKey | typeof CHAVE_INICIO
  * ClinicalSectionPanel, PhysioDocumentsPanel...), a mesma peça vista da tela
  * antiga por um menu novo.
  *
- * O cartão do tratamento e o roteiro de etapas NUNCA aparecem juntos: criar um
- * tratamento não abre o roteiro sozinho, é o clique em "Continuar" que decide
- * isso — ver `abrindoEtapas`.
+ * O cartão do tratamento e o roteiro de etapas NUNCA aparecem juntos: o roteiro
+ * abre uma vez, na criação do tratamento, e depois some — ver `abrindoEtapas`.
  *
  * Sair volta para HOJE, não para o Dashboard: quem fecha uma sessão volta para
  * a fila de onde veio, e cair na visão gerencial obrigaria dois cliques para
@@ -70,6 +71,8 @@ export function FisioPage() {
   const sessao = (doDia ?? []).find(a => a.id === appointmentId)
   const { data: paciente } = usePatient(sessao?.patientId ?? '')
   const { specialty } = useSession()
+  // O relatório de evolução de qualquer tratamento — ativo ou encerrado.
+  const { gerar: gerarRelatorio, gerando: gerandoRelatorio } = usePhysioReport(paciente ?? undefined)
 
   // `isLoading` importa tanto quanto o dado: sem ele, ENQUANTO a busca não
   // volta, `planos` é `undefined` e `planoAtivo` fica `undefined` também — a
@@ -78,6 +81,22 @@ export function FisioPage() {
   // conexão lenta essa fração de segundo é tempo de sobra para o clique passar.
   const { data: planos, isLoading: carregandoPlanos } = useCarePlans(sessao?.patientId ?? '')
   const planoAtivo = (planos ?? []).find(p => p.status === 'active')
+
+  // O TRATAMENTO DESTA SESSÃO — o ativo ou, quando não há ativo, aquele a que a
+  // consulta de hoje está vinculada.
+  //
+  // Os dois divergem por algumas horas num caso real e frequente: a sessão que
+  // CUMPRE a última sessão prevista encerra o tratamento sozinha
+  // (private.tg_care_plan_autofinish) no momento em que a recepção marca
+  // "compareceu" — ou seja, no COMEÇO do atendimento. Sem esta linha, o
+  // fisioterapeuta perderia prontuário, sinais vitais, testes e avaliações
+  // exatamente na sessão que está atendendo. O banco faz a mesma leitura no
+  // carimbo do vínculo (private.plano_da_sessao), então o que ele escrever
+  // agora continua entrando neste tratamento.
+  //
+  // Abrir OUTRO tratamento continua saindo de `planoAtivo`: o encerrado não
+  // pode receber alta de novo nem trocar de foto.
+  const planoDaSessao = planoAtivo ?? (planos ?? []).find(p => p.id === sessao?.carePlanId)
 
   const { data: entradas } = useClinicalEntries(sessao?.patientId ?? null)
   const { data: medicacoes } = usePatientMedications(sessao?.patientId ?? null)
@@ -89,7 +108,7 @@ export function FisioPage() {
   // Antecedente cirúrgico, histórico familiar, medicação e risco atravessam
   // tratamentos e continuam inteiros, como o gatilho do banco já assume.
   const entradasVisiveis = (entradas ?? []).filter(
-    e => !KINDS_DO_TRATAMENTO.includes(e.kind) || (planoAtivo != null && e.carePlanId === planoAtivo.id),
+    e => !KINDS_DO_TRATAMENTO.includes(e.kind) || (planoDaSessao != null && e.carePlanId === planoDaSessao.id),
   )
 
   const criar = useCreateCarePlan()
@@ -108,10 +127,11 @@ export function FisioPage() {
   const [secao, setSecao] = useState<Secao>(() => (isMobileViewport() ? 'inicio' : 'sinais-vitais'))
   const [criandoTratamento, setCriandoTratamento] = useState(false)
   const [confirmandoAlta, setConfirmandoAlta] = useState(false)
-  // O CARTÃO E O ROTEIRO NUNCA APARECEM JUNTOS. Criar um tratamento não abre o
-  // roteiro sozinho — a tela volta ao cartão, e é o clique em "Continuar" que
-  // decide entrar nas etapas. `false` por padrão vale tanto para quem acabou
-  // de criar quanto para quem recarrega a página com um tratamento em curso.
+  // O ROTEIRO DE ABERTURA ACONTECE UMA VEZ, logo depois de criar o tratamento
+  // — não há caminho de volta para ele. Recarregar a página, voltar do roteiro
+  // ou entrar de novo no atendimento cai no cartão e nas seções do menu, que é
+  // onde mora o trabalho de sessão. Diagnóstico e anamnese continuam editáveis
+  // por lá; o que não existe mais é REABRIR o roteiro de um caso em andamento.
   const [abrindoEtapas, setAbrindoEtapas] = useState(false)
 
   // LIGA A CONSULTA DE HOJE AO PLANO ATIVO — é dessa ligação que "sessões
@@ -143,6 +163,18 @@ export function FisioPage() {
     if (abrindoEtapas) setAbrindoEtapas(false)
   }
 
+  // SEM TRATAMENTO ATIVO, as seções do episódio não abrem (ver
+  // SECOES_COM_TRATAMENTO): no lugar do painel entra o vazio com o botão de
+  // iniciar tratamento. Como o desktop entra em "Sinais vitais", é esse botão
+  // que aparece no centro da tela ao abrir o atendimento de um paciente sem
+  // tratamento — que é justamente a primeira decisão a tomar ali.
+  //
+  // As seções BLOQUEADAS continuam clicáveis no menu (com cadeado): o clique é
+  // o que traz esta explicação. Escondê-las faria a tela mudar de tamanho
+  // quando o tratamento abre, e desabilitá-las deixaria o clique sem resposta.
+  const semTratamento = !planoDaSessao && exigeTratamento(secao)
+  const secoesBloqueadas = planoDaSessao ? [] : SECOES_COM_TRATAMENTO
+
   return (
     <div className={styles.tela}>
       <Header paciente={paciente ?? undefined} onSair={() => navigate(APP_ROUTES.TODAY)} />
@@ -155,6 +187,7 @@ export function FisioPage() {
           itens={ITENS}
           ativo={secao === CHAVE_INICIO ? null : secao}
           onSelecionar={setSecao}
+          bloqueadas={secoesBloqueadas}
         />
 
         <main className={styles.principal}>
@@ -175,7 +208,22 @@ export function FisioPage() {
               onVoltar={() => setAbrindoEtapas(false)}
             />
           ) : secao === CHAVE_INICIO ? (
-            <MobileHome itens={ITENS} ocultar={ATALHOS_DA_BARRA} onSelecionar={setSecao} />
+            <MobileHome
+              itens={ITENS}
+              ocultar={ATALHOS_DA_BARRA}
+              onSelecionar={setSecao}
+              bloqueadas={secoesBloqueadas}
+            />
+          ) : semTratamento ? (
+            // A seção pede um tratamento e não há nenhum — antes do painel vem
+            // a decisão que falta.
+            <NoActiveTreatment
+              onNovoTratamento={() => setCriandoTratamento(true)}
+              description={
+                `${ITENS.find(i => i.chave === secao)?.label ?? 'Esta seção'} registra dados do tratamento. `
+                + 'Abra um para começar a anotar as sessões deste paciente.'
+              }
+            />
           ) : secao === 'prontuarios' ? (
             <ClinicalRecord
               patientId={sessao.patientId}
@@ -183,7 +231,7 @@ export function FisioPage() {
               dateIso={sessao.date}
               startTime={sessao.startTime}
               clinicalNote={sessao.clinicalNote}
-              carePlanId={planoAtivo?.id}
+              carePlanId={planoDaSessao?.id}
             />
           ) : secao === 'sinais-vitais' ? (
             // `treatmentSessionId` amarra cada aferição nova à consulta de
@@ -196,13 +244,12 @@ export function FisioPage() {
               patientId={sessao.patientId}
               professionalId={sessao.professionalId}
               treatmentSessionId={sessao.id}
-              carePlanId={planoAtivo?.id}
+              carePlanId={planoDaSessao?.id}
             />
           ) : secao === 'meus-tratamentos' ? (
             <MyTreatments
               planos={planos ?? []}
               onNovoTratamento={() => setCriandoTratamento(true)}
-              onContinuar={() => setAbrindoEtapas(true)}
               onFinalizar={() => setConfirmandoAlta(true)}
               onTrocarFoto={url => planoAtivo && trocarFoto.mutate(
                 { planId: planoAtivo.id, url },
@@ -211,20 +258,22 @@ export function FisioPage() {
                   onError: (e: Error) => toast.error(e.message),
                 },
               )}
+              onGerarRelatorio={gerarRelatorio}
+              gerandoRelatorio={gerandoRelatorio}
             />
           ) : secao === 'testes' ? (
             // `carePlanId` recorta ao tratamento em curso, mesmo princípio do
             // Diagnóstico e dos Sinais vitais. Sem plano ativo, o próprio
             // painel cai para o histórico inteiro do paciente — não há
             // episódio a recortar.
-            <PatientTestsPanel patientId={sessao.patientId} carePlanId={planoAtivo?.id} />
+            <PatientTestsPanel patientId={sessao.patientId} carePlanId={planoDaSessao?.id} />
           ) : secao === 'avaliacoes' ? (
             // `carePlanId` recorta ao tratamento em curso, mesmo princípio do
             // Diagnóstico, dos Sinais vitais e dos Testes.
             <BodyCompositionPanel
               patientId={sessao.patientId}
               professionalId={sessao.professionalId}
-              carePlanId={planoAtivo?.id}
+              carePlanId={planoDaSessao?.id}
             />
           ) : secao === 'diagnostico' ? (
             <Diagnosis
@@ -287,6 +336,7 @@ export function FisioPage() {
         atalhos={ATALHOS_DA_BARRA}
         ativo={secao}
         onSelecionar={setSecao}
+        bloqueadas={secoesBloqueadas}
       />
 
       <NewTreatmentModal
@@ -309,9 +359,22 @@ export function FisioPage() {
               professionalId: sessao.professionalId,
             },
             {
-              onSuccess: () => {
+              onSuccess: novoId => {
                 toast.success('Tratamento iniciado.')
                 setCriandoTratamento(false)
+                // ENTRA DIRETO NO ROTEIRO — os cartões somem e o roteiro de
+                // etapas (diagnóstico, anamnese, testes) aparece no lugar.
+                // É a ÚNICA porta para ele: sem isto, o roteiro de abertura
+                // não teria como ser preenchido.
+                // `setPlanoDoRoteiro` ANTES de `setAbrindoEtapas`: a guarda
+                // "troca de plano fecha o roteiro" (mais abaixo) compara
+                // `planoAtivo.id` com `planoDoRoteiro` a cada render, e
+                // `planoAtivo` só passa a apontar para este plano novo depois
+                // que a query recarregar — sem marcar o id aqui agora, a
+                // guarda veria a mudança de plano como uma TROCA e fecharia o
+                // roteiro no instante em que ele deveria abrir.
+                setPlanoDoRoteiro(novoId)
+                setAbrindoEtapas(true)
                 // FECHA A FICHA ANTERIOR — best-effort. Sem isto a anamnese do
                 // tratamento novo abriria mostrando as respostas do episódio
                 // passado, porque a ficha é uma-por-paciente e o novo plano não

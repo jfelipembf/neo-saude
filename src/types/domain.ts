@@ -759,16 +759,26 @@ export interface PatientCustomQuestion {
 export type SoapSection = 'subjective' | 'objective' | 'assessment' | 'plan'
 
 /**
- * Uma evolução SOAP. Valor = HTML rico da seção, sanitizado antes de gravar E
- * antes de exibir.
+ * Tudo que a nota da sessão guarda: o campo livre `today` ("Hoje" — o que foi
+ * realizado nesta sessão) MAIS as quatro seções do SOAP.
  *
- * Parcial de propósito: seção não preenchida é chave AUSENTE, nunca `''` — o
+ * `today` é chave da mesma nota, não seção do SOAP: abre a evolução no editor,
+ * não entra no relatório agregado por seção e não é copiado pelo "repetir
+ * última sessão" (o que se fez hoje é justamente o que não se repete).
+ */
+export type SoapNoteField = 'today' | SoapSection
+
+/**
+ * Uma evolução de sessão. Valor = HTML rico do campo, sanitizado antes de
+ * gravar E antes de exibir.
+ *
+ * Parcial de propósito: campo não preenchido é chave AUSENTE, nunca `''` — o
  * CHECK `private.is_soap_note` recusa seção em branco justamente para que
  * "tem plano" não fique verdadeiro num plano vazio. Pelo mesmo motivo o objeto
  * nunca é `{}`: evolução inexistente é o campo inteiro `undefined` (coluna
  * NULL), e não um objeto sem chaves.
  */
-export type SoapNote = Partial<Record<SoapSection, string>>
+export type SoapNote = Partial<Record<SoapNoteField, string>>
 
 /**
  * Modelo de evolução (`evolution_template`) — o esqueleto que o profissional
@@ -1131,6 +1141,12 @@ export interface ScheduledAppointment {
    *  sem prontuário escrito. Não confundir com `notes`, que é a observação
    *  simples da agenda. */
   clinicalNote?: SoapNote
+  /** Tratamento (care_plan) a que esta sessão pertence — gravado quando o
+   *  atendimento de fisioterapia é aberto com um tratamento ativo. É o que
+   *  conta as "sessões realizadas" do plano e o que mantém a sessão ligada ao
+   *  tratamento mesmo depois que ele fecha (ver o fechamento automático em
+   *  private.tg_care_plan_autofinish). undefined = consulta fora de tratamento. */
+  carePlanId?: string
 }
 
 // ── Documentos do paciente (aba do perfil) ───────────────────────────────────

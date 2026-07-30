@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import {
   createCarePlan, finishCarePlan, linkAppointmentToPlan, listCarePlans,
-  setCarePlanPhoto,
+  setCarePlanOpeningNotes, setCarePlanPhoto,
 } from '@/services/carePlansService'
 import type { NovoCarePlan } from '@/services/carePlansService'
 
@@ -29,6 +29,17 @@ export function useSetCarePlanPhoto(patientId: string) {
   return useMutation({
     mutationFn: ({ planId, url }: { planId: string; url: string | null }) =>
       setCarePlanPhoto(planId, url),
+    onSuccess: () => queryClient.invalidateQueries({
+      queryKey: queryKeys.carePlans.byPatient(patientId),
+    }),
+  })
+}
+
+export function useSetCarePlanOpeningNotes(patientId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ planId, texto }: { planId: string; texto: string | null }) =>
+      setCarePlanOpeningNotes(planId, texto),
     onSuccess: () => queryClient.invalidateQueries({
       queryKey: queryKeys.carePlans.byPatient(patientId),
     }),
