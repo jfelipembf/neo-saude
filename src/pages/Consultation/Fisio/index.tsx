@@ -10,6 +10,7 @@ import {
 } from '@/hooks/useCarePlans'
 import { useClinicalEntries } from '@/hooks/useClinicalEntries'
 import { usePatientMedications } from '@/hooks/useMedications'
+import { useSession } from '@/context/SessionProvider'
 import { usePatient } from '@/hooks/usePatients'
 import { useScheduleAppointments } from '@/hooks/useSchedule'
 import { KINDS_DO_TRATAMENTO } from '@/services/clinicalEntriesService'
@@ -17,28 +18,29 @@ import { PatientTestsPanel } from '@/pages/Patients/Profile/Tests/PatientTestsPa
 import { toIsoDate } from '@/utils/date'
 import { isMobileViewport } from '@/utils/viewport'
 import { Anamnesis } from '../Components/Anamnesis/Anamnesis'
-import { BodyCompositionPanel } from '../BodyCompositionPanel'
-import { ClinicalSectionPanel } from '../ClinicalSectionPanel'
+import { BodyCompositionPanel } from './components/BodyCompositionPanel/BodyCompositionPanel'
+import { ClinicalSectionPanel } from '../Components/ClinicalSectionPanel/ClinicalSectionPanel'
 import { Header } from '../Components/Header/Header'
-import { MedicationsPanel } from '../MedicationsPanel'
-import { PhysioDocumentsPanel } from '../PhysioDocumentsPanel'
-import { VitalSignsPanel } from '../VitalSignsPanel'
-import { ClinicalRecord } from './components/ClinicalRecord/ClinicalRecord'
+import { MedicationsPanel } from '../Components/MedicationsPanel/MedicationsPanel'
+import { DocumentsArchive } from './components/DocumentsArchive/DocumentsArchive'
+import { VitalSignsPanel } from '../Components/VitalSignsPanel/VitalSignsPanel'
+import { ClinicalRecord } from '../Components/ClinicalRecord/ClinicalRecord'
 import { Diagnosis } from './components/Diagnosis/Diagnosis'
-import { SideNav } from './components/SideNav/SideNav'
-import type { SideNavKey } from './components/SideNav/SideNav'
-import { MobileHome } from './components/MobileHome/MobileHome'
-import { MobileNav } from './components/MobileNav/MobileNav'
-import type { MobileNavKey } from './components/MobileNav/MobileNav'
+import { SideNav } from '../Components/Shell/SideNav'
+import { MobileNav } from '../Components/Shell/MobileNav'
+import { MobileHome } from '../Components/Shell/MobileHome'
+import { CHAVE_INICIO } from '../Components/Shell/navItems'
+import { ATALHOS_DA_BARRA, ITENS } from './sideNavItems'
+import type { SideNavKey } from './sideNavItems'
 import { MyTreatments } from './components/MyTreatments/MyTreatments'
 import { NewTreatmentModal } from './components/NewTreatmentModal/NewTreatmentModal'
 import { TreatmentWizard } from './components/TreatmentWizard/TreatmentWizard'
 import styles from './Fisio.module.scss'
 
 /** 'inicio' só existe no PWA mobile — a grade de ícones atrás do botão
- *  central da barra inferior (ver MobileHome). No SideNav do desktop não há
- *  botão que leve a este valor, então ele nunca aparece lá. */
-type Secao = SideNavKey | 'inicio'
+ *  central da barra inferior (ver Shell/MobileHome). No menu lateral do
+ *  desktop não há botão que leve a este valor, então ele nunca aparece lá. */
+type Secao = SideNavKey | typeof CHAVE_INICIO
 
 /**
  * ATENDIMENTO DE FISIOTERAPIA — a tela, do zero.
@@ -67,6 +69,7 @@ export function FisioPage() {
   const { data: doDia } = useScheduleAppointments(hojeIso, hojeIso)
   const sessao = (doDia ?? []).find(a => a.id === appointmentId)
   const { data: paciente } = usePatient(sessao?.patientId ?? '')
+  const { specialty } = useSession()
 
   // `isLoading` importa tanto quanto o dado: sem ele, ENQUANTO a busca não
   // volta, `planos` é `undefined` e `planoAtivo` fica `undefined` também — a
@@ -145,9 +148,14 @@ export function FisioPage() {
       <Header paciente={paciente ?? undefined} onSair={() => navigate(APP_ROUTES.TODAY)} />
 
       <div className={styles.corpo}>
-        {/* 'inicio' não existe no menu do desktop — sem item ativo é a leitura
-         *  correta ali (esse valor só chega vindo da navegação inferior). */}
-        <SideNav ativo={secao === 'inicio' ? undefined : secao} onSelecionar={setSecao} />
+        {/* 'inicio' não existe no menu do desktop — `null` (nenhum item aceso)
+         *  é a leitura correta ali, e esse valor só chega vindo da barra
+         *  inferior do PWA. */}
+        <SideNav
+          itens={ITENS}
+          ativo={secao === CHAVE_INICIO ? null : secao}
+          onSelecionar={setSecao}
+        />
 
         <main className={styles.principal}>
           {!sessao || carregandoPlanos ? (
@@ -166,8 +174,8 @@ export function FisioPage() {
               }}
               onVoltar={() => setAbrindoEtapas(false)}
             />
-          ) : secao === 'inicio' ? (
-            <MobileHome onSelecionar={setSecao} />
+          ) : secao === CHAVE_INICIO ? (
+            <MobileHome itens={ITENS} ocultar={ATALHOS_DA_BARRA} onSelecionar={setSecao} />
           ) : secao === 'prontuarios' ? (
             <ClinicalRecord
               patientId={sessao.patientId}
@@ -233,6 +241,9 @@ export function FisioPage() {
               appointmentId={sessao.id}
               professionalId={sessao.professionalId}
               medicacoes={medicacoes ?? []}
+              patientName={paciente?.name}
+              patientCpf={paciente?.cpf}
+              specialty={specialty}
             />
           ) : secao === 'historico-familiar' ? (
             <ClinicalSectionPanel
@@ -262,16 +273,20 @@ export function FisioPage() {
             // 'documentos' — arquivo, não emissora: o fisioterapeuta não emite
             // atestado nem solicita exame por aqui, só guarda o que o
             // paciente traz.
-            <PhysioDocumentsPanel patientId={sessao.patientId} appointmentId={sessao.id} />
+            <DocumentsArchive patientId={sessao.patientId} appointmentId={sessao.id} />
           )}
         </main>
       </div>
 
-      {/* Só aparece no PWA mobile (ver MobileNav.module.scss) — no desktop a
-       *  navegação já mora no SideNav acima. */}
+      {/* Só aparece no PWA mobile (ver Shell/MobileNav.module.scss) — no
+       *  desktop a navegação já mora no menu lateral acima. `ativo` aceita
+       *  qualquer seção: a barra só acende quando a atual é um dos atalhos ou
+       *  a própria grade, e ignora o resto sozinha. */}
       <MobileNav
-        ativo={secao === 'prontuarios' || secao === 'sinais-vitais' || secao === 'inicio' ? secao : null}
-        onSelecionar={(chave: MobileNavKey) => setSecao(chave)}
+        itens={ITENS}
+        atalhos={ATALHOS_DA_BARRA}
+        ativo={secao}
+        onSelecionar={setSecao}
       />
 
       <NewTreatmentModal

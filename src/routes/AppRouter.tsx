@@ -23,11 +23,12 @@ const AdminPage          = lazy(() => import('@/pages/Admin/AdminPage').then(m =
 const SettingsPage       = lazy(() => import('@/pages/Settings/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const NotFoundPage       = lazy(() => import('@/pages/System/NotFound/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
 const UnauthorizedPage   = lazy(() => import('@/pages/System/Unauthorized/UnauthorizedPage').then(m => ({ default: m.UnauthorizedPage })))
+// As três telas de atendimento — uma por especialidade, mesma casca.
+const MedPage    = lazy(() => import('@/pages/Consultation/Med').then(m => ({ default: m.MedPage })))
+const FisioPage  = lazy(() => import('@/pages/Consultation/Fisio').then(m => ({ default: m.FisioPage })))
 // Chunk próprio de propósito: carrega o motor do odontograma (~900KB), que só
 // faz sentido baixar quando esta rota é aberta — mesmo motivo de
 // PatientProfilePage → TreatmentsPanel já ser lazy.
-const ConsultationPage = lazy(() => import('@/pages/Consultation/ConsultationPage').then(m => ({ default: m.ConsultationPage })))
-const FisioPage          = lazy(() => import('@/pages/Consultation/Fisio').then(m => ({ default: m.FisioPage })))
 const OdontogramFullscreenPage = lazy(() => import('@/pages/Odontogram/OdontogramFullscreenPage').then(m => ({ default: m.OdontogramFullscreenPage })))
 
 export function AppRouter() {
@@ -74,7 +75,7 @@ export function AppRouter() {
                 prontuário por RLS). O gate de ramo é da própria página. */}
             <Route
               path={FULLSCREEN_ROUTES.CONSULTATION}
-              element={<FeatureGuard feature="patients"><ConsultationPage /></FeatureGuard>}
+              element={<FeatureGuard feature="patients"><MedPage /></FeatureGuard>}
             />
             {/* Atendimento de FISIOTERAPIA: menu lateral no desktop, navegação
                 inferior no PWA. Mesma feature — o que protege o prontuário é a
@@ -83,6 +84,9 @@ export function AppRouter() {
               path={FULLSCREEN_ROUTES.FISIO}
               element={<FeatureGuard feature="patients"><FisioPage /></FeatureGuard>}
             />
+            {/* Atendimento de ODONTOLOGIA: as seções clínicas que a
+                especialidade nunca teve. O odontograma segue em rota própria
+                (acima) — o menu leva até ele em vez de embutir o motor. */}
           </Route>
 
           {/* ── Fallback ────────────────────────────────────────────── */}

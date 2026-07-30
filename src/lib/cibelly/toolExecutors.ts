@@ -19,6 +19,7 @@ import type {
   PatientDirectoryRequest,
   PatientMessageRequest,
   QuoteRequest,
+  TreatmentQuoteRequest,
   CartAddRequest,
   CartQuoteRequest,
 } from './sessionTypes'
@@ -404,25 +405,35 @@ export function createSpecialistExecutors({
     name,
     args,
   }: DelegatedToolCall): Promise<Record<string, unknown>> {
-    if (name !== 'emitir_documento') {
-      return {
-        ok: false,
-        erro: `Ferramenta fora do Agente de Documentos: ${name}`,
-      }
-    }
-    const issue = getHandlers().aoEmitirDocumento
-    if (!issue) {
-      return {
-        ok: false,
-        erro: 'Não há paciente em atendimento para emitir documento.',
-      }
-    }
     // Igual ao Agente de Agenda com cancelar_consulta: o resultado INTEIRO
-    // viaja dentro de "resultado", porque emitir_documento agora é
+    // viaja dentro de "resultado", porque as duas ferramentas daqui são
     // confirmation: 'tool_managed' — o orquestrador só enxerga
     // "precisaConfirmar" se ele sobreviver aninhado até aqui (ver
     // toolResultNeedsConfirmation em orchestrator.ts).
-    return { ok: true, resultado: await issue(args as unknown as DocumentRequest) }
+    if (name === 'emitir_documento') {
+      const issue = getHandlers().aoEmitirDocumento
+      if (!issue) {
+        return {
+          ok: false,
+          erro: 'Não há paciente em atendimento para emitir documento.',
+        }
+      }
+      return { ok: true, resultado: await issue(args as unknown as DocumentRequest) }
+    }
+    if (name === 'criar_orcamento_paciente') {
+      const build = getHandlers().aoCriarOrcamentoPaciente
+      if (!build) {
+        return {
+          ok: false,
+          erro: 'Não há paciente em atendimento para montar orçamento.',
+        }
+      }
+      return { ok: true, resultado: await build(args as unknown as TreatmentQuoteRequest) }
+    }
+    return {
+      ok: false,
+      erro: `Ferramenta fora do Agente de Documentos: ${name}`,
+    }
   }
 
   /**

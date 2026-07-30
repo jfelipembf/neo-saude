@@ -1,0 +1,75 @@
+@use '../../../../styles/mixins' as *;
+
+// Só existe no PWA mobile — no desktop o SideNav já lista tudo, uma grade
+// igual ali em cima seria a mesma navegação repetida duas vezes.
+.raiz {
+  display: none;
+
+  @include mobile {
+    display: grid;
+    // 4 por linha, na largura de qualquer iPhone — MESMA contagem no
+    // `phone` (não reduz pra 3): com menos colunas a coluna fica mais larga
+    // que o ícone e ele sobra pequeno no meio do vazio, exatamente o efeito
+    // que a tela real do iPhone não tem.
+    grid-template-columns: repeat(4, 1fr);
+    gap: $sp-4 $sp-2;
+  }
+}
+
+// SEM cartão ao redor (sem borda, sem fundo, sem hover de superfície) — um
+// ícone de app no iPhone não mora dentro de um card, ele FLUTUA na tela; quem
+// carrega a cor e o relevo é o quadrado colorido em `.icone`, não o botão.
+.item {
+  @include focus-ring;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $sp-1;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+
+  // Feedback de toque tipo iOS: o ícone encolhe no press, não muda de cor.
+  &:active .icone { transform: scale(0.92); }
+}
+
+// O "squircle": cantos arredondados a ~25% do lado (não 50% — isso faria
+// círculo) e sombra suave, igual ao ícone de app da home do iPhone. 60px é o
+// próprio tamanho do ícone de app na home do iPhone (60pt) — não um valor
+// arbitrário.
+//
+// Fundo CLARO + ícone na cor da marca (não o gradiente sólido de antes): os
+// ícones Solar são duotone (duas camadas de opacidade na mesma cor), e isso só
+// aparece sobre um fundo neutro — em cima do gradiente sólido ficava
+// achatado, quase de uma cor só. `--accent-bg`/`--primary-fg` já existem para
+// exatamente essa combinação (ver superfícies com tingimento de marca em
+// _themes.scss) e resolvem os dois temas sozinhos.
+.icone {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 28%;
+  background: var(--accent-bg);
+  color: var(--primary-fg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: transform 0.1s ease;
+
+  svg { width: 34px; height: 34px; }
+}
+
+.rotulo {
+  font-size: 12px;
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.25;
+  // Nome de app do iPhone: até 2 linhas, o resto corta com reticências —
+  // nunca empurra o ícone abaixo dele para fora da grade.
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

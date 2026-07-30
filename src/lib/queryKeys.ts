@@ -296,6 +296,9 @@ export const queryKeys = {
   rooms: {
     all: ['rooms'] as const,
   },
+  odontoProcedures: {
+    all: ['odonto-procedures'] as const,
+  },
   clinic: {
     data:    ['clinic', 'data'] as const,
   },

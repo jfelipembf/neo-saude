@@ -1,0 +1,1428 @@
+@use '../../../styles/mixins' as *;
+
+// ── CONTRASTE ──
+// Esta tela NÃO usa `--text-muted` em texto que precisa ser lido. Medido:
+// muted dá 2,61:1 no tema claro e 3,36:1 no escuro, contra o mínimo de 4,5:1
+// da WCAG AA para corpo de texto. `--text-secondary` dá 5,21:1 e 7,29:1.
+//
+// A diferença aparece justamente onde dói: data da consulta, especialidade do
+// médico e título de seção em caixa alta pequena — tudo conteúdo, nada
+// decoração. Se algum dia entrar um cinza mais claro aqui, é porque alguém
+// mediu de novo, não porque ficou bonito.
+
+// Tela CHEIA: durante a consulta não há Header nem navegação (a rota é irmã do
+// AppLayout, ver AppRouter.tsx).
+//
+// `position: fixed; inset: 0` e não só `height: 100dvh` — o `#root` do app é
+// `display: flex` (global.scss), então um filho sem regra de largura encolhe
+// até o conteúdo e a tela nasce numa coluna estreita no meio da janela. Mesma
+// solução da tela cheia do odontograma, que é o precedente do projeto.
+//
+// `dvh` e não `vh` por causa da barra do navegador no celular, que come altura.
+.tela {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+
+// ── Topo: o mesmo carimbo da página de impressão ──
+.topo {
+  display: flex;
+  align-items: center;
+  gap: $sp-4;
+  padding: $sp-3 $sp-4;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+
+  @include phone {
+    flex-wrap: wrap;
+    gap: $sp-2;
+  }
+}
+
+.clinica {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  min-width: 0;
+}
+
+.logo {
+  height: 40px;
+  width: auto;
+  max-width: 140px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.clinicaNome { display: block; color: var(--text-primary); }
+
+.clinicaLinha {
+  display: block;
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+}
+
+// Quem está atendendo — encostado à direita, antes do botão de sair.
+.profissional {
+  margin-left: auto;
+  text-align: right;
+  color: var(--text-primary);
+
+  @include phone {
+    margin-left: 0;
+    text-align: left;
+  }
+}
+
+// ── Corpo: três colunas ──
+.corpo {
+  display: grid;
+  // A direita cresceu: cada documento carrega selo, data e TRÊS ações
+  // (imprimir, editar, excluir) — em 320px o nome do documento sumia
+  // atrás das reticências.
+  grid-template-columns: 280px minmax(0, 1fr) 400px;
+
+  // Painel fechado: o editor toma o lugar da direita. É o estado em que o
+  // médico passa a maior parte da consulta, e manter uma coluna vazia ali
+  // seria roubar largura de quem está escrevendo.
+  &.semPainel { grid-template-columns: 280px minmax(0, 1fr); }
+  gap: $sp-3;
+  padding: $sp-3;
+  flex: 1;
+  min-height: 0;   // sem isto as colunas não rolam, elas esticam a página
+
+  @include mobile {
+    // Documentos descem para baixo do editor; o paciente continua no topo.
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  @include phone {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+}
+
+.colunaEsquerda,
+.colunaDireita,
+.centro {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  min-height: 0;
+  overflow-y: auto;
+  padding: $sp-4;
+  border-radius: $radius-lg;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+}
+
+.colunaDireita {
+  @include mobile {
+    grid-column: 1 / -1;
+  }
+}
+
+// ── Esquerda: o paciente ──
+// Faixa verde no topo do cartão: marca quem está na cadeira como a âncora da
+// tela, sem precisar de outra cor de fundo brigando com o painel.
+// Cartão fechado: quem está na cadeira é a âncora da tela, e a linha separa a
+// identidade dele do histórico que vem logo abaixo.
+.paciente {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: $sp-4;
+  text-align: center;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-lg;
+  background: var(--bg-base);
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    background: var(--primary-fg);
+  }
+}
+
+.avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--bg-base);
+  color: var(--text-secondary);
+  font-size: $fs-lg;
+  overflow: hidden;
+}
+
+.avatarImg { width: 100%; height: 100%; object-fit: cover; }
+
+.pacienteNome {
+  color: var(--text-primary);
+  font-size: $fs-lg;
+  line-height: 1.3;
+  margin-top: $sp-2;
+}
+
+.contato {
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-1;
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+
+  svg { width: 14px; height: 14px; }
+}
+
+.bloco { display: flex; flex-direction: column; gap: $sp-2; }
+
+.blocoTitulo {
+  margin: 0;
+  font-size: $fs-sm;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-secondary);
+}
+
+.vazio {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+}
+
+// Timeline dos últimos atendimentos: data à esquerda, o que foi feito ao lado.
+// TIMELINE de verdade: um fio vertical com um ponto por registro, em vez de
+// uma borda cinza contínua. O ponto é o que dá ritmo à leitura — sem ele, três
+// registros seguidos viram um bloco de texto só.
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 $sp-3;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  position: relative;
+
+  // O fio. Fica atrás dos pontos e para no último item, não no fim do
+  // contêiner — linha sobrando embaixo parece registro faltando.
+  &::before {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: var(--glass-border);
+  }
+}
+
+.marco {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-left: $sp-3;
+  font-size: $fs-sm;
+
+  // O ponto, na cor do tema — verde no claro e no escuro (a variável inverte).
+  &::before {
+    content: '';
+    position: absolute;
+    left: calc(#{-$sp-3} + 1px);
+    top: 5px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary-fg);
+    box-shadow: 0 0 0 3px var(--bg-surface);   // "corta" o fio atrás do ponto
+  }
+}
+
+.marcoData {
+  color: var(--primary-fg);
+  font-weight: 600;   // é a âncora do item; cor sozinha não dá hierarquia
+}
+
+// O registro MAIS RECENTE é o que interessa primeiro — ponto cheio e maior;
+// os antigos ficam ocos, que é como se lê uma linha do tempo.
+.timeline > .marco:not(:first-child)::before {
+  background: var(--bg-surface);
+  border: 2px solid var(--primary-fg);
+}
+
+.marcoTexto { color: var(--text-primary); }
+
+// ── Centro: o editor ──
+.centroCabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+}
+
+// Contêiner da FICHA — altura FIXA, com rolagem própria.
+//
+// A ficha tem seis seções e cresce sem limite com o que se escreve. Deixando-a
+// crescer, ela empurrava o botão de salvar e o histórico de atendimentos para
+// centenas de pixels abaixo da dobra — e o histórico existe justamente para ser
+// lido ENQUANTO se escreve a consulta de hoje.
+//
+// Altura fixa e não `max-height`: assim o botão de salvar e o histórico ficam
+// sempre no mesmo lugar da tela, independentemente de a ficha estar vazia ou
+// cheia. Posição previsível vale mais que aproveitar o espaço vago.
+//
+// `flex-shrink: 0` porque a coluna é flex: sem isso o contêiner encolheria
+// abaixo da altura pedida assim que o histórico crescesse.
+.editor {
+  height: 46vh;
+  min-height: 300px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  // Respiro para a barra de rolagem não encostar no texto dos editores.
+  padding-right: $sp-2;
+
+  @include phone {
+    // No celular a página inteira já rola (`.corpo` tem overflow-y): uma
+    // segunda rolagem aninhada em tela pequena é a que prende o dedo do
+    // usuário no lugar errado.
+    height: auto;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+}
+
+// ── Direita: documentos ──
+.documentos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+// Cartão de CONTORNO, duas linhas: identificação em cima, ações embaixo.
+//
+// A quebra é o que resolve o aperto (numa coluna de 400px, nome + selo + data
+// + botões não cabem lado a lado). O contorno fecha o item: com selo colorido
+// no meio e botões embaixo, régua sozinha não dizia onde um documento terminava
+// e o outro começava.
+//
+// Sem preenchimento sólido de propósito — o painel inteiro é uma lista, e
+// blocos cheios empilhados pesam mais que a informação neles.
+.documento {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  padding: $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-lg;
+  background: transparent;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+
+  svg { width: 16px; height: 16px; flex-shrink: 0; }
+}
+
+.documentoLinha {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  min-width: 0;
+}
+
+// Ações encostadas à direita, separadas do conteúdo por uma régua interna.
+// Quebram de linha quando não couberem, em vez de espremer os rótulos até
+// virarem ilegíveis.
+.documentoAcoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: $sp-1;
+  border-top: 1px solid var(--glass-border);
+  padding-top: $sp-2;
+
+  button { flex-shrink: 0; }
+}
+
+.documentoNome {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.documentoData {
+  margin-left: auto;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+// ── O resultado, dentro do cartão do pedido ──
+// Recuado e sobre um fundo levemente distinto: pertence ao pedido acima, e a
+// hierarquia visual é o que diz "este laudo é DESTE exame" sem escrever isso.
+.resultados {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+  margin-left: $sp-4;
+  padding-left: $sp-2;
+  border-left: 2px solid var(--primary-fg);
+}
+
+.resultado {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  min-width: 0;   // sem isto o nome longo empurra os botões para fora do cartão
+
+  svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-secondary); }
+  button { flex-shrink: 0; }
+}
+
+.resultadoNome {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Diz que o exame já foi LIDO — anexado sem observação é arquivo guardado;
+// com observação, é exame avaliado.
+.resultadoObs {
+  flex-shrink: 0;
+  font-size: $fs-xs;
+  color: var(--primary-fg);
+}
+
+.formDocumento {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+
+// ── O visor do exame ──
+// Duas colunas: o arquivo ocupa o espaço que sobra, as observações ficam numa
+// faixa fixa à direita. Proporcional (1fr 1fr) daria meia tela para um campo de
+// texto e meia para um laudo — e é o laudo que precisa ser lido.
+.visor {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: $sp-4;
+  align-items: start;
+
+  @include mobile {
+    grid-template-columns: 1fr;   // empilhado: exame em cima, anotação embaixo
+  }
+}
+
+.visorArquivo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 380px;
+  max-height: 60vh;
+  overflow: auto;
+  padding: $sp-2;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-lg;
+  background: var(--field-bg);
+}
+
+.visorImagem {
+  max-width: 100%;
+  max-height: 56vh;
+  object-fit: contain;
+  border-radius: $radius-md;
+}
+
+// Sem borda própria: o quadro já é do `.visorArquivo`, e duas molduras
+// concêntricas em volta do mesmo PDF é uma a mais.
+.visorPdf {
+  width: 100%;
+  height: 56vh;
+  border: none;
+  border-radius: $radius-md;
+}
+
+.visorLado {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.visorMeta {
+  margin: 0;
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+}
+
+.visorLink {
+  font-size: $fs-sm;
+  color: var(--primary-fg);
+}
+
+// ── Pé da coluna esquerda: o cronômetro ──
+// `margin-top: auto` empurra para baixo sem posicionamento absoluto, então ele
+// acompanha a rolagem do histórico em vez de flutuar por cima dele.
+.rodapeEsquerda {
+  margin-top: auto;
+  padding-top: $sp-3;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  align-items: stretch;
+}
+
+// Sair do atendimento, em VERMELHO CLARO.
+//
+// Fundo tênue derivado do vermelho da marca (mesma técnica da linha de saldo
+// negativo do Financeiro), não o `danger` sólido: sair não destrói nada — texto
+// não salvo ainda passa pelo ConfirmDialog —, então o botão sinaliza a saída
+// sem gritar como um "Excluir". O texto usa `--danger-fg`, que é o tom que
+// passa no contraste nos dois temas.
+.botaoSair {
+  background: rgba($danger, 0.10);
+  color: var(--danger-fg);
+
+  &:hover:not(:disabled) {
+    background: rgba($danger, 0.18);
+    color: var(--danger-fg);
+  }
+
+  svg { color: inherit; }
+}
+
+.cronometro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: $sp-2 $sp-3;
+  border-radius: $radius-lg;
+  border: 1px solid var(--success-fg);
+  background: var(--bg-base);
+}
+
+.cronometroRotulo {
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+}
+
+.cronometroTempo {
+  color: var(--success-fg);
+  font-size: $fs-lg;
+  font-variant-numeric: tabular-nums;   // sem isto o número "dança" a cada tick
+}
+
+// Input de arquivo escondido: quem abre o seletor é o botão "Anexar", que segue
+// o desenho do resto da tela. `display: none` tiraria o campo da árvore de
+// acessibilidade; assim ele fica presente e inalcançável por tab.
+.arquivoInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+// ── Medicamentos da receita ──
+.medicamentos { display: flex; flex-direction: column; gap: $sp-3; }
+
+.medLista {
+  list-style: decimal inside;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.medItem {
+  display: flex;
+  align-items: flex-start;
+  gap: $sp-2;
+  padding: $sp-2;
+  border-radius: $radius-lg;
+  background: var(--bg-base);
+}
+
+.medTexto { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+
+.medPosologia { color: var(--text-secondary); font-size: $fs-sm; }
+
+.medForm {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  padding: $sp-3;
+  border: 1px dashed var(--glass-border);
+  border-radius: $radius-lg;
+}
+
+.medGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: $sp-2;
+
+  @include phone { grid-template-columns: 1fr; }
+}
+
+// Prévia da frase que vai no papel — a mesma que a linha adicionada mostra.
+.medPreviaLinha {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+  font-style: italic;
+}
+
+// ── CID-10 ──
+.cidBusca { position: relative; display: flex; flex-direction: column; gap: $sp-1; }
+
+.cidLista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-lg;
+  background: var(--bg-surface);
+}
+
+.cidItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: $sp-2 $sp-3;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+
+  &:hover { background: var(--bg-base); }
+}
+
+.cidVazio {
+  padding: $sp-2 $sp-3;
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+}
+
+.cidDescricao { color: var(--text-secondary); font-size: $fs-sm; }
+
+.cidEscolhido {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+  padding: $sp-2 $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-lg;
+  background: var(--bg-base);
+
+  > div { display: flex; flex-direction: column; min-width: 0; }
+}
+
+// Consulta sem evolução escrita — está na timeline, mas em tom apagado: o
+// paciente esteve aqui, só ninguém digitou nada.
+.marcoVazio {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+// Encostado na ficha, com régua: é o pé DELA, não um botão solto entre a ficha
+// e o histórico.
+.editorRodape {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: $sp-3;
+  padding-top: $sp-2;
+}
+
+.naoSalvo {
+  color: var(--warning-fg);
+  font-size: $fs-sm;
+}
+
+// ── Atalhos dos exames mais pedidos ──
+.atalhoRotulo {
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+}
+
+.atalhos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-1;
+}
+
+.atalho {
+  padding: 4px $sp-2;
+  border-radius: $radius-lg;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text-primary);
+    border-color: var(--primary-fg);
+  }
+}
+
+// ── Barra de seções, acima do editor ──
+.barraSecoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2;
+}
+
+.botaoSecao {
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-2;
+  // Alvo de toque de verdade: são sete botões que o médico usa a consulta
+  // inteira, e 6px de altura útil vira erro de clique em tela sensível.
+  min-height: $ctrl-h-md;
+  padding: $sp-2 $sp-4;
+  border-radius: $radius-lg;
+  // Verde escuro do tema (`--primary-fg`: #047857 no claro, #34D399 no
+  // escuro). É a variável que já existe para VERDE EM TEXTO — o $primary
+  // (#10B981) é vivo demais para letra e reprovaria contraste. Medido: 5,07:1
+  // no claro e 8,99:1 no escuro.
+  border: 1px solid var(--primary-fg);
+  background: transparent;
+  color: var(--primary-fg);
+  font-size: $fs-base;
+  cursor: pointer;
+
+  &:hover { background: var(--accent-bg); }
+}
+
+// Aberto: PREENCHIDO, não só com a borda mudando. Com sete botões parecidos,
+// diferença de borda não se vê de relance — e é justamente de relance que o
+// médico precisa saber o que a coluna ao lado está mostrando.
+// Texto na cor da superfície: 5,48:1 no claro, 8,99:1 no escuro.
+.botaoSecaoAtivo {
+  background: var(--primary-fg);
+  border-color: var(--primary-fg);
+  color: var(--bg-surface);
+
+  &:hover { background: var(--primary-fg); }
+}
+
+// SAÍDA DO ASSISTENTE — some do meio das etapas em vez de competir com elas.
+// Borda tracejada e cor de texto secundária: lê como "atalho", não como mais
+// uma etapa. Empurrado para a direita porque é escape, e escape não fica no
+// caminho de quem está seguindo o roteiro.
+.botaoSecaoEscape {
+  margin-left: auto;
+  border-style: dashed;
+  border-color: var(--field-border);
+  color: var(--text-secondary);
+
+  &:hover { background: var(--bg-base); }
+
+  // Na mesma linha das etapas não cabe no telefone: vira largura cheia
+  // embaixo, onde continua alcançável sem espremer os botões do roteiro.
+  @include phone {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+// Quantos registros a seção já tem — abrir uma por uma só para descobrir se há
+// histórico é o tipo de clique que o médico não dá.
+.contadorSecao {
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: 11px;
+  background: var(--primary-fg);
+  color: var(--bg-surface);
+  font-size: $fs-sm;
+  text-align: center;
+}
+
+// Dentro do botão ATIVO o fundo já é verde — o contador inverte, senão some.
+.botaoSecaoAtivo .contadorSecao {
+  background: var(--bg-surface);
+  color: var(--primary-fg);
+}
+
+// ── Cabeçalho do painel da direita ──
+// Régua embaixo separando do conteúdo; margens negativas para a linha ir de
+// ponta a ponta do painel, e não parar no padding.
+.painelCabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+  margin: (-$sp-4) (-$sp-4) 0;
+  padding: $sp-3 $sp-4;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.painelTitulo {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: $fs-lg;
+}
+
+.pacienteIdade {
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+  margin-bottom: $sp-2;   // separa a identidade dos contatos
+}
+
+// Resumo clínico do paciente: o que muda conduta e precisa estar à vista sem
+// abrir painel nenhum. Alinhado à esquerda dentro do cartão centralizado —
+// texto clínico corrido não se lê centralizado.
+.resumoClinico {
+  margin: $sp-3 0 0;
+  width: 100%;
+  text-align: left;
+  font-size: $fs-sm;
+  border-top: 1px solid var(--glass-border);
+  padding-top: $sp-3;
+
+  // Cada bloco é uma SEÇÃO, com régua entre elas. Empilhados sem separação,
+  // "Problemas" e "Em uso" viravam um parágrafo só — foi o que apareceu na
+  // tela: o nome do remédio colado no achado anterior.
+  dt {
+    color: var(--primary-fg);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: .04em;
+    margin-bottom: 2px;
+  }
+
+  dd {
+    margin: 0 0 $sp-3;
+    padding-bottom: $sp-3;
+    border-bottom: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    line-height: 1.4;
+  }
+
+  // A última não fecha com régua: linha sobrando embaixo parece bloco faltando.
+  dd:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+}
+
+// Evolução anterior renderizada: o HTML vem do editor rico, então herda os
+// blocos dele. Margens zeradas para o cartão não crescer com <p> vazio.
+.evolucaoAnterior {
+  color: var(--text-primary);
+  line-height: 1.55;
+
+  :global(p),
+  :global(ul),
+  :global(ol) { margin: 0 0 $sp-1; }
+
+  :global(p:last-child) { margin-bottom: 0; }
+
+  :global(ul),
+  :global(ol) { padding-left: $sp-4; }
+}
+
+// ── Medicação em uso, no painel ──
+.medEmUso {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.medEmUsoItem {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  padding: $sp-3;
+  border-radius: $radius-lg;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-base);
+}
+
+.medDesde {
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+}
+
+// As três ações lado a lado, encostadas à direita — e quebrando no phone em
+// vez de espremer os rótulos até virarem ilegíveis.
+.medAcoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: $sp-1;
+  border-top: 1px solid var(--glass-border);
+  padding-top: $sp-2;
+}
+
+// Selo do desfecho da medicação: contorno, não preenchido — a lista de
+// encerradas é histórico, e um bloco de cor sólida ali competiria com as
+// medicações em uso, que são o que interessa primeiro.
+.seloMotivo {
+  align-self: flex-start;
+  padding: 1px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--text-secondary);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+// Parou e nada entrou no lugar — é o desfecho que pode ter deixado o paciente
+// descoberto, e o único que merece cor de alerta.
+.seloSuspensa {
+  border-color: var(--danger-fg);
+  color: var(--danger-fg);
+}
+
+// Houve substituta: continuidade, não interrupção.
+.seloSubstituida {
+  border-color: var(--info-fg);
+  color: var(--info-fg);
+}
+
+// Mesma droga, dose nova — ajuste.
+.seloDose {
+  border-color: var(--warning-fg);
+  color: var(--warning-fg);
+}
+
+// ── Medicação no cartão do paciente: compacta, sem texto corrido ──
+.resumoMedicacoes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  // Uma linha por remédio, com respiro: coladas, três medicações viram um
+  // bloco de texto onde não se acha nenhuma.
+  li + li { margin-top: $sp-1; }
+}
+
+.resumoDose { color: var(--text-secondary); }
+
+// ── Diagnóstico no cartão do paciente: mesma ideia de resumoMedicacoes,
+// compacta e sem bullet — é pra ler de relance, não pra editar aqui. ──
+// Um ponto na frente de cada diagnóstico. Não é enfeite: sem marcador, um
+// diagnóstico de duas linhas ("tendinite do manguito rotador à direita, em
+// fase subaguda") se confunde com o de baixo — o olho perde onde um termina.
+//
+// Marcador desenhado (::before) e não `list-style: disc`: o bullet nativo não
+// aceita cor nem tamanho próprios, e ficaria na tinta do texto, competindo com
+// ele. Aqui é menor, no roxo do tema, e alinhado à PRIMEIRA linha.
+.resumoDiagnosticos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    position: relative;
+    padding-left: $sp-3;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      // Alinha ao centro óptico da primeira linha, não ao topo do <li>: com
+      // `top: 0` o ponto encosta na ascendente e parece deslocado para cima.
+      top: 0.55em;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+  }
+
+  li + li { margin-top: $sp-1; }
+}
+
+// Selo "contínuo": pequeno e ao lado do nome, não numa linha própria — a lista
+// precisa continuar escaneável de relance.
+.selo {
+  display: inline-block;
+  margin-left: $sp-1;
+  padding: 1px 6px;
+  border-radius: 9px;
+  border: 1px solid var(--primary-fg);
+  color: var(--primary-fg);
+  font-size: 11px;
+  font-weight: 400;
+  vertical-align: middle;
+}
+
+// ── Seção de FATOS: lista simples, sem data ──
+// Antecedente cirúrgico, problema e risco são fatos do paciente; o dia em que
+// alguém digitou não é informação. Ver `datado` em clinicalSections.ts.
+.fatos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-1;
+}
+
+.fato {
+  display: flex;
+  align-items: center;
+  gap: $sp-1;
+  padding: $sp-2 $sp-2 $sp-2 $sp-3;
+  border-radius: $radius-lg;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-base);
+
+  button { flex-shrink: 0; }
+}
+
+.fatoTexto {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: $fs-sm;
+}
+
+// Item COM ações: vira linha — conteúdo à esquerda, ícones à direita, todos
+// na mesma coluna vertical. Empilhados, os botões caíam embaixo de cada
+// anotação e a lista ficava sem alinhamento nenhum.
+.marcoComAcoes {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: $sp-2;
+}
+
+.marcoConteudo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.entradaAcoes {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;   // os ícones não encolhem; quem cede é o texto
+}
+
+// "anotado em ..." — referência secundária, só quando difere da data do fato.
+.marcoAnotadoEm {
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+  font-style: italic;
+}
+
+// Dose + unidade, vezes + dias: pares que se leem juntos.
+.doseGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $sp-2;
+}
+
+// Estado da solicitação de exame — o que o médico quer saber de relance é se
+// o resultado voltou, não que aquilo é um "documento".
+.seloAguardando,
+.seloEntregue {
+  padding: 1px 8px;
+  border-radius: 10px;
+  border: 1px solid currentcolor;
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.seloAguardando { color: var(--warning-fg); }
+.seloEntregue { color: var(--primary-fg); }
+
+// Verde escuro do tema (`--primary-fg`: #047857 no claro, #34D399 no escuro) —
+// a mesma cor dos botões da barra de seções. Texto na cor da superfície:
+// 5,48:1 no claro, 8,99:1 no escuro, ambos acima do mínimo da WCAG AA.
+.botaoVerde {
+  background: var(--primary-fg);
+  border-color: var(--primary-fg);
+  color: var(--bg-surface);
+
+  &:hover:not(:disabled) {
+    background: var(--primary-fg);
+    filter: brightness(1.08);
+  }
+}
+
+// ── A FICHA DA CONSULTA, por seções ──────────────────────────────────────────
+// Substituiu o editor de texto livre único do centro. Cada seção é um bloco
+// fechado com título e ações próprias — o médico rola por elas na ordem em que
+// a consulta acontece.
+.ficha {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.fichaSecao {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+// Título e ações na MESMA linha: "Salvar modelo" e "Usar modelo" pertencem à
+// seção, e embaixo do editor pareceriam pertencer à próxima.
+.fichaCabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+  flex-wrap: wrap;
+}
+
+.fichaTitulo {
+  font-size: $fs-sm;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.fichaAcoes {
+  display: flex;
+  align-items: center;
+  gap: $sp-1;
+}
+
+// ── IMC ──────────────────────────────────────────────────────────────────────
+// Encostado no exame físico, com moldura própria: é medida, não texto, e
+// misturá-lo ao editor faria parecer parte da redação.
+.imc {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: $sp-4;
+  flex-wrap: wrap;
+  padding: $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-lg;
+}
+
+.imcCampos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 140px));
+  gap: $sp-3;
+
+  @include phone { grid-template-columns: 1fr 1fr; }
+}
+
+// Unidade DENTRO do campo: "82,5" com "kg" ao lado não deixa dúvida sobre a
+// unidade esperada — e peso em grama é justamente o erro que o banco recusa.
+.imcUnidade {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+}
+
+.imcResultado {
+  display: flex;
+  align-items: baseline;
+  gap: $sp-2;
+  flex-wrap: wrap;
+}
+
+.imcRotulo {
+  font-size: $fs-xs;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.imcValor {
+  font-size: $fs-lg;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+// A faixa ganha cor porque é a leitura do número. Adequado em verde, fora dele
+// em âmbar, obesidade em vermelho — três estados, não um gradiente.
+.imcFaixa--adequado { font-size: $fs-sm; font-weight: 600; color: var(--success-fg); }
+.imcFaixa--alerta   { font-size: $fs-sm; font-weight: 600; color: var(--warning-fg); }
+.imcFaixa--risco    { font-size: $fs-sm; font-weight: 600; color: var(--danger-fg); }
+
+// A referência fica dita: OMS é para adulto, e idoso tem outro ponto de corte.
+.imcFonte {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+}
+
+// ── Modelos ──────────────────────────────────────────────────────────────────
+.modelos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.modelo {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-lg;
+  padding: $sp-2;
+}
+
+.modeloBotao {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: $sp-1;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text-primary);
+  font-size: $fs-sm;
+  cursor: pointer;
+  border-radius: $radius-md;
+
+  &:hover { background: var(--glass-bg-hover); }
+}
+
+// Prévia de UMA linha: o modelo inteiro dentro do seletor faria a lista de
+// modelos virar a própria leitura.
+.modeloPreview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+
+  p { margin: 0; }
+}
+
+// Sessões restantes do pacote — só na tela da fisioterapia. É a pergunta que o
+// paciente faz no fim do atendimento, e o número já vem calculado do banco.
+.pacoteRestante {
+  margin: 0;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+
+  strong {
+    font-size: $fs-lg;
+    color: var(--primary-fg);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+// Aviso de que a evolução continua escrita enquanto o centro mostra os testes.
+// Sem ele, trocar de aba com rascunho pendente lê-se como "sumiu o que digitei".
+.rascunhoGuardado {
+  margin: 0 0 $sp-2;
+  padding: $sp-2 $sp-3;
+  border: 1px solid var(--warning-fg);
+  border-radius: $radius-md;
+  font-size: $fs-sm;
+  color: var(--text-secondary);
+}
+
+.voltarProntuario {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--primary-fg);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+// ── Aba "Hoje": a agenda do dia dentro do atendimento ────────────────────────
+// Sessão de fisioterapia é curta e emendada. Sair da tela para pegar o próximo
+// paciente e entrar de novo são quatro cliques e uma tela em branco no meio.
+.agendaDoDia {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+}
+
+.sessaoDoDia {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  padding: $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-lg;
+}
+
+// A sessão ABERTA fica marcada pela faixa lateral: quem rola a lista precisa
+// achar onde está sem ler nome por nome.
+.sessaoAtual {
+  border-color: var(--primary-fg);
+  box-shadow: inset 3px 0 0 var(--primary-fg);
+}
+
+.sessaoHora {
+  flex-shrink: 0;
+  font-size: $fs-md;
+  font-weight: 600;
+  color: var(--primary-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.sessaoTexto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: $fs-sm;
+}
+
+.sessaoServico {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+}
+
+.sessaoAqui {
+  flex-shrink: 0;
+  padding: 1px $sp-2;
+  border: 1px solid var(--primary-fg);
+  border-radius: $radius-pill;
+  font-size: $fs-xs;
+  color: var(--primary-fg);
+  white-space: nowrap;
+}
+
+// Régua entre os achados e o prontuário, dentro da aba Hoje. São dois
+// registros diferentes na mesma rolagem — sem a separação, a timeline dos
+// achados e a evolução se leem como um bloco só.
+.divisorCentro {
+  border: none;
+  border-top: 1px solid var(--glass-border);
+  margin: $sp-4 0 $sp-2;
+}
+
+// ── Linha do "Anotar agora": rótulo à esquerda, data à direita ───────────────
+// A data sobe para o canto superior direito porque se confere ANTES de
+// escrever. Embaixo do textarea, quem digitava e clicava em Registrar nunca a
+// via — e gravava a data errada sem perceber.
+.linhaAnotar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+  margin-bottom: $sp-1;
+}
+
+.rotuloAnotar {
+  font-size: $fs-xs;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+// Largura do conteúdo: um campo de data esticado na linha inteira competiria
+// com o rótulo pela atenção, e ele é apoio, não o assunto.
+.campoData {
+  flex: 0 0 auto;
+  width: 150px;
+}
+
+// ── Fisioterapia: sem tratamento em andamento ────────────────────────────────
+// Ocupa o centro inteiro no lugar do prontuário. É bloqueio, não aviso: sem
+// plano aberto a sessão não conta para lugar nenhum, então a tela não oferece
+// onde escrever até que exista um.
+.semTratamento {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: $sp-3;
+  padding: $sp-8 $sp-4;
+  text-align: center;
+}
+
+.semTratamentoTitulo {
+  margin: 0;
+  font-size: $fs-lg;
+  color: var(--text-primary);
+}
+
+.semTratamentoTexto {
+  margin: 0;
+  max-width: 42ch;      // linha longa demais cansa; curta demais quebra a frase
+  font-size: $fs-sm;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+// Rodapé de etapa do assistente de abertura do tratamento.
+.rodapeEtapa {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  margin-top: $sp-4;
+  padding-top: $sp-4;
+  border-top: 1px solid var(--glass-border);
+
+  @include phone {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+// "Etapa 2 de 3": diz onde a pessoa está e quanto falta. Sem isso, "Avançar"
+// não informa se restam uma ou dez telas.
+.passo {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+// TRATAMENTOS DO PACIENTE — mesma fileira rolável do histórico de resultados
+// de teste (PatientTestsPanel → .resultsRow). Rolagem horizontal em vez de
+// quebra de linha: um paciente com seis tratamentos empurraria a barra de
+// seções e o prontuário para fora da primeira tela.
+.tratamentos {
+  @include hide-scrollbar;
+  display: flex;
+  gap: $sp-3;
+  overflow-x: auto;
+  padding-bottom: $sp-1;
+}

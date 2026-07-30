@@ -979,6 +979,14 @@ export interface Room {
   photo?: string          // path da imagem no bucket privado (assinado na leitura)
 }
 
+/** Serviço/procedimento avulso da odontologia (Administrativo → Serviços, só odontologia). */
+export interface OdontoProcedure {
+  id: string
+  clinicId: string
+  name: string
+  price: number
+}
+
 /** Fornecedor de materiais (Administrativo → Fornecedores, só odontologia). */
 export interface Supplier {
   id: string

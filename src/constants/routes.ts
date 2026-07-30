@@ -35,10 +35,23 @@ export const SYSTEM_ROUTES = {
 /**
  * Rotas autenticadas SEM o AppLayout — tela cheia, sem header nem navegação.
  * Ainda atrás do AuthGuard (ver AppRouter.tsx: irmã de <AppLayout/>, não
- * filha). Reservada para ferramentas pontuais que precisam do espaço inteiro
- * da tela; hoje só o odontograma standalone (ícone no Header, só odontologia).
+ * filha). Aqui vivem as TRÊS telas de atendimento (uma por especialidade) e a
+ * ferramenta do odontograma — tudo que precisa do espaço inteiro da tela.
  */
 export const FULLSCREEN_ROUTES = {
+  /**
+   * Atendimento ODONTOLÓGICO — `?patient=<id>&atendimento=<id>`.
+   *
+   * Acumula os dois papéis de propósito. Houve uma segunda rota (`/odonto`) com
+   * as seções clínicas, deixando o mapa dentário aqui e o resto lá: o mesmo
+   * paciente tinha duas telas de atendimento, com anamnese, tratamentos e
+   * documentos repetidos nas duas, e o item "Odontograma" de uma era só uma
+   * porta para a outra. Ela foi removida — aqui o odontograma é a primeira
+   * seção do menu, e as demais ficam ao lado.
+   *
+   * `atendimento` é OPCIONAL: sem ele a tela é a ferramenta solta (entrada pelo
+   * cabeçalho), sem agendamento para marcar nem fila para onde voltar.
+   */
   ODONTOGRAM: '/odontograma',
   /** Tela de atendimento (medicina) — `?consulta=<id>`. */
   CONSULTATION: '/atendimento',

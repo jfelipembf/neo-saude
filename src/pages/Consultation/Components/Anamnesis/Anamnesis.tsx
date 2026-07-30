@@ -50,34 +50,35 @@ export function Anamnesis({ patientId, sempreAberta = false, ref }: AnamnesisPro
 
   if (isLoading) return <Spinner />
 
-  if (sempreAberta || editando) {
+  /**
+   * SEM FICHA, o formulário JÁ — não há leitura a oferecer.
+   *
+   * Antes, o paciente sem anamnese caía num aviso ("ainda não tem anamnese
+   * preenchida") com um botão "Preencher". Mas a leitura existe para PROTEGER
+   * a resposta já dada — é o motivo de esta tela abrir em leitura e não em
+   * edição. Sem resposta nenhuma não há nada a proteger, e o aviso virava um
+   * clique obrigatório para chegar na única coisa que aquela tela podia
+   * oferecer. Justamente no paciente novo, que é quando mais se preenche.
+   *
+   * Com ficha, o padrão continua sendo LEITURA: no meio do atendimento o
+   * profissional quer ver alergia e gestação destacadas, não um formulário por
+   * cima da resposta que ele foi conferir.
+   */
+  if (sempreAberta || editando || !ficha) {
     return (
       <AnamnesisForm
         patientId={patientId}
         record={ficha ?? null}
-        // Aberta por padrão não tem para onde fechar: o "Cancelar" do
-        // formulário voltaria para uma leitura que esta tela não mostra.
-        onClose={sempreAberta ? undefined : () => setEditando(false)}
+        // Sem para onde fechar em dois casos: aberta por contrato
+        // (`sempreAberta`) ou porque não existe leitura por trás — o
+        // "Cancelar" voltaria para um aviso que não existe mais.
+        onClose={sempreAberta || !ficha ? undefined : () => setEditando(false)}
         compact
+        // O formulário mantém o próprio botão de gravar; só quem passa
+        // `sempreAberta` assume a gravação pelo ref.
         semAcoes={sempreAberta}
         ref={ref}
       />
-    )
-  }
-
-  if (!ficha) {
-    return (
-      <>
-        <p className={styles.vazio}>
-          Este paciente ainda não tem anamnese preenchida — alergias, medicamentos
-          e condições que mudam a conduta.
-        </p>
-        <div className={styles.editorRodape}>
-          <Button size="sm" iconLeft={<IconEdit />} onClick={() => setEditando(true)}>
-            Preencher anamnese
-          </Button>
-        </div>
-      </>
     )
   }
 

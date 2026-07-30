@@ -256,7 +256,7 @@ $raio-item: 10px;
   &:hover { background: var(--glass-bg-hover); color: var(--text-primary); }
 }
 
-// ── Avisos (proposta pendente / aplicado / erro) ─────────────────────────────
+// ── Avisos (marcação aplicada / erro) ────────────────────────────────────────
 .avisos {
   position: relative;
   z-index: 2;
@@ -274,12 +274,6 @@ $raio-item: 10px;
     font-size: $fs-sm;
     line-height: 1.4;
   }
-}
-
-.proposta {
-  border: 1px solid var(--primary);
-  background: var(--accent-bg);
-  color: var(--text-primary);
 }
 
 .aplicado {
@@ -314,87 +308,17 @@ $raio-item: 10px;
   visibility: hidden;
 }
 
-// ── Navegação móvel ──────────────────────────────────────────────────────────
-// Em uma janela fixa, empilhar odontograma, achados e diário reduz cada área a
-// poucos pixels. No celular, cada um vira uma vista completa; no desktop esta
-// navegação some e os três continuam visíveis ao mesmo tempo.
-.mobileTabs {
-  position: relative;
-  z-index: 2;
-  display: none;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  flex: 0 0 auto;
-  border-bottom: 1px solid var(--glass-border);
-  background: var(--glass-bg);
-
-  @include mobile { display: grid; }
-}
-
-.mobileTab {
-  @include focus-ring;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: $sp-1;
-  min-width: 0;
-  min-height: 48px;
-  padding: $sp-2 $sp-1;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--text-muted);
-  font-family: inherit;
-  font-size: $fs-xs;
-  font-weight: 600;
-  cursor: pointer;
-
-  svg {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-  }
-
-  > span:not(.mobileTabContagem) {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  @include phone {
-    gap: 2px;
-    padding-inline: 2px;
-    font-size: 11px;
-  }
-}
-
-.mobileTabAtiva {
-  border-bottom-color: var(--primary);
-  color: var(--primary);
-  background: var(--accent-bg);
-}
-
-.mobileTabContagem {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  flex-shrink: 0;
-  border-radius: $radius-pill;
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-}
-
-.mobilePanelOculto {
-  @include mobile { display: none !important; }
-}
-
 // ── Conteúdo ─────────────────────────────────────────────────────────────────
+// MENU À ESQUERDA, o resto à direita — a mesma divisão das telas de
+// atendimento (Consultation/Components/Shell). Antes eram duas colunas de
+// conteúdo (odontograma + achados/atividade); hoje o menu ocupa a esquerda e
+// o que sobra é do odontograma OU do painel da seção, nunca dos dois: eles se
+// alternam, então `flex: 1` num e no outro dá a largura inteira a quem estiver
+// visível, sem reservar faixa para o que está oculto.
+//
+// `flex-direction` continua `row` no mobile (o menu lateral some sozinho nessa
+// largura, ver SideNav.module.scss) — a coluna que existia aqui empilhava os
+// painéis do modo abas antigo, que não existe mais.
 .conteudo {
   position: relative;
   z-index: 1;
@@ -405,12 +329,38 @@ $raio-item: 10px;
   padding: $sp-4 $sp-5 $sp-5;
 
   @include mobile {
-    flex-direction: column;
     gap: 0;
     padding: $sp-3;
-    padding-bottom: calc(#{$sp-3} + env(safe-area-inset-bottom));
+    // Espaço para a barra de navegação inferior fixa (MobileNav, 60px) — sem
+    // ele o fim do painel fica atrás dela.
+    padding-bottom: calc(60px + #{$sp-3} + env(safe-area-inset-bottom));
     overflow: hidden;
   }
+}
+
+// O painel da seção ocupa o mesmo espaço que o odontograma ocuparia. A casca
+// (Shell.module.scss) já dá cartão, rolagem e o `gap` entre as peças do painel;
+// aqui só entra o que é desta grade.
+.painel {
+  flex: 1;
+  min-width: 0;
+}
+
+// SEÇÃO OCULTA, não desmontada.
+//
+// `display: none` e não `visibility`/opacidade: o motor do odontograma mede o
+// próprio grid, e um contêiner com tamanho zero mas ainda "visível" o faria
+// recalcular para zero. Escondido assim ele simplesmente não participa do
+// layout e mantém as medidas de quando estava na tela.
+//
+// CLASSE DOBRADA, de propósito. Quem recebe isto é `.quadro`, que declara
+// `display: flex` — mesma especificidade (0,1,0), e aí quem vence é quem vier
+// por último no arquivo. Como `.quadro` está declarado ABAIXO, o odontograma
+// continuava visível em todas as seções. Dobrar o seletor sobe para (0,2,0) e
+// o esconder passa a valer independente da ordem — sem `!important`, e sem
+// depender de ninguém lembrar de manter este bloco no fim do arquivo.
+.secaoOculta.secaoOculta {
+  display: none;
 }
 
 // Ficha de outro dia: o desenho vira consulta, não edição. `pointer-events` e
@@ -422,14 +372,23 @@ $raio-item: 10px;
   pointer-events: none;
 }
 
+// MESMA PEÇA QUE O MENU AO LADO, e que o painel da seção que o substitui.
+//
+// Usava `@include card` (fundo `--glass-bg`) e o `$raio-painel` local de 14px,
+// herdados de quando esta tela tinha um visual só dela. Ao ganhar o menu
+// lateral, os dois passaram a conviver lado a lado — e um cartão translúcido
+// de canto redondo encostado num menu opaco de canto reto lê como duas telas
+// coladas. Agora é `--bg-surface` + `$radius-lg`, o mesmo par de SideNav.raiz
+// e de Shell.principal: qual dos dois está à direita do menu vira detalhe.
 .quadro {
-  @include card;
   position: relative;
   flex: 1;
   min-width: 0;
   min-height: 0;
   padding: $sp-4;
-  border-radius: $raio-painel;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-lg;
   // A grade tem altura própria e não estica: antes o cartão ia até o rodapé e
   // sobrava ~40% de branco embaixo dos dentes. Centralizada, o vazio vira
   // respiro em volta em vez de um bloco morto no pé da tela.
@@ -541,51 +500,29 @@ $raio-item: 10px;
   border-radius: $radius-lg;
 }
 
-// ── Coluna da direita: Anotações em cima, Transcrição embaixo ───────────────
-.lateral {
-  display: flex;
-  flex-direction: column;
-  gap: $sp-3;
-  flex-shrink: 0;
-  // Era 320px (a largura do popover nativo). A coluna é onde a informação
-  // CRESCE durante a consulta, enquanto a grade tem tamanho fixo — dar espaço
-  // a ela é o que tira a sensação de tela apertada com metade vazia.
-  width: clamp(320px, 30%, 460px);
-  min-height: 0;
-
-  @include mobile {
-    width: auto;
-    display: contents;
-  }
-}
-
-.resumoClinico {
-  display: flex;
-  flex-direction: column;
-  gap: $sp-3;
-  flex: 1 1 45%;
-  min-height: 0;
-
-  @include mobile {
-    width: 100%;
-    height: 100%;
-    flex: 0 0 100%;
-    overflow: hidden;
-  }
-}
-
 // Recado do atendimento anterior. `flex: 0 0 auto` de propósito: o painel
 // ocupa só o que o texto pede e NÃO disputa altura com as anotações e a
 // transcrição, que são as que crescem durante a consulta.
+// LEMBRETES: faixa no topo, acima do menu e do conteúdo.
+//
+// Viviam na coluna da direita, que saiu. Não viraram item de menu de propósito
+// — o que eles fazem é mudar a conduta ANTES de ela começar, e para isso
+// precisam ser lidos sem ninguém ir procurá-los. Só aparecem quando existem:
+// faixa vazia permanente vira paisagem.
 .lembretes {
   @include card;
+  position: relative;
+  z-index: 2;
   background: var(--glass-bg);
   border-color: var(--glass-border-strong);
   border-radius: $raio-painel;
   backdrop-filter: blur(8px);
   flex: 0 0 auto;
-  padding: $sp-4;
+  margin: $sp-3 $sp-5 0;
+  padding: $sp-3 $sp-4;
   border-left: 3px solid var(--warning-fg);
+
+  @include phone { margin: $sp-3 $sp-3 0; }
 }
 
 .lembretesLista {
@@ -631,224 +568,8 @@ $raio-item: 10px;
   &:disabled { opacity: 0.5; cursor: default; }
 }
 
-// DIÁRIO DO ATENDIMENTO — o que ela falou e o que executou. Fica embaixo das
-// anotações e cresce mais: é a lista que anda durante a consulta, enquanto os
-// achados são um punhado de linhas.
-.diario {
-  @include card;
-  @include hide-scrollbar;
-  background: var(--glass-bg);
-  border-color: var(--glass-border-strong);
-  border-radius: $raio-painel;
-  backdrop-filter: blur(8px);
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 55%;
-  min-height: 0;
-  padding: $sp-4;
-
-  @include mobile {
-    width: 100%;
-    height: 100%;
-    max-height: none;
-    flex: 0 0 100%;
-  }
-}
-
-.diarioSomenteMobile {
-  @include desktop { display: none; }
-}
-
-.diarioLista {
-  @include hide-scrollbar;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: $sp-2;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.linha {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: $sp-2;
-  border-radius: $raio-item;
-  border-left: 2px solid transparent;
-  background: var(--glass-bg-hover);
-}
-
-// Cores por natureza da linha: fala, ação e falha se distinguem de relance,
-// que é o que faz o painel servir para achar problema em vez de só registrar.
-.linha--dentista   { border-left-color: var(--text-muted); }
-.linha--fala       { border-left-color: var(--secondary); }
-.linha--ferramenta { border-left-color: var(--primary); }
-.linha--erro       { border-left-color: var(--danger-fg); background: var(--bg-elevated); }
-
-// Rótulo de quem falou, antes do texto: sem ele, ler uma sequência de falas
-// alternadas exige adivinhar pela cor.
-.quem {
-  display: inline-block;
-  margin-right: $sp-2;
-  font-size: $fs-xs;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-muted);
-}
-
-.linhaTitulo {
-  font-size: $fs-sm;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.4;
-}
-
 // Argumentos e retorno em fonte mono e quebrando: é JSON, e é justamente o
 // detalhe (faltou o grau? veio o dente errado?) que se vem procurar aqui.
-.linhaArgs,
-.linhaResultado {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: $fs-xs;
-  line-height: 1.35;
-  word-break: break-word;
-  white-space: pre-wrap;
-}
-
-.linhaArgs { color: var(--text-secondary); }
-.linhaResultado { color: var(--text-muted); }
-
-// Único painel que cresce na coluna: ocupa o espaço que sobrar.
-.notas {
-  @include card;
-  @include hide-scrollbar;
-  // Vidro e borda forte: os tokens já existiam e só a barra do topo usava.
-  // Cartão branco sobre fundo quase branco não tinha separação nenhuma.
-  background: var(--glass-bg);
-  border-color: var(--glass-border-strong);
-  border-radius: $raio-painel;
-  backdrop-filter: blur(8px);
-  flex: 1 1 45%;
-  min-height: 0;
-  padding: $sp-4;
-  overflow-y: auto;
-
-  @include mobile {
-    max-height: none;
-  }
-}
-
-.notasTitulo {
-  margin: 0 0 $sp-3;
-  font-size: $fs-md;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.notasVazio {
-  margin: 0;
-  font-size: $fs-sm;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
-
-// ── Achados agrupados ───────────────────────────────────────────────────────
-.grupos {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: $sp-2;
-}
-
-.grupo {
-  padding: $sp-2 $sp-3;
-  border-radius: $raio-item;
-  border-left: 2px solid var(--primary);
-  background: var(--accent-bg);
-}
-
-.grupoTopo {
-  display: flex;
-  align-items: baseline;
-  gap: $sp-2;
-}
-
-.grupoNome {
-  flex: 1;
-  font-size: $fs-sm;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.35;
-}
-
-// A contagem responde "quantos dentes?" sem obrigar a contar a faixa.
-.grupoContagem {
-  flex-shrink: 0;
-  padding: 0 6px;
-  border-radius: $radius-pill;
-  background: var(--bg-elevated);
-  font-size: $fs-xs;
-  font-weight: 700;
-  color: var(--text-secondary);
-}
-
-.grupoDentes {
-  display: block;
-  margin-top: 2px;
-  font-size: $fs-xs;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.subtitulo {
-  margin: $sp-4 0 $sp-2;
-  font-size: $fs-xs;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-}
-
-.notasLista {
-  // Sem marcador: agora que cada anotação é um cartão, a bolinha do <ul> fica
-  // do lado de FORA dele, solta na margem.
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: $sp-2;
-}
-
-// As anotações tinham padding-left: 0 e o texto encostava na parede do cartão,
-// enquanto os achados logo acima têm 12px de recuo — as duas listas ficavam
-// desalinhadas e a de baixo parecia espremida. Agora recuam pelo mesmo valor, e
-// a mesma marca à esquerda dos achados aparece aqui em neutro: mesma família,
-// peso menor (achado é estruturado, anotação é texto solto).
-.notaItem {
-  padding: $sp-2 $sp-3;
-  border-left: 2px solid var(--glass-border);
-  border-radius: $raio-item;
-  background: var(--bg-elevated);
-}
-
-.notaDente {
-  display: block;
-  margin-bottom: 2px;
-  font-size: $fs-xs;
-  font-weight: 700;
-  color: var(--primary);
-}
-
-// Resumo clínico vindo do próprio motor ("Cárie · Mobilidade Grau 1") — é o
-// achado em si, então tem peso maior que a anotação livre logo abaixo.
-.notaClinico {
-  margin: 0;
-  font-size: $fs-sm;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.5;
-}
-
 // ── Prévia do documento (Cibelly) ────────────────────────────────────────────
 .previaAviso {
   margin: 0 0 $sp-3;
@@ -872,10 +593,10 @@ $raio-item: 10px;
   }
 }
 
-.notaTexto {
-  margin: 2px 0 0;
-  font-size: $fs-sm;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  white-space: pre-wrap;   // anotação é textarea multi-linha — preserva as quebras
+// Card montado mas ainda não apresentável — ver `arcadaEmPreparo` na página.
+// `visibility` (não `display`) para o motor continuar medindo o próprio grid.
+// Classe dobrada pelo mesmo motivo de `.secaoOculta`: `.quadro` vem depois no
+// arquivo e venceria no empate de especificidade.
+.quadroEmPreparo.quadroEmPreparo {
+  visibility: hidden;
 }

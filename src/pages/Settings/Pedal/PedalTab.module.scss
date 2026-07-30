@@ -1,0 +1,51 @@
+@use '../../../styles/mixins' as *;
+
+.coluna {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.resumo {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-2;
+  margin: 0 0 $sp-3;
+}
+
+// Rótulo e valor lado a lado no desktop; empilhados no celular, onde
+// "Pisar para começar, pisar de novo para encerrar" não cabe ao lado do termo.
+.linha {
+  display: flex;
+  align-items: baseline;
+  gap: $sp-3;
+  padding: $sp-2 0;
+  border-bottom: 1px solid var(--glass-border);
+
+  dt {
+    flex: 0 0 160px;
+    color: var(--text-secondary);
+    font-size: $fs-sm;
+  }
+
+  dd {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: $fs-sm;
+    font-weight: 500;
+  }
+
+  @include mobile {
+    flex-direction: column;
+    gap: 2px;
+
+    dt { flex: none; }
+  }
+}
+
+.nota {
+  margin: 0 0 $sp-3;
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+  line-height: 1.5;
+}

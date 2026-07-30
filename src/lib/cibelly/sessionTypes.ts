@@ -39,6 +39,27 @@ export interface MaterialUsage {
   quantidade: string
 }
 
+/** Um serviço dito pelo dentista, para virar item de orçamento — o preço
+ *  NUNCA vem da fala, sempre do cadastro (Administrativo → Serviços). */
+export interface TreatmentQuoteItemRequest {
+  nome: string
+  /** Dente(s) em FDI, quando o dentista mencionar. Informativo — não
+   *  multiplica o preço (ver criarOrcamentoPaciente). */
+  dentes?: number[]
+}
+
+/**
+ * "Cibelly, monta um orçamento de limpeza e restauração."
+ *
+ * Mesmo contrato de duas etapas do emitir_documento: sem `confirmado`, só
+ * MONTA a prévia (nada salvo); com `confirmado: true`, salva no MESMO lugar
+ * que o editor manual (BudgetsPanel/quotesService) e imprime.
+ */
+export interface TreatmentQuoteRequest {
+  servicos: TreatmentQuoteItemRequest[]
+  confirmado?: boolean
+}
+
 export interface QuoteRequest {
   material?: string
   quantidade?: string
@@ -88,6 +109,7 @@ export interface PatientDirectoryRequest {
 export interface CibellyHandlers {
   aoConsultarPacientes?: (pedido?: PatientDirectoryRequest) => Promise<unknown>
   aoEmitirDocumento?: (pedido: DocumentRequest) => Promise<unknown>
+  aoCriarOrcamentoPaciente?: (pedido: TreatmentQuoteRequest) => Promise<unknown>
   aoConsultarMateriais?: (busca?: string, somenteAcabando?: boolean) => Promise<unknown>
   aoRegistrarMaterial?: (materiais: MaterialUsage[]) => Promise<unknown>
   aoSolicitarOrcamento?: (pedido: QuoteRequest) => Promise<unknown>

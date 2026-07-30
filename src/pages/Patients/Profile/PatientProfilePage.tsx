@@ -675,7 +675,7 @@ export function PatientProfilePage() {
             <PatientEnrollmentsPanel patientId={patient.id} />
           )}
           {activeTab === 'prescriptions' && (
-            <PrescriptionsPanel patientId={patient.id} patientName={patient.name} />
+            <PrescriptionsPanel patientId={patient.id} patientName={patient.name} patientCpf={patient.cpf} />
           )}
           {activeTab === 'payments' && (
             <PaymentsTable patientId={patient.id} patientName={patient.name} patientCpf={patient.cpf} />

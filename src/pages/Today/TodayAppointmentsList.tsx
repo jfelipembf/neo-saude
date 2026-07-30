@@ -6,7 +6,6 @@ import { Button } from '@/components/Button/Button'
 import { EmptyState } from '@/components/EmptyState/EmptyState'
 import { Table, type TableColumn } from '@/components/Table/Table'
 import { IconUser } from '@/components/icons'
-import odontoIAIcon from '@/assets/images/icon/odontoIA.png'
 import { useSession } from '@/context/SessionProvider'
 import { usePatientName } from '@/hooks/useDisplayNames'
 import { buildRoute, FULLSCREEN_ROUTES } from '@/constants'
@@ -34,18 +33,19 @@ export function TodayAppointmentsList({ appointments }: TodayAppointmentsListPro
   const { canView, specialty } = useSession()
   const [selected, setSelected] = useState<ScheduledAppointment | null>(null)
 
-  // Mesma feature que protege a leitura do odontograma por RLS ('patients') +
-  // o gate de especialidade (só faz sentido em odontologia) — ver comment do
-  // showOdontogram em Header.tsx.
-  const showOdontoActions = specialty === 'dentistry' && canView('patients')
-  // MEDICINA entra na tela de atendimento (tela cheia) a partir daqui — é o
-  // caminho de entrada dela, como o "Odonto IA" é o da odontologia.
+  // CADA ESPECIALIDADE ENTRA NA SUA TELA a partir daqui — as três em tela
+  // cheia, com a mesma casca (menu lateral no desktop, barra inferior no PWA)
+  // e listas de seção diferentes. Rota própria para cada uma, e não a mesma com
+  // um `?tipo=`: isso faria a página decidir em tempo de render qual delas é.
+  //
+  // A feature é sempre 'patients' — é ela que protege o prontuário por RLS; o
+  // recorte por ramo aqui é só UX.
   const showConsultaAction = specialty === 'medicine' && canView('patients')
-  // FISIOTERAPIA tem a sua: mesma tela cheia, com menu de seções próprio.
-  // Rota própria (`/fisio`), não a mesma com um parâmetro — as duas telas têm
-  // centro e painéis diferentes, e um `?tipo=` faria a página decidir em tempo
-  // de render qual delas é.
   const showSessaoAction = specialty === 'physiotherapy' && canView('patients')
+  // Odontologia mostra DOIS botões: o atendimento (como as outras) e o atalho
+  // para a ferramenta do odontograma, que existe solta para consulta rápida
+  // sem abrir atendimento.
+  const showOdontoActions = specialty === 'dentistry' && canView('patients')
 
   // Mais cedo primeiro — é a ordem em que o profissional vai VIVER o dia.
   const sorted = useMemo(
@@ -135,13 +135,26 @@ export function TodayAppointmentsList({ appointments }: TodayAppointmentsListPro
           >
             Perfil
           </Button>
+          {/* UM caminho só. Havia dois botões aqui — "Odonto IA" abrindo a
+              ferramenta solta e "Iniciar atendimento" abrindo uma segunda tela
+              de atendimento — e eram duas telas diferentes para o mesmo
+              paciente, com seções repetidas em ambas. Hoje o atendimento
+              odontológico É a tela do odontograma: o mapa dentário é a primeira
+              seção do menu dela, e as demais (anamnese, tratamentos,
+              orçamentos, prescrições, documentos) ficam ao lado.
+
+              Leva o PACIENTE e o AGENDAMENTO: o primeiro carrega a ficha, o
+              segundo é o que permite marcar a consulta como em atendimento
+              agora e concluída no fim — sem ele a fila desta tela não saberia
+              que o paciente já sentou na cadeira. */}
           <Button
-            variant="outline"
             size="sm"
-            iconLeft={<img src={odontoIAIcon} alt="" className={styles.odontoIcon} />}
-            onClick={e => { e.stopPropagation(); navigate(`${FULLSCREEN_ROUTES.ODONTOGRAM}?patient=${a.patientId}`) }}
+            onClick={e => {
+              e.stopPropagation()
+              navigate(`${FULLSCREEN_ROUTES.ODONTOGRAM}?patient=${a.patientId}&atendimento=${a.id}`)
+            }}
           >
-            Odonto IA
+            Iniciar atendimento
           </Button>
         </span>
       ),

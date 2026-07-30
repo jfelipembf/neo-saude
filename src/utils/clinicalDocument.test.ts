@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  attendanceCertificateText, certificateBody, examRequestBody,
-  leaveCertificateText, prescriptionBody, signatureBlock,
+  attendanceCertificateText, certificateBody, examRequestBody, examRequestText,
+  isExamRequest, leaveCertificateText, parseExamRequestText, prescriptionBody,
+  signatureBlock, EXAM_REQUEST_TITLE,
 } from './clinicalDocument'
 
 const BASE = {
@@ -104,5 +105,61 @@ describe('solicitação de exame', () => {
     expect(html).toContain('Radiografia periapical')
     expect(html).toContain('dente 15, dente 14')
     expect(html).toContain('Suspeita de lesão periapical')
+  })
+})
+
+/**
+ * O pedido de exame é gravado como `type: 'document'` num único campo de texto,
+ * e a segunda via precisa remontar a lista a partir dele. Enquanto a leitura
+ * vivia numa tela e a escrita em outra, a reimpressão saía como um parágrafo
+ * corrido — sem os itens que o laboratório confere um a um.
+ */
+describe('solicitação de exame: ida e volta', () => {
+  it('remonta lista e hipótese exatamente como foram gravadas', () => {
+    const texto = examRequestText(['Hemograma completo', 'TSH'], 'suspeita de hipotireoidismo')
+    expect(parseExamRequestText(texto)).toEqual({
+      exams: ['Hemograma completo', 'TSH'],
+      justification: 'suspeita de hipotireoidismo',
+    })
+  })
+
+  it('aceita pedido sem hipótese diagnóstica', () => {
+    expect(parseExamRequestText(examRequestText(['Raio-X de tórax']))).toEqual({
+      exams: ['Raio-X de tórax'],
+      justification: undefined,
+    })
+  })
+
+  // O separador da hipótese é o mesmo travessão que junta as duas partes:
+  // partir no primeiro e recolar o resto é o que impede a hipótese de ser
+  // truncada no meio.
+  it('preserva hipótese que contém travessão', () => {
+    const texto = examRequestText(['TSH'], 'dor no ombro — sem trauma')
+    expect(parseExamRequestText(texto).justification).toBe('dor no ombro — sem trauma')
+  })
+
+  it('reconhece o documento pelo título com que foi gravado', () => {
+    expect(isExamRequest({ title: EXAM_REQUEST_TITLE })).toBe(true)
+    expect(isExamRequest({ title: 'Atestado' })).toBe(false)
+  })
+
+  it('o corpo impresso enumera os exames, um por item', () => {
+    const { exams, justification } = parseExamRequestText(
+      examRequestText(['Hemograma completo', 'TSH'], 'fadiga'))
+    const html = examRequestBody({ ...BASE, exams, justification })
+    expect(html).toContain('<li>Hemograma completo</li>')
+    expect(html).toContain('<li>TSH</li>')
+    expect(html).toContain('fadiga')
+  })
+})
+
+// O texto nasceu no odontograma com "atendimento odontológico" fixo; hoje ele
+// serve as três especialidades, e uma clínica médica entregava ao paciente uma
+// declaração afirmando que ele esteve em atendimento odontológico.
+describe('declaração de comparecimento', () => {
+  it('não afirma a especialidade no corpo do texto', () => {
+    const texto = attendanceCertificateText('Michelle', '26 de julho de 2026')
+    expect(texto).not.toContain('odontológico')
+    expect(texto).toContain('para atendimento em 26 de julho de 2026')
   })
 })

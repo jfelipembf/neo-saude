@@ -106,12 +106,14 @@
     &:hover { background: var(--primary-dark); }
   }
 
-  // Dia com registro: um CÍRCULO por fora do número, não um ponto embaixo —
-  // some dot pequeno demais sumia em telas de celular. `inset` porque o botão
-  // pode já ter fundo sólido (hoje/selecionado); o anel entra por dentro da
-  // borda em vez de crescer o botão.
+  // Dia com registro: um ANEL por fora do número, não um ponto embaixo — um
+  // dot pequeno demais sumia em telas de celular. `inset` porque o botão pode
+  // já ter fundo sólido (hoje/selecionado); o anel entra por dentro da borda
+  // em vez de crescer o botão. SEM `border-radius` próprio — herda o
+  // `$radius-sm` de `.day`, senão este seletor (que vem depois no arquivo)
+  // vence a cascata e arredonda em círculo até um dia SELECIONADO/hoje, que
+  // deve continuar quadrado.
   &--marked {
-    border-radius: 50%;
     box-shadow: inset 0 0 0 1.5px var(--mark-color, var(--primary-fg));
   }
 }

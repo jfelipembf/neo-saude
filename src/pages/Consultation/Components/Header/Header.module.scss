@@ -25,6 +25,9 @@
   flex-shrink: 0;
 
   @include phone {
+    // Sem o wrap, o `order: 3` de `.acoes` só reordena DENTRO da mesma linha e
+    // o botão de encerrar quebra em duas linhas espremido ao lado do avatar.
+    flex-wrap: wrap;
     gap: $sp-2;
     padding: $sp-3;
     padding-top: calc(#{$sp-3} + env(safe-area-inset-top));
@@ -221,4 +224,36 @@
   svg { width: 16px; height: 16px; flex-shrink: 0; }
 
   &:hover { background: rgba($danger, 0.1); }
+}
+
+// Faixa de ações da especialidade, entre a marca e o menu do paciente.
+// `margin-left: auto` empurra o conjunto para a direita, deixando a marca
+// sozinha à esquerda — o menu do paciente vem logo depois e fecha a linha.
+.acoes {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  margin-left: auto;
+
+  // No phone o cronômetro e o par de botões não cabem ao lado do avatar; a
+  // faixa quebra para baixo e a linha do topo continua legível.
+  // No phone a faixa desce para a própria linha (o `flex-wrap` de `.topo`) e a
+  // ação principal ocupa a largura toda — botão de encerrar atendimento é alvo
+  // de dedo, e alvo de dedo não fica espremido num canto com meia tela vazia
+  // ao lado.
+  @include phone {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+
+    > * { flex: 1; }
+  }
+}
+
+// Idade do paciente, logo abaixo do nome. Discreta de propósito: é contexto
+// clínico permanente, não o título — quem procura o paciente lê o nome.
+.idade {
+  font-size: $fs-xs;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }

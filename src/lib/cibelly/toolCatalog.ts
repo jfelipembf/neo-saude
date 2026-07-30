@@ -145,6 +145,12 @@ export const CIBELLY_TOOL_CATALOG = {
     continuation: 'always',
     confirmation: 'tool_managed',
   },
+  criar_orcamento_paciente: {
+    domain: 'documents',
+    purpose: 'Montar um orçamento com os serviços informados (preço vem do cadastro), perguntar se o dentista quer finalizá-lo e, após confirmação falada, gravá-lo como PENDENTE (aguardando o aceite do paciente) e imprimir.',
+    continuation: 'always',
+    confirmation: 'tool_managed',
+  },
 } as const satisfies Record<string, CibellyToolDefinition>
 
 export type CibellyToolName = keyof typeof CIBELLY_TOOL_CATALOG

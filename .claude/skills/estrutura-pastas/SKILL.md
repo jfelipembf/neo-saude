@@ -116,6 +116,36 @@ A exceção é o componente EXCLUSIVO de um domínio que só faz sentido ao lado
 página-índice dele (ex.: `pages/Professionals/ProfessionalFormModal.tsx`) —
 formulário/modal que só aquele domínio abre e que não é reaproveitável.
 
+**Segunda exceção — as TELAS DE ATENDIMENTO em tela cheia.**
+`pages/Consultation/{Med,Fisio,Odonto}/` têm `components/` próprios, e isso é
+deliberado. São três telas irmãs da mesma família, cada uma com o menu de
+seções da sua especialidade; o que separa uma da outra não é "componente de
+página única", é DOMÍNIO CLÍNICO. A estrutura é:
+
+```
+pages/Consultation/
+├── <PainelCompartilhado>.tsx        ← usado por 2+ especialidades
+├── Components/
+│   ├── Shell/                       ← SideNav · MobileNav · MobileHome · navItems
+│   │                                  (a CASCA, genérica na chave, parametrizada
+│   │                                   por props — nunca copiada por pasta)
+│   ├── Header/ · Anamnesis/ · ClinicalRecord/ · Documents/ · Wizard/
+├── Med/     index.tsx · sideNavItems.tsx · Med.module.scss · components/
+├── Fisio/   index.tsx · sideNavItems.tsx · Fisio.module.scss · components/
+└── Odonto/  index.tsx · sideNavItems.tsx · Odonto.module.scss
+```
+
+Regras dentro dessa exceção:
+- **A casca NUNCA é copiada.** `SideNav`/`MobileNav`/`MobileHome` são genéricos
+  em `K extends string` e recebem `itens` + `atalhos` por prop. Três cópias
+  divergiriam no primeiro ajuste de CSS, e o gate não pega isso: classe faltando
+  num CSS Module vira `undefined` em silêncio, sem quebrar o build.
+- **Painel usado por 2+ especialidades sobe** para a raiz de `Consultation/` ou
+  para `Components/`, e ganha `.module.scss` PRÓPRIO. Importar a folha da página
+  de outra especialidade é o que travou esta separação por meses.
+- **Cada pasta tem seu `sideNavItems.tsx`** com a lista de seções e a tupla dos
+  dois atalhos da barra inferior — os únicos dados que variam por especialidade.
+
 ### Sub-componente e arquivo auxiliar
 
 - **Sub-componente com consumidor único** fica na pasta do componente pai, e

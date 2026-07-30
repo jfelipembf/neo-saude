@@ -41,6 +41,33 @@ export function useProfessionalName() {
   return (id?: string) => (id && map?.get(id)) || NO_NAME
 }
 
+/** Mesma técnica do mapa de nomes, para o par nome+registro. */
+const signersByList = new WeakMap<object, Map<string, { name: string; license?: string }>>()
+
+/**
+ * QUEM ASSINA UM DOCUMENTO JÁ EMITIDO — nome e registro no conselho.
+ *
+ * Existe porque reimpressão não é emissão: a segunda via de uma receita é
+ * outra cópia do MESMO papel, e tem de sair com a assinatura de quem a
+ * emitiu. As telas assinavam com o usuário LOGADO, então um colega (ou a
+ * recepção) reimprimindo a receita de outro profissional carimbava nela o
+ * próprio nome e o próprio CRM — um documento que ninguém daquela clínica
+ * chegou a emitir.
+ *
+ * A `specialty` do bloco de assinatura NÃO sai daqui: `Professional.specialty`
+ * é texto livre de cadastro ("Ortodontia"), enquanto o cargo impresso
+ * ("Cirurgião-dentista") vem da especialidade da CLÍNICA — quem chama passa.
+ */
+export function useDocumentSigner() {
+  const { data } = useProfessionals()
+  let map = data ? signersByList.get(data) : undefined
+  if (data && !map) {
+    map = new Map(data.map(p => [p.id, { name: p.name, license: p.license }]))
+    signersByList.set(data, map)
+  }
+  return (id?: string) => (id ? map?.get(id) : undefined)
+}
+
 export function usePatientName() {
   const { data } = usePatients()
   const map = getNameMap(data)

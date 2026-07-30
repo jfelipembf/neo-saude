@@ -1,0 +1,101 @@
+@use '../../../../styles/mixins' as *;
+
+// Tela CHEIA: durante a sessão não há Header do app nem navegação (a rota é
+// irmã do AppLayout, ver AppRouter).
+//
+// `position: fixed; inset: 0` e não só `height: 100dvh` — o `#root` do app é
+// `display: flex` (global.scss), então um filho sem regra de largura encolhe
+// até o conteúdo e a tela nasce numa coluna estreita no meio da janela.
+//
+// `dvh` e não `vh` por causa da barra do navegador no celular, que come altura.
+.tela {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--bg-base);
+  // Segura o "puxar para atualizar" e o balanço elástico do iOS. Numa tela
+  // fixa instalada como app, arrastar o dedo fora de um rolável sacode a
+  // página inteira — o que num navegador é gesto e num app parece defeito.
+  overscroll-behavior: none;
+}
+
+// Uma coluna só no mobile (o paciente já está no cabeçalho, ver Header); no
+// desktop o menu lateral entra na frente. `auto` na coluna do menu porque o
+// próprio SideNav decide sua largura ao colapsar/expandir — o grid só
+// acompanha, não é ele quem manda no tamanho.
+.corpo {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: $sp-3;
+  padding: $sp-3;
+  padding-bottom: calc(#{$sp-3} + env(safe-area-inset-bottom));
+  padding-left: calc(#{$sp-3} + env(safe-area-inset-left));
+  padding-right: calc(#{$sp-3} + env(safe-area-inset-right));
+  overflow: hidden;
+
+  @include desktop { grid-template-columns: auto minmax(0, 1fr); }
+
+  // TERCEIRA COLUNA opcional: o cartão do paciente à direita. Classe própria em
+  // vez de um terceiro track sempre presente — com o track vazio o `gap`
+  // continuaria contando e sobraria uma faixa morta à direita nas telas que
+  // não têm cartão (Fisio e Odonto hoje).
+  &ComCartao {
+    @include desktop { grid-template-columns: auto minmax(0, 1fr) auto; }
+  }
+
+  // Espaço extra embaixo pra o conteúdo não ficar atrás da navegação inferior
+  // fixa (MobileNav, 60px) — só existe nesta largura.
+  @include mobile {
+    padding-bottom: calc(60px + #{$sp-3} + env(safe-area-inset-bottom));
+  }
+}
+
+// `overflow-y: auto` + `min-height: 0` SEMPRE juntos, em toda largura — foi
+// tirado daqui num `@include phone` antigo (`overflow-y: visible`, achando
+// que "spillar" pro `.corpo` rolar por fora seria mais simples). Não é: com
+// `min-height: 0` o grid encolhe `.principal` pro espaço disponível em vez de
+// crescer com o conteúdo, então `overflow: visible` não tem pra onde crescer
+// — o conteúdo excedente só PINTA fora da caixa, sem virar scroll, e o
+// `overflow: hidden` da `.tela` corta o que passou da borda da tela. Foi
+// assim que os gráficos de sinais vitais sumiram no PWA: com 5 cartões a
+// lista passa da altura da tela, e sem scroll aqui dentro eles não têm como
+// aparecer. Rolar SEMPRE dentro de `.principal` (nunca em `.corpo`) resolve.
+.principal {
+  min-height: 0;
+  overflow-y: auto;
+  // Rolagem contida: sem isto, chegar ao fim do painel passa o gesto para a
+  // tela e reintroduz o balanço que o `overscroll-behavior: none` tirou.
+  overscroll-behavior: contain;
+
+  // COLUNA COM GAP, e não um bloco solto.
+  //
+  // Os painéis são FRAGMENTOS: soltam cabeçalho, aviso, lista e formulário
+  // como irmãos, sem embrulho próprio. Na tela antiga eles viviam dentro da
+  // coluna da direita, que era flex com gap — era ELA quem separava as peças.
+  // Ao virem para cá, ficaram encostados: o botão "Emitir" colava na lista logo
+  // abaixo, sem um pixel entre os dois. Seis painéis dependem disto
+  // (Documentos, Medicações, Anamnese, ClinicalSectionPanel, DocumentsArchive e
+  // a Ficha da consulta), então o espaçamento é do CONTÊINER — repetir margem
+  // em cada um seria seis lugares para esquecer no sétimo.
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+
+  padding: $sp-4;
+  // RESPIRO MAIOR EMBAIXO, e não os mesmos 16px do topo.
+  //
+  // Numa área que ROLA, o último elemento quase sempre é um botão de "novo" ou
+  // "adicionar" — e encostado na borda ele lê como conteúdo cortado, não como
+  // fim da lista. Some a isso que o alvo fica espremido entre a borda do cartão
+  // e, no celular, a barra de navegação logo abaixo: é onde o polegar erra.
+  padding-bottom: $sp-8;
+  border-radius: $radius-lg;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+}

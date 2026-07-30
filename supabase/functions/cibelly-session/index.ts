@@ -764,6 +764,52 @@ const TOOLS = [
   },
   {
     type: 'function',
+    name: 'criar_orcamento_paciente',
+    description:
+      'Monta um orçamento para o paciente EM ATENDIMENTO a partir dos serviços que o dentista disser, e mostra a ' +
+      'prévia na tela para ele revisar. O PREÇO NUNCA VEM DA FALA — vem sempre do cadastro de Administrativo → ' +
+      'Serviços; diga o nome do serviço o mais parecido possível com o que está cadastrado. Se um serviço citado ' +
+      'não existir no cadastro, a ferramenta recusa e diz qual — não invente nome nem preço. ' +
+      'DUAS ETAPAS: chame primeiro SEM "confirmado"; a prévia aparece na tela (com os valores) e você diz só os ' +
+      'serviços incluídos, perguntando se pode imprimir — NUNCA diga valor em voz alta, nem por item nem o ' +
+      'total; o preço é para o dentista OLHAR na prévia, não para ser falado, e a ferramenta nem devolve o valor ' +
+      'nessa chamada. Só chame de novo, com os MESMOS dados e confirmado=true, depois de um SIM claro — só nessa ' +
+      'segunda chamada o orçamento é salvo (aparece depois no perfil do paciente, aba Orçamentos) e sai da ' +
+      'impressora.',
+    parameters: {
+      type: 'object',
+      properties: {
+        servicos: {
+          type: 'array',
+          description: 'Um item por serviço citado pelo dentista. Pelo menos um.',
+          items: {
+            type: 'object',
+            properties: {
+              nome: {
+                type: 'string',
+                description: 'Nome do serviço, o mais parecido possível com o cadastrado em Administrativo → Serviços.',
+              },
+              dentes: {
+                type: 'array',
+                items: { type: 'integer' },
+                description: 'Dente(s) em FDI, se o dentista mencionar. Informativo — não muda o preço.',
+              },
+            },
+            required: ['nome'],
+          },
+        },
+        confirmado: {
+          type: 'boolean',
+          description:
+            'Só true na SEGUNDA chamada, depois de o dentista confirmar em voz a impressão do orçamento que ' +
+            'apareceu na tela. Nunca mande true na primeira chamada, nem por dedução do que ele quis dizer.',
+        },
+      },
+      required: ['servicos'],
+    },
+  },
+  {
+    type: 'function',
     name: 'consultar_materiais',
     description:
       'Consulta o estoque da clínica: quanto tem de cada material, quais estão acabando, e quem são os fornecedores de cada um (com e-mail e WhatsApp). ' +

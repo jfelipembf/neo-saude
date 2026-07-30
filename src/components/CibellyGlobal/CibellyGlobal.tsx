@@ -37,6 +37,7 @@ export function CibellyGlobal() {
   const cibelly = useCibelly(ehOdonto, null, {
     aoConsultarPacientes: ferramentas.consultarPacientes,
     aoEmitirDocumento: ferramentas.emitirDocumento,
+    aoCriarOrcamentoPaciente: ferramentas.criarOrcamentoPaciente,
     aoConsultarMateriais: ferramentas.consultarMateriais,
     aoRegistrarMaterial: ferramentas.registrarMaterialUsado,
     aoSolicitarOrcamento: ferramentas.solicitarOrcamento,

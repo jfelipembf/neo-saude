@@ -13,11 +13,18 @@ import type { WaitingListEntry, WaitingListStatus } from '@/types/domain'
  * discute.
  */
 
+// EMBED PELO NOME DA TABELA, não pela coluna da FK.
+//
+// A sintaxe do PostgREST é `apelido:ALVO(colunas)`, e o alvo é a TABELA. Escrito
+// como `patient:patient_id(name)`, ele procurava uma relação chamada
+// "patient_id" — que não existe — e devolvia 400 (PGRST200) na requisição
+// inteira, derrubando a lista junto. O apelido ainda por cima era redundante:
+// já era igual ao nome da tabela, então tirá-lo não muda a chave do JSON.
 const ROW_COLUMNS = `
   id, clinic_id, patient_id, insurance_id, email, mobile_phone, home_phone,
   notes, status, appointment_id, resolved_at, created_at,
-  patient:patient_id ( name ),
-  insurance:insurance_id ( name )
+  patient ( name ),
+  insurance ( name )
 `
 
 type Row = {

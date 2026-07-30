@@ -10,8 +10,8 @@ import type { AnamnesisFormHandle } from '@/pages/Patients/Profile/Anamnesis/Ana
 import { Diagnosis } from '../Diagnosis/Diagnosis'
 import { PatientTestsPanel } from '@/pages/Patients/Profile/Tests/PatientTestsPanel'
 import type { PatientTestsHandle } from '@/pages/Patients/Profile/Tests/PatientTestsPanel'
-import { BodyCompositionPanel } from '../../../BodyCompositionPanel'
-import type { BodyCompositionHandle } from '../../../BodyCompositionPanel'
+import { BodyCompositionPanel } from '../BodyCompositionPanel/BodyCompositionPanel'
+import type { BodyCompositionHandle } from '../BodyCompositionPanel/BodyCompositionPanel'
 import type { CarePlan } from '@/services/carePlansService'
 import styles from './TreatmentWizard.module.scss'
 

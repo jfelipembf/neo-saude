@@ -10,13 +10,26 @@ import { useCibellyPedal } from '@/hooks/useCibellyPedal'
 import { useCibellyGeneralTools } from '@/hooks/useCibellyGeneralTools'
 import { usePatients } from '@/hooks/usePatients'
 import { readOdontogram, travarEscritaNoOdontograma } from '@/lib/odontogramShell/toothFields'
-import { agruparAchados, notasLivres } from '@/utils/toothNoteGroups'
 import { OdontogramTimeline } from './OdontogramTimeline'
+import { Anamnesis } from '@/pages/Consultation/Components/Anamnesis/Anamnesis'
+import { SideNav } from '@/pages/Consultation/Components/Shell/SideNav'
+import { MobileNav } from '@/pages/Consultation/Components/Shell/MobileNav'
+import { MobileHome } from '@/pages/Consultation/Components/Shell/MobileHome'
+import { CHAVE_INICIO } from '@/pages/Consultation/Components/Shell/navItems'
+import { BudgetsPanel } from '@/components/BudgetsPanel/BudgetsPanel'
+import { DocumentsUpload } from '@/components/DocumentsUpload/DocumentsUpload'
+import { PrescriptionsPanel } from '@/components/PrescriptionsPanel/PrescriptionsPanel'
+import { TreatmentsPanel } from '@/components/TreatmentsPanel/TreatmentsPanel'
+import { isMobileViewport } from '@/utils/viewport'
+import { ATALHOS_DA_BARRA, ITENS } from './sideNavItems'
+import type { OdontogramNavKey } from './sideNavItems'
 import { useCloseReminder } from '@/hooks/usePatientReminders'
 import {
   useOdontogramRevision, useOdontogramRevisions, usePatientOdontogram,
   useRecordExamSession, useSavePatientOdontogram,
 } from '@/hooks/usePatientOdontogram'
+import { useScheduleAppointments, useUpdateScheduleAppointment } from '@/hooks/useSchedule'
+import { toIsoDate } from '@/utils/date'
 import { useSession } from '@/context/SessionProvider'
 import { useTheme } from '@/context/ThemeProvider'
 import { PatientPicker } from '@/components/PatientPicker/PatientPicker'
@@ -24,16 +37,13 @@ import { CibellyPedalButton } from '@/components/CibellyPedalButton/CibellyPedal
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
 import { Modal } from '@/components/Modal/Modal'
 import { Button } from '@/components/Button/Button'
-import { DrugCatalogDrawer } from '@/components/DrugCatalog/DrugCatalogDrawer'
-import { PedalSetupModal } from '@/components/CibellyPedalButton/PedalSetupModal'
 import { carregarPedal } from '@/lib/cibelly/pedalConfig'
 import { Spinner } from '@/components/Spinner/Spinner'
-import {
-  IconX, IconMic, IconCheck, IconTooth, IconDocument, IconMessage,
-} from '@/components/icons'
+import { IconX, IconMic, IconCheck } from '@/components/icons'
 import { errorMessage } from '@/utils/errors'
 import { APP_ROUTES } from '@/constants'
 import type { Patient } from '@/types/domain'
+import casca from '@/pages/Consultation/Components/Shell/Shell.module.scss'
 import styles from './OdontogramFullscreenPage.module.scss'
 
 /** Acima de quanto tempo desiste de esperar o motor e mostra a tela mesmo
@@ -44,6 +54,9 @@ const READY_TIMEOUT_MS = 5000
 /** Quanto tempo o aviso "aplicado" fica visível depois de confirmar_marcacao. */
 const APPLIED_BADGE_MS = 4000
 
+/** Teto para a re-hidratação do motor ao retomar a seção do odontograma. */
+const RE_HIDRATACAO_TIMEOUT_MS = 3000
+
 interface ToothNote {
   tooth: number
   /** Resumo clínico do motor, já em pt-BR ("Cárie · Mobilidade Grau 1"). */
@@ -52,7 +65,9 @@ interface ToothNote {
   text: string
 }
 
-type MobilePanel = 'odontogram' | 'findings' | 'activity'
+/** 'inicio' só existe no PWA mobile — a grade de ícones atrás do botão central
+ *  da barra inferior (ver Shell/MobileHome). */
+type Secao = OdontogramNavKey | typeof CHAVE_INICIO
 
 // O motor monta o title do tile como "<resumo clínico>" e, SÓ SE houver
 // anotação, concatena "\n📝 <texto>" no fim (odontogram.ts:updateToothTooltip).
@@ -112,25 +127,99 @@ export function OdontogramFullscreenPage() {
   // atendimento não perde o contexto (e o F5 acidental é comum em tela cheia).
   const [searchParams, setSearchParams] = useSearchParams()
   const patientId = searchParams.get('patient')
+  /**
+   * O AGENDAMENTO de onde este atendimento veio — presente quando se entrou
+   * pela tela Hoje, ausente quando se abriu a ferramenta solta pelo cabeçalho.
+   *
+   * É por ele que a fila do Hoje sabe que o paciente está na cadeira: sem
+   * marcar o status, o agendamento ficava "agendado" a consulta inteira e a
+   * recepção não tinha como saber que já tinha começado.
+   */
+  const appointmentId = searchParams.get('atendimento')
   const [patientName, setPatientName] = useState('')
 
   const shellRef = useRef<HTMLDivElement>(null)
-  const diarioRef = useRef<HTMLUListElement>(null)
+
+  /**
+   * ⚠️ O MOTOR NÃO É SÓ DESTA TELA — E ELA PRECISA SABER DISSO.
+   *
+   * `OdontogramShell` é uma instância GLOBAL DE MÓDULO: existe UMA por vez, e
+   * montar um segundo shell em qualquer lugar do app rebate o motor para ele.
+   * O painel de Tratamentos monta os seus (o do procedimento e o de leitura de
+   * cada dia) e chama `loadOdontogramState` com o snapshot daquele dia — ou
+   * seja, abrir Tratamentos TOMA o motor desta tela e sobrescreve o desenho do
+   * atendimento em curso com uma ficha antiga.
+   *
+   * O sintoma visível era o odontograma sumir ao voltar da seção. O sintoma
+   * invisível era pior: `getOdontogramState()` passava a devolver o snapshot do
+   * tratamento, e um "Finalizar atendimento" nesse estado gravaria a boca de
+   * OUTRO DIA como sendo a de hoje.
+   *
+   * A tela então trata o motor como emprestado: ao sair da seção guarda o
+   * desenho aqui, e ao voltar remonta o shell (o `key`) e re-hidrata. Enquanto
+   * está fora, ESTE estado é a verdade — não o motor.
+   */
+  const [estadoVivo, setEstadoVivo] = useState<Record<string, unknown> | null>(null)
+  /** Sobe a cada retomada; serve de `key` para forçar um shell novo. */
+  const [montagemDoMotor, setMontagemDoMotor] = useState(0)
+  /** O motor está desenhando a ficha DESTA tela? Falso enquanto outra seção o
+   *  tem, e entre a remontagem e o fim da re-hidratação. */
+  const [motorNosso, setMotorNosso] = useState(true)
+  /**
+   * Em qual montagem do motor as camadas padrão já foram acertadas.
+   *
+   * Número, e não booleano, para servir também às RETOMADAS: cada shell novo
+   * nasce com osso e polpa ligados, então o flash voltaria a cada volta do
+   * Tratamentos se isto ficasse `true` para sempre. Comparado com
+   * `montagemDoMotor`, ele volta a ser "não pronto" sozinho na remontagem —
+   * sem precisar de um `setState` no corpo do efeito, que a regra
+   * `react-hooks/set-state-in-effect` recusa.
+   */
+  const [camadasProntasEm, setCamadasProntasEm] = useState(-1)
   const [notes, setNotes] = useState<ToothNote[]>([])
   const [ready, setReady] = useState(false)
   const [emAtendimento, setEmAtendimento] = useState(false)
-  const [mobilePanel, setMobilePanel] = useState<MobilePanel>('odontogram')
+  // PORTA DE ENTRADA por aparelho: no PWA é a grade de ícones; no desktop,
+  // direto no odontograma, que é o motivo de esta tela existir.
+  // Lido uma vez na montagem (`isMobileViewport`, não reativo de propósito):
+  // girar o aparelho no meio do atendimento não deve trocar de seção sozinho.
+  const [secao, setSecao] = useState<Secao>(() => (isMobileViewport() ? CHAVE_INICIO : 'odontograma'))
+
+  /**
+   * CEDE O MOTOR AO SAIR DA SEÇÃO, RETOMA AO VOLTAR — ver `estadoVivo`.
+   *
+   * Saindo: fotografa o desenho ANTES que o painel da outra seção monte o
+   * shell dele. Feito DURANTE O RENDER (padrão do projeto, e o que a regra
+   * `react-hooks/set-state-in-effect` exige) e não num efeito, o que aqui
+   * também é mais correto: este render acontece antes do commit que esconde o
+   * odontograma e monta o outro painel, então o motor ainda é o nosso e
+   * `getOdontogramState()` devolve o desenho de verdade. Num efeito, o shell
+   * do outro painel já poderia ter montado e a foto sairia dele.
+   *
+   * Voltando: sobe `montagemDoMotor`, que é `key` do shell. Só chamar
+   * `loadOdontogramState` não bastaria — se outro painel montou um shell, o
+   * motor está ligado ao contêiner DELE e o nosso ficou uma caixa vazia, que
+   * era exatamente o "o odontograma não aparece". O `key` novo força um shell
+   * novo, e ele reata o motor a este contêiner.
+   */
+  const [secaoAnterior, setSecaoAnterior] = useState<Secao>(secao)
+  if (secao !== secaoAnterior) {
+    if (secaoAnterior === 'odontograma') {
+      setEstadoVivo(getOdontogramState())
+      setMotorNosso(false)
+    }
+    if (secao === 'odontograma') setMontagemDoMotor(n => n + 1)
+    setSecaoAnterior(secao)
+  }
   const [sujo, setSujo] = useState(false)
   const [erroSalvar, setErroSalvar] = useState<string | null>(null)
   // Gaveta do catálogo de medicamentos. Fica aqui com os outros estados de UI:
   // declarada mais abaixo, caía depois de um return antecipado e quebrava a
   // ordem dos hooks.
-  const [catalogoAberto, setCatalogoAberto] = useState(false)
   // Configuração do pedal Bluetooth: qual tecla cada botão manda e se ele
   // sustenta a tecla. Vive no navegador — o pedal é do computador, não da
   // clínica (ver lib/cibelly/pedalConfig).
-  const [pedal, setPedal] = useState(carregarPedal)
-  const [pedalAberto, setPedalAberto] = useState(false)
+  const [pedal] = useState(carregarPedal)
 
   /**
    * Qual dia da ficha está na tela. `null` = ficha corrente ("Atual"), a única
@@ -157,6 +246,13 @@ export function OdontogramFullscreenPage() {
   /** Identifica ESTE atendimento — a RPC é idempotente por ele. */
   const tokenAtendimentoRef = useRef<string>('')
 
+  const hojeIso = toIsoDate(new Date())
+  const { data: consultasDeHoje } = useScheduleAppointments(hojeIso, hojeIso)
+  const consulta = appointmentId
+    ? (consultasDeHoje ?? []).find(a => a.id === appointmentId)
+    : undefined
+  const { mutate: atualizarConsulta } = useUpdateScheduleAppointment()
+
   const { data: pacientes } = usePatients()
   const paciente = pacientes?.find(p => p.id === patientId)
   const fecharLembrete = useCloseReminder()
@@ -171,7 +267,9 @@ export function OdontogramFullscreenPage() {
    * sincronia e uma delas cancelaria a consulta errada.
    */
   const ferramentas = useCibellyGeneralTools({ patientId, paciente })
-  const { materiaisUsadosRef, lembretes, documentoPendente, fecharPreviaDocumento } = ferramentas
+  const {
+    materiaisUsadosRef, lembretes, documentoPendente, fecharPreviaDocumento, orcamentoPendente, fecharPreviaOrcamento,
+  } = ferramentas
 
   /**
    * O que está marcado no odontograma agora. Sem isto ela era cega ao próprio
@@ -201,6 +299,7 @@ export function OdontogramFullscreenPage() {
   const cibelly = useCibelly(specialty === 'dentistry', patientId, {
     aoConsultarPacientes: ferramentas.consultarPacientes,
     aoEmitirDocumento: ferramentas.emitirDocumento,
+    aoCriarOrcamentoPaciente: ferramentas.criarOrcamentoPaciente,
     aoConsultarMateriais: ferramentas.consultarMateriais,
     aoRegistrarMaterial: ferramentas.registrarMaterialUsado,
     aoSolicitarOrcamento: ferramentas.solicitarOrcamento,
@@ -220,9 +319,9 @@ export function OdontogramFullscreenPage() {
   useCibellyPedal({
     enabled: cibelly.status === 'listening',
     // O paciente selecionado na ficha é o contexto clínico do pedal J. Não
-    // dependa do estado efêmero do botão "Iniciar atendimento": ele volta a
-    // false após um recarregamento e fazia o pedal parecer inativo mesmo com a
-    // ficha correta aberta.
+    // dependa de `emAtendimento`: é estado efêmero, volta a false após um
+    // recarregamento e fazia o pedal parecer inativo mesmo com a ficha correta
+    // aberta.
     patientAvailable: !!patientId,
     startListening: cibelly.iniciarEscuta,
     stopListening: cibelly.encerrarEscuta,
@@ -269,14 +368,19 @@ export function OdontogramFullscreenPage() {
       }
     }, 100)
     return () => clearInterval(timer)
-  }, [])
+    // Refaz a cada shell novo: o contêiner é outro, e o `.tooth-tile` que este
+    // efeito procura só existe depois que a grade DAQUELE shell desenha.
+  }, [montagemDoMotor])
 
-  // Visões padrão fixas (osso e polpa desligados) — mesma regra do TreatmentsPanel.
+  // Visões padrão fixas (osso e polpa desligados) — mesma regra do
+  // TreatmentsPanel. Reaplica a cada shell novo: o shell nasce com as camadas
+  // padrão ligadas, então sem isto voltar do Tratamentos traria osso e polpa
+  // de volta à tela.
   useEffect(() => {
     const root = shellRef.current
     if (!root) return
-    return hideDefaultLayers(root)
-  }, [])
+    return hideDefaultLayers(root, () => setCamadasProntasEm(montagemDoMotor))
+  }, [montagemDoMotor])
 
   // ⚠️ A guarda contra contaminação entre pacientes. Ao trocar de paciente
   // (inclusive para null) o motor é RECARREGADO: sem paciente, limpa a boca;
@@ -293,6 +397,12 @@ export function OdontogramFullscreenPage() {
   const baselineRef = useRef<string>('')
   useEffect(() => {
     if (!ready || carregandoFicha || carregandoRevisao) return
+    // Nunca com o motor emprestado (Tratamentos aberto): trocar de paciente ou
+    // de data ali dentro carregaria a ficha no shell DELE e ainda gravaria um
+    // marco zero tirado do snapshot do tratamento. Fica para a retomada — o
+    // `carregadoRef` continua desatualizado, então este efeito refaz a carga
+    // assim que `motorNosso` voltar a ser verdadeiro.
+    if (!motorNosso) return
     // A chave inclui a revisão: trocar de DIA recarrega o motor pelo mesmo
     // caminho que trocar de paciente. Sem isso, escolher outra data mudaria só
     // o destaque na régua e a boca continuaria a mesma na tela.
@@ -305,7 +415,7 @@ export function OdontogramFullscreenPage() {
     // migrações e auto-correções — comparar contra o payload cru acusaria
     // diferença onde não houve edição nenhuma.
     baselineRef.current = JSON.stringify(getOdontogramState())
-  }, [ready, patientId, carregandoFicha, fichaSalva, revisao, carregandoRevisao, payloadRevisao])
+  }, [ready, patientId, carregandoFicha, fichaSalva, revisao, carregandoRevisao, payloadRevisao, motorNosso])
 
   /**
    * A trava de escrita segue o modo da tela. Fica num efeito (e não no clique
@@ -332,6 +442,106 @@ export function OdontogramFullscreenPage() {
   //
   // Devolve a URL para o paciente da sessão. `replace` para não empilhar
   // histórico e o voltar seguinte funcionar como a pessoa espera.
+  /**
+   * O ATENDIMENTO ABRE SOZINHO — não há mais botão de iniciar.
+   *
+   * Quem chega aqui já clicou "Iniciar atendimento" na tela Hoje; repetir a
+   * decisão significava, na prática, dentista marcando dente com a sessão
+   * fechada e descobrindo no fim que nada tinha sido registrado — porque é o
+   * ENCERRAMENTO que grava o treatment_session no prontuário, e sem abertura
+   * não há o que encerrar.
+   *
+   * Espera o paciente: entrando direto em /odontograma, sem `?patient=`, não há
+   * ficha para abrir — a sessão nasce quando um paciente for escolhido.
+   *
+   * NÃO abre em modo histórico: ali a tela é somente-leitura, e cunhar um token
+   * de atendimento para uma revisão antiga criaria um registro de hoje a partir
+   * do que foi visto em maio.
+   *
+   * Guarda em `useRef` e não em estado: ela responde "já abri para ESTE
+   * paciente?" e não pode virar dependência do efeito, senão o próprio
+   * `setEmAtendimento` reagendaria a abertura.
+   */
+  const jaAbriu = useRef<string | null>(null)
+  useEffect(() => {
+    if (!patientId || emHistorico) return
+    if (jaAbriu.current === patientId) return
+    jaAbriu.current = patientId
+    // Token novo por atendimento: é o que separa "gravar de novo o mesmo
+    // atendimento" (idempotente) de "este é outro atendimento".
+    tokenAtendimentoRef.current = crypto.randomUUID()
+    setEmAtendimento(true)
+  }, [patientId, emHistorico])
+
+  /**
+   * O AGENDAMENTO PASSA A "EM ATENDIMENTO" — é o que a fila do Hoje lê.
+   *
+   * Efeito separado do de cima porque as duas coisas dependem de gatilhos
+   * diferentes: aquele espera o PACIENTE, este espera a consulta ter CHEGADO da
+   * busca (ela é assíncrona e não existe quando a tela monta). Juntá-los faria
+   * a abertura do atendimento esperar uma requisição de rede que, na entrada
+   * pelo cabeçalho, nem acontece — ali não há agendamento nenhum.
+   */
+  const jaMarcouEmAtendimento = useRef<string | null>(null)
+  useEffect(() => {
+    if (!consulta || emHistorico) return
+    if (jaMarcouEmAtendimento.current === consulta.id) return
+    if (consulta.status !== 'scheduled' && consulta.status !== 'confirmed') return
+    jaMarcouEmAtendimento.current = consulta.id
+    atualizarConsulta({ id: consulta.id, payload: { ...consulta, status: 'in_service' } })
+    // Dependências só nos campos que importam: `consulta` é recriada a cada
+    // busca (mesmo id, referência nova) e `atualizarConsulta` a cada render —
+    // incluí-los repetiria a gravação em laço. A guarda por id cobre o resto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consulta?.id, consulta?.status, emHistorico])
+
+  /**
+   * CEDE O MOTOR AO SAIR DA SEÇÃO, RETOMA AO VOLTAR.
+   *
+   * Saindo: fotografa o desenho ANTES que o painel da outra seção monte o
+   * shell dele — depois disso `getOdontogramState()` já não é o nosso.
+   *
+   * Voltando: sobe `montagemDoMotor`, que é `key` do shell. Só chamar
+   * `loadOdontogramState` não bastaria: se outro painel montou um shell, o
+   * motor está ligado ao contêiner DELE, e o nosso ficou uma caixa vazia — era
+   * exatamente o "o odontograma não aparece". O `key` novo força um shell
+   * novo, que reata o motor a este contêiner.
+   */
+  /**
+   * RE-HIDRATA depois da remontagem, com repetição.
+   *
+   * O motor monta assíncrono e o shell anterior ainda pode estar se destruindo
+   * — uma única chamada cairia no vazio. Repete até a grade confirmar (o
+   * resumo do dente aparece no `title` do tile) ou até o teto de tempo, mesma
+   * técnica do TreatmentsPanel. Só então o motor volta a ser a fonte da
+   * verdade (`motorNosso`), e não antes: finalizar o atendimento no meio da
+   * re-hidratação leria uma boca pela metade.
+   */
+  useEffect(() => {
+    if (montagemDoMotor === 0 || secao !== 'odontograma') return
+    const alvo = estadoVivo
+    const root = shellRef.current
+    if (!root) return
+    const dentes = Object.keys((alvo?.teeth as Record<string, unknown> | undefined) ?? {})
+    const inicio = Date.now()
+    const timer = setInterval(() => {
+      loadOdontogramState(alvo)
+      const pronto = dentes.length === 0
+        ? root.querySelector('.tooth-tile[data-tooth]') !== null
+        : dentes.some(d => root.querySelector(`.tooth-tile[data-tooth="${d}"]`)?.getAttribute('title'))
+      if (pronto || Date.now() - inicio > RE_HIDRATACAO_TIMEOUT_MS) {
+        clearInterval(timer)
+        setMotorNosso(true)
+      }
+    }, 150)
+    return () => clearInterval(timer)
+    // Dispara pela REMONTAGEM, não pelo snapshot. `estadoVivo` é lido como foto
+    // do instante da retomada; incluí-lo nas dependências refaria a
+    // re-hidratação no momento em que ele é gravado — que é a SAÍDA da seção,
+    // com o painel de Tratamentos já dono do motor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [montagemDoMotor])
+
   const pacienteDaSessaoRef = useRef<string | null>(null)
   useEffect(() => {
     if (!emAtendimento) { pacienteDaSessaoRef.current = null; return }
@@ -344,7 +554,7 @@ export function OdontogramFullscreenPage() {
 
   useEffect(() => {
     const root = shellRef.current
-    if (!root) return
+    if (!root || !motorNosso) return
 
     let scheduled = 0
     function collect() {
@@ -383,7 +593,24 @@ export function OdontogramFullscreenPage() {
       observer.disconnect()
       if (scheduled) window.clearTimeout(scheduled)
     }
-  }, [])
+    // Reata ao shell novo a cada retomada, e SÓ enquanto o motor é nosso.
+    // Sem a guarda de `motorNosso`, a remontagem rodaria `collect()` antes da
+    // re-hidratação terminar: o contêiner ainda vazio devolveria zero tiles,
+    // `notes` seria zerada — e é dela que saem os achados gravados no
+    // prontuário no encerramento — e o `sujo` compararia o marco zero contra o
+    // snapshot que o Tratamentos deixou no motor, acusando alteração que
+    // ninguém fez.
+  }, [montagemDoMotor, motorNosso])
+
+  /**
+   * A ficha corrente — do motor quando ele é nosso, do ref quando não é.
+   *
+   * Todo caminho que GRAVA passa por aqui. Ler `getOdontogramState()` direto,
+   * com o Tratamentos aberto, gravaria o snapshot dele.
+   */
+  function fichaCorrente(): Record<string, unknown> {
+    return motorNosso ? getOdontogramState() : (estadoVivo ?? {})
+  }
 
   async function salvarFicha() {
     if (!patientId) return
@@ -391,7 +618,7 @@ export function OdontogramFullscreenPage() {
     // ANTIGO por cima da ficha corrente — o oposto de consultar o histórico.
     if (emHistorico) return
     setErroSalvar(null)
-    const payload = getOdontogramState()
+    const payload = fichaCorrente()
     try {
       await salvar.mutateAsync({
         patientId,
@@ -464,7 +691,7 @@ export function OdontogramFullscreenPage() {
         // tr_material_stock) — por isso ela acontece aqui, no encerramento, e
         // não no instante em que a Cibelly ouviu "usei duas seringas".
         materials: materiaisUsadosRef.current,
-        odontogram: getOdontogramState(),
+        odontogram: fichaCorrente(),
         // `notes` guardava a transcrição inteira do ditado — saiu junto com a
         // transcrição. O prontuário continua com o que importa e é verificável:
         // os achados por dente, os materiais consumidos, o snapshot do
@@ -481,16 +708,17 @@ export function OdontogramFullscreenPage() {
     }
   }
 
-  async function alternarAtendimento() {
-    if (emAtendimento) {
-      await encerrarAtendimento()
-      setEmAtendimento(false)
-    } else {
-      // Token novo por atendimento: é o que separa "gravar de novo o mesmo
-      // atendimento" (idempotente) de "este é outro atendimento".
-      tokenAtendimentoRef.current = crypto.randomUUID()
-      setEmAtendimento(true)
-    }
+  async function fecharAtendimento() {
+    await encerrarAtendimento()
+    setEmAtendimento(false)
+
+    // Sem agendamento (entrada pelo cabeçalho, ferramenta solta) não há status
+    // a mudar nem fila para onde voltar: a tela simplesmente fica.
+    if (!consulta) return
+    atualizarConsulta({ id: consulta.id, payload: { ...consulta, status: 'completed' } }, {
+      onSuccess: () => navigate(APP_ROUTES.TODAY),
+      onError: e => setErroSalvar(errorMessage(e, 'O atendimento foi gravado, mas não foi possível marcar a consulta como concluída.')),
+    })
   }
 
   function fechar() {
@@ -530,6 +758,29 @@ export function OdontogramFullscreenPage() {
           : 'Pedal pronto',
     error: 'Indisponível',
   }[cibelly.status]
+  /**
+   * A ARCADA SÓ APARECE COM A VISUALIZAÇÃO ESTABILIZADA.
+   *
+   * `ready` diz só que a grade desenhou — e ela desenha ANTES de
+   * `hideDefaultLayers` conseguir apertar os botões de osso e polpa, que o
+   * motor traz LIGADOS. Mostrar naquele instante exibia a arcada completa por
+   * uma fração de segundo, e depois ela "se corrigia" sozinha: lê como defeito
+   * de carregamento, não como transição.
+   *
+   * Esconde só o CARD do odontograma, não a tela: o `.conteudo` também carrega
+   * o menu lateral e, no PWA, a grade de ícones — segurar tudo isso por causa
+   * de dois botões do motor atrasaria a tela inteira à toa.
+   *
+   * `visibility` e não `display: none`: o motor mede o próprio grid, e um
+   * contêiner sem caixa o faria calcular zero — voltaria como arcada
+   * espremida. Invisível, ele continua ocupando o mesmo espaço e medindo certo.
+   *
+   * O teto de 3s dentro do próprio `hideDefaultLayers` impede que isto vire
+   * card eternamente invisível se o motor mudar os ids dos botões um dia: ele
+   * desiste, chama o retorno mesmo assim, e a arcada aparece.
+   */
+  const arcadaEmPreparo = camadasProntasEm !== montagemDoMotor
+
   const pedalAtivo = cibelly.modoEscuta !== null
   const mostrarMolduraCibelly = pedalAtivo
     || emProcessamento
@@ -551,6 +802,52 @@ export function OdontogramFullscreenPage() {
     : statusTexto
   const botaoPedalRotulo = `Segure para falar com a Cibelly${patientName ? ` sobre ${patientName}` : ''}`
 
+  /**
+   * O QUE APARECE À DIREITA DO MENU.
+   *
+   * O odontograma NÃO entra aqui de propósito — ele fica sempre montado no JSX
+   * abaixo, só oculto (ver o comentário lá). Este switch cobre as demais
+   * seções, todas painéis que já existiam: os mesmos das abas do perfil do
+   * paciente e da tela de atendimento, agora ao alcance de quem está com a mão
+   * na boca do paciente, sem sair do odontograma.
+   */
+  function painelDaSecao() {
+    if (secao === CHAVE_INICIO) {
+      return <MobileHome itens={ITENS} ocultar={ATALHOS_DA_BARRA} onSelecionar={setSecao} />
+    }
+    // Todos os painéis são do PACIENTE: sem um escolhido não há o que mostrar,
+    // e cada um deles montaria uma busca com id vazio.
+    if (!patientId) {
+      return (
+        <div className={styles.semPaciente}>
+          <p>Escolha um paciente para começar.</p>
+        </div>
+      )
+    }
+    switch (secao) {
+      case 'anamnese':
+        return <Anamnesis patientId={patientId} />
+      case 'tratamentos':
+        // Sem desenhar a ficha do dia: o odontograma vivo é a primeira seção
+        // deste mesmo menu, e o motor é um só (ver `estadoVivo`).
+        return <TreatmentsPanel patientId={patientId} patientName={paciente?.name} hideOdontogram />
+      case 'orcamentos':
+        return <BudgetsPanel patientId={patientId} patientName={paciente?.name} />
+      case 'prescricoes':
+        return (
+          <PrescriptionsPanel
+            patientId={patientId}
+            patientName={paciente?.name}
+            patientCpf={paciente?.cpf}
+          />
+        )
+      case 'documentos':
+        return <DocumentsUpload patientId={patientId} />
+      default:
+        return null
+    }
+  }
+
   return (
     <div className={[
       styles.tela,
@@ -567,42 +864,12 @@ export function OdontogramFullscreenPage() {
             lockedReason={emAtendimento ? 'Encerre o atendimento para trocar de paciente' : undefined}
           />
 
-          <Button
-            variant={emAtendimento ? 'danger' : 'primary'}
-            size="md"
-            className={styles.atendimentoBotao}
-            iconLeft={<IconMic />}
-            onClick={alternarAtendimento}
-            disabled={!patientId || salvar.isPending}
-            title={!patientId ? 'Escolha um paciente para iniciar' : undefined}
-          >
-            <span className={styles.rotuloAtendimentoCompleto}>
-              {emAtendimento ? 'Encerrar atendimento' : 'Iniciar atendimento'}
-            </span>
-            <span className={styles.rotuloAtendimentoCurto}>
-              {emAtendimento ? 'Encerrar' : 'Iniciar'}
-            </span>
-          </Button>
 
           {patientId && !emAtendimento && sujo && !emHistorico && (
             <Button variant="ghost" size="md" onClick={salvarFicha} disabled={salvar.isPending}>
               Salvar
             </Button>
           )}
-
-          {/* Consulta de medicamento fica na barra e NÃO depende de paciente
-              escolhido: a pergunta "qual a apresentação da clindamicina?"
-              aparece antes de abrir a ficha de alguém. */}
-          <Button variant="ghost" size="md" onClick={() => setCatalogoAberto(true)}>
-            Medicamentos
-          </Button>
-
-          {/* O pedal é HARDWARE de cada consultório, e cada modelo manda uma
-              tecla diferente — não há como o app adivinhar. Aqui o dentista
-              ensina, pisando. */}
-          <Button variant="ghost" size="md" onClick={() => setPedalAberto(true)} title="Configurar pedal">
-            Pedal
-          </Button>
         </div>
 
         <div className={styles.barraDireita}>
@@ -673,66 +940,65 @@ export function OdontogramFullscreenPage() {
         </div>
       )}
 
-      <nav className={styles.mobileTabs} aria-label="Seções do atendimento">
-        <button
-          type="button"
-          id="mobile-tab-odontogram"
-          className={`${styles.mobileTab} ${mobilePanel === 'odontogram' ? styles.mobileTabAtiva : ''}`}
-          role="tab"
-          aria-selected={mobilePanel === 'odontogram'}
-          aria-controls="mobile-panel-odontogram"
-          onClick={() => setMobilePanel('odontogram')}
-        >
-          <IconTooth />
-          <span>Odontograma</span>
-        </button>
-        <button
-          type="button"
-          id="mobile-tab-findings"
-          className={`${styles.mobileTab} ${mobilePanel === 'findings' ? styles.mobileTabAtiva : ''}`}
-          role="tab"
-          aria-selected={mobilePanel === 'findings'}
-          aria-controls="mobile-panel-findings"
-          onClick={() => setMobilePanel('findings')}
-        >
-          <IconDocument />
-          <span>Achados</span>
-          {notes.length > 0 && <span className={styles.mobileTabContagem}>{notes.length}</span>}
-        </button>
-        <button
-          type="button"
-          id="mobile-tab-activity"
-          className={`${styles.mobileTab} ${mobilePanel === 'activity' ? styles.mobileTabAtiva : ''}`}
-          role="tab"
-          aria-selected={mobilePanel === 'activity'}
-          aria-controls="mobile-panel-activity"
-          onClick={() => setMobilePanel('activity')}
-        >
-          <IconMessage />
-          <span>Atividade</span>
-          {cibelly.atividade.length > 0 && (
-            <span className={styles.mobileTabContagem}>
-              {cibelly.atividade.length > 99 ? '99+' : cibelly.atividade.length}
-            </span>
-          )}
-        </button>
-      </nav>
+      {/* LEMBRETES do atendimento anterior. Subiram para o topo quando a coluna
+          da direita saiu: servem para mudar a conduta ANTES de ela começar, e
+          escondê-los atrás de uma seção do menu é o mesmo que não tê-los. */}
+      {(lembretes?.length ?? 0) > 0 && (
+        <aside className={styles.lembretes} aria-label="Lembretes deste paciente">
+          <ul className={styles.lembretesLista}>
+            {lembretes?.map(l => (
+              <li key={l.id} className={styles.lembreteItem}>
+                <p className={styles.lembreteTexto}>{l.texto}</p>
+                <button
+                  type="button"
+                  className={styles.lembreteFeito}
+                  title="Marcar como resolvido"
+                  disabled={fecharLembrete.isPending}
+                  onClick={() => patientId && fecharLembrete.mutate({ id: l.id, patientId })}
+                >
+                  <IconCheck />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </aside>
+      )}
 
-      {/* O shell continua MONTADO durante o carregamento — é o motor global de
-          módulo; desmontar zeraria o estado. Só fica visualmente oculto. */}
       <div className={`${styles.conteudo} ${ready ? '' : styles.carregandoConteudo}`}>
-        {/* Em modo histórico o desenho fica inerte: o clique do dente não passa
+        {/* FINALIZAR no pé do menu. O iniciar não existe mais — a sessão abre
+            sozinha ao entrar (ver `jaAbriu`), porque o clique de começar já foi
+            dado na tela Hoje. Finalizar segue sendo explícito: é ele que grava
+            o atendimento no prontuário e conclui o agendamento; fazê-lo
+            automático no `fechar` transformaria um X acidental em registro
+            clínico gravado. */}
+        <SideNav
+          itens={ITENS}
+          ativo={secao === CHAVE_INICIO ? null : secao}
+          onSelecionar={setSecao}
+          rodape={emAtendimento && (
+            <Button variant="danger" size="sm" onClick={fecharAtendimento} disabled={salvar.isPending}>
+              Finalizar atendimento
+            </Button>
+          )}
+        />
+
+        {/* O ODONTOGRAMA NUNCA DESMONTA — só fica oculto.
+            O motor é global de módulo, mede o próprio grid ao montar e zera o
+            desenho ao ser desmontado. Trocá-lo por um `case` do switch abaixo
+            apagaria o atendimento em curso toda vez que o dentista fosse ver a
+            anamnese. Por isso ele vive FORA de painelDaSecao(), sempre no DOM,
+            escondido por CSS quando outra seção está aberta.
+
+            Em modo histórico o desenho fica inerte: o clique do dente não passa
             pela trava do toothFields (ele entra pelos handlers do próprio
             motor), então o bloqueio dele é aqui, onde o clique chega. */}
         <div
-          id="mobile-panel-odontogram"
           className={[
             styles.quadro,
             emHistorico ? styles.quadroInerte : '',
-            mobilePanel !== 'odontogram' ? styles.mobilePanelOculto : '',
+            secao === 'odontograma' ? '' : styles.secaoOculta,
+            arcadaEmPreparo ? styles.quadroEmPreparo : '',
           ].filter(Boolean).join(' ')}
-          role="tabpanel"
-          aria-labelledby="mobile-tab-odontogram"
           ref={shellRef}
         >
           {!patientId && ready && (
@@ -740,147 +1006,17 @@ export function OdontogramFullscreenPage() {
               <p>Escolha um paciente para começar.</p>
             </div>
           )}
-          <OdontogramShell language="pt-br" darkMode={dark} enableNotes />
+          {/* `key` que muda a cada retomada: é o que reata o motor a ESTE
+              contêiner depois que outra seção o levou (ver o efeito acima). */}
+          <OdontogramShell key={montagemDoMotor} language="pt-br" darkMode={dark} enableNotes />
         </div>
 
-        <div className={styles.lateral}>
-          <div
-            id="mobile-panel-findings"
-            className={`${styles.resumoClinico} ${mobilePanel !== 'findings' ? styles.mobilePanelOculto : ''}`}
-            role="tabpanel"
-            aria-labelledby="mobile-tab-findings"
-          >
-            {/* Recados do atendimento ANTERIOR. Ficam no topo da coluna, acima dos
-                achados de hoje, porque servem para mudar a conduta antes de ela
-                começar — embaixo de uma lista de dentes ninguém lê a tempo. Só
-                aparece quando há algum: painel vazio permanente vira paisagem. */}
-            {(lembretes?.length ?? 0) > 0 && (
-              <aside className={styles.lembretes} aria-label="Lembretes deste paciente">
-                <h2 className={styles.notasTitulo}>Lembretes</h2>
-                <ul className={styles.lembretesLista}>
-                  {lembretes?.map(l => (
-                    <li key={l.id} className={styles.lembreteItem}>
-                      <p className={styles.lembreteTexto}>{l.texto}</p>
-                      <button
-                        type="button"
-                        className={styles.lembreteFeito}
-                        title="Marcar como resolvido"
-                        disabled={fecharLembrete.isPending}
-                        onClick={() => patientId && fecharLembrete.mutate({ id: l.id, patientId })}
-                      >
-                        <IconCheck />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </aside>
-            )}
-
-            <aside className={styles.notas} aria-label="Achados do odontograma">
-              <h2 className={styles.notasTitulo}>Achados</h2>
-              {notes.length === 0 ? (
-                <p className={styles.notasVazio}>
-                  Os achados aparecem aqui conforme forem marcados — pela Cibelly ou com duplo
-                  clique num dente para escrever à mão.
-                </p>
-              ) : (
-                <>
-                  {/* POR ACHADO, não por dente. Com aparelho na arcada inteira, a
-                      lista por dente virava dezesseis blocos idênticos; agrupada,
-                      a mesma informação é uma linha — e é assim que o dentista
-                      pergunta ("onde tem cárie?"). */}
-                  <ul className={styles.grupos}>
-                    {agruparAchados(notes).map(g => (
-                      <li key={g.achado} className={styles.grupo}>
-                        <div className={styles.grupoTopo}>
-                          <span className={styles.grupoNome}>{g.achado}</span>
-                          <span className={styles.grupoContagem}>{g.dentes.length}</span>
-                        </div>
-                        <span className={styles.grupoDentes}>{g.resumo}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* Anotação livre é de outra natureza: não agrupa, e some se
-                      misturada com o que está desenhado. */}
-                  {notasLivres(notes).length > 0 && (
-                    <>
-                      <h3 className={styles.subtitulo}>Anotações</h3>
-                      <ul className={styles.notasLista}>
-                        {notasLivres(notes).map(n => (
-                          <li key={n.tooth} className={styles.notaItem}>
-                            <span className={styles.notaDente}>Dente {n.tooth}</span>
-                            <p className={styles.notaTexto}>{n.text}</p>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                </>
-              )}
-            </aside>
-          </div>
-
-          {/* DIÁRIO DO ATENDIMENTO — o que ela falou e o que ela executou.
-              Existe para responder "por que ela não marcou o 23?": mostra se a
-              ferramenta foi chamada, com quais argumentos e o que voltou.
-              Não custa nada: a fala DELA vem junto do áudio que já foi gerado, e
-              as chamadas são nossas. A transcrição da fala do DENTISTA, que era
-              paga (whisper, por minuto), continua desligada. */}
-          <aside
-            id="mobile-panel-activity"
-            className={[
-              styles.diario,
-              !emAtendimento && cibelly.atividade.length === 0 ? styles.diarioSomenteMobile : '',
-              mobilePanel !== 'activity' ? styles.mobilePanelOculto : '',
-            ].filter(Boolean).join(' ')}
-            role="tabpanel"
-            aria-labelledby="mobile-tab-activity"
-            aria-label="Diário do atendimento"
-          >
-            <h2 className={styles.notasTitulo}>Atividade</h2>
-            {cibelly.atividade.length === 0 ? (
-              <p className={styles.notasVazio}>
-                Sua fala, a resposta dela e cada ferramenta que ela usar — com os
-                argumentos e o resultado — aparecem aqui.
-              </p>
-            ) : (
-              <ul className={styles.diarioLista} ref={diarioRef}>
-                {cibelly.atividade.map(a => (
-                  <li key={a.id} className={`${styles.linha} ${styles['linha--' + a.tipo]}`}>
-                    {a.tipo === 'ferramenta' ? (
-                      <>
-                        <span className={styles.linhaTitulo}>{a.texto}</span>
-                        <code className={styles.linhaArgs}>{a.args}</code>
-                        <code className={styles.linhaResultado}>{a.resultado}</code>
-                      </>
-                    ) : (
-                      <span className={styles.linhaTitulo}>
-                        <span className={styles.quem}>
-                          {a.tipo === 'dentista'
-                            ? 'Você'
-                            : a.tipo === 'erro'
-                              ? 'Erro'
-                              : 'Cibelly'}
-                        </span>
-                        {a.texto}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </aside>
-        </div>
+        {secao !== 'odontograma' && (
+          <main className={`${casca.principal} ${styles.painel}`}>{painelDaSecao()}</main>
+        )}
       </div>
 
-      <DrugCatalogDrawer open={catalogoAberto} onClose={() => setCatalogoAberto(false)} />
-
-      <PedalSetupModal
-        open={pedalAberto}
-        onClose={() => setPedalAberto(false)}
-        onSaved={setPedal}
-      />
+      <MobileNav itens={ITENS} atalhos={ATALHOS_DA_BARRA} ativo={secao} onSelecionar={setSecao} />
 
       <CibellyPedalButton
         mode="patient"
@@ -891,6 +1027,7 @@ export function OdontogramFullscreenPage() {
         onStop={cibelly.encerrarEscuta}
         label={botaoPedalRotulo}
         disabledReason={botaoPedalMotivo}
+        activation={pedal.activation}
       />
 
       {/* PRÉVIA DO DOCUMENTO — a Cibelly monta e mostra aqui, mas só salva e
@@ -914,6 +1051,31 @@ export function OdontogramFullscreenPage() {
             // Fora da ordem de Tab: um clique de leitura dentro do iframe não
             // deveria prender o foco de teclado lá, porque o pedal J escuta no
             // window de FORA — um frame com foco não deixa a tecla chegar nele.
+            tabIndex={-1}
+          />
+        )}
+      </Modal>
+
+      {/* PRÉVIA DO ORÇAMENTO — mesma doutrina: a Cibelly monta e mostra aqui,
+          só salva (na mesma tabela do editor manual de Orçamentos) e manda
+          pra impressora depois de um "sim" falado (ver criarOrcamentoPaciente
+          em useCibellyGeneralTools.ts). */}
+      <Modal
+        open={orcamentoPendente !== null}
+        onClose={fecharPreviaOrcamento}
+        title={orcamentoPendente?.titulo ?? 'Orçamento'}
+        size="lg"
+        footer={<Button variant="ghost" onClick={fecharPreviaOrcamento}>Cancelar</Button>}
+      >
+        <p className={styles.previaAviso}>
+          Diga “sim” para finalizar. O orçamento fica <strong>pendente</strong> até o
+          paciente aceitar, no botão “Aprovar” da lista de Orçamentos.
+        </p>
+        {orcamentoPendente && (
+          <iframe
+            className={styles.previaDocumento}
+            title="Prévia do orçamento"
+            srcDoc={orcamentoPendente.html}
             tabIndex={-1}
           />
         )}

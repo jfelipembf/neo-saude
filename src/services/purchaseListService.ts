@@ -39,7 +39,14 @@ type Row = {
   material: { name: string } | null
 }
 
-const COLUNAS = 'id, material_id, label, quantity, unit, notes, created_at, material:material_id ( name )'
+// EMBED PELO NOME DA TABELA, não pela coluna da FK.
+//
+// A sintaxe do PostgREST é `apelido:ALVO(colunas)`, e o alvo é a TABELA. Escrito
+// como `patient:patient_id(name)`, ele procurava uma relação chamada
+// "patient_id" — que não existe — e devolvia 400 (PGRST200) na requisição
+// inteira, derrubando a lista junto. O apelido ainda por cima era redundante:
+// já era igual ao nome da tabela, então tirá-lo não muda a chave do JSON.
+const COLUNAS = 'id, material_id, label, quantity, unit, notes, created_at, material ( name )'
 
 function toItem(r: Row): PurchaseItem {
   return {

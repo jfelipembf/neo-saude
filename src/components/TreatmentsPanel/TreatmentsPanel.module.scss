@@ -567,3 +567,12 @@
 }
 
 
+
+// Dentes do procedimento em texto — usado onde a ficha do dia não pode ser
+// desenhada (ver `hideOdontogram` no TreatmentsPanel).
+.procDentes {
+  margin: 0 0 $sp-2;
+  color: var(--text-primary);
+  font-size: $fs-sm;
+  line-height: 1.5;
+}

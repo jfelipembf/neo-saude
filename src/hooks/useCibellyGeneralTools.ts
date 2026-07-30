@@ -1,15 +1,17 @@
 import { useRef, useState } from 'react'
-import type { Patient } from '@/types/domain'
+import type { Patient, QuoteItem } from '@/types/domain'
 import { useSession } from '@/context/SessionProvider'
 import { useCurrentUser } from '@/hooks/useUser'
 import { useClinic } from '@/hooks/useClinic'
 import { usePatients } from '@/hooks/usePatients'
-import { usePatientName } from '@/hooks/useDisplayNames'
+import { usePatientName, useProfessionalName } from '@/hooks/useDisplayNames'
 import { useRooms } from '@/hooks/useRooms'
 import { useCreatePrescription } from '@/hooks/usePrescriptions'
 import { usePrintDocumentSemGesto } from '@/hooks/usePrintDocument'
 import { usePatientReminders, useAddReminder, useCloseReminder } from '@/hooks/usePatientReminders'
 import { usePatientClinicalSummary } from '@/hooks/usePatientOdontogram'
+import { useOdontoProcedures } from '@/hooks/useOdontoProcedures'
+import { useCreateQuote } from '@/hooks/useQuotes'
 import { useAvailabilityTemplate, useAbsences, useBlockedSlots } from '@/hooks/useProfessionalAvailability'
 import {
   useCreateScheduleAppointment, useScheduleAppointments, useUpdateScheduleAppointment,
@@ -20,6 +22,7 @@ import {
 } from '@/lib/cibelly/patientDirectory'
 import type {
   CibellyToolContext, DocumentRequest, PatientDirectoryRequest, PatientMessageRequest, QuoteRequest,
+  TreatmentQuoteRequest,
   CartAddRequest,
   CartQuoteRequest,
 } from '@/lib/cibelly/sessionTypes'
@@ -51,6 +54,8 @@ import {
   examRequestBody, leaveCertificateText, prescriptionBody,
 } from '@/utils/clinicalDocument'
 import { buildDocument } from '@/utils/printDocument'
+import { quoteBody } from '@/utils/quoteDocument'
+import type { NewQuote } from '@/services/quotesService'
 import { listMaterialsWithSuppliers } from '@/services/materialsService'
 import {
   addToPurchaseList, getCartBySupplier, listPurchaseList, marcarEnvioDoOrcamento,
@@ -103,6 +108,9 @@ export function useCibellyGeneralTools({
   const { data: clinica } = useClinic()
   const criarPrescricao = useCreatePrescription()
   const imprimirSemGesto = usePrintDocumentSemGesto()
+  const { data: servicos } = useOdontoProcedures()
+  const criarOrcamento = useCreateQuote()
+  const professionalName = useProfessionalName()
 
   /**
    * PRÉVIA PENDENTE — o que o modal da tela mostra enquanto espera o "sim".
@@ -114,6 +122,14 @@ export function useCibellyGeneralTools({
    * nenhuma das duas chegou a ter efeito no prontuário ainda.
    */
   const [documentoPendente, setDocumentoPendente] = useState<{
+    titulo: string
+    html: string
+  } | null>(null)
+  /** Mesma doutrina, para criarOrcamentoPaciente — prévia separada porque
+   *  documento e orçamento são coisas diferentes e podem estar pendentes uma
+   *  independente da outra (a mais nova de CADA UMA substitui a anterior
+   *  dela, não a da outra ferramenta). */
+  const [orcamentoPendente, setOrcamentoPendente] = useState<{
     titulo: string
     html: string
   } | null>(null)
@@ -289,6 +305,133 @@ export function useCibellyGeneralTools({
    *  desfeito no banco: nada foi salvo até a confirmação. */
   function fecharPreviaDocumento() {
     setDocumentoPendente(null)
+  }
+
+  /**
+   * "Cibelly, monta um orçamento de limpeza e restauração no 26."
+   *
+   * MESMA fonte do editor manual (BudgetsPanel): salva com `useCreateQuote` /
+   * `quotesService.addQuote`, na mesma tabela `quote`/`quote_item`, e imprime
+   * com o mesmo `quoteBody` — um orçamento criado por voz aparece idêntico a
+   * um criado à mão, na lista de Orçamentos do perfil do paciente e na aba
+   * de Orçamentos desta própria tela.
+   *
+   * O PREÇO NUNCA VEM DA FALA — só o nome do serviço. Ele é resolvido contra
+   * o cadastro (Administrativo → Serviços, tabela odonto_procedure) e o valor
+   * de tabela é o que entra no orçamento; não há campo para o dentista ditar
+   * um valor diferente aqui (isso o editor manual já cobre, se for o caso).
+   *
+   * TUDO OU NADA: se um serviço citado não bate com nada do cadastro, a
+   * ferramenta recusa o pedido inteiro em vez de montar um orçamento faltando
+   * um item — mesma doutrina do emitirDocumento ("documento é o lugar onde
+   * default silencioso custa mais caro"), e aqui vale em dobro: é dinheiro.
+   */
+  async function criarOrcamentoPaciente(pedido: TreatmentQuoteRequest) {
+    if (!patientId || !paciente) {
+      return { ok: false as const, erro: 'Nenhum paciente em atendimento.' }
+    }
+    const pedidos = pedido.servicos ?? []
+    if (pedidos.length === 0) {
+      return { ok: false as const, erro: 'Quais serviços entram no orçamento?' }
+    }
+
+    const catalogo = servicos ?? []
+    const itens: QuoteItem[] = []
+    for (const s of pedidos) {
+      const termo = s.nome.trim().toLowerCase()
+      const achado = catalogo.find(c => c.name.toLowerCase() === termo)
+        ?? catalogo.find(c => c.name.toLowerCase().includes(termo))
+      if (!achado) {
+        return {
+          ok: false as const,
+          erro: `Não encontrei "${s.nome}" no cadastro de Serviços. Cadastre em Administrativo → Serviços, ou diga o nome exatamente como está lá.`,
+        }
+      }
+      itens.push({
+        treatment: achado.name,
+        professionalId: usuario?.professionalId,
+        insurance: 'Particular',
+        teeth: s.dentes?.length ? s.dentes.map(String) : undefined,
+        unitPrice: achado.price,
+        amount: achado.price,
+      })
+    }
+
+    const hojeBr = isoToBrDate(toIsoDate(new Date())) ?? ''
+    const nomeOrcamento = `Plano de tratamento de ${paciente.name}`
+    const rascunho: NewQuote = {
+      patientId,
+      name: nomeOrcamento,
+      date: hojeBr,
+      status: 'pending',
+      items: itens,
+    }
+    const resumoServicos = itens.map(i => i.treatment).join(', ')
+
+    // PRIMEIRA CHAMADA: só monta a prévia, mesma doutrina do emitirDocumento —
+    // nada é salvo nem impresso até o "sim".
+    //
+    // SEM VALOR NO RETORNO, de propósito: o preço completo (por item e total)
+    // já está na prévia que aparece na tela, mas não vai no resultado da
+    // ferramenta — se não chega aqui, ela não tem como falar o total em voz
+    // alta, nem por engano. O dentista confirma OLHANDO a prévia, não ouvindo
+    // o valor: o mesmo raciocínio de `nomeFaladoDoPaciente` (não manda o dado
+    // sensível para não precisar confiar que o modelo vai omitir sozinho).
+    if (!pedido.confirmado) {
+      setOrcamentoPendente({
+        titulo: 'Orçamento',
+        html: buildDocument(clinica, {
+          title: 'Orçamento',
+          subtitle: nomeOrcamento,
+          body: quoteBody(rascunho, clinica?.name ?? 'a clínica', professionalName, paciente.name),
+        }),
+      })
+      return {
+        ok: true as const,
+        precisaConfirmar: true,
+        orcamento: { servicos: resumoServicos },
+        instrucao:
+          'O orçamento apareceu na tela para o dentista revisar, com os valores. Diga só os serviços incluídos e '
+          + 'pergunte se ele quer FINALIZAR o orçamento — a pergunta é sobre fechar o orçamento, não sobre '
+          + 'imprimir: o que a confirmação faz é GRAVAR (a impressão é consequência). NÃO diga nenhum valor em '
+          + 'voz alta (nem por item, nem o total): o preço é para o dentista OLHAR na tela, não para ser falado. '
+          + 'Só chame de novo, com os MESMOS dados e confirmado=true, depois de um "sim" claro — antes disso nada '
+          + 'foi gravado, então não diga que o orçamento existe.',
+      }
+    }
+
+    // CONFIRMADO: agora sim salva (mesma addQuote do editor manual) e imprime.
+    try {
+      await criarOrcamento.mutateAsync(rascunho)
+    } catch (e) {
+      setOrcamentoPendente(null)
+      return { ok: false as const, erro: errorMessage(e, 'Não foi possível salvar o orçamento.') }
+    }
+
+    imprimirSemGesto({
+      title: 'Orçamento',
+      subtitle: nomeOrcamento,
+      body: quoteBody(rascunho, clinica?.name ?? 'a clínica', professionalName, paciente.name),
+    })
+    setOrcamentoPendente(null)
+    return {
+      ok: true as const,
+      resumo: `orçamento de ${resumoServicos}`,
+      // O que a Cibelly deve DIZER depois de gravar. O orçamento nasce
+      // `pending` — igual ao do editor manual (ver BudgetsPanel) —, e quem o
+      // tira desse estado é o "Aprovar" da lista, que é o aceite do paciente e
+      // o que gera o contrato e os recebíveis. Sem dizer isso, "orçamento
+      // criado" soa como negócio fechado, e o dentista para de esperar o aceite.
+      instrucao:
+        'O orçamento foi gravado e está PENDENTE, aguardando o aceite do paciente — avise isso. Ele aparece na '
+        + 'lista de Orçamentos do perfil do paciente, onde o botão "Aprovar" registra o aceite. Continue sem '
+        + 'dizer valores em voz alta.',
+    }
+  }
+
+  /** Fecha a prévia do orçamento sem salvar nem imprimir. */
+  function fecharPreviaOrcamento() {
+    setOrcamentoPendente(null)
   }
 
   /** Consumo ditado durante o atendimento — vai junto no encerramento e dá baixa. */
@@ -1178,8 +1321,28 @@ export function useCibellyGeneralTools({
     const nome = pedido.produto?.trim()
     if (!nome) return { ok: false, erro: 'Não entendi qual produto pôr no carrinho.' }
 
-    const materiais = await listMaterialsWithSuppliers()
-    const achado = materiais.find(m => matchesSearch(m.nome, nome))
+    /**
+     * A busca no catálogo é CONVENIÊNCIA, não pré-requisito — e estava sem
+     * rede.
+     *
+     * Ela serve só para ligar o item a um material cadastrado (e, por ele, a um
+     * fornecedor). Fora de um `try`, qualquer falha da RPC derrubava a chamada
+     * inteira ANTES de tocar no carrinho: o dentista dizia "põe fio de sutura
+     * no carrinho", nada era anotado, e a exceção subia sem virar um `erro`
+     * legível — a Cibelly não tinha o que dizer além de uma falha genérica.
+     *
+     * Falhando, segue como item FORA do catálogo: é exatamente o caminho que
+     * esta função já trata para um nome que não existe no cadastro, com aviso
+     * de que não haverá fornecedor ligado. Anotar sem fornecedor é muito melhor
+     * que não anotar.
+     */
+    let achado: Awaited<ReturnType<typeof listMaterialsWithSuppliers>>[number] | undefined
+    try {
+      const materiais = await listMaterialsWithSuppliers()
+      achado = materiais.find(m => matchesSearch(m.nome, nome))
+    } catch {
+      achado = undefined
+    }
 
     try {
       await addToPurchaseList({
@@ -1307,8 +1470,11 @@ export function useCibellyGeneralTools({
     lembretes,
     documentoPendente,
     fecharPreviaDocumento,
+    orcamentoPendente,
+    fecharPreviaOrcamento,
     consultarPacientes,
     emitirDocumento,
+    criarOrcamentoPaciente,
     consultarMateriais,
     registrarMaterialUsado,
     solicitarOrcamento,

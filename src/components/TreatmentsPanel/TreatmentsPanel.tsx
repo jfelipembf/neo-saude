@@ -32,6 +32,21 @@ interface TreatmentsPanelProps {
   patientId: string
   /** Nome exibido no relatório impresso. */
   patientName?: string
+  /**
+   * Não desenhar a ficha do dia ao expandir um procedimento — mostrar dentes e
+   * etapas em TEXTO.
+   *
+   * Para quando este painel divide a tela com um odontograma vivo (a tela de
+   * atendimento odontológico). Ali desenhar a ficha é errado por dois motivos:
+   * o motor é uma instância GLOBAL DE MÓDULO, então montar um segundo shell
+   * rouba o da tela; e a coluna ao lado do menu não tem largura para a arcada —
+   * a grade encolhia a meia dúzia de tiles minúsculos, com os botões de camada
+   * do motor soltos em cima.
+   *
+   * A informação não se perde: `teeth` e `actions` da sessão são o que a ficha
+   * daquele dia mostra, em texto.
+   */
+  hideOdontogram?: boolean
 }
 
 /** Linha do relatório ao vivo: o que foi sinalizado num dente do odontograma. */
@@ -96,7 +111,7 @@ function loadChart(
  * e vira um nó da TIMELINE; cada "Novo procedimento" abre o editor com
  * odontograma e entra conectado como sub-rota do tratamento.
  */
-export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps) {
+export function TreatmentsPanel({ patientId, patientName, hideOdontogram }: TreatmentsPanelProps) {
   const toast = useToast()
   const professionalName = useProfessionalName()
   const { data: treatments, isLoading } = usePatientTreatments(patientId)
@@ -508,8 +523,19 @@ export function TreatmentsPanel({ patientId, patientName }: TreatmentsPanelProps
 
                           {expandedProcedure === s.id && (
                             <div className={styles.procDetalhes}>
-                              {/* Odontograma daquele dia, marcado como ficou. */}
-                              {s.odontogram ? (
+                              {/* Odontograma daquele dia, marcado como ficou —
+                                  ou, quando a ficha não pode ser desenhada
+                                  aqui (ver `hideOdontogram`), os dentes em
+                                  texto. */}
+                              {hideOdontogram ? (
+                                s.teeth?.length ? (
+                                  <p className={styles.procDentes}>
+                                    <strong>Dentes:</strong> {s.teeth.join(', ')}
+                                  </p>
+                                ) : (
+                                  <p className={styles.procSemFicha}>Nenhum dente registrado.</p>
+                                )
+                              ) : s.odontogram ? (
                                 <div
                                   ref={readOnlyRef}
                                   className={`${styles.shell} ${styles.shellLeitura} ${dark ? 'dark' : ''}`}

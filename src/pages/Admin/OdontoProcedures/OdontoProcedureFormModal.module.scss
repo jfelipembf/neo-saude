@@ -1,0 +1,7 @@
+@use '../../../styles/mixins' as *;
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}

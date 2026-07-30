@@ -18,17 +18,3 @@
   letter-spacing: .04em;
   color: var(--text-secondary);
 }
-
-.editorRodape {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: $sp-3;
-  padding-top: $sp-2;
-}
-
-.vazio {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: $fs-sm;
-}

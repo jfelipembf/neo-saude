@@ -1,0 +1,76 @@
+@use '../../../../styles/mixins' as *;
+
+// Só no PWA mobile — no desktop a navegação já mora no SideNav.
+.raiz {
+  display: none;
+
+  @include mobile {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    height: 60px;
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    background: var(--bg-surface);
+    border-top: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+.item {
+  @include focus-ring;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  cursor: pointer;
+
+  svg { width: 22px; height: 22px; }
+}
+
+.rotulo {
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.itemAtivo {
+  color: var(--primary-fg);
+}
+
+// Botão do centro, elevado — a "casinha num círculo" acima da barra. A borda
+// da cor do fundo é o que faz ele parecer recortado da barra em vez de só
+// encostado nela.
+.inicio {
+  @include focus-ring;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  margin-top: -22px;
+  border: 4px solid var(--bg-surface);
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+
+  svg { width: 24px; height: 24px; }
+}
+
+.inicioAtivo {
+  background: var(--primary-fg);
+}

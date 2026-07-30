@@ -148,6 +148,36 @@ export function examRequestBody(doc: BaseDoc & {
     ${rodape(doc)}`
 }
 
+// ── Solicitação de exame: como ela é gravada e como se lê de volta ───────────
+
+/**
+ * O pedido de exame é gravado como `type: 'document'` — igual ao relatório —, e
+ * o que o distingue é o TÍTULO. Como a leitura ("isto é um pedido?") e a
+ * escrita (juntar a lista num campo de texto) acontecem em telas diferentes, o
+ * contrato mora aqui: separado, cada tela inventava o seu e a segunda via saía
+ * como um parágrafo corrido, sem os itens que o laboratório confere um a um.
+ */
+export const EXAM_REQUEST_TITLE = 'Solicitação de exame'
+
+export function isExamRequest(doc: { title: string }) {
+  return doc.title === EXAM_REQUEST_TITLE
+}
+
+/** Grava a lista e a hipótese no único campo de texto disponível. */
+export function examRequestText(exams: string[], justification?: string) {
+  return [exams.join('; '), justification].filter(Boolean).join(' — ')
+}
+
+/** O inverso de `examRequestText`. O `slice(1).join` devolve a hipótese inteira
+ *  caso ela própria contenha um travessão. */
+export function parseExamRequestText(text?: string) {
+  const partes = (text ?? '').split(' — ')
+  return {
+    exams: partes[0] ? partes[0].split('; ') : [],
+    justification: partes.slice(1).join(' — ') || undefined,
+  }
+}
+
 // ── Textos-modelo ────────────────────────────────────────────────────────────
 
 /** Atestado de AFASTAMENTO (o modelo que já existia no painel de prescrições). */
@@ -159,6 +189,13 @@ export function leaveCertificateText(patientName: string, days: number) {
  * Declaração de COMPARECIMENTO — coisa diferente de afastamento, e a que o
  * paciente mais pede (para justificar a ausência no trabalho naquelas horas).
  * Sem horário informado, sai só a data.
+ *
+ * "para atendimento", SEM especialidade: o texto nasceu no odontograma e dizia
+ * "atendimento odontológico" fixo, mas hoje ele serve as três especialidades —
+ * uma clínica médica entregava ao paciente uma declaração afirmando que ele
+ * esteve em atendimento odontológico. A especialidade já aparece no papel, no
+ * cargo do bloco de assinatura ("Médico", "Fisioterapeuta"), e ali ela é
+ * verdadeira porque vem do cadastro.
  */
 export function attendanceCertificateText(
   patientName: string, longDate: string, from?: string, to?: string,
@@ -167,5 +204,5 @@ export function attendanceCertificateText(
     ? `, das ${from} às ${to}`
     : from ? `, a partir das ${from}` : ''
 
-  return `Declaro, para os devidos fins, que ${patientName} compareceu a esta clínica para atendimento odontológico em ${longDate}${periodo}.`
+  return `Declaro, para os devidos fins, que ${patientName} compareceu a esta clínica para atendimento em ${longDate}${periodo}.`
 }

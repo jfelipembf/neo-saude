@@ -3,7 +3,7 @@ import { PageLoader } from '@/components/PageLoader/PageLoader'
 import { IconDocument } from '@/components/icons'
 import { useClinicalEntries } from '@/hooks/useClinicalEntries'
 import { usePatientMedications } from '@/hooks/useMedications'
-import { CLINICAL_SECTIONS } from '@/pages/Consultation/clinicalSections'
+import { CLINICAL_SECTIONS } from '@/constants/clinicalSections'
 import styles from './ClinicalHistoryTab.module.scss'
 
 /**

@@ -1,0 +1,151 @@
+@use '../../../../styles/mixins' as *;
+
+// Folha PRÓPRIA de ClinicalSectionPanel.
+// Uma seção clínica: o formulário do que se anota agora e a linha do tempo do que já foi anotado.
+//
+// Regras COPIADAS de ConsultationPage.module.scss, não recortadas: a tela
+// médica continua usando as mesmas classes. Elas moram aqui porque este painel
+// é COMPARTILHADO pelas três especialidades, e depender da folha de UMA delas
+// fazia o componente quebrar assim que aquela página saísse do lugar — foi
+// exatamente o que travava a separação em Med/, Odonto/ e Fisio/.
+
+.blocoTitulo {
+  margin: 0;
+  font-size: $fs-sm;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-secondary);
+}
+// ── Centro: o editor ──
+.centroCabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+}
+.vazio {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+}
+// Timeline dos últimos atendimentos: data à esquerda, o que foi feito ao lado.
+// TIMELINE de verdade: um fio vertical com um ponto por registro, em vez de
+// uma borda cinza contínua. O ponto é o que dá ritmo à leitura — sem ele, três
+// registros seguidos viram um bloco de texto só.
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 $sp-3;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+  position: relative;
+
+  // O fio. Fica atrás dos pontos e para no último item, não no fim do
+  // contêiner — linha sobrando embaixo parece registro faltando.
+  &::before {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: var(--glass-border);
+  }
+}
+// O registro MAIS RECENTE é o que interessa primeiro — ponto cheio e maior;
+// os antigos ficam ocos, que é como se lê uma linha do tempo.
+.timeline > .marco:not(:first-child)::before {
+  background: var(--bg-surface);
+  border: 2px solid var(--primary-fg);
+}
+.marco {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-left: $sp-3;
+  font-size: $fs-sm;
+
+  // O ponto, na cor do tema — verde no claro e no escuro (a variável inverte).
+  &::before {
+    content: '';
+    position: absolute;
+    left: calc(#{-$sp-3} + 1px);
+    top: 5px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary-fg);
+    box-shadow: 0 0 0 3px var(--bg-surface);   // "corta" o fio atrás do ponto
+  }
+}
+.marcoData {
+  color: var(--primary-fg);
+  font-weight: 600;   // é a âncora do item; cor sozinha não dá hierarquia
+}
+.marcoTexto { color: var(--text-primary); }
+.marcoConteudo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+// Item COM ações: vira linha — conteúdo à esquerda, ícones à direita, todos
+// na mesma coluna vertical. Empilhados, os botões caíam embaixo de cada
+// anotação e a lista ficava sem alinhamento nenhum.
+.marcoComAcoes {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: $sp-2;
+}
+// "anotado em ..." — referência secundária, só quando difere da data do fato.
+.marcoAnotadoEm {
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+  font-style: italic;
+}
+.entradaAcoes {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;   // os ícones não encolhem; quem cede é o texto
+}
+.formDocumento {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-3;
+}
+// Largura do conteúdo: um campo de data esticado na linha inteira competiria
+// com o rótulo pela atenção, e ele é apoio, não o assunto.
+.campoData {
+  flex: 0 0 auto;
+  width: 150px;
+}
+// ── Linha do "Anotar agora": rótulo à esquerda, data à direita ───────────────
+// A data sobe para o canto superior direito porque se confere ANTES de
+// escrever. Embaixo do textarea, quem digitava e clicava em Registrar nunca a
+// via — e gravava a data errada sem perceber.
+.linhaAnotar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+  margin-bottom: $sp-1;
+}
+.rotuloAnotar {
+  font-size: $fs-xs;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+// Encostado na ficha, com régua: é o pé DELA, não um botão solto entre a ficha
+// e o histórico.
+.editorRodape {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: $sp-3;
+  padding-top: $sp-2;
+}

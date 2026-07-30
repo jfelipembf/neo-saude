@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { IconMic } from '@/components/icons'
 import { Spinner } from '@/components/Spinner/Spinner'
 import type { CibellyListeningMode } from '@/lib/cibelly/sessionTypes'
+import type { PedalActivation } from '@/lib/cibelly/pedalConfig'
 import styles from './CibellyPedalButton.module.scss'
 
 interface CibellyPedalButtonProps {
@@ -18,6 +19,16 @@ interface CibellyPedalButtonProps {
   onStop: () => void
   label: string
   disabledReason?: string
+  /**
+   * Como o botão responde — o MESMO ajuste do pedal físico (PedalConfig).
+   *
+   * Ele não existia aqui, e o botão era `hold` fixo: quem configurava o pedal
+   * como `toggle` ficava com o pedal alternando e o botão da tela exigindo
+   * segurar. Um clique normal nele virava pressionar-e-soltar em ~100 ms —
+   * abria e fechava a captura no mesmo instante, e o sintoma era "aperto e não
+   * acontece nada".
+   */
+  activation?: PedalActivation
 }
 
 /**
@@ -48,6 +59,7 @@ export function CibellyPedalButton({
   onStop,
   label,
   disabledReason,
+  activation = 'hold',
 }: CibellyPedalButtonProps) {
   const pressedRef = useRef(false)
 
@@ -73,14 +85,30 @@ export function CibellyPedalButton({
   }, [onStop])
 
   function aoPressionar(event: ReactPointerEvent<HTMLButtonElement>) {
-    if (!enabled || pressedRef.current) return
+    if (!enabled) return
     event.preventDefault()
+
+    // TOQUE: o mesmo aperto abre e fecha. Nada de `setPointerCapture` aqui —
+    // capturar o ponteiro só serve para o dedo poder escorregar para fora
+    // enquanto SEGURA, e aqui não há segurar.
+    if (activation === 'toggle') {
+      if (pressedRef.current) {
+        pressedRef.current = false
+        onStop()
+      } else if (onStart(mode)) {
+        pressedRef.current = true
+      }
+      return
+    }
+
+    if (pressedRef.current) return
     event.currentTarget.setPointerCapture(event.pointerId)
     if (onStart(mode)) pressedRef.current = true
   }
 
   function aoSoltar(event: ReactPointerEvent<HTMLButtonElement>) {
-    if (!pressedRef.current) return
+    // Em toque, soltar não é evento: quem encerra é o próximo aperto.
+    if (activation === 'toggle' || !pressedRef.current) return
     event.preventDefault()
     pressedRef.current = false
     onStop()

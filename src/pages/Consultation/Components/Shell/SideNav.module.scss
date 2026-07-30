@@ -1,0 +1,137 @@
+@use '../../../../styles/mixins' as *;
+
+// SÓ DESKTOP, por enquanto. O celular vai ter um formato PRÓPRIO (a decidir);
+// até lá, esconder é melhor que mostrar uma barra lateral que não cabe — 220px
+// fixos tomariam mais da metade da tela num iPhone.
+.raiz { display: none; }
+
+@include desktop {
+  .raiz {
+    display: flex;
+    flex-direction: column;
+    gap: $sp-1;
+    width: 220px;
+    flex-shrink: 0;
+    padding: $sp-3;
+    border-radius: $radius-lg;
+    background: var(--bg-surface);
+    border: 1px solid var(--glass-border);
+    // A SOMBRA é o que separa este menu do resto — ele não está colado no
+    // cabeçalho nem soldado ao cartão do paciente, é uma peça própria flutuando
+    // ao lado. `shadow-md` (não `sm`) porque `raiz` já tem borda de vidro
+    // parecida com o resto da tela; sem uma sombra mais forte, ele se
+    // confundiria com o cartão ao lado.
+    box-shadow: var(--shadow-md);
+    transition: width 0.18s ease;
+  }
+
+  // COLAPSADO: só os ícones, numa coluna estreita. `overflow: hidden` no texto
+  // (não `display:none`) é o que faz a largura encolher com uma transição
+  // suave em vez de o rótulo sumir de golpe no meio do caminho.
+  .raizColapsada {
+    width: 64px;
+    padding: $sp-3 $sp-2;
+  }
+}
+
+.topo {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: $sp-2;
+}
+
+.raizColapsada .topo { justify-content: center; }
+
+.hamburguer {
+  @include focus-ring;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+
+  svg { width: 18px; height: 18px; }
+
+  &:hover { background: var(--accent-bg); color: var(--primary-fg); }
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.item {
+  @include focus-ring;
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  width: 100%;
+  padding: $sp-2 $sp-3;
+  border: none;
+  border-radius: $radius-md;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: $fs-sm;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+
+  svg { flex-shrink: 0; width: 18px; height: 18px; }
+
+  &:hover { background: var(--accent-bg); color: var(--text-primary); }
+}
+
+// Colapsado: ícone centralizado, sem rótulo. O rótulo continua no DOM (ver
+// .rotulo abaixo) para o leitor de tela — só o VISUAL some.
+.raizColapsada .item { justify-content: center; padding: $sp-2; }
+
+// Ativo em cor sólida, igual ao padrão de "selecionado" do resto do projeto
+// (ex.: os botões da barra de seções do atendimento).
+.itemAtivo {
+  background: var(--primary-fg);
+  color: var(--bg-surface);
+
+  &:hover { background: var(--primary-fg); color: var(--bg-surface); }
+}
+
+.rotulo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.raizColapsada .rotulo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+// PÉ DO MENU — a ação que encerra o atendimento.
+//
+// `margin-top: auto` para colar no fim da coluna independentemente de quantas
+// seções a especialidade tenha: com seis itens sobraria um vão no meio se o
+// botão viesse logo abaixo da lista.
+//
+// Só no desktop, como o resto do menu: no celular a barra inferior é quem
+// navega, e o encerrar mora no cabeçalho da tela.
+.rodape {
+  margin-top: auto;
+  padding-top: $sp-3;
+  border-top: 1px solid var(--glass-border);
+
+  // O botão ocupa a largura toda do menu — meio botão centralizado numa coluna
+  // de 220px lê como enfeite, não como ação.
+  button { width: 100%; }
+}

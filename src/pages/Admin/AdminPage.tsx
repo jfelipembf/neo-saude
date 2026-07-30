@@ -7,6 +7,7 @@ import { RoomsTab } from './Rooms/RoomsTab'
 import { MaterialsTab } from './Materials/MaterialsTab'
 import { SuppliersTab } from './Suppliers/SuppliersTab'
 import { ServicesTab } from './Services/ServicesTab'
+import { OdontoProceduresTab } from './OdontoProcedures/OdontoProceduresTab'
 import { TestsTab } from './Tests/TestsTab'
 import { EvolutionTemplatesTab } from './EvolutionTemplates/EvolutionTemplatesTab'
 import { ClassesTab } from './Classes/ClassesTab'
@@ -21,11 +22,14 @@ import { appliesToSpecialty } from '@/constants'
 import type { ClinicSpecialty } from '@/types/domain'
 import styles from './AdminPage.module.scss'
 
-type TabKey = 'rooms' | 'materials' | 'suppliers' | 'services' | 'tests' | 'evolutionTemplates' | 'classes' | 'insurances' | 'commissions' | 'roles' | 'collaborators' | 'goals' | 'audit'
+type TabKey = 'rooms' | 'materials' | 'suppliers' | 'services' | 'odontoProcedures' | 'tests' | 'evolutionTemplates' | 'classes' | 'insurances' | 'commissions' | 'roles' | 'collaborators' | 'goals' | 'audit'
 
 // `specialties`/`excludeSpecialties` filtram a aba por ramo (ver constants/specialty).
-// Serviços/Contratos não se aplicam à odontologia (que trabalha por procedimentos
-// e orçamentos) → escondida no ramo dentistry.
+// Serviços/Contratos (com modalidade, duração, pacote de sessões) não se aplicam
+// à odontologia, que trabalha por procedimento avulso com preço de tabela →
+// `services` escondida no ramo dentistry, `odontoProcedures` no lugar dela (o
+// rótulo "Serviços" é o mesmo nos dois — o que muda é a aba por trás, cada uma
+// com o formulário do tamanho que o ramo pede).
 const TABS: { key: TabKey; label: string; specialties?: ClinicSpecialty[]; excludeSpecialties?: ClinicSpecialty[] }[] = [
   { key: 'rooms',     label: 'Salas' },
   // Materiais (insumos/estoque) não se aplica à fisioterapia → escondido nesse ramo.
@@ -35,6 +39,7 @@ const TABS: { key: TabKey; label: string; specialties?: ClinicSpecialty[]; exclu
   // Materiais e Fornecedores valerem para os dois.
   { key: 'suppliers', label: 'Fornecedores', specialties: ['dentistry', 'medicine'] },
   { key: 'services',  label: 'Serviços', excludeSpecialties: ['dentistry'] },
+  { key: 'odontoProcedures', label: 'Serviços', specialties: ['dentistry'] },
   // Testes/escalas de avaliação — específico de fisioterapia.
   { key: 'tests',     label: 'Testes', specialties: ['physiotherapy'] },
   // Modelos de evolução SOAP (o "usar modelo" do prontuário) — o prontuário
@@ -73,6 +78,7 @@ export function AdminPage() {
       {tab === 'materials' && <MaterialsTab />}
       {tab === 'suppliers' && <SuppliersTab />}
       {tab === 'services'  && <ServicesTab />}
+      {tab === 'odontoProcedures' && <OdontoProceduresTab />}
       {tab === 'tests'     && <TestsTab />}
       {tab === 'evolutionTemplates' && <EvolutionTemplatesTab />}
       {tab === 'classes'   && <ClassesTab />}

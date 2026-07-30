@@ -16,12 +16,19 @@ import { useToast } from '@/components/Toast/Toast'
 import { usePagination } from '@/hooks/usePagination'
 import { usePatientPrescriptions, useCreatePrescription } from '@/hooks/usePrescriptions'
 import { useCurrentUser } from '@/hooks/useUser'
-import { useProfessionalName } from '@/hooks/useDisplayNames'
+import { useProfessionalName, useDocumentSigner } from '@/hooks/useDisplayNames'
 import { usePrintDocument } from '@/hooks/usePrintDocument'
-import { esc } from '@/utils/printDocument'
-import { toIsoDate } from '@/utils/date'
+import { useClinic } from '@/hooks/useClinic'
+import { useSession } from '@/context/SessionProvider'
+import {
+  CLINICAL_DOCUMENT_STYLES, certificateBody, examRequestBody, isExamRequest,
+  leaveCertificateText, parseExamRequestText, prescriptionBody,
+} from '@/utils/clinicalDocument'
+import type { DocumentSigner } from '@/utils/clinicalDocument'
+import { formatCpf } from '@/utils/format'
+import { formatLongDate, toIsoDate } from '@/utils/date'
 import { IconPlus, IconPrint, IconX, IconDocument } from '@/components/icons'
-import type { PrescribedMedication, Prescription, PrescriptionType } from '@/types/domain'
+import type { ClinicSpecialty, PrescribedMedication, Prescription, PrescriptionType } from '@/types/domain'
 import styles from './PrescriptionsPanel.module.scss'
 
 const TYPE_OPTIONS: { value: PrescriptionType; label: string }[] = [
@@ -36,7 +43,7 @@ const FILTER_OPTIONS = [{ value: 'all', label: 'Todos os tipos' }, ...TYPE_OPTIO
 /** Texto-modelo do atestado — os dados do paciente entram sozinhos (padrão
  *  dos softwares do ramo); o texto continua editável antes de salvar. */
 function certificateText(patientName: string | undefined, days: number) {
-  return `Atesto, para os devidos fins, que ${patientName ?? 'o(a) paciente'} esteve sob meus cuidados profissionais nesta data, necessitando de ${days} dia(s) de afastamento de suas atividades a partir de hoje.`
+  return leaveCertificateText(patientName ?? 'o(a) paciente', days)
 }
 
 /** Rótulo do tipo da prescrição ("Receituário", "Atestado"…). */
@@ -44,40 +51,46 @@ function typeLabel(p: Prescription) {
   return TYPE_OPTIONS.find(t => t.value === p.type)?.label ?? p.title
 }
 
-/** CSS específico do receituário — o resto vem da base de impressão. */
-const PRESCRIPTION_STYLES = `
-  .meds { margin: 16px 0 0 20px; padding: 0; } .meds li { margin: 12px 0; font-size: 14px; }
-  .pos { color: #334; font-size: 14px; }
-  .texto { margin-top: 16px; font-size: 14px; line-height: 1.6; }
-  .assinatura { margin-top: 64px; text-align: center; }
-  .assinatura .linha { display: inline-block; border-top: 1px solid #12211C; padding-top: 6px;
-                       min-width: 260px; font-size: 16px; font-weight: 700; }
-`
+/**
+ * Miolo do documento — os MESMOS construtores da tela de atendimento e da
+ * Cibelly (utils/clinicalDocument).
+ *
+ * Este painel tinha uma redação PRÓPRIA, e ela imprimia menos: sem o CPF do
+ * paciente, sem local e data, sem o número do documento e — o que invalida o
+ * papel na prática — com o bloco de assinatura trazendo só o NOME, sem o
+ * registro no conselho. Uma receita emitida por aqui não passava na farmácia;
+ * a mesma receita emitida pela tela de atendimento passava.
+ */
+function documentBody(p: Prescription, ctx: {
+  patientName?: string
+  patientCpf?: string
+  city?: string
+  specialty?: ClinicSpecialty
+  signer: DocumentSigner
+}) {
+  const base = {
+    patientName: ctx.patientName ?? '',
+    patientCpf: ctx.patientCpf ? formatCpf(ctx.patientCpf) : undefined,
+    longDate: formatLongDate(p.date),
+    city: ctx.city,
+    signer: ctx.signer,
+    code: p.code,
+    notes: p.notes,
+  }
 
-/** Miolo da prescrição/documento — cabeçalho da clínica vem da base. */
-function prescriptionBody(
-  p: Prescription,
-  professionalName: (id?: string) => string,
-  patientName?: string,
-) {
-  const content = p.type === 'prescription'
-    ? `<ol class="meds">${(p.medications ?? [])
-        .map(m => `<li><strong>${esc(m.name)}</strong>${m.quantity ? ` — ${esc(m.quantity)}` : ''}<br><span class="pos">${esc(m.dosage)}</span></li>`)
-        .join('')}</ol>`
-    : `<p class="texto">${esc(p.text ?? '').replace(/\n/g, '<br>')}</p>`
-
-  return `
-    ${patientName ? `<p><strong>Paciente:</strong> ${esc(patientName)}</p>` : ''}
-    <p><strong>Data:</strong> ${esc(p.date)}</p>
-    ${content}
-    ${p.notes ? `<p class="clausula"><strong>Observações:</strong> ${esc(p.notes)}</p>` : ''}
-    <div class="assinatura"><span class="linha">${esc(professionalName(p.professionalId))}</span></div>`
+  // Pedido de exame é gravado como `document` e se reconhece pelo título —
+  // sem isto a lista de exames sai como um parágrafo corrido.
+  if (isExamRequest(p)) return examRequestBody({ ...base, ...parseExamRequestText(p.text) })
+  if (p.type === 'prescription') return prescriptionBody({ ...base, medications: p.medications, text: p.text })
+  return certificateBody({ ...base, text: p.text ?? p.title })
 }
 
 interface PrescriptionsPanelProps {
   patientId: string
   /** Nome usado no texto do atestado e na impressão. */
   patientName?: string
+  /** Vai na linha de identificação do documento impresso. */
+  patientCpf?: string
 }
 
 /**
@@ -85,11 +98,14 @@ interface PrescriptionsPanelProps {
  * de prontuário, atestado com texto-modelo e documento personalizado — tudo
  * com histórico, expansão e impressão.
  */
-export function PrescriptionsPanel({ patientId, patientName }: PrescriptionsPanelProps) {
+export function PrescriptionsPanel({ patientId, patientName, patientCpf }: PrescriptionsPanelProps) {
   const toast = useToast()
   const { data: prescriptions, isLoading } = usePatientPrescriptions(patientId)
   const { data: user } = useCurrentUser()
   const professionalName = useProfessionalName()
+  const signerOf = useDocumentSigner()
+  const { data: clinic } = useClinic()
+  const { specialty } = useSession()
   const { mutate: create, isPending: creating } = useCreatePrescription()
   const printDocument = usePrintDocument()
 
@@ -209,9 +225,19 @@ export function PrescriptionsPanel({ patientId, patientName }: PrescriptionsPane
           onClick={() => printDocument({
             title: typeLabel(p),
             subtitle: p.title && p.title !== typeLabel(p) ? p.title : undefined,
-            body: prescriptionBody(p, professionalName, patientName),
-            styles: PRESCRIPTION_STYLES,
-            width: 640,
+            body: documentBody(p, {
+              patientName,
+              patientCpf,
+              city: clinic?.city,
+              specialty,
+              // Assina QUEM EMITIU. Só cai no usuário logado quando o registro
+              // é antigo e não guardou o profissional.
+              signer: {
+                ...(signerOf(p.professionalId) ?? { name: user?.name ?? '', license: user?.license }),
+                specialty,
+              },
+            }),
+            styles: CLINICAL_DOCUMENT_STYLES,
           })}
         />
       ),
