@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { isEditableTarget } from '@/lib/cibelly/pedal'
+import { ehCodigoDePedal, pedalEngolidoPorCampo } from '@/lib/cibelly/pedal'
 import { PEDAL_PADRAO, listeningModeFromPedal } from '@/lib/cibelly/pedalConfig'
 import type { PedalConfig } from '@/lib/cibelly/pedalConfig'
 import type { CibellyListeningMode } from '@/lib/cibelly/sessionTypes'
@@ -32,11 +32,6 @@ export const PULSO_MS = 150
  * são TECLAS: seguram de verdade. Só o código aprendido ganha o tratamento de
  * pulso.
  */
-function ehCodigoDePedal(code: string, config: PedalConfig): boolean {
-  if (code === PEDAL_PADRAO.patientCode || code === PEDAL_PADRAO.generalCode) return false
-  return code === config.patientCode || code === config.generalCode
-}
-
 interface CibellyPedalOptions {
   enabled: boolean
   patientAvailable: boolean
@@ -92,9 +87,28 @@ export function useCibellyPedal({
       stopListening()
     }
 
+    /**
+     * O PEDAL FÍSICO VALE MESMO COM O FOCO NUM CAMPO. A letra do teclado, não.
+     *
+     * O guarda de campo editável existe para o J e o F não sequestrarem a
+     * digitação — quem escreve uma anotação precisa poder escrever "jejum".
+     * Mas ele valia para TUDO, e o alvo de um `keydown` é o elemento focado:
+     * bastava o foco parar num input em algum canto da tela — o seletor de
+     * paciente, o popover de anotação do motor, um campo de outra seção — para
+     * o pedal ficar mudo até alguém tirar o foco dali.
+     *
+     * Era o sintoma de "desliguei e liguei o pedal e ele não aciona": abrir a
+     * tela de configuração e fechar, MESMO SEM SALVAR, fazia voltar — porque o
+     * modal move o foco, não porque a configuração mudasse.
+     *
+     * Um pisão nunca é digitação: o código aprendido do pedal (PageDown, seta,
+     * o que o modelo mandar) não é letra que alguém escreve num campo. Já J e F
+     * são, e por isso seguem respeitando o guarda.
+     */
     function onKeyDown(event: KeyboardEvent) {
       const mode = listeningModeFromPedal(event, config)
-      if (!mode || isEditableTarget(event.target)) return
+      if (!mode) return
+      if (pedalEngolidoPorCampo(event.code, event.target, config)) return
 
       /**
        * `preventDefault` ANTES de checar se a sessão está pronta.
@@ -145,7 +159,11 @@ export function useCibellyPedal({
 
     function onKeyUp(event: KeyboardEvent) {
       const mode = listeningModeFromPedal(event, config)
-      if (!mode || isEditableTarget(event.target)) return
+      if (!mode) return
+      // MESMO critério do keydown, obrigatoriamente: se o pisão abriu a escuta
+      // com o foco num campo, o soltar tem de conseguir fechá-la — senão o
+      // microfone ficaria aberto até alguém clicar fora.
+      if (pedalEngolidoPorCampo(event.code, event.target, config)) return
       event.preventDefault()
       // No modo alternado o soltar não encerra nada — quem encerra é o próximo
       // pisão.

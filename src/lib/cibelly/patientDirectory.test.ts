@@ -58,3 +58,32 @@ describe('diretório de pacientes da Cibelly', () => {
     expect(result.ok && result.patient.name).toBe('José Felipe Macedo')
   })
 })
+
+/**
+ * NOME DITO EM VOZ ALTA. O caso real: "agende uma consulta amanhã para michele
+ * dotrovisk às 8" devolvia "não encontrei paciente", com o nome certo na base.
+ */
+describe('resolvePatientReference com nome falado', () => {
+  const base = [
+    { id: 'p1', code: 'PAC-000001', name: 'Michelle Dratovsky', status: 'active' as const },
+    { id: 'p2', code: 'PAC-000002', name: 'João Santos', status: 'active' as const },
+  ]
+
+  it('acha o paciente mesmo com o sobrenome transcrito errado', () => {
+    const r = resolvePatientReference(base, 'michele dotrovisk')
+    expect(r.ok).toBe(true)
+    expect(r.ok && r.patient.id).toBe('p1')
+  })
+
+  // A ordem importa: quem escreve o nome exato nunca deve ser levado a uma
+  // aproximação, e a aproximação nunca disputa com uma correspondência literal.
+  it('a correspondência literal continua tendo precedência', () => {
+    const r = resolvePatientReference(base, 'joao')
+    expect(r.ok && r.patient.id).toBe('p2')
+  })
+
+  it('nome que não existe continua não existindo', () => {
+    const r = resolvePatientReference(base, 'roberto carvalho')
+    expect(r.ok).toBe(false)
+  })
+})

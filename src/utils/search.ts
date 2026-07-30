@@ -13,8 +13,11 @@ function normalizeText(text: string) {
 }
 
 /** Palavras comparáveis de um texto, já sem acento e sem as partículas
- *  ("de", "da", "dos"…) — é o que faz "Maria Souza" achar "Maria de Souza". */
-function words(text: string) {
+ *  ("de", "da", "dos"…) — é o que faz "Maria Souza" achar "Maria de Souza".
+ *  Exportada porque a busca por nome FALADO (utils/spokenNameMatch) precisa
+ *  partir da mesma normalização — duas normalizações divergentes seriam duas
+ *  respostas diferentes para o mesmo nome. */
+export function words(text: string) {
   return normalizeText(text)
     .split(/[^a-z0-9]+/)
     .filter(w => w && !NAME_PARTICLES.has(w))

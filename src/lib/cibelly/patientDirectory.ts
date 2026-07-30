@@ -1,4 +1,5 @@
 import { matchesSearch } from '@/utils/search'
+import { pareceMesmoNome } from '@/utils/spokenNameMatch'
 
 export interface PatientDirectoryEntry {
   id: string
@@ -39,12 +40,37 @@ export function resolvePatientReference<T extends PatientDirectoryEntry>(
     patient.code.toLocaleLowerCase('pt-BR') === normalized
     || patient.name.trim().toLocaleLowerCase('pt-BR') === normalized
     || patient.commonName?.trim().toLocaleLowerCase('pt-BR') === normalized)
+  const porTrecho = patients.filter(patient =>
+    matchesSearch(patient.code, search)
+    || matchesSearch(patient.name, search)
+    || Boolean(patient.commonName && matchesSearch(patient.commonName, search)))
+
+  /**
+   * TERCEIRA CAMADA: o nome como ele FOI DITO.
+   *
+   * A busca por trecho basta para quem digita. Para quem fala, não: a
+   * transcrição erra em nome próprio e erra calada. "michele dotrovisk" contra
+   * "Michelle Dratovsky" falha nas duas palavras — `'michelle'.includes(
+   * 'michele')` é falso por causa do segundo L —, e a resposta era "não
+   * encontrei paciente" com o nome certo na base.
+   *
+   * SÓ QUANDO AS DUAS ANTERIORES NÃO ACHARAM NADA, nesta ordem de propósito:
+   * quem escreveu o nome exato nunca é levado a uma aproximação, e a
+   * aproximação nunca disputa com uma correspondência literal. Se ela trouxer
+   * mais de um, o caminho abaixo já pergunta qual — aproximar demais custa uma
+   * pergunta, aproximar de menos custa um paciente que existe e não é achado.
+   *
+   * O código (PAC-000123) fica FORA: ele é sequência, não fala. Aproximar
+   * dígito acharia o paciente vizinho, e sem nada na frase que denuncie a
+   * troca.
+   */
   const matches = exact.length > 0
     ? exact
-    : patients.filter(patient =>
-      matchesSearch(patient.code, search)
-      || matchesSearch(patient.name, search)
-      || Boolean(patient.commonName && matchesSearch(patient.commonName, search)))
+    : porTrecho.length > 0
+      ? porTrecho
+      : patients.filter(patient =>
+        pareceMesmoNome(patient.name, search)
+        || Boolean(patient.commonName && pareceMesmoNome(patient.commonName, search)))
 
   if (matches.length === 0) {
     return { ok: false, error: `Não encontrei paciente com nome ou código "${search}".` }

@@ -49,11 +49,12 @@ export function PedalTab() {
           </div>
         </dl>
 
-        {/* O teclado NUNCA deixa de valer: é o caminho de volta quando o pedal
-            descarrega no meio do atendimento (ver listeningModeFromPedal). */}
+        {/* O caminho de volta quando o pedal descarrega é o BOTÃO NA TELA, e
+            não mais um atalho fixo de teclado — ver listeningModeFromPedal. */}
         <p className={styles.nota}>
-          As teclas <strong>J</strong> (paciente) e <strong>F</strong> (geral) do teclado
-          continuam funcionando mesmo com um pedal configurado.
+          Valem <strong>apenas</strong> as teclas acima. Se o pedal ficar sem bateria,
+          use o botão redondo do microfone na tela do atendimento — ele não depende
+          de teclado.
         </p>
 
         <p className={styles.nota}>

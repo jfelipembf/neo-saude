@@ -1,3 +1,5 @@
+import { PEDAL_PADRAO } from './pedalConfig'
+import type { PedalConfig } from './pedalConfig'
 import type { CibellyListeningMode } from './sessionTypes'
 import type { CibellyToolDomain } from './toolCatalog'
 
@@ -11,6 +13,39 @@ export function isEditableTarget(target: EventTarget | null): boolean {
     || target instanceof HTMLInputElement
     || target instanceof HTMLTextAreaElement
     || target instanceof HTMLSelectElement
+}
+
+/**
+ * O código veio do PEDAL FÍSICO aprendido, ou é a letra do teclado?
+ *
+ * J e F valem sempre (são o caminho de volta quando o pedal descarrega), mas
+ * são letras que alguém digita — por isso não contam como pedal aqui.
+ */
+export function ehCodigoDePedal(code: string, config: PedalConfig): boolean {
+  if (code === PEDAL_PADRAO.patientCode || code === PEDAL_PADRAO.generalCode) return false
+  return code === config.patientCode || code === config.generalCode
+}
+
+/**
+ * O FOCO NUM CAMPO DEVE ENGOLIR ESTA TECLA?
+ *
+ * Sim para J e F: quem escreve uma anotação precisa poder escrever "jejum".
+ *
+ * NÃO para o pedal físico. Um pisão nunca é digitação, e o código aprendido
+ * (PageDown, seta, o que o modelo mandar) não é o que alguém escreve num campo.
+ * A regra valia para tudo, e o alvo de um `keydown` é o elemento focado — então
+ * bastava o foco parar num input em qualquer canto da tela para o pedal ficar
+ * mudo até alguém tirá-lo dali. Era o "desliguei e liguei o pedal e ele não
+ * aciona": abrir a configuração e fechar SEM SALVAR fazia voltar, porque o
+ * modal move o foco, não porque a configuração mudasse.
+ */
+export function pedalEngolidoPorCampo(
+  code: string,
+  target: EventTarget | null,
+  config: PedalConfig,
+): boolean {
+  if (ehCodigoDePedal(code, config)) return false
+  return isEditableTarget(target)
 }
 
 export function pedalTurnInstruction(

@@ -14,11 +14,13 @@ describe('listeningModeFromPedal', () => {
     expect(listeningModeFromPedal(tecla('PageUp'), config)).toBe('general')
   })
 
-  // O TECLADO nunca deixa de valer: é o caminho de volta quando o pedal
-  // descarrega no meio do atendimento.
-  it('J e F continuam valendo mesmo com pedal configurado', () => {
-    expect(listeningModeFromPedal(tecla('KeyJ', 'j'), config)).toBe('patient')
-    expect(listeningModeFromPedal(tecla('KeyF', 'f'), config)).toBe('general')
+  // Com um pedal de verdade configurado, a LETRA PERDE A MAGIA. J e F valiam
+  // sempre, por cima de qualquer configuração — e isso abria o microfone em
+  // qualquer canto da tela fora de um campo de texto. O caminho de volta hoje é
+  // o botão na tela, que não depende de teclado nem de bateria.
+  it('J e F não valem mais quando há pedal configurado', () => {
+    expect(listeningModeFromPedal(tecla('KeyJ', 'j'), config)).toBeNull()
+    expect(listeningModeFromPedal(tecla('KeyF', 'f'), config)).toBeNull()
   })
 
   it('tecla de fora não aciona nada', () => {
@@ -26,6 +28,8 @@ describe('listeningModeFromPedal', () => {
     expect(listeningModeFromPedal(tecla('Space', ' '), config)).toBeNull()
   })
 
+  // Quem NUNCA configurou continua no teclado — não pelo atalho removido, mas
+  // porque PEDAL_PADRAO é a configuração de quem não tem outra.
   it('sem configuração, vale o teclado', () => {
     expect(listeningModeFromPedal(tecla('KeyJ', 'j'), PEDAL_PADRAO)).toBe('patient')
     expect(listeningModeFromPedal(tecla('PageDown'), PEDAL_PADRAO)).toBeNull()

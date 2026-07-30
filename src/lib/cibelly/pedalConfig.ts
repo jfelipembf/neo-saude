@@ -107,17 +107,24 @@ function texto(v: unknown): string | null {
 /**
  * Qual modo a tecla aciona — ou `null` quando não é do pedal.
  *
- * O teclado (J e F) continua valendo SEMPRE, mesmo com pedal configurado: é o
- * caminho de volta quando o pedal descarrega no meio do atendimento.
+ * SÓ O QUE ESTÁ CONFIGURADO. Havia um atalho fixo aqui: J e F valiam SEMPRE,
+ * por cima de qualquer configuração, como caminho de volta caso o pedal
+ * descarregasse. Ele fazia sentido quando não havia pedal nenhum e o teclado
+ * era o único acionamento — mas virou letra mágica: com um pedal de verdade
+ * configurado, o J continuava abrindo o microfone em qualquer lugar da tela
+ * fora de um campo de texto.
+ *
+ * O caminho de volta hoje é o BOTÃO NA TELA (CibellyPedalButton), que não
+ * depende de teclado, de foco nem de bateria de pedal. Quem nunca configurou
+ * segue com J e F assim mesmo — não por este atalho, mas porque `PEDAL_PADRAO`
+ * é a configuração padrão de quem não configurou nada.
  */
 export function listeningModeFromPedal(
-  event: Pick<KeyboardEvent, 'code' | 'key'>,
+  event: Pick<KeyboardEvent, 'code'>,
   config: PedalConfig,
 ): CibellyListeningMode | null {
   if (event.code === config.patientCode) return 'patient'
   if (event.code === config.generalCode) return 'general'
-  if (event.code === PEDAL_PADRAO.patientCode || event.key.toLowerCase() === 'j') return 'patient'
-  if (event.code === PEDAL_PADRAO.generalCode || event.key.toLowerCase() === 'f') return 'general'
   return null
 }
 
