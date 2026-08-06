@@ -80,6 +80,9 @@ export interface Patient {
   insurancePlan?: string
   /** Cartão Nacional de Saúde — opcional na maioria das guias. */
   cns?: string
+  /** Responsável (pai/mãe/tutor) — id de OUTRO paciente da mesma clínica,
+   *  quando ele também tem cadastro. Ausente = paciente responde por si. */
+  guardianPatientId?: string
 }
 
 export interface Appointment {

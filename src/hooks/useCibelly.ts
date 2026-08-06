@@ -22,7 +22,7 @@ import {
   shouldTranscribeUser,
 } from '@/lib/cibelly/sessionUtils'
 import { createSpecialistExecutors } from '@/lib/cibelly/toolExecutors'
-import { surfaceRefusal, type CibellyToolSurface } from '@/lib/cibelly/toolSurface'
+import { surfaceRefusal, toolsForSurface, type CibellyToolSurface } from '@/lib/cibelly/toolSurface'
 import { createOpenAIRealtimeEventHandler } from '@/lib/cibelly/openAIRealtimeEvents'
 import {
   pedalScopeError,
@@ -507,6 +507,12 @@ export function useCibelly(
             // `?transcrever=nao` desliga a transcrição da fala do dentista —
             // é o único item pago do painel de Atividade.
             transcribe: shouldTranscribeUser(),
+            // SÓ AS FERRAMENTAS DESTA SUPERFÍCIE entram no schema da sessão.
+            // Na cadeira não vão compras nem busca de outro paciente; fora do
+            // odontograma não vão as de dente. O schema é recobrado a cada
+            // turno (a Live não cacheia), então cada ferramenta que não é
+            // usada aqui é uma linha na fatura de todo turno.
+            tools: toolsForSurface(surface),
           },
         })
         if (fnError) throw new Error(await extractFunctionErrorMessage(fnError) ?? fnError.message)

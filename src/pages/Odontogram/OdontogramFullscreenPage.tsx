@@ -57,6 +57,18 @@ const APPLIED_BADGE_MS = 4000
 /** Teto para a re-hidratação do motor ao retomar a seção do odontograma. */
 const RE_HIDRATACAO_TIMEOUT_MS = 3000
 
+/** Quanto tempo sem alteração nova o autosave espera antes de gravar a ficha. */
+const AUTOSAVE_DEBOUNCE_MS = 2000
+
+/**
+ * Teto do adiamento do autosave. Um debounce puro nunca dispararia durante um
+ * ditado longo — a Cibelly marca dente atrás de dente e cada marcação
+ * reagendaria a espera —, que é justamente o trecho do atendimento em que mais
+ * trabalho está em risco. Passado este tempo desde a primeira alteração
+ * pendente, grava mesmo que ainda esteja chovendo marcação.
+ */
+const AUTOSAVE_MAX_MS = 10000
+
 interface ToothNote {
   tooth: number
   /** Resumo clínico do motor, já em pt-BR ("Cárie · Mobilidade Grau 1"). */
@@ -212,6 +224,14 @@ export function OdontogramFullscreenPage() {
     setSecaoAnterior(secao)
   }
   const [sujo, setSujo] = useState(false)
+  /**
+   * Assinatura do que está desenhado no motor agora, calculada pelo mesmo
+   * `collect()` que decide o `sujo`. É o GATILHO REATIVO DO AUTOSAVE: `sujo` é
+   * booleano e não muda mais depois da primeira marcação, então sozinho ele não
+   * conseguiria nem reagendar a gravação a cada alteração nova nem destravar o
+   * autosave depois de uma falha.
+   */
+  const [assinatura, setAssinatura] = useState<string | null>(null)
   const [erroSalvar, setErroSalvar] = useState<string | null>(null)
   // Gaveta do catálogo de medicamentos. Fica aqui com os outros estados de UI:
   // declarada mais abaixo, caía depois de um return antecipado e quebrava a
@@ -578,7 +598,9 @@ export function OdontogramFullscreenPage() {
       // alteração em TODO carregamento, porque hideDefaultLayers dispara
       // btn.click() nos botões de camada do próprio motor.
       if (baselineRef.current) {
-        setSujo(JSON.stringify(getOdontogramState()) !== baselineRef.current)
+        const atual = JSON.stringify(getOdontogramState())
+        setAssinatura(atual)
+        setSujo(atual !== baselineRef.current)
       }
     }
 
@@ -612,6 +634,19 @@ export function OdontogramFullscreenPage() {
     return motorNosso ? getOdontogramState() : (estadoVivo ?? {})
   }
 
+  /**
+   * Conteúdo que o último salvamento tentou gravar e NÃO conseguiu.
+   *
+   * Sem isto o autosave viraria um martelo: a falha deixa a ficha suja, o
+   * `isPending` volta a false, o efeito reagenda, falha de novo — de dois em
+   * dois segundos, para sempre. Comparando a assinatura atual com o que já
+   * falhou, ele para de tentar até que ALGO MUDE na boca. O caminho manual
+   * (encerrar o atendimento) continua livre para tentar de novo.
+   */
+  const autosaveFalhouRef = useRef<string | null>(null)
+  /** Desde quando existe alteração pendente — origem do teto do adiamento. */
+  const pendenteDesdeRef = useRef<number | null>(null)
+
   async function salvarFicha() {
     if (!patientId) return
     // Última barreira do modo histórico: salvar aqui gravaria a boca de um dia
@@ -619,6 +654,7 @@ export function OdontogramFullscreenPage() {
     if (emHistorico) return
     setErroSalvar(null)
     const payload = fichaCorrente()
+    const assinaturaGravada = JSON.stringify(payload)
     try {
       await salvar.mutateAsync({
         patientId,
@@ -629,12 +665,61 @@ export function OdontogramFullscreenPage() {
       })
       // O que acabou de ser gravado vira o novo marco zero — sem isso a ficha
       // continuaria marcada como pendente logo após salvar.
-      baselineRef.current = JSON.stringify(payload)
-      setSujo(false)
+      baselineRef.current = assinaturaGravada
+      autosaveFalhouRef.current = null
+      pendenteDesdeRef.current = null
+      // E NÃO `setSujo(false)` seco: com o autosave, a gravação corre em
+      // paralelo com o dentista marcando: o que chegou ao motor DEPOIS do
+      // `fichaCorrente()` acima não está neste payload. Dar a ficha por limpa
+      // aí deixaria essa marcação órfã — `collect()` só roda de novo se houver
+      // mutação nova, então nada a salvaria. Comparar contra o marco zero novo
+      // mantém o pendente pendente.
+      setSujo(JSON.stringify(fichaCorrente()) !== baselineRef.current)
     } catch (e) {
+      autosaveFalhouRef.current = assinaturaGravada
       setErroSalvar(errorMessage(e, 'Não foi possível salvar o odontograma.'))
     }
   }
+
+  /**
+   * AUTOSAVE DA FICHA CORRENTE DURANTE O ATENDIMENTO.
+   *
+   * Até aqui, tudo que era marcado numa sessão vivia só no motor (que é memória
+   * do módulo, sem persistência nenhuma) até o "Encerrar atendimento" — e o
+   * botão Salvar fica escondido justamente enquanto o atendimento está aberto.
+   * Um F5, uma aba fechada ou um crash no meio do exame levavam o atendimento
+   * inteiro junto.
+   *
+   * Grava SÓ a ficha corrente (patient_odontogram), que é sobrescrível por
+   * natureza — "como a boca está agora". O registro no prontuário
+   * (record_exam_session) continua exclusivo do encerramento: ele é imutável,
+   * dá baixa em estoque e nasce como um procedimento; uma linha nova a cada dois
+   * segundos seria lixo no histórico do paciente.
+   *
+   * Fora do atendimento nada muda: quem abre a ficha só para consultar continua
+   * salvando pelo botão, e um clique acidental não vira gravação silenciosa.
+   */
+  useEffect(() => {
+    if (!emAtendimento || !patientId || emHistorico) return
+    if (!sujo) { pendenteDesdeRef.current = null; return }
+    // Deixa a gravação em curso terminar: ela mesma reagenda o efeito ao sair
+    // do `isPending`, e o que tiver sobrado de pendente entra na próxima.
+    if (salvar.isPending) return
+    if (assinatura !== null && assinatura === autosaveFalhouRef.current) return
+
+    if (pendenteDesdeRef.current === null) pendenteDesdeRef.current = Date.now()
+    const espera = Math.max(0, Math.min(
+      AUTOSAVE_DEBOUNCE_MS,
+      pendenteDesdeRef.current + AUTOSAVE_MAX_MS - Date.now(),
+    ))
+    const id = window.setTimeout(() => { void salvarFicha() }, espera)
+    return () => window.clearTimeout(id)
+    // `salvarFicha` de fora: é recriada a cada render e entraria em laço. O
+    // timer usa a versão do render que o agendou, e o efeito reagenda a cada
+    // alteração (`assinatura`) — nunca é uma versão velha o bastante para
+    // importar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emAtendimento, patientId, emHistorico, sujo, assinatura, salvar.isPending])
 
   /**
    * "Sair sem salvar" pendente — troca de data e fechar a tela caem no MESMO

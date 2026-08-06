@@ -8,7 +8,7 @@ import { brToIsoDate, isoToBrDate } from '@/utils/date'
 import type { Patient, Gender } from '@/types/domain'
 
 const COLUMNS =
-  'id, clinic_id, code, name, common_name, cpf, phone, insurance_id, last_visit, status, photo_url, sex, birth_date, email, whatsapp, cep, state, city, neighborhood, street, number, insurance_card, insurance_card_valid_until, insurance_plan, cns, weight_kg, height_cm, bmi'
+  'id, clinic_id, code, name, common_name, cpf, phone, insurance_id, last_visit, status, photo_url, sex, birth_date, email, whatsapp, cep, state, city, neighborhood, street, number, insurance_card, insurance_card_valid_until, insurance_plan, cns, weight_kg, height_cm, bmi, guardian_patient_id'
 
 // Rótulo do "sem convênio": no banco é insurance_id NULL (não é linha de insurance).
 const PARTICULAR = 'Particular'
@@ -42,6 +42,7 @@ type PatientRow = {
   weight_kg: number | string | null
   height_cm: number | string | null
   bmi: number | string | null
+  guardian_patient_id: string | null
 }
 
 /** Convênios da clínica como mapa id→nome (o domínio usa o NOME). */
@@ -106,6 +107,7 @@ function toPatient(row: PatientRow, insMap: Map<string, string>): Patient {
     weightKg: row.weight_kg != null ? Number(row.weight_kg) : undefined,
     heightCm: row.height_cm != null ? Number(row.height_cm) : undefined,
     bmi: row.bmi != null ? Number(row.bmi) : undefined,
+    guardianPatientId: row.guardian_patient_id ?? undefined,
   }
 }
 
@@ -197,6 +199,9 @@ export interface EditPatient extends NewPatient {
   /** Vazio no formulário → null no banco (o IMC volta a ser null junto). */
   weightKg?: string
   heightCm?: string
+  /** Id de OUTRO paciente da mesma clínica, responsável por este. `null`
+   *  desfaz o vínculo (paciente volta a responder por si). */
+  guardianPatientId?: string | null
 }
 
 /** Atualiza o cadastro do paciente (inclui o convênio, resolvido para insurance_id). */
@@ -207,7 +212,7 @@ export async function updatePatient(id: string, payload: EditPatient): Promise<v
     firstName, lastName, commonName, birthDate, sex, email, phone, whatsapp,
     cep, state, city, neighborhood, street, number,
     insuranceCard, insuranceCardValidUntil, insurancePlan, cns,
-    weightKg, heightCm,
+    weightKg, heightCm, guardianPatientId,
   } = payload
   const { error } = await supabase
     .from('patient')
@@ -236,6 +241,9 @@ export async function updatePatient(id: string, payload: EditPatient): Promise<v
       // seja sempre o do peso corrente.
       weight_kg: medidaToDb(weightKg),
       height_cm: medidaToDb(heightCm),
+      // `undefined` (campo nem tocado no form) preserva o valor atual; só
+      // `null` explícito desfaz o vínculo — mesma distinção do resto do form.
+      ...(guardianPatientId !== undefined ? { guardian_patient_id: guardianPatientId } : {}),
     })
     .eq('id', id)
   if (error) throw error

@@ -248,6 +248,46 @@
   }
 }
 
+// Nome do responsável em modo leitura: parece com `dd` normal, mas navega.
+.linkValor {
+  @include focus-ring;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: $fs-sm;
+  font-weight: 500;
+  color: var(--primary-fg);
+  cursor: pointer;
+  text-align: left;
+
+  &:hover { text-decoration: underline; }
+}
+
+.dependentes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2;
+}
+
+.dependenteChip {
+  @include focus-ring;
+  padding: $sp-1 $sp-3;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-pill;
+  background: var(--bg-elevated);
+  font-size: $fs-sm;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.12s ease, color 0.12s ease;
+
+  &:hover {
+    border-color: var(--primary);
+    color: var(--primary-fg);
+  }
+}
+
 // ── Formulário de edição (ao lado do resumo) ─────────────────────────────────
 .formCard {
   @include card;

@@ -83,12 +83,34 @@ Deno.serve(async (request) => {
           ?? null;
         if (!phone || !body) continue;
 
-        const { data: patient } = await admin
+        // SEM `.maybeSingle()`: dois cadastros podem ter o MESMO whatsapp (ex.:
+        // filho cadastrado com o número do responsável) — `.maybeSingle()`
+        // nesse caso devolve `data: null` + um erro PGRST116 que ficava sem
+        // checagem nenhuma, então a mensagem sempre caía como "remetente
+        // desconhecido" mesmo quando dava pra saber quem era.
+        const { data: patientMatches, error: patientLookupError } = await admin
           .from("patient")
-          .select("id, name")
+          .select("id, name, guardian_patient_id")
           .eq("clinic_id", connection.clinic_id)
-          .eq("whatsapp", phone)
-          .maybeSingle();
+          .eq("whatsapp", phone);
+        if (patientLookupError) {
+          console.error("[evolution-webhook] busca de paciente por whatsapp falhou", patientLookupError);
+        }
+        const patientMatchList = patientMatches ?? [];
+        // Quem manda a mensagem é quem segura o celular — entre vários
+        // cadastros com o mesmo número, o titular (sem responsável) é o
+        // dono do aparelho, não o(s) dependente(s). Sobrando mais de um
+        // titular, a ambiguidade é real: melhor gravar sem paciente do que
+        // atribuir errado.
+        const patient = patientMatchList.length <= 1
+          ? patientMatchList[0] ?? null
+          : patientMatchList.find((p) => !p.guardian_patient_id) ?? null;
+        if (patientMatchList.length > 1) {
+          console.warn(
+            `[evolution-webhook] whatsapp ${phone} bate com ${patientMatchList.length} pacientes na clínica ${connection.clinic_id}`,
+            patientMatchList.map((p) => p.id),
+          );
+        }
 
         const { error } = await admin.from("whatsapp_inbound_message").insert({
           clinic_id: connection.clinic_id,

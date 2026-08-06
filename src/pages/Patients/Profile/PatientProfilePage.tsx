@@ -28,10 +28,13 @@ import { EntitlementPickerModal } from '@/components/EntitlementPickerModal/Enti
 import { useToast } from '@/components/Toast/Toast'
 import { errorMessage } from '@/utils/errors'
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog'
-import { SEX_OPTIONS, SEX_LABEL, APP_ROUTES } from '@/constants'
+import { SEX_OPTIONS, SEX_LABEL, APP_ROUTES, buildRoute } from '@/constants'
 import { useInsuranceOptions } from '@/hooks/useInsurances'
 import { usePatientEntitlements } from '@/hooks/usePatientEntitlements'
-import { usePatient, useUpdatePatient, useUpdatePatientPhoto, usePatientDeletionCheck, useRemovePatient} from '@/hooks/usePatients'
+import {
+  usePatient, usePatients, useUpdatePatient, useUpdatePatientPhoto, usePatientDeletionCheck, useRemovePatient,
+} from '@/hooks/usePatients'
+import { PatientPicker } from '@/components/PatientPicker/PatientPicker'
 import type { PatientDeletionCheck } from '@/services/patientsService'
 import { uploadImage } from '@/lib/storage'
 import { IconUser, IconEdit, IconPhone, IconMessage, IconEmail, IconCamera, IconCart, IconPlus, IconTrash} from '@/components/icons'
@@ -107,6 +110,8 @@ interface PatientFormState {
   neighborhood: string
   street: string
   number: string
+  /** Id de outro paciente responsável por este — null = responde por si. */
+  guardianPatientId: string | null
 }
 
 /** Monta o formulário a partir do cadastro atual (nome completo → nome + sobrenome). */
@@ -136,6 +141,7 @@ function formFromPatient(p: Patient): PatientFormState {
     neighborhood: p.neighborhood ?? '',
     street: p.street ?? '',
     number: p.number ?? '',
+    guardianPatientId: p.guardianPatientId ?? null,
   }
 }
 
@@ -146,6 +152,9 @@ export function PatientProfilePage() {
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false)
 
   const { data: patient, isLoading } = usePatient(id)
+  // Já carregada (Header/Agenda a mantêm quente) — usada só para resolver o
+  // NOME do responsável e listar quem tem ESTE paciente como responsável.
+  const { data: todosOsPacientes } = usePatients()
   // Se pode apagar, o que impede, e se quem está olhando é o dono. Uma
   // chamada só — as três respostas vêm juntas porque são a mesma pergunta.
   const { data: exclusao } = usePatientDeletionCheck(id ?? null)
@@ -209,9 +218,23 @@ export function PatientProfilePage() {
     )
   }
 
+  // Nome do responsável (edição já guarda só o id) e quem tem ESTE paciente
+  // como responsável — os dois resolvidos na lista da clínica já carregada,
+  // sem query extra.
+  const guardian = patient.guardianPatientId
+    ? (todosOsPacientes ?? []).find(p => p.id === patient.guardianPatientId) ?? null
+    : null
+  const dependentes = (todosOsPacientes ?? []).filter(p => p.guardianPatientId === patient.id)
+
   const set = (field: keyof PatientFormState) => (value: string) => {
     setForm(current => (current ? { ...current, [field]: value } : current))
     if (field === 'firstName') setNameError('')
+  }
+
+  /** `PatientPicker` devolve o paciente inteiro (ou null) — não uma string,
+   *  por isso fora do `set` genérico acima. */
+  function setGuardian(guardian: Patient | null) {
+    setForm(current => (current ? { ...current, guardianPatientId: guardian?.id ?? null } : current))
   }
 
   function openEdit() {
@@ -276,6 +299,7 @@ export function PatientProfilePage() {
           cns: form.cns.trim() || undefined,
           weightKg: form.weightKg,
           heightCm: form.heightCm,
+          guardianPatientId: form.guardianPatientId,
           cep: form.cep.trim() || undefined,
           state: form.state.trim().toUpperCase() || undefined,
           city: form.city.trim() || undefined,
@@ -576,6 +600,16 @@ export function PatientProfilePage() {
                 )}
               </section>
 
+              <section className={styles.formSection}>
+                <h3>Responsável</h3>
+                <PatientPicker
+                  value={form.guardianPatientId}
+                  onChange={setGuardian}
+                  excludeId={patient.id}
+                  placeholder="Este paciente responde por si (sem responsável)"
+                />
+              </section>
+
               {/* Medidas de REFERÊNCIA do cadastro. O peso aferido em cada
                   consulta continua na própria consulta — aqui é o valor de
                   partida, e o IMC vem calculado do banco. */}
@@ -647,6 +681,45 @@ export function PatientProfilePage() {
                 </dl>
               </section>
             ))}
+
+            {/* Fora do map de detailSections porque o valor não é texto —
+                é um link para o cadastro de outro paciente. */}
+            <section className={styles.formSection}>
+              <h3>Família</h3>
+              <dl className={styles.paresLargos}>
+                <div className={styles.par}>
+                  <dt>Responsável</dt>
+                  <dd>
+                    {guardian ? (
+                      <button
+                        type="button"
+                        className={styles.linkValor}
+                        onClick={() => navigate(buildRoute.patientProfile(guardian.id))}
+                      >
+                        {guardian.name}
+                      </button>
+                    ) : '—'}
+                  </dd>
+                </div>
+                {dependentes.length > 0 && (
+                  <div className={styles.par}>
+                    <dt>Dependentes</dt>
+                    <dd className={styles.dependentes}>
+                      {dependentes.map(dep => (
+                        <button
+                          key={dep.id}
+                          type="button"
+                          className={styles.dependenteChip}
+                          onClick={() => navigate(buildRoute.patientProfile(dep.id))}
+                        >
+                          {dep.name}
+                        </button>
+                      ))}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </section>
           </section>
           ))}
 

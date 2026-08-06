@@ -207,8 +207,33 @@ function podaSchema(node: unknown): unknown {
   return saida
 }
 
-function ferramentasGemini() {
-  return TOOLS.map(t => ({
+/**
+ * AS FERRAMENTAS QUE ESTA SESSÃO VAI CARREGAR — e não o catálogo inteiro.
+ *
+ * O cliente manda em `tools` a lista da superfície dele (ver
+ * src/lib/cibelly/toolSurface.ts: na cadeira não entra o fluxo de compras nem
+ * a busca por outro paciente; fora do odontograma não entram as de dente).
+ * É dinheiro: em API Live o schema é recobrado A CADA TURNO junto do prompt,
+ * as 22 ferramentas somam ~9.200 tokens e o Gemini Live não tem cache.
+ *
+ * O servidor só ESTREITA, nunca amplia: a lista do cliente é interseção com o
+ * catálogo daqui. Nome desconhecido é ignorado, lista vazia ou ausente cai no
+ * catálogo inteiro — sessão antiga (ou cliente em cache) continua funcionando
+ * como antes, sem ferramenta sumindo em silêncio.
+ */
+function ferramentasDaSessao(body: Record<string, unknown>) {
+  const pedidas = Array.isArray(body?.tools)
+    ? (body.tools as unknown[]).filter((t): t is string => typeof t === 'string')
+    : []
+  if (pedidas.length === 0) return TOOLS
+
+  const permitidas = new Set(pedidas)
+  const filtradas = TOOLS.filter(t => permitidas.has(t.name))
+  return filtradas.length > 0 ? filtradas : TOOLS
+}
+
+function ferramentasGemini(body: Record<string, unknown>) {
+  return ferramentasDaSessao(body).map(t => ({
     name: t.name,
     description: t.description,
     parameters: podaSchema(t.parameters),
@@ -1437,7 +1462,7 @@ Deno.serve(async req => {
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_VOICE } } },
       },
       systemInstruction: { parts: [{ text: instrucoes }] },
-      tools: [{ functionDeclarations: ferramentasGemini() }],
+      tools: [{ functionDeclarations: ferramentasGemini(body) }],
       // Os dois lados da conversa no painel de Atividade. O de SAÍDA é de graça
       // (vem do próprio áudio gerado); o de ENTRADA é o que custa.
       outputAudioTranscription: {},
@@ -1504,7 +1529,7 @@ Deno.serve(async req => {
         type: 'realtime',
         model: modeloPedido(body, MODELOS_OPENAI, REALTIME_MODEL),
         instructions: instrucoes,
-        tools: TOOLS,
+        tools: ferramentasDaSessao(body),
         tool_choice: 'auto',
         // Evita respostas longas acidentais sem apertar chamadas de ferramenta
         // ou respostas clínicas que realmente precisam de algum conteúdo.

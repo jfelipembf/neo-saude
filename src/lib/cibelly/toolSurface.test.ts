@@ -6,9 +6,45 @@ import { CIBELLY_TOOL_CATALOG, type CibellyToolName } from './toolCatalog'
 
 const TODAS = Object.keys(CIBELLY_TOOL_CATALOG) as CibellyToolName[]
 
-describe('superfície do odontograma', () => {
-  it('atende TODAS as ferramentas — é onde o desenho está montado', () => {
-    expect(toolsForSurface('odontogram')).toEqual(TODAS)
+// O ESCRITÓRIO — o que não se faz com um paciente na cadeira. Some do schema
+// da sessão do odontograma porque ele é recobrado a cada turno (ver o docblock
+// de toolSurface.ts), e continua a um pedal de distância na superfície global.
+const DO_ESCRITORIO = [
+  'consultar_pacientes',
+  'solicitar_orcamento_fornecedor',
+  'adicionar_ao_carrinho',
+  'consultar_carrinho',
+  'pedir_orcamento_do_carrinho',
+]
+
+describe('superfície do odontograma (a cadeira)', () => {
+  it('atende as ferramentas do paciente, sem o fluxo de escritório', () => {
+    expect(toolsForSurface('odontogram'))
+      .toEqual(TODAS.filter(tool => !DO_ESCRITORIO.includes(tool)))
+  })
+
+  it.each(DO_ESCRITORIO)('não carrega %s — é do pedal geral', tool => {
+    expect(toolAvailableOnSurface(tool, 'odontogram')).toBe(false)
+  })
+
+  // O material gasto é dito NA cadeira ("gastei uma resina") — é o registro que
+  // mais se perde quando não é feito na hora. Fica, mesmo sendo do mesmo
+  // domínio `inventory` do carrinho, que sai.
+  it.each([
+    'marcar_dente',
+    'ler_odontograma',
+    'consultar_materiais',
+    'registrar_material_usado',
+    'emitir_documento',
+    'consultar_financeiro_paciente',
+    'agendar_consulta',
+  ])('carrega %s', tool => {
+    expect(toolAvailableOnSurface(tool, 'odontogram')).toBe(true)
+  })
+
+  it('a recusa manda para o pedal geral, em vez de só negar', () => {
+    const frase = surfaceRefusal('adicionar_ao_carrinho', 'odontogram')
+    expect(frase).toContain('pedal geral')
   })
 })
 
@@ -71,7 +107,17 @@ describe('ferramenta nova herda a regra do domínio', () => {
   it('toda ferramenta do catálogo tem veredito nas duas superfícies', () => {
     for (const tool of TODAS) {
       expect(typeof toolAvailableOnSurface(tool, 'global')).toBe('boolean')
-      expect(toolAvailableOnSurface(tool, 'odontogram')).toBe(true)
+      expect(typeof toolAvailableOnSurface(tool, 'odontogram')).toBe('boolean')
+    }
+  })
+
+  // NENHUMA ferramenta pode ficar órfã: o que sai de uma superfície tem de
+  // existir na outra, senão o recorte não economiza — apaga função.
+  it('toda ferramenta do catálogo existe em pelo menos uma superfície', () => {
+    for (const tool of TODAS) {
+      expect(
+        toolAvailableOnSurface(tool, 'global') || toolAvailableOnSurface(tool, 'odontogram'),
+      ).toBe(true)
     }
   })
 })

@@ -21,6 +21,9 @@ interface PatientPickerProps {
   disabled?: boolean
   /** Trava a troca e explica por quê (ex.: atendimento em andamento). */
   lockedReason?: string
+  /** Some da lista e das sugestões — uso: escolher o RESPONSÁVEL de um
+   *  paciente, que não pode ser o próprio paciente. */
+  excludeId?: string
 }
 
 /**
@@ -38,9 +41,13 @@ interface PatientPickerProps {
  */
 export function PatientPicker({
   value, onChange, className, placeholder = 'Buscar paciente por nome, telefone ou CPF…',
-  disabled = false, lockedReason,
+  disabled = false, lockedReason, excludeId,
 }: PatientPickerProps) {
-  const { data: patients = [], isLoading } = usePatients()
+  const { data: todosOsPacientes = [], isLoading } = usePatients()
+  const patients = useMemo(
+    () => (excludeId ? todosOsPacientes.filter(p => p.id !== excludeId) : todosOsPacientes),
+    [todosOsPacientes, excludeId],
+  )
   const [aberto, setAberto] = useState(false)
   const [busca, setBusca] = useState('')
   const termo = useDebounce(busca)
@@ -54,13 +61,19 @@ export function PatientPicker({
 
   const sugestoes = useMemo(() => {
     const t = termo.trim()
+    // Dígitos do TERMO, não o tamanho dele: "lui" tem 3 letras e ZERO dígitos,
+    // e `''.includes('')` é sempre true em JS — sem checar o tamanho dos
+    // dígitos (e não do termo), esse branch passava a bater com QUALQUER
+    // paciente (todos têm telefone) assim que o termo chegasse a 3 letras,
+    // inundando as 8 sugestões e empurrando o nome buscado para fora da lista.
+    const digitosT = digitsOnly(t)
     // Sem termo, mostra os primeiros — abrir e ver uma lista vazia parece quebrado.
     const base = t
       ? patients.filter(p =>
           matchesSearch(p.name, t)
           || (p.commonName ? matchesSearch(p.commonName, t) : false)
-          || (t.length >= 3 && digitsOnly(p.phone).includes(digitsOnly(t)))
-          || (p.cpf ? digitsOnly(p.cpf).includes(digitsOnly(t)) : false),
+          || (digitosT.length > 0 && digitsOnly(p.phone).includes(digitosT))
+          || (digitosT.length > 0 && digitsOnly(p.cpf ?? '').includes(digitosT)),
         )
       : patients
     return base.slice(0, MAX_SUGESTOES)
